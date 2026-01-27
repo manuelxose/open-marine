@@ -1,0 +1,21 @@
+:host {
+  display: block;
+  width: 100%;
+}
+
+.strip {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  scrollbar-width: none; /* Hide scrollbar for clean look */
+}
+
+.strip::-webkit-scrollbar {
+  display: none;
+}
+
+/* Compact Overrides */
+:host-context(.compact) .strip {
+  gap: 8px;
+}

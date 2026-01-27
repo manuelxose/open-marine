@@ -1,0 +1,20 @@
+<div class="controls">
+  <div class="toggle-panel">
+    <button class="toggle" [class.active]="vm.autoCenter" (click)="onToggleAutoCenter()">
+      <span class="toggle-label">Auto-center</span>
+      <span class="toggle-state">{{ vm.autoCenter ? 'ON' : 'OFF' }}</span>
+    </button>
+    <button class="toggle" [class.active]="vm.showTrack" (click)="onToggleTrack()">
+      <span class="toggle-label">Track</span>
+      <span class="toggle-state">{{ vm.showTrack ? 'ON' : 'OFF' }}</span>
+    </button>
+    <button class="toggle" [class.active]="vm.showVector" (click)="onToggleVector()">
+      <span class="toggle-label">Vector</span>
+      <span class="toggle-state">{{ vm.showVector ? 'ON' : 'OFF' }}</span>
+    </button>
+  </div>
+
+  <button class="center-btn" (click)="onCenterOnBoat()" [disabled]="!vm.canCenter">
+    Center on Boat
+  </button>
+</div>

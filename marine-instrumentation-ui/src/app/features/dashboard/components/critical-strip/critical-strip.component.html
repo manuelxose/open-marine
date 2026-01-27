@@ -1,0 +1,9 @@
+<div class="strip">
+  <app-shared-instrument-tile
+    *ngFor="let item of vm.items"
+    [label]="item.label"
+    [value]="item.value"
+    [unit]="item.unit"
+    [tone]="item.tone"
+  ></app-shared-instrument-tile>
+</div>

@@ -1,0 +1,21 @@
+<div class="card">
+  <div class="card-header">
+    <div class="title-group">
+      <h3 class="title">{{ title }}</h3>
+      <span class="subtitle" *ngIf="subtitle">{{ subtitle }}</span>
+    </div>
+    <div
+      class="status-chip"
+      *ngIf="statusLabel"
+      [class.status-ok]="statusTone === 'ok'"
+      [class.status-warn]="statusTone === 'warn'"
+      [class.status-alert]="statusTone === 'alert'"
+    >
+      {{ statusLabel }}
+    </div>
+  </div>
+
+  <div class="card-content">
+    <ng-content></ng-content>
+  </div>
+</div>

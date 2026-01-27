@@ -1,0 +1,61 @@
+.wind-content {
+  display: flex;
+  flex-direction: column;
+}
+
+.metrics-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.metric-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.metric-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.metric-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--text-muted);
+}
+
+.metric-value-group {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.value {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 1.8rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1;
+}
+
+.value--large {
+  font-size: 2.4rem;
+}
+
+.unit {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+/* Compact Overrides */
+:host-context(.compact) .value {
+  font-size: 1.4rem;
+}
+
+:host-context(.compact) .value--large {
+  font-size: 1.8rem;
+}

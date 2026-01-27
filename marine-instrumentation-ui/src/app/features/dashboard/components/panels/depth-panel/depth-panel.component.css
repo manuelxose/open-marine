@@ -1,0 +1,53 @@
+.depth-content {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.main-metric {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+}
+
+.metric-value-group {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.value {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 5rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1;
+}
+
+.unit {
+  font-size: 1.5rem;
+  color: var(--text-muted);
+}
+
+.trend-container {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  opacity: 0.8;
+}
+
+/* Compact Overrides */
+:host-context(.compact) .value {
+  font-size: 3rem;
+}
+
+:host-context(.compact) .unit {
+  font-size: 1.1rem;
+}
+
+:host-context(.compact) .main-metric {
+  gap: 12px;
+}

@@ -1,0 +1,15 @@
+
+
+services:
+  signalk:
+    image: signalk/signalk-server:latest
+    container_name: signalk
+    entrypoint: ["/home/node/signalk/node_modules/signalk-server/bin/signalk-server"]
+    ports:
+      - "3000:3000"
+    environment:
+      - TZ=Europe/Madrid
+      - IS_IN_DOCKER=true
+    volumes:
+      - ./data:/home/node/.signalk
+    restart: unless-stopped

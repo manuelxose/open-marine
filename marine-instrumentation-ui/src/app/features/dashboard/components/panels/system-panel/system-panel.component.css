@@ -1,0 +1,16 @@
+.system-content {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.status-line {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
+/* Compact Overrides */
+:host-context(.compact) .status-line {
+  font-size: 0.8rem;
+}

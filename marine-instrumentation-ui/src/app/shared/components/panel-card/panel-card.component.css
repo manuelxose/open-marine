@@ -1,0 +1,83 @@
+:host {
+  display: block;
+}
+
+.card {
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: 24px;
+  padding: 24px;
+  box-shadow: var(--shadow);
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.title-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.title {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.subtitle {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.status-chip {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--chip-bg);
+  color: var(--text-muted);
+  border: 1px solid var(--panel-border);
+}
+
+.status-ok {
+  color: var(--status-online);
+  border-color: color-mix(in srgb, var(--status-online) 30%, var(--panel-border));
+}
+
+.status-warn {
+  color: #f3b13f;
+  border-color: rgba(243, 177, 63, 0.4);
+}
+
+.status-alert {
+  color: #f06352;
+  border-color: rgba(240, 99, 82, 0.4);
+}
+
+.card-content {
+  flex: 1;
+}
+
+/* Compact Overrides */
+:host-context(.compact) .card {
+  padding: 16px;
+  border-radius: 18px;
+  gap: 12px;
+}
+
+:host-context(.compact) .title {
+  font-size: 0.95rem;
+}

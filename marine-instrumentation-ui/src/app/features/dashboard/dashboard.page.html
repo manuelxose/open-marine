@@ -1,0 +1,56 @@
+<ng-container *ngIf="isCompact$ | async as isCompact">
+  <div class="dashboard" [class.compact]="isCompact">
+    <ng-container *ngIf="criticalVm$ | async as criticalVm">
+      <app-dashboard-critical-strip class="critical-strip" [vm]="criticalVm"></app-dashboard-critical-strip>
+    </ng-container>
+
+    <div class="panel-grid">
+      <ng-container *ngIf="navigationVm$ | async as navigationVm">
+        <app-dashboard-navigation-panel class="panel navigation" [vm]="navigationVm"></app-dashboard-navigation-panel>
+      </ng-container>
+      <ng-container *ngIf="windVm$ | async as windVm">
+        <app-dashboard-wind-panel class="panel wind" [vm]="windVm"></app-dashboard-wind-panel>
+      </ng-container>
+      <ng-container *ngIf="depthVm$ | async as depthVm">
+        <app-dashboard-depth-panel class="panel depth" [vm]="depthVm"></app-dashboard-depth-panel>
+      </ng-container>
+      <ng-container *ngIf="powerVm$ | async as powerVm">
+        <app-dashboard-power-panel class="panel power" [vm]="powerVm"></app-dashboard-power-panel>
+      </ng-container>
+      <ng-container *ngIf="systemVm$ | async as systemVm">
+        <app-dashboard-system-panel class="panel system" [vm]="systemVm"></app-dashboard-system-panel>
+      </ng-container>
+    </div>
+
+    <button
+      class="density-toggle"
+      type="button"
+      (click)="toggleDensity()"
+      [title]="isCompact ? 'Switch to Comfortable' : 'Switch to Compact'"
+    >
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+      >
+        <rect x="3" y="3" width="7" height="7" *ngIf="!isCompact"></rect>
+        <rect x="14" y="3" width="7" height="7" *ngIf="!isCompact"></rect>
+        <rect x="3" y="14" width="7" height="7" *ngIf="!isCompact"></rect>
+        <rect x="14" y="14" width="7" height="7" *ngIf="!isCompact"></rect>
+        <rect x="3" y="3" width="4" height="4" *ngIf="isCompact"></rect>
+        <rect x="10" y="3" width="4" height="4" *ngIf="isCompact"></rect>
+        <rect x="17" y="3" width="4" height="4" *ngIf="isCompact"></rect>
+        <rect x="3" y="10" width="4" height="4" *ngIf="isCompact"></rect>
+        <rect x="10" y="10" width="4" height="4" *ngIf="isCompact"></rect>
+        <rect x="17" y="10" width="4" height="4" *ngIf="isCompact"></rect>
+        <rect x="3" y="17" width="4" height="4" *ngIf="isCompact"></rect>
+        <rect x="10" y="17" width="4" height="4" *ngIf="isCompact"></rect>
+        <rect x="17" y="17" width="4" height="4" *ngIf="isCompact"></rect>
+      </svg>
+    </button>
+  </div>
+</ng-container>
