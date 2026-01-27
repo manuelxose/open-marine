@@ -1,0 +1,31 @@
+<div class="chart-page">
+  <ng-container *ngIf="canvasVm$ | async as canvasVm">
+    <app-chart-canvas class="chart-canvas" [vm]="canvasVm"></app-chart-canvas>
+  </ng-container>
+
+  <ng-container *ngIf="hudVm$ | async as hudVm">
+    <app-chart-hud class="chart-hud" [vm]="hudVm"></app-chart-hud>
+  </ng-container>
+
+  <div class="chart-side">
+    <ng-container *ngIf="controlsVm$ | async as controlsVm">
+      <app-chart-controls
+        [vm]="controlsVm"
+        (toggleAutoCenter)="handleToggleAutoCenter()"
+        (toggleTrack)="handleToggleTrack()"
+        (toggleVector)="handleToggleVector()"
+        (centerOnBoat)="handleCenterOnBoat()"
+      ></app-chart-controls>
+    </ng-container>
+
+    <ng-container *ngIf="waypointVm$ | async as waypointVm">
+      <app-chart-waypoint-list
+        [vm]="waypointVm"
+        (selectWaypoint)="handleSelectWaypoint($event)"
+        (renameWaypoint)="handleRenameWaypoint($event)"
+        (deleteWaypoint)="handleDeleteWaypoint($event)"
+        (clearActive)="handleClearActiveWaypoint()"
+      ></app-chart-waypoint-list>
+    </ng-container>
+  </div>
+</div>

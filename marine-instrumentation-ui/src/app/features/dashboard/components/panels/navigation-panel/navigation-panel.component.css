@@ -1,0 +1,79 @@
+.navigation-content {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.position-display {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px;
+  background: var(--chip-bg);
+  border-radius: 12px;
+  border: 1px solid var(--panel-border);
+}
+
+.coord {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 1.2rem;
+  color: var(--text-primary);
+  letter-spacing: 0.05em;
+}
+
+.metrics-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.metric-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.metric-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.metric-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--text-muted);
+}
+
+.metric-value-group {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.value {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 1.8rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height:1;
+}
+
+.unit {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+/* Compact Overrides */
+:host-context(.compact) .navigation-content {
+  gap: 12px;
+}
+
+:host-context(.compact) .value {
+  font-size: 1.4rem;
+}
+
+:host-context(.compact) .coord {
+  font-size: 1rem;
+}

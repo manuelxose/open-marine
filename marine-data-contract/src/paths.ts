@@ -1,0 +1,33 @@
+export const PATHS = {
+  navigation: {
+    position: "navigation.position",
+    speedOverGround: "navigation.speedOverGround",
+    courseOverGroundTrue: "navigation.courseOverGroundTrue",
+    headingTrue: "navigation.headingTrue",
+  },
+  environment: {
+    depth: {
+      belowTransducer: "environment.depth.belowTransducer",
+    },
+    wind: {
+      angleApparent: "environment.wind.angleApparent",
+      speedApparent: "environment.wind.speedApparent",
+    },
+  },
+  electrical: {
+    batteries: {
+      house: {
+        voltage: "electrical.batteries.house.voltage",
+        current: "electrical.batteries.house.current",
+      },
+    },
+  },
+} as const;
+
+type NestedValues<T> = T extends object
+  ? {
+      [K in keyof T]: NestedValues<T[K]>;
+    }[keyof T]
+  : T;
+
+export type SignalKPath = NestedValues<typeof PATHS>;

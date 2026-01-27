@@ -1,0 +1,34 @@
+<div class="waypoint-panel">
+  <div class="panel-title">Waypoints</div>
+  <div class="waypoint-list" *ngIf="vm.waypoints.length > 0; else emptyWaypoints">
+    <div
+      class="waypoint-item"
+      *ngFor="let waypoint of vm.waypoints"
+      [class.active]="vm.activeId === waypoint.id"
+    >
+      <button class="waypoint-select" type="button" (click)="onSelect(waypoint.id)">
+        {{ vm.activeId === waypoint.id ? 'Active' : 'Select' }}
+      </button>
+      <div class="waypoint-info">
+        <input
+          class="waypoint-name"
+          type="text"
+          [value]="waypoint.name"
+          (blur)="onRename(waypoint.id, $event)"
+          (keydown.enter)="onRename(waypoint.id, $event)"
+        />
+        <span class="waypoint-meta">{{ waypoint.positionLabel }}</span>
+      </div>
+      <button class="waypoint-delete" type="button" (click)="onDelete(waypoint.id)">
+        Delete
+      </button>
+    </div>
+  </div>
+  <ng-template #emptyWaypoints>
+    <div class="waypoint-empty">No waypoints</div>
+  </ng-template>
+
+  <button class="waypoint-clear" *ngIf="vm.activeId" (click)="onClearActive()">
+    Clear Active
+  </button>
+</div>

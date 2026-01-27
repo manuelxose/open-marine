@@ -1,0 +1,23 @@
+<app-shared-panel-card [title]="vm.title" [statusLabel]="vm.fixLabel" [statusTone]="vm.fixLabel === 'FIX' ? 'ok' : vm.fixLabel === 'STALE' ? 'warn' : 'alert'">
+  <div class="navigation-content">
+    <div class="position-display">
+      <div class="coord">{{ vm.position.lat }}</div>
+      <div class="coord">{{ vm.position.lon }}</div>
+    </div>
+
+    <div class="metrics-list">
+      <div class="metric-row" *ngFor="let m of vm.metrics">
+        <div class="metric-info">
+          <span class="metric-label">{{ m.label }}</span>
+          <div class="metric-value-group">
+            <span class="value">{{ m.value }}</span>
+            <span class="unit">{{ m.unit }}</span>
+          </div>
+        </div>
+        <div class="metric-trend" *ngIf="m.series && m.series.length > 0">
+          <app-shared-sparkline [data]="m.series" [width]="80" [height]="24"></app-shared-sparkline>
+        </div>
+      </div>
+    </div>
+  </div>
+</app-shared-panel-card>

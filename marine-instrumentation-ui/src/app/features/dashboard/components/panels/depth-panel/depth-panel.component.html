@@ -1,0 +1,18 @@
+<app-shared-panel-card [title]="vm.title">
+  <div class="depth-content">
+    <div class="main-metric" *ngFor="let m of vm.metrics">
+      <div class="metric-value-group">
+        <span class="value">{{ m.value }}</span>
+        <span class="unit">{{ m.unit }}</span>
+      </div>
+      <div class="trend-container" *ngIf="vm.series && vm.series.length > 0">
+        <app-shared-sparkline
+          [data]="vm.series"
+          [width]="240"
+          [height]="60"
+          stroke="var(--status-online)"
+        ></app-shared-sparkline>
+      </div>
+    </div>
+  </div>
+</app-shared-panel-card>

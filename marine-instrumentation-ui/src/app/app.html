@@ -1,0 +1,307 @@
+<div class="app-shell">
+  <header class="status-bar">
+    <div class="brand">
+      <div class="brand-mark">OMI</div>
+      <div class="brand-text">
+        <div class="brand-title">Open Marine Instrumentation</div>
+        <div class="brand-subtitle">Signal K Live Dashboard</div>
+      </div>
+    </div>
+
+    <div class="status">
+      <span
+        class="status-dot"
+        [class.connected]="(connection$ | async) === 'open'"
+      ></span>
+      <span class="status-text">{{ (connection$ | async) ?? 'closed' }}</span>
+    </div>
+
+    <div class="clock">{{ time$ | async }}</div>
+
+    <button class="theme-toggle" type="button" (click)="toggleDark()">
+      {{ isDark() ? 'Light' : 'Dark' }} Mode
+    </button>
+  </header>
+
+  <section
+    class="alarm-banner"
+    *ngIf="alarm$ | async as alarm"
+    [class.alarm-active]="alarm.active"
+    [class.alarm-ack]="alarm.acknowledged"
+    [class.alarm-warning]="alarm.active && alarm.severity === 'warning'"
+    [class.alarm-critical]="alarm.active && alarm.severity === 'critical'"
+  >
+    <div>
+      <div class="alarm-label">Alarms</div>
+      <div class="alarm-message">{{ alarm.message }}</div>
+    </div>
+    <div class="alarm-actions">
+      <span class="alarm-threshold" *ngIf="alarm.active && alarm.threshold">
+        Threshold {{ alarm.threshold }} {{ alarm.id === 'voltage' ? 'V' : 'm' }}
+      </span>
+      <span class="alarm-threshold" *ngIf="!alarm.active">System nominal</span>
+      <button
+        class="alarm-button"
+        type="button"
+        (click)="acknowledgeAlarm()"
+        [disabled]="!alarm.active || alarm.acknowledged"
+      >
+        {{ alarm.acknowledged ? 'Acknowledged' : 'Acknowledge' }}
+      </button>
+    </div>
+  </section>
+
+  <main class="dashboard">
+    <section
+      class="nav-panel"
+      *ngIf="fixQuality$ | async as fixQuality"
+      [class.quality-good]="fixQuality === 'good'"
+      [class.quality-suspect]="fixQuality === 'suspect'"
+      [class.quality-bad]="fixQuality === 'bad'"
+    >
+      <header class="panel-header">
+        <div>
+          <div class="panel-title">Navigation</div>
+          <div class="panel-subtitle">GPS Instrument</div>
+        </div>
+        <div class="fix-status">
+          <span class="quality-dot"></span>
+          <span class="quality-text">Fix {{ fixQuality | uppercase }}</span>
+        </div>
+      </header>
+
+      <div class="nav-grid">
+        <div class="card">
+          <h2>Position</h2>
+          <div class="value value--stack">
+            <span>{{ formatLatitude((position$ | async)?.value) }}</span>
+            <span>{{ formatLongitude((position$ | async)?.value) }}</span>
+          </div>
+          <div class="unit">WGS84</div>
+        </div>
+
+        <div class="card">
+          <h2>Depth</h2>
+          <div class="value">{{ formatNumber((depth$ | async)?.value) }}</div>
+          <div class="unit">m below transducer</div>
+        </div>
+
+        <div class="card">
+          <h2>SOG</h2>
+          <div class="value">{{ formatNumber((sog$ | async)?.value) }}</div>
+          <div class="unit">m/s</div>
+        </div>
+
+        <div class="card">
+          <h2>COG</h2>
+          <div class="value">{{ formatAngle((cog$ | async)?.value) }}</div>
+          <div class="unit">deg</div>
+          <div class="sub">Heading {{ formatAngle((heading$ | async)?.value) }} deg</div>
+        </div>
+
+        <div class="card">
+          <h2>Fix Quality</h2>
+          <div class="value value--small">{{ fixQuality | uppercase }}</div>
+          <div class="unit">Last fix status</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="wind-panel" *ngIf="windDisplay$ | async as wind">
+      <header class="panel-header">
+        <div>
+          <div class="panel-title">Wind</div>
+          <div class="panel-subtitle">Apparent Wind Instrument</div>
+        </div>
+      </header>
+
+      <div class="wind-grid">
+        <div class="card wind-card">
+          <h2>Apparent Wind Angle</h2>
+          <div
+            class="wind-dial"
+            [class.wind-dial--invalid]="wind.apparent.avgAngleDeg === null"
+          >
+            <div
+              class="wind-needle"
+              [style.transform]="'translateX(-50%) rotate(' + (wind.apparent.avgAngleDeg ?? 0) + 'deg)'"
+            ></div>
+            <div class="wind-center"></div>
+          </div>
+          <div class="wind-angle">{{ formatAngle(wind.apparent.avgAngle) }} deg</div>
+        </div>
+
+        <div class="wind-stats">
+          <div class="card">
+            <h2>Average</h2>
+            <div class="value">{{ formatNumber(wind.apparent.avgSpeed, 1) }}</div>
+            <div class="unit">m/s</div>
+          </div>
+
+          <div class="card">
+            <h2>Gust</h2>
+            <div class="value">{{ formatNumber(wind.apparent.gustSpeed, 1) }}</div>
+            <div class="unit">m/s</div>
+          </div>
+
+          <div class="card">
+            <h2>True Wind Speed</h2>
+            <div class="value">{{ formatNumber(wind.trueWind.tws, 1) }}</div>
+            <div class="unit">m/s</div>
+          </div>
+
+          <div class="card">
+            <h2>True Wind Angle</h2>
+            <div class="value">{{ formatAngle(wind.trueWind.twa) }}</div>
+            <div class="unit">deg</div>
+            <div class="sub" *ngIf="wind.trueWind.note">{{ wind.trueWind.note }}</div>
+          </div>
+
+          <div class="wind-bar">
+            <div class="wind-bar-track">
+              <div class="wind-bar-gust" [style.width.%]="wind.apparent.gustSpeedPct"></div>
+              <div class="wind-bar-avg" [style.width.%]="wind.apparent.avgSpeedPct"></div>
+            </div>
+            <div class="wind-bar-labels">
+              <span>Avg</span>
+              <span>Gust</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="energy-panel" *ngIf="energy$ | async as energy">
+      <header class="panel-header">
+        <div>
+          <div class="panel-title">Energy</div>
+          <div class="panel-subtitle">House Bank Monitoring</div>
+        </div>
+      </header>
+
+      <div class="energy-grid">
+        <div class="card">
+          <h2>Voltage</h2>
+          <div class="value">{{ formatNumber(energy.voltage, 2) }}</div>
+          <div class="unit">V</div>
+        </div>
+
+        <div class="card">
+          <h2>Current</h2>
+          <div class="value">{{ formatNumber(energy.current, 2) }}</div>
+          <div class="unit">A</div>
+          <div class="sub">{{ formatCurrentDirection(energy.current) }}</div>
+        </div>
+
+        <div class="card">
+          <h2>Power</h2>
+          <div class="value">{{ formatNumber(energy.power, 1) }}</div>
+          <div class="unit">W</div>
+        </div>
+
+        <div class="card">
+          <h2>Energy Used</h2>
+          <div class="value">{{ formatNumber(energy.energyAh, 1) }}</div>
+          <div class="unit">Ah (net)</div>
+        </div>
+
+        <div class="card">
+          <h2>State of Charge</h2>
+          <div class="value">{{ formatPercent(energy.soc, 0) }}</div>
+          <div class="unit">Estimate</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="diagnostics-panel" *ngIf="diagnostics$ | async as diagnostics">
+      <header class="panel-header">
+        <div>
+          <div class="panel-title">Diagnostics</div>
+          <div class="panel-subtitle">Data health and sources</div>
+        </div>
+        <div class="diagnostics-summary">
+          <div class="diagnostics-chip">
+            <div class="label">Avg Latency</div>
+            <div class="metric">{{ formatLatency(diagnostics.avgLatencyMs) }}</div>
+          </div>
+          <div class="diagnostics-chip">
+            <div class="label">Max Latency</div>
+            <div class="metric">{{ formatLatency(diagnostics.maxLatencyMs) }}</div>
+          </div>
+          <div class="diagnostics-chip">
+            <div class="label">Stale / Dead</div>
+            <div class="metric">
+              {{ diagnostics.staleCount }} / {{ diagnostics.deadCount }}
+            </div>
+          </div>
+          <div class="diagnostics-chip">
+            <div class="label">Updated</div>
+            <div class="metric">{{ formatTime(diagnostics.updatedAt) }}</div>
+          </div>
+        </div>
+      </header>
+
+      <div class="diagnostics-grid">
+        <div class="card diagnostics-card">
+          <h2>Latency</h2>
+          <div class="value value--split">
+            <span>{{ formatLatency(diagnostics.avgLatencyMs) }}</span>
+            <span>{{ formatLatency(diagnostics.maxLatencyMs) }}</span>
+          </div>
+          <div class="unit">avg / max</div>
+        </div>
+
+        <div class="card diagnostics-card">
+          <h2>Freshness</h2>
+          <div class="value value--split">
+            <span>{{ diagnostics.staleCount }}</span>
+            <span>{{ diagnostics.deadCount }}</span>
+          </div>
+          <div class="unit">stale / dead</div>
+          <div class="sub">Updated {{ formatTime(diagnostics.updatedAt) }}</div>
+        </div>
+      </div>
+
+      <div class="diagnostics-table">
+        <div class="diagnostics-row diagnostics-head">
+          <div class="diagnostics-cell">Path</div>
+          <div class="diagnostics-cell">Freshness</div>
+          <div class="diagnostics-cell">Latency</div>
+          <div class="diagnostics-cell">Source</div>
+          <div class="diagnostics-cell">Switches</div>
+          <div class="diagnostics-cell">Previous</div>
+          <div class="diagnostics-cell">Last Switch</div>
+        </div>
+
+        <div
+          class="diagnostics-row"
+          *ngFor="let entry of diagnostics.entries"
+          [class.diagnostics-row--stale]="entry.freshness === 'stale'"
+          [class.diagnostics-row--dead]="entry.freshness === 'dead'"
+        >
+          <div class="diagnostics-cell diagnostics-path">{{ entry.path }}</div>
+          <div class="diagnostics-cell diagnostics-freshness">
+            <span
+              class="freshness-dot"
+              [class.freshness-dot--fresh]="entry.freshness === 'fresh'"
+              [class.freshness-dot--stale]="entry.freshness === 'stale'"
+              [class.freshness-dot--dead]="entry.freshness === 'dead'"
+              [class.freshness-dot--unknown]="entry.freshness === 'unknown'"
+            ></span>
+            <span class="diagnostics-text">{{ entry.freshness }}</span>
+          </div>
+          <div class="diagnostics-cell">{{ formatLatency(entry.latencyMs) }}</div>
+          <div class="diagnostics-cell">{{ entry.sourceLabel }}</div>
+          <div class="diagnostics-cell">{{ entry.sourceSwitchCount }}</div>
+          <div class="diagnostics-cell">
+            {{ entry.previousSourceLabel ?? '--' }}
+          </div>
+          <div class="diagnostics-cell">
+            {{ formatTime(entry.lastSwitchTimestamp) }}
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+

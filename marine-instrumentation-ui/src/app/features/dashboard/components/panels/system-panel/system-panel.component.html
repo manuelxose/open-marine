@@ -1,0 +1,7 @@
+<app-shared-panel-card [title]="vm.title" [statusLabel]="vm.status" statusTone="ok">
+  <div class="system-content">
+    <div class="status-line" *ngFor="let line of vm.lines">
+      {{ line }}
+    </div>
+  </div>
+</app-shared-panel-card>

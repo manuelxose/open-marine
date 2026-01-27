@@ -1,0 +1,142 @@
+:host {
+  display: block;
+  height: 100vh;
+}
+
+.app-layout {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  height: 100vh;
+  transition: grid-template-columns 0.3s;
+}
+
+.app-layout:has(.sidenav.collapsed) {
+  grid-template-columns: 64px 1fr;
+}
+
+.sidenav {
+  background: var(--surface-1);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transition: width 0.3s;
+}
+
+.nav-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.nav-toggle {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: var(--text-2);
+  cursor: pointer;
+  border-radius: 8px;
+  transition: all 0.2s;
+}
+
+.nav-toggle:hover {
+  background: var(--surface-2);
+  color: var(--text-1);
+}
+
+.nav-brand {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--fg);
+  letter-spacing: 0.05em;
+}
+
+.nav-links {
+  display: flex;
+  flex-direction: column;
+  padding: 0.5rem 0;
+}
+
+.nav-link {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.875rem 1rem;
+  color: var(--text-2);
+  text-decoration: none;
+  transition: all 0.2s;
+  font-weight: 500;
+  border-left: 3px solid transparent;
+}
+
+.nav-link:hover {
+  background: var(--surface-2);
+  color: var(--text-1);
+}
+
+.nav-link.active {
+  background: var(--accent);
+  color: white;
+  border-left-color: rgba(255, 255, 255, 0.8);
+}
+
+.sidenav.collapsed .nav-link {
+  justify-content: center;
+  padding: 0.875rem 0;
+}
+
+.nav-text {
+  white-space: nowrap;
+}
+
+.main-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.content-area {
+  flex-grow: 1;
+  overflow: hidden;
+  background: var(--bg);
+  position: relative;
+  display: flex;
+}
+
+.page-container {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.page-container > router-outlet {
+  flex: 0 0 auto;
+  height: 0;
+}
+
+.page-container > *:not(router-outlet) {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+@media (max-width: 768px) {
+  .app-layout {
+    grid-template-columns: 64px 1fr;
+  }
+  
+  .nav-text {
+    display: none;
+  }
+  
+  .nav-brand {
+    display: none;
+  }
+}

@@ -1,0 +1,68 @@
+:host {
+  display: block;
+  flex: 1;
+  min-width: 0;
+}
+
+.tile {
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  padding: 12px 18px;
+  border-radius: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.tile-label {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.tile-content {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.value {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1;
+}
+
+.unit {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  text-transform: lowercase;
+}
+
+.tone-ok {
+  border-color: color-mix(in srgb, var(--status-online) 40%, var(--panel-border));
+}
+
+.tone-warn {
+  border-color: #f3b13f;
+  background: linear-gradient(135deg, rgba(243, 177, 63, 0.05) 0%, transparent 100%);
+}
+
+.tone-alert {
+  border-color: #f06352;
+  background: linear-gradient(135deg, rgba(240, 99, 82, 0.05) 0%, transparent 100%);
+}
+
+/* Compact Overrides */
+:host-context(.compact) .tile {
+  padding: 8px 14px;
+  border-radius: 10px;
+}
+
+:host-context(.compact) .value {
+  font-size: 1.25rem;
+}

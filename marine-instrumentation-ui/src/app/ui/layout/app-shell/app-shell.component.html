@@ -1,0 +1,84 @@
+<div class="app-layout">
+  <!-- Side Navigation -->
+  <nav class="sidenav" [class.collapsed]="navCollapsed">
+    <div class="nav-header">
+      <button class="nav-toggle" (click)="toggleNav()" title="Toggle menu">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="3" y1="12" x2="21" y2="12"></line>
+          <line x1="3" y1="6" x2="21" y2="6"></line>
+          <line x1="3" y1="18" x2="21" y2="18"></line>
+        </svg>
+      </button>
+      <span class="nav-brand" *ngIf="!navCollapsed">MFD</span>
+    </div>
+
+    <div class="nav-links">
+      <a routerLink="/dashboard" routerLinkActive="active" class="nav-link" title="Dashboard">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="3" width="7" height="7"></rect>
+          <rect x="14" y="3" width="7" height="7"></rect>
+          <rect x="14" y="14" width="7" height="7"></rect>
+          <rect x="3" y="14" width="7" height="7"></rect>
+        </svg>
+        <span class="nav-text" *ngIf="!navCollapsed">Dashboard</span>
+      </a>
+
+      <a routerLink="/chart" routerLinkActive="active" class="nav-link" title="Chart">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+          <circle cx="12" cy="10" r="3"></circle>
+        </svg>
+        <span class="nav-text" *ngIf="!navCollapsed">Chart</span>
+      </a>
+
+      <a routerLink="/instruments" routerLinkActive="active" class="nav-link" title="Instruments">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"></circle>
+          <polyline points="12 6 12 12 16 14"></polyline>
+        </svg>
+        <span class="nav-text" *ngIf="!navCollapsed">Instruments</span>
+      </a>
+
+      <a routerLink="/alarms" routerLinkActive="active" class="nav-link" title="Alarms">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+          <line x1="12" y1="9" x2="12" y2="13"></line>
+          <line x1="12" y1="17" x2="12.01" y2="17"></line>
+        </svg>
+        <span class="nav-text" *ngIf="!navCollapsed">Alarms</span>
+      </a>
+
+      <a routerLink="/diagnostics" routerLinkActive="active" class="nav-link" title="Diagnostics">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+        </svg>
+        <span class="nav-text" *ngIf="!navCollapsed">Diagnostics</span>
+      </a>
+
+      <a routerLink="/settings" routerLinkActive="active" class="nav-link" title="Settings">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="3"></circle>
+          <path d="M12 1v6m0 6v6m9-9h-6m-6 0H3m15.364 6.364l-4.243-4.243m-6 0l-4.242 4.243m12.728 0l-4.243-4.243m-6 0l-4.242-4.242"></path>
+        </svg>
+        <span class="nav-text" *ngIf="!navCollapsed">Settings</span>
+      </a>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <div class="main-container">
+    <app-top-bar 
+      [connected]="(connected$ | async) ?? false"
+      [isNight]="(theme$ | async) === 'night'"
+      (toggleTheme)="toggleTheme()"
+    ></app-top-bar>
+    
+    <app-alarm-banner></app-alarm-banner>
+    
+    <main class="content-area">
+      <div class="page-container">
+        <router-outlet></router-outlet>
+      </div>
+    </main>
+  </div>
+</div>
