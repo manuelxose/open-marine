@@ -65,6 +65,24 @@ export const selectAwa = (
   return selectPoint<number>(store, PATHS.environment.wind.angleApparent);
 };
 
+export const selectTws = (
+  store: DatapointStoreService,
+): Observable<DataPoint<number> | undefined> => {
+  return selectPoint<number>(store, PATHS.environment.wind.speedTrue);
+};
+
+export const selectTwd = (
+  store: DatapointStoreService,
+): Observable<DataPoint<number> | undefined> => {
+  return selectPoint<number>(store, PATHS.environment.wind.angleTrueGround);
+};
+
+export const selectTwa = (
+  store: DatapointStoreService,
+): Observable<DataPoint<number> | undefined> => {
+  return selectPoint<number>(store, PATHS.environment.wind.angleTrueWater);
+};
+
 export const selectBatteryVoltage = (
   store: DatapointStoreService,
 ): Observable<DataPoint<number> | undefined> => {

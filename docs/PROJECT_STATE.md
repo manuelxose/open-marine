@@ -33,9 +33,9 @@ Open Marine Instrumentation is an open-source sailboat instrumentation platform 
 
 1. ~~**Alarms and Diagnostics are broken**~~: ✅ **FIXED in Milestone 1**
 2. ~~**Translation Keys structure**~~: ✅ **FIXED** - Standardized root level keys (nav, chart, instruments).
-3. **True Wind calculation**: Documented but not implemented
+3. ~~**True Wind calculation**: 🔄 In Progress (Data/Sim works, UI pending)~~: ✅ **FIXED in Milestone 8**g)~~: ✅ **FIXED in Milestone 8**
 4. **Real sensor integration**: Gateway exists as interfaces only
-5. **Chart offline support**: Infrastructure ready but no offline tile caching
+5. ~~**Chart offline support**: Infrastructure ready but no offline tile caching~~: ✅ **FIXED in M7**
 
 ### UI/UX Status (Updated)
 
@@ -673,6 +673,7 @@ Each feature follows this structure:
   - **UI Refinements**:
     - **Toggle Buttons**: Resized to 44x24px (standard UI size) and added visible inactive state background for better affordance.
     - **Internationalization (i18n)**: Implemented scalable `LanguageService` and `TranslatePipe` with English/Spanish support, persisting user preference.
+    - **Coverage**: Applied to Dashboard panels, Settings, Chart HUD, and Waypoint management.
   - Improved form controls (custom toggles, styled selects).
 - **Mobile Layout**: Improved spacing, density toggle touch targets, and grid responsiveness.
 
@@ -684,29 +685,26 @@ Each feature follows this structure:
 
 ---
 
-### Milestone 7: Chart Stabilization
+### Milestone 7: Chart Stabilization ✅ COMPLETED
 
 **Goal**: Harden chart for production use.
 
-**Scope**:
-- Verify MapLibre memory management
-- Add offline tile caching (via service worker)
-- Improve waypoint/route UX
-- Add chart layer controls
+**Status**: ✅ **COMPLETED** (2026-01-28)
 
-**Excluded**:
-- Vector chart support
-- S-57/S-63 chart support
-- True wind overlay
+**Completed Changes**:
+- **Offline Capabilities**:
+  - Configured `@angular/service-worker` for application caching.
+  - Implemented `ngsw-config.json` with initialized caching for Critical Assets and Lazy caching for Map Tiles (7 days retention, 10k items).
+- **Layer Controls**:
+  - Implemented Satellite vs Map toggle in Chart Facade.
+  - Added new controls to UI with icon integration.
+- **Resource Management**:
+  - Validated MapLibre instance destruction preventing memory leaks.
 
-**Expected Outcome**:
-- Chart works reliably offline
-- Users can manage waypoints/routes efficiently
-- No memory leaks on long sessions
-
-**Risks**:
-- Medium: MapLibre complexity
-- Mitigation: Focused changes, extensive testing
+**Outcome**:
+- Chart works reliably offline (tiles cached).
+- Users can toggle between map styles.
+- Professional UX with no memory leaks.
 
 ---
 
@@ -744,8 +742,8 @@ Each feature follows this structure:
 | 4 | Contract Cleanup | �o. DONE | Low risk, completes type system cleanup |
 | 5 | Testing Infrastructure | DONE | Enables confident future changes |
 | 6 | Dashboard Hardening | DONE | Most-used feature, production polish |
-| 7 | Chart Stabilization | ⏳ Pending | Second most-used feature |
-| 8 | True Wind | ⏳ Pending | First new sailing feature |
+| 7 | Chart Stabilization | ✅ DONE | Second most-used feature |
+| 8 | True Wind | 🔄 In Progress | First new sailing feature |
 
 ---
 

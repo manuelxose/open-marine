@@ -13,6 +13,9 @@ export const PATHS = {
     wind: {
       angleApparent: "environment.wind.angleApparent",
       speedApparent: "environment.wind.speedApparent",
+      angleTrueGround: "environment.wind.angleTrueGround", // TWD (North referenced)
+      angleTrueWater: "environment.wind.angleTrueWater",   // TWA (Bow referenced)
+      speedTrue: "environment.wind.speedTrue",             // TWS
     },
   },
   electrical: {

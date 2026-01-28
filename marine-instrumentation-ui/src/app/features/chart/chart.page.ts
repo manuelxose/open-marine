@@ -41,6 +41,7 @@ export class ChartPage implements AfterViewInit, OnDestroy {
   readonly controlsVm$ = this.facade.controlsVm$;
   readonly hudVm$ = this.facade.hudVm$;
   readonly waypointVm$ = this.facade.waypointListVm$;
+  private readonly baseSourceSignal = toSignal(this.facade.baseSource$);
 
   private readonly vesselSignal = toSignal(this.facade.vesselUpdate$, {
     initialValue: { lngLat: null as [number, number] | null, rotationDeg: null },
@@ -49,6 +50,9 @@ export class ChartPage implements AfterViewInit, OnDestroy {
     initialValue: [] as [number, number][],
   });
   private readonly vectorSignal = toSignal(this.facade.vectorUpdate$, {
+    initialValue: { coords: [] as [number, number][], visible: false },
+  });
+  private readonly trueWindSignal = toSignal(this.facade.trueWindUpdate$, {
     initialValue: { coords: [] as [number, number][], visible: false },
   });
   private readonly centerSignal = toSignal(this.facade.mapCenter$, {
@@ -77,6 +81,11 @@ export class ChartPage implements AfterViewInit, OnDestroy {
     });
 
     effect(() => {
+      const wind = this.trueWindSignal();
+      this.engine.updateTrueWind(wind.coords, wind.visible);
+    });
+
+    effect(() => {
       this.engine.updateWaypoints(this.waypointsSignal());
     });
 
@@ -86,6 +95,13 @@ export class ChartPage implements AfterViewInit, OnDestroy {
 
     effect(() => {
       this.engine.updateView(this.centerSignal());
+    });
+
+    effect(() => {
+      const source = this.baseSourceSignal();
+      if (source) {
+        this.engine.setBaseSource(source);
+      }
     });
   }
 
@@ -99,6 +115,14 @@ export class ChartPage implements AfterViewInit, OnDestroy {
 
   handleToggleVector(): void {
     this.facade.toggleVector();
+  }
+
+  handleToggleTrueWind(): void {
+    this.facade.toggleTrueWind();
+  }
+
+  handleToggleLayer(): void {
+    this.facade.toggleLayer();
   }
 
   handleCenterOnBoat(): void {
@@ -128,7 +152,6 @@ export class ChartPage implements AfterViewInit, OnDestroy {
     }
 
     this.engine.setClickHandler((lngLat) => this.facade.addWaypointAt(lngLat));
-    this.engine.setBaseSource(this.facade.baseSourceConfig);
     this.engine.init(container, this.facade.initialView);
   }
 

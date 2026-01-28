@@ -6,12 +6,14 @@ export interface ChartSettings {
   autoCenter: boolean;
   showTrack: boolean;
   showVector: boolean;
+  showTrueWind: boolean;
 }
 
 const DEFAULT_SETTINGS: ChartSettings = {
   autoCenter: true,
   showTrack: true,
   showVector: true,
+  showTrueWind: false,
 };
 
 const STORAGE_KEY = 'omi-chart-settings';
@@ -55,6 +57,10 @@ export class ChartSettingsService {
 
   toggleVector(): void {
     this.update({ showVector: !this.settingsSubject.value.showVector });
+  }
+
+  toggleTrueWind(): void {
+    this.update({ showTrueWind: !this.settingsSubject.value.showTrueWind });
   }
 
   enableAutoCenter(): void {

@@ -17,6 +17,8 @@ export class ChartControlsComponent {
   @Output() toggleAutoCenter = new EventEmitter<void>();
   @Output() toggleTrack = new EventEmitter<void>();
   @Output() toggleVector = new EventEmitter<void>();
+  @Output() toggleTrueWind = new EventEmitter<void>();
+  @Output() toggleLayer = new EventEmitter<void>();
   @Output() centerOnBoat = new EventEmitter<void>();
 
   onToggleAutoCenter(): void {
@@ -29,6 +31,14 @@ export class ChartControlsComponent {
 
   onToggleVector(): void {
     this.toggleVector.emit();
+  }
+
+  onToggleTrueWind(): void {
+    this.toggleTrueWind.emit();
+  }
+
+  onToggleLayer(): void {
+    this.toggleLayer.emit();
   }
 
   onCenterOnBoat(): void {
