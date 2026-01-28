@@ -152,18 +152,18 @@ export class DashboardFacadeService {
   private readonly fixLabel$ = combineLatest([this.position$, this.tick$]).pipe(
     map(([point]) => {
       if (!point?.timestamp) {
-        return 'settings.dashboard.status.nofix';
+        return 'dashboard.status.nofix';
       }
       const ageMs = Date.now() - point.timestamp;
       if (ageMs > STALE_THRESHOLD_MS) {
-        return 'settings.dashboard.status.stale';
+        return 'dashboard.status.stale';
       }
       if (ageMs <= FIX_THRESHOLD_MS) {
-        return 'settings.dashboard.status.fix';
+        return 'dashboard.status.fix';
       }
-      return 'settings.dashboard.status.fix';
+      return 'dashboard.status.fix';
     }),
-    startWith('settings.dashboard.status.nofix'),
+    startWith('dashboard.status.nofix'),
     shareReplay({ bufferSize: 1, refCount: true }),
   );
 
@@ -198,12 +198,12 @@ export class DashboardFacadeService {
 
       return {
         items: [
-          stripItem('settings.dashboard.metrics.sog', sogMetric, 'neutral'),
-          stripItem('settings.dashboard.metrics.hdg', headingMetric, 'neutral'),
-          stripItem('settings.dashboard.metrics.depth', depthMetric, depthTone),
-          stripItem('settings.dashboard.metrics.aws', awsMetric, 'neutral'),
-          stripItem('settings.dashboard.metrics.awa', { value: formatAngleDegrees(coerceNumber(awa?.value)).value, unit: "°" }, 'neutral'),
-          stripItem('settings.dashboard.metrics.batt', voltageMetric, voltageTone),
+          stripItem('dashboard.metrics.sog', sogMetric, 'neutral'),
+          stripItem('dashboard.metrics.hdg', headingMetric, 'neutral'),
+          stripItem('dashboard.metrics.depth', depthMetric, depthTone),
+          stripItem('dashboard.metrics.aws', awsMetric, 'neutral'),
+          stripItem('dashboard.metrics.awa', { value: formatAngleDegrees(coerceNumber(awa?.value)).value, unit: "°" }, 'neutral'),
+          stripItem('dashboard.metrics.batt', voltageMetric, voltageTone),
         ],
         isLoading,
       } satisfies CriticalStripVm;
@@ -228,10 +228,10 @@ export class DashboardFacadeService {
       const cogMetric = formatAngleDegrees(coerceNumber(cog?.value));
       const headingMetric = formatAngleDegrees(coerceNumber(heading?.value));
       const statusTone: StatusTone =
-        fixLabel === 'settings.dashboard.status.fix' ? 'ok' : fixLabel === 'settings.dashboard.status.stale' ? 'warn' : 'alert';
+        fixLabel === 'dashboard.status.fix' ? 'ok' : fixLabel === 'dashboard.status.stale' ? 'warn' : 'alert';
 
       return {
-        title: 'settings.dashboard.panels.navigation',
+        title: 'dashboard.panels.navigation',
         fixLabel,
         statusTone,
         position: {
@@ -239,16 +239,16 @@ export class DashboardFacadeService {
           lon: formatCoordinate(position?.longitude ?? null, 'lon'),
         },
         metrics: [
-          { ...metric('settings.dashboard.metrics.sog', sogMetric), series: sogSeries },
-          metric('settings.dashboard.metrics.cog', cogMetric),
-          metric('settings.dashboard.metrics.hdg', headingMetric),
+          { ...metric('dashboard.metrics.sog', sogMetric), series: sogSeries },
+          metric('dashboard.metrics.cog', cogMetric),
+          metric('dashboard.metrics.hdg', headingMetric),
         ],
         isLoading,
       } satisfies NavigationPanelVm;
     }),
     startWith({
-      title: 'settings.dashboard.panels.navigation',
-      fixLabel: 'settings.dashboard.status.nofix',
+      title: 'dashboard.panels.navigation',
+      fixLabel: 'dashboard.status.nofix',
       statusTone: 'alert',
       position: { lat: '--', lon: '--' },
       metrics: [],
@@ -256,8 +256,8 @@ export class DashboardFacadeService {
     } satisfies NavigationPanelVm),
     this.withFallback<NavigationPanelVm>(
       {
-        title: 'settings.dashboard.panels.navigation',
-        fixLabel: 'settings.dashboard.status.nofix',
+        title: 'dashboard.panels.navigation',
+        fixLabel: 'dashboard.status.nofix',
         statusTone: 'alert',
         position: { lat: '--', lon: '--' },
         metrics: [],
@@ -276,16 +276,16 @@ export class DashboardFacadeService {
     isLoading: this.isLoading$,
   }).pipe(
     map(({ aws, awa, series, prefs, isLoading }) => ({
-      title: 'settings.dashboard.panels.wind',
+      title: 'dashboard.panels.wind',
       metrics: [
-        { ...metric('settings.dashboard.metrics.aws', formatSpeed(coerceNumber(aws?.value), prefs.speedUnit)), series },
-        metric('settings.dashboard.metrics.awa', formatAngleDegrees(coerceNumber(awa?.value))),
+        { ...metric('dashboard.metrics.aws', formatSpeed(coerceNumber(aws?.value), prefs.speedUnit)), series },
+        metric('dashboard.metrics.awa', formatAngleDegrees(coerceNumber(awa?.value))),
       ],
       primarySeries: series,
       isLoading,
     }) satisfies WindPanelVm),
-    startWith({ title: 'settings.dashboard.panels.wind', metrics: [], isLoading: true } satisfies WindPanelVm),
-    this.withFallback<WindPanelVm>({ title: 'settings.dashboard.panels.wind', metrics: [], isLoading: false }, 'wind panel'),
+    startWith({ title: 'dashboard.panels.wind', metrics: [], isLoading: true } satisfies WindPanelVm),
+    this.withFallback<WindPanelVm>({ title: 'dashboard.panels.wind', metrics: [], isLoading: false }, 'wind panel'),
     shareReplay({ bufferSize: 1, refCount: true }),
   );
 
@@ -296,18 +296,18 @@ export class DashboardFacadeService {
     isLoading: this.isLoading$,
   }).pipe(
     map(({ depth, series, prefs, isLoading }) => ({
-      title: 'settings.dashboard.panels.depth',
+      title: 'dashboard.panels.depth',
       metrics: [
         {
-          ...metric('settings.dashboard.metrics.depth', formatDepth(coerceNumber(depth?.value), prefs.depthUnit)),
+          ...metric('dashboard.metrics.depth', formatDepth(coerceNumber(depth?.value), prefs.depthUnit)),
           series,
         },
       ],
       series,
       isLoading,
     }) satisfies DepthPanelVm),
-    startWith({ title: 'settings.dashboard.panels.depth', metrics: [], isLoading: true } satisfies DepthPanelVm),
-    this.withFallback<DepthPanelVm>({ title: 'settings.dashboard.panels.depth', metrics: [], isLoading: false }, 'depth panel'),
+    startWith({ title: 'dashboard.panels.depth', metrics: [], isLoading: true } satisfies DepthPanelVm),
+    this.withFallback<DepthPanelVm>({ title: 'dashboard.panels.depth', metrics: [], isLoading: false }, 'depth panel'),
     shareReplay({ bufferSize: 1, refCount: true }),
   );
 
@@ -322,18 +322,18 @@ export class DashboardFacadeService {
       const amps = coerceNumber(current?.value);
       const power = volts !== null && amps !== null ? volts * amps : null;
       return {
-        title: 'settings.dashboard.panels.power',
+        title: 'dashboard.panels.power',
         metrics: [
-          { ...metric('settings.dashboard.metrics.voltage', formatVoltage(volts)), series },
-          metric('settings.dashboard.metrics.current', formatCurrent(amps)),
-          metric('settings.dashboard.metrics.power', formatPower(power)),
+          { ...metric('dashboard.metrics.voltage', formatVoltage(volts)), series },
+          metric('dashboard.metrics.current', formatCurrent(amps)),
+          metric('dashboard.metrics.power', formatPower(power)),
         ],
         series,
         isLoading,
       } satisfies PowerPanelVm;
     }),
-    startWith({ title: 'settings.dashboard.panels.power', metrics: [], isLoading: true } satisfies PowerPanelVm),
-    this.withFallback<PowerPanelVm>({ title: 'settings.dashboard.panels.power', metrics: [], isLoading: false }, 'power panel'),
+    startWith({ title: 'dashboard.panels.power', metrics: [], isLoading: true } satisfies PowerPanelVm),
+    this.withFallback<PowerPanelVm>({ title: 'dashboard.panels.power', metrics: [], isLoading: false }, 'power panel'),
     shareReplay({ bufferSize: 1, refCount: true }),
   );
 
@@ -353,37 +353,37 @@ export class DashboardFacadeService {
       const isStale = ageSeconds !== null && ageSeconds * 1000 > STALE_THRESHOLD_MS;
       const statusTone: StatusTone = !online || !connected ? 'alert' : isStale ? 'warn' : hasData ? 'ok' : 'neutral';
       const status = !online
-        ? 'settings.dashboard.status.offline'
+        ? 'dashboard.status.offline'
         : !connected
-          ? 'settings.dashboard.status.disconnected'
+          ? 'dashboard.status.disconnected'
           : !hasData
-            ? 'settings.dashboard.status.waiting'
+            ? 'dashboard.status.waiting'
             : isStale
-              ? 'settings.dashboard.status.stale'
-              : 'settings.dashboard.status.streaming';
+              ? 'dashboard.status.stale'
+              : 'dashboard.status.streaming';
 
       return {
-        title: 'settings.dashboard.panels.system',
+        title: 'dashboard.panels.system',
         status,
         statusTone,
         lines: [
-          { labelKey: 'settings.dashboard.system.updates_processed', value: updatesLabel },
-          { labelKey: 'settings.dashboard.system.last_update', value: `${ageLabel}s` },
+          { labelKey: 'dashboard.system.updates_processed', value: updatesLabel },
+          { labelKey: 'dashboard.system.last_update', value: `${ageLabel}s` },
         ],
         isLoading,
       } satisfies SystemPanelVm;
     }),
     startWith({
-      title: 'settings.dashboard.panels.system',
-      status: 'settings.dashboard.status.waiting',
+      title: 'dashboard.panels.system',
+      status: 'dashboard.status.waiting',
       statusTone: 'neutral',
       lines: [],
       isLoading: true,
     } satisfies SystemPanelVm),
     this.withFallback<SystemPanelVm>(
       {
-        title: 'settings.dashboard.panels.system',
-        status: 'settings.dashboard.status.error',
+        title: 'dashboard.panels.system',
+        status: 'dashboard.status.error',
         statusTone: 'alert',
         lines: [],
         isLoading: false,

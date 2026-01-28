@@ -1,5 +1,5 @@
 <div class="waypoint-panel">
-  <div class="panel-title">Waypoints</div>
+  <div class="panel-title">{{ 'chart.waypoints.title' | translate }}</div>
   <div class="waypoint-list" *ngIf="vm.waypoints.length > 0; else emptyWaypoints">
     <div
       class="waypoint-item"
@@ -7,7 +7,7 @@
       [class.active]="vm.activeId === waypoint.id"
     >
       <button class="waypoint-select" type="button" (click)="onSelect(waypoint.id)">
-        {{ vm.activeId === waypoint.id ? 'Active' : 'Select' }}
+        {{ (vm.activeId === waypoint.id ? 'chart.waypoints.active' : 'chart.waypoints.select') | translate }}
       </button>
       <div class="waypoint-info">
         <input
@@ -20,15 +20,15 @@
         <span class="waypoint-meta">{{ waypoint.positionLabel }}</span>
       </div>
       <button class="waypoint-delete" type="button" (click)="onDelete(waypoint.id)">
-        Delete
+        {{ 'chart.waypoints.delete' | translate }}
       </button>
     </div>
   </div>
   <ng-template #emptyWaypoints>
-    <div class="waypoint-empty">No waypoints</div>
+    <div class="waypoint-empty">{{ 'chart.waypoints.empty' | translate }}</div>
   </ng-template>
 
   <button class="waypoint-clear" *ngIf="vm.activeId" (click)="onClearActive()">
-    Clear Active
+    {{ 'chart.waypoints.clear_active' | translate }}
   </button>
 </div>

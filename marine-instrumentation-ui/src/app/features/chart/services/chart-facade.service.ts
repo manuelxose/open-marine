@@ -91,11 +91,11 @@ const coerceNumber = (value: unknown): number | null => {
 const fixStateLabel = (state: ChartFixState): string => {
   switch (state) {
     case 'fix':
-      return 'settings.dashboard.status.fix';
+      return 'dashboard.status.fix';
     case 'stale':
-      return 'settings.dashboard.status.stale';
+      return 'dashboard.status.stale';
     default:
-      return 'settings.dashboard.status.nofix';
+      return 'dashboard.status.nofix';
   }
 };
 
