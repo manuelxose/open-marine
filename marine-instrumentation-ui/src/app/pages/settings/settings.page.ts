@@ -113,10 +113,10 @@ import { TranslatePipe } from '../../shared/pipes/translate.pipe';
             <div *ngFor="let def of widgetDefs; trackBy: trackByWidget" class="widget-item">
               <div class="widget-info">
                 <div class="widget-header">
-                  <span class="widget-name">{{ def.title }}</span>
+                  <span class="widget-name">{{ def.title | translate }}</span>
                   <span class="widget-size">{{ def.size }}</span>
                 </div>
-                <span class="widget-description">{{ def.description }}</span>
+                <span class="widget-description">{{ def.description | translate }}</span>
               </div>
               <button 
                 (click)="toggleWidget(def.id)" 

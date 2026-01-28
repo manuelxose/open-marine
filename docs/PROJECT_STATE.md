@@ -31,11 +31,19 @@ Open Marine Instrumentation is an open-source sailboat instrumentation platform 
 
 ### What Is Unstable / Incomplete
 
-1. ~~**Alarms and Diagnostics are broken**~~: ✅ **FIXED in Milestone 1** - Now using DatapointStoreService
-2. **True Wind calculation**: Documented but not implemented
-3. **Real sensor integration**: Gateway exists as interfaces only
-4. **Chart offline support**: Infrastructure ready but no offline tile caching
-5. **Quality lifecycle**: Contract defines quality state machine but no implementation enforces it
+1. ~~**Alarms and Diagnostics are broken**~~: ✅ **FIXED in Milestone 1**
+2. ~~**Translation Keys structure**~~: ✅ **FIXED** - Standardized root level keys (nav, chart, instruments).
+3. **True Wind calculation**: Documented but not implemented
+4. **Real sensor integration**: Gateway exists as interfaces only
+5. **Chart offline support**: Infrastructure ready but no offline tile caching
+
+### UI/UX Status (Updated)
+
+**Refined Nautical Theme Implemented:**
+- **Palette**: Switched to high-contrast "Nord" inspired polar night colors for better legibility at sea.
+- **Sidenav**: Rebuilt for touch-friendliness (large 48px hit targets).
+- **Typography**: Space Grotesk/JetBrains Mono for technical clarity.
+- **Variables**: Standardized `--accent`, `--warn`, `--danger` for semantic messaging.
 
 ### Current Technical Health (Honest Assessment)
 

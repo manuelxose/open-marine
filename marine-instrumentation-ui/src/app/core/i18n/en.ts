@@ -32,6 +32,16 @@ export const en = {
     },
     widgets: {
       reset: 'Reset to Default Layout',
+      desc: {
+        navigation: 'SOG, COG, HDG, Position with trend',
+        wind: 'Apparent wind speed and angle',
+        depth: 'Depth below transducer with trend',
+        power: 'Battery voltage and current',
+        system: 'Connection status and diagnostics',
+        sog_simple: 'Speed over ground - compact',
+        heading_simple: 'True heading - compact',
+        depth_simple: 'Depth - compact',
+      },
     },
   },
   nav: {
