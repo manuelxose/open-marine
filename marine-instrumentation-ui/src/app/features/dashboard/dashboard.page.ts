@@ -1,6 +1,8 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { DashboardFacadeService } from './dashboard-facade.service';
+import { LayoutService } from '../../core/services/layout.service';
+import type { WidgetConfig } from '../../core/models/widget.models';
 import { CriticalStripComponent } from './components/critical-strip/critical-strip.component';
 import { NavigationPanelComponent } from './components/panels/navigation-panel/navigation-panel.component';
 import { WindPanelComponent } from './components/panels/wind-panel/wind-panel.component';
@@ -26,16 +28,29 @@ import { SystemPanelComponent } from './components/panels/system-panel/system-pa
 })
 export class DashboardPage {
   private readonly facade = inject(DashboardFacadeService);
+  private readonly layoutService = inject(LayoutService);
 
   readonly isCompact$ = this.facade.isCompact$;
+  readonly layout$ = this.layoutService.layout$;
+  
   readonly criticalVm$ = this.facade.criticalStripVm$;
   readonly navigationVm$ = this.facade.navigationVm$;
   readonly windVm$ = this.facade.windVm$;
   readonly depthVm$ = this.facade.depthVm$;
   readonly powerVm$ = this.facade.powerVm$;
   readonly systemVm$ = this.facade.systemVm$;
+  readonly statusVm$ = this.facade.statusVm$;
+  readonly errorMessage$ = this.facade.errorMessage$;
 
   toggleDensity(): void {
     this.facade.toggleDensity();
+  }
+
+  dismissError(): void {
+    this.facade.clearError();
+  }
+
+  isVisible(widgets: WidgetConfig[], id: string): boolean {
+    return widgets.find(w => w.id === id)?.visible ?? false;
   }
 }

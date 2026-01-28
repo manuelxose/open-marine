@@ -1,36 +1,68 @@
 :host {
   display: block;
   height: 100vh;
+  --nav-width: 260px;
+  --nav-collapsed-width: 72px;
 }
 
 .app-layout {
   display: grid;
-  grid-template-columns: 240px 1fr;
+  grid-template-columns: var(--nav-width) 1fr;
   height: 100vh;
-  transition: grid-template-columns 0.3s;
+  transition: grid-template-columns 0.3s cubic-bezier(0.2, 0, 0, 1);
+  background-color: var(--bg);
 }
 
 .app-layout:has(.sidenav.collapsed) {
-  grid-template-columns: 64px 1fr;
+  grid-template-columns: var(--nav-collapsed-width) 1fr;
 }
 
+/* Sidenav Container */
 .sidenav {
   background: var(--surface-1);
   border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  transition: width 0.3s;
+  position: relative;
+  z-index: 10;
+  box-shadow: var(--shadow);
 }
 
+/* Header Area */
 .nav-header {
+  height: 64px;
   display: flex;
   align-items: center;
-  gap: 1rem;
-  padding: 1rem;
+  padding: 0 1rem;
   border-bottom: 1px solid var(--border);
+  background: var(--surface-2);
 }
 
+.sidenav.collapsed .nav-header {
+  justify-content: center;
+  padding: 0;
+}
+
+/* Brand Text */
+.nav-brand {
+  font-size: 1.125rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-1);
+  margin-left: 1rem;
+  white-space: nowrap;
+  opacity: 1;
+  transition: opacity 0.2s;
+}
+
+.sidenav.collapsed .nav-brand {
+  display: none;
+  opacity: 0;
+}
+
+/* Toggle Button */
 .nav-toggle {
   width: 40px;
   height: 40px;
@@ -38,105 +70,154 @@
   align-items: center;
   justify-content: center;
   background: transparent;
-  border: none;
+  border: 1px solid transparent;
   color: var(--text-2);
   cursor: pointer;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   transition: all 0.2s;
 }
 
 .nav-toggle:hover {
-  background: var(--surface-2);
+  background: var(--surface-3);
   color: var(--text-1);
+  border-color: var(--border);
 }
 
-.nav-brand {
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: var(--fg);
-  letter-spacing: 0.05em;
+.nav-toggle:active {
+  transform: translateY(1px);
 }
 
+/* Navigation Links */
 .nav-links {
   display: flex;
   flex-direction: column;
-  padding: 0.5rem 0;
+  padding: 1rem 0.75rem;
+  gap: 0.5rem;
+  overflow-y: auto;
+  flex-grow: 1;
+  align-items: stretch; /* Force full width items */
 }
 
 .nav-link {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  padding: 0.875rem 1rem;
+  justify-content: flex-start; /* Explicitly align left */
+  height: 48px;
+  padding: 0 1rem; /* Balanced padding */
   color: var(--text-2);
   text-decoration: none;
-  transition: all 0.2s;
-  font-weight: 500;
-  border-left: 3px solid transparent;
+  border-radius: var(--radius);
+  transition: all 0.2s ease-out;
+  font-weight: 600;
+  font-size: 0.9375rem;
+  position: relative;
+  overflow: hidden;
+  width: 100%; /* Ensure link takes full container width */
 }
 
+/* Icon placeholder sizing if SVGs are used */
+.nav-link svg {
+  width: 24px;
+  height: 24px;
+  min-width: 24px; /* Prevent shrinking */
+  flex-shrink: 0;
+  stroke-width: 2px;
+  /* Ensure icon is centered in its own vertical axis */
+  display: block; 
+}
+
+.nav-text {
+  margin-left: 1rem;
+  white-space: nowrap;
+  opacity: 1;
+  flex-grow: 1; /* Allow text to take remaining space */
+  text-align: left; /* Ensure text is left aligned within its box */
+  transition: opacity 0.2s;
+}
+
+.sidenav.collapsed .nav-text {
+  display: none;
+  opacity: 0;
+}
+
+.sidenav.collapsed .nav-link {
+  justify-content: center;
+  padding: 0;
+  width: 48px;
+  align-self: center;
+}
+
+/* Hover States */
 .nav-link:hover {
   background: var(--surface-2);
   color: var(--text-1);
 }
 
+/* Active State - High Contrast Indicator */
 .nav-link.active {
   background: var(--accent);
-  color: white;
-  border-left-color: rgba(255, 255, 255, 0.8);
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(var(--accent), 0.3);
 }
 
-.sidenav.collapsed .nav-link {
-  justify-content: center;
-  padding: 0.875rem 0;
+.nav-link.active .text-muted {
+  color: rgba(255, 255, 255, 0.8) !important;
 }
 
-.nav-text {
-  white-space: nowrap;
+/* Status Footer area (optional) */
+.nav-footer {
+  padding: 1rem;
+  border-top: 1px solid var(--border);
+  background: var(--surface-2);
 }
 
+/* Content Area */
 .main-container {
   display: flex;
   flex-direction: column;
-  height: 100%;
+  height: 100vh;
   overflow: hidden;
+  position: relative;
 }
 
 .content-area {
-  flex-grow: 1;
+  flex: 1;
   overflow: hidden;
-  background: var(--bg);
   position: relative;
   display: flex;
+  flex-direction: column;
 }
 
 .page-container {
   flex: 1;
-  min-height: 0;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
 }
 
-.page-container > router-outlet {
-  flex: 0 0 auto;
-  height: 0;
-}
-
-.page-container > *:not(router-outlet) {
-  flex: 1 1 auto;
-  min-height: 0;
-}
-
+/* Mobile Responsive */
 @media (max-width: 768px) {
+  :host {
+    --nav-collapsed-width: 0px; /* Hide completely on mobile when collapsed */
+  }
+
   .app-layout {
-    grid-template-columns: 64px 1fr;
+    grid-template-columns: 1fr; /* Stack or slide-over */
+  }
+
+  /* When expanded on mobile, it should arguably be an overlay, 
+     but for this layout, we'll keep simple column logic or hide it.
+     Better nautical UX: fixed bottom bar on mobile, but preserving sidebar logic here. */
+  
+  .sidenav {
+    position: absolute;
+    height: 100%;
+    width: var(--nav-width);
+    transform: translateX(-100%);
+    transition: transform 0.3s;
   }
   
-  .nav-text {
-    display: none;
-  }
-  
-  .nav-brand {
-    display: none;
+  .sidenav:not(.collapsed) {
+    transform: translateX(0);
   }
 }

@@ -7,7 +7,7 @@
 .main-metric {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 1rem;
   align-items: center;
   justify-content: center;
   flex: 1;
@@ -16,32 +16,38 @@
 .metric-value-group {
   display: flex;
   align-items: baseline;
-  gap: 12px;
+  gap: 0.5rem;
+  margin-top: -1rem; /* Visual balancing */
 }
 
 .value {
   font-family: 'Share Tech Mono', monospace;
-  font-size: 5rem;
-  font-weight: 700;
+  font-size: 6rem;
+  font-weight: 500;
   color: var(--text-primary);
-  line-height: 1;
+  line-height: 0.9;
+  letter-spacing: -0.05em;
+  text-shadow: 0 4px 12px rgba(0,0,0,0.1);
 }
 
 .unit {
   font-size: 1.5rem;
+  font-weight: 500;
   color: var(--text-muted);
+  transform: translateY(-1rem);
 }
 
 .trend-container {
   width: 100%;
   display: flex;
   justify-content: center;
-  opacity: 0.8;
+  opacity: 0.6;
+  margin-top: 1rem;
 }
 
 /* Compact Overrides */
 :host-context(.compact) .value {
-  font-size: 3rem;
+  font-size: 4rem;
 }
 
 :host-context(.compact) .unit {
@@ -49,5 +55,5 @@
 }
 
 :host-context(.compact) .main-metric {
-  gap: 12px;
+  gap: 0.5rem;
 }

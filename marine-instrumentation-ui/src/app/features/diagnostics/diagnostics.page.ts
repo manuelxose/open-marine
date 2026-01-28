@@ -1,25 +1,26 @@
 import { Component, ChangeDetectionStrategy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { TranslatePipe } from '../../shared/pipes/translate.pipe';
 import { DiagnosticsFacadeService, type DiagnosticsRow } from './diagnostics-facade.service';
 
 @Component({
   selector: 'app-diagnostics-page',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, TranslatePipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="diag-page">
       <div class="toolbar">
         <input
           type="text"
-          placeholder="Filter paths..."
+          [placeholder]="'diagnostics.page.search_placeholder' | translate"
           class="search-input"
           [ngModel]="facade.filterText()"
           (ngModelChange)="facade.setFilter($event)"
         />
         <div class="stats">
-          Showing {{ facade.vm().filteredCount }} of {{ facade.vm().totalCount }} points
+          {{ 'diagnostics.page.stats.showing' | translate }} {{ facade.vm().filteredCount }} {{ 'diagnostics.page.stats.of' | translate }} {{ facade.vm().totalCount }} {{ 'diagnostics.page.stats.points' | translate }}
         </div>
       </div>
 
@@ -27,10 +28,10 @@ import { DiagnosticsFacadeService, type DiagnosticsRow } from './diagnostics-fac
         <table class="diag-table">
           <thead>
             <tr>
-              <th>Path</th>
-              <th>Value</th>
-              <th>Age</th>
-              <th>Source</th>
+              <th>{{ 'diagnostics.page.table.path' | translate }}</th>
+              <th>{{ 'diagnostics.page.table.value' | translate }}</th>
+              <th>{{ 'diagnostics.page.table.age' | translate }}</th>
+              <th>{{ 'diagnostics.page.table.source' | translate }}</th>
             </tr>
           </thead>
           <tbody>

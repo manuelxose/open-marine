@@ -1,10 +1,10 @@
 <div class="chart-canvas">
   <div #mapContainer class="map-container"></div>
   <div class="canvas-overlay">
-    <div class="canvas-title">Chart View</div>
+    <div class="canvas-title">{{ 'chart.view.title' | translate }}</div>
     <div class="canvas-subtitle">
-      {{ vm.statusLabel }} - Center {{ vm.centerLabel }}
+      {{ vm.statusLabelKey | translate }} - {{ 'chart.view.center' | translate }} {{ vm.centerLabel }}
     </div>
-    <div class="canvas-hint">Click the chart to drop a waypoint.</div>
+    <div class="canvas-hint">{{ 'chart.view.hint' | translate }}</div>
   </div>
 </div>

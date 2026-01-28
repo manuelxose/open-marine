@@ -1,7 +1,13 @@
-<app-shared-panel-card [title]="vm.title" [statusLabel]="vm.status" statusTone="ok">
+<app-shared-panel-card
+  [title]="vm.title | translate"
+  [statusLabel]="vm.status | translate"
+  [statusTone]="vm.statusTone"
+  [loading]="vm.isLoading"
+  [error]="vm.error"
+>
   <div class="system-content">
-    <div class="status-line" *ngFor="let line of vm.lines">
-      {{ line }}
+    <div class="status-line" *ngFor="let line of vm.lines; trackBy: trackByLine">
+      {{ line.labelKey | translate }}: {{ line.value }}
     </div>
   </div>
 </app-shared-panel-card>

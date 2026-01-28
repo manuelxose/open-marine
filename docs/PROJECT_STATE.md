@@ -1,7 +1,7 @@
 # Project State Analysis
 
 **Date:** 2026-01-28
-**Last Updated:** 2026-01-28 (After Milestone 3)
+**Last Updated:** 2026-01-28 (After Milestone 6)
 **Purpose:** Comprehensive technical assessment for architectural cleanup and future development planning
 
 ---
@@ -31,11 +31,19 @@ Open Marine Instrumentation is an open-source sailboat instrumentation platform 
 
 ### What Is Unstable / Incomplete
 
-1. ~~**Alarms and Diagnostics are broken**~~: ✅ **FIXED in Milestone 1** - Now using DatapointStoreService
-2. **True Wind calculation**: Documented but not implemented
-3. **Real sensor integration**: Gateway exists as interfaces only
-4. **Chart offline support**: Infrastructure ready but no offline tile caching
-5. **Quality lifecycle**: Contract defines quality state machine but no implementation enforces it
+1. ~~**Alarms and Diagnostics are broken**~~: ✅ **FIXED in Milestone 1**
+2. ~~**Translation Keys structure**~~: ✅ **FIXED** - Standardized root level keys (nav, chart, instruments).
+3. **True Wind calculation**: Documented but not implemented
+4. **Real sensor integration**: Gateway exists as interfaces only
+5. **Chart offline support**: Infrastructure ready but no offline tile caching
+
+### UI/UX Status (Updated)
+
+**Refined Nautical Theme Implemented:**
+- **Palette**: Switched to high-contrast "Nord" inspired polar night colors for better legibility at sea.
+- **Sidenav**: Rebuilt for touch-friendliness (large 48px hit targets).
+- **Typography**: Space Grotesk/JetBrains Mono for technical clarity.
+- **Variables**: Standardized `--accent`, `--warn`, `--danger` for semantic messaging.
 
 ### Current Technical Health (Honest Assessment)
 
@@ -122,14 +130,12 @@ Open Marine Instrumentation is an open-source sailboat instrumentation platform 
 **Key Exports**:
 - `DataPoint<T>` - Generic wrapper for all marine data
 - `PATHS` - Signal K path constants with type inference
-- `QualityFlag` - Data quality enum (good/suspect/bad)
+- `QualityFlag` - Data quality enum (good/warn/bad)
 - `normalizeTimestamp()` - Clock drift handling
 - Unit conversion utilities
 
 **Issues**:
-- 10 unused exports (type aliases, utility functions)
-- `navigation.headingMagnetic` used in UI but not defined in PATHS
-- Quality type mismatch: contract uses `suspect`, UI uses `warn`
+- None currently identified after Milestone 4 cleanup
 
 #### marine-data-simulator (7 source files, ~700 lines)
 
@@ -298,12 +304,14 @@ Open Marine Instrumentation is an open-source sailboat instrumentation platform 
 
 ### 3.5 Contract-UI Misalignment
 
+**Status**: Resolved in Milestone 4 (2026-01-28)
+
 | Issue | Contract | UI | Impact |
 |-------|----------|-----|--------|
-| Quality enum naming | `QualityFlag.Suspect` | `DataQuality = 'warn'` | Semantic mismatch |
-| Path usage | `PATHS` constant | Hardcoded strings in some components | Type safety loss |
-| Type aliases | `Angle`, `Speed`, `Depth` defined | Not imported anywhere | Unused code |
-| Source validity | `isSourceValid()` defined | Never called | Feature not implemented |
+| Quality enum naming | `QualityFlag.Warn` | `DataQuality = 'warn'` | Resolved (M4) |
+| Path usage | `PATHS` constant | PATHS-only usage | Resolved (M4) |
+| Type aliases | Removed from contract | Not imported | Removed (M4) |
+| Source validity | Removed from contract | Never called | Removed (M4) |
 
 ### 3.6 Risk Areas
 
@@ -610,24 +618,18 @@ Each feature follows this structure:
 
 **Goal**: Remove unused code from contract, align types.
 
-**Scope**:
-- Remove unused type aliases (Angle, Speed, Depth, Voltage, Current)
-- Remove unused functions (isSourceValid, normalizeSourceRef, etc.)
-- Align QualityFlag naming with UI (or vice versa)
-- Enforce PATHS constant usage in all UI components
+**Status**: ƒo. **COMPLETED** (2026-01-28)
 
-**Excluded**:
-- No functional changes
-- No new path additions
+**Completed Changes**:
+- ƒo. Removed unused contract type aliases (Angle, Speed, Depth, Voltage, Current)
+- ƒo. Removed unused source utilities (normalizeSourceRef, isSourceValid, source defaults)
+- ƒo. Aligned QualityFlag naming with UI (`Suspect` -> `Warn`) and updated lifecycle helpers
+- ƒo. Replaced remaining UI Signal K string literals with PATHS constants (widgets + instruments)
 
-**Expected Outcome**:
-- Minimal, focused contract package
-- Consistent type usage across packages
-- No string literals for Signal K paths
-
-**Risks**:
-- Low: Contract is well-isolated
-- Breaking changes require rebuild of consuming packages
+**Outcome**:
+- Contract surface reduced to active types/utilities
+- Quality naming aligned with UI expectations
+- UI references Signal K paths through PATHS exclusively
 
 ---
 
@@ -635,51 +637,50 @@ Each feature follows this structure:
 
 **Goal**: Establish automated testing baseline.
 
-**Scope**:
-- Configure Vitest for marine-data-contract
-- Add unit tests for navigation calculations
-- Add unit tests for timestamp normalization
-- Configure test coverage reporting
+**Status**: COMPLETED (2026-01-28)
 
-**Excluded**:
-- UI component tests (defer to M6)
-- Integration tests
-- E2E tests
+**Completed Changes**:
+- Added Vitest config + scripts for marine-data-contract (with coverage reporting)
+- Added normalizeTimestamp unit tests
+- Expanded navigation calculation unit tests (bearing/distance + projection)
 
-**Expected Outcome**:
-- Core logic has test coverage
-- CI can run tests on PR
-- Foundation for future test expansion
-
-**Risks**:
-- Medium: Requires time investment
-- Mitigation: Focus on critical path calculations only
+**Outcome**:
+- marine-data-contract has runnable unit tests with coverage reporting
+- Navigation math and timestamp normalization are covered by tests
+- Baseline established for future CI integration
 
 ---
 
-### Milestone 6: Dashboard Hardening
+### Milestone 6: Dashboard Hardening & UI/UX Overhaul
 
-**Goal**: Polish dashboard for production use.
+**Goal**: Polish dashboard for production use and major UI/UX improvements.
 
-**Scope**:
-- Add error boundaries to prevent cascade failures
-- Add loading states for slow connections
-- Add offline indicator
-- Improve mobile responsiveness
-- Performance optimization (change detection)
+**Status**: COMPLETED (2026-01-28)
 
-**Excluded**:
-- New features
-- Chart changes
-- Alarm changes
+**Completed Changes**:
+- **Status/Error Banners**: Added dashboard banners for offline/stream errors with pulse animations for alerts ✅
+- **Loading States**: Replaced text overlays with centered spinners & content blur for better UX ✅
+- **Dashboard Cards UI**:
+  - **Navigation**: Structured grid layout, distinct coordinate box, and high-visibility typography.
+  - **Wind**: Grid layout with massive font size for AWS, maximizing readability.
+  - **Depth**: Increased font size (6rem) for critical depth readability.
+  - **Power**: Clean list layout with improved spacing and hierarchy.
+  - **System**: Terminal-style styling with scrollable log view.
+- **Settings Page Overhaul**:
+  - Fixed responsive layout (removed fixed width, added mobile adaptations).
+  - **Scroll Fix**: Added correct `:host` display/height properties to enable internal scrolling within the app shell.
+  - Applied correct theme variables (`--bg`, `--panel`, `--text-primary`) for consistent Dark/Light mode.
+  - **UI Refinements**:
+    - **Toggle Buttons**: Resized to 44x24px (standard UI size) and added visible inactive state background for better affordance.
+    - **Internationalization (i18n)**: Implemented scalable `LanguageService` and `TranslatePipe` with English/Spanish support, persisting user preference.
+  - Improved form controls (custom toggles, styled selects).
+- **Mobile Layout**: Improved spacing, density toggle touch targets, and grid responsiveness.
 
-**Expected Outcome**:
-- Dashboard resilient to connection issues
-- Better UX on mobile devices
-- Smooth 60fps updates
-
-**Risks**:
-- Low: Incremental improvements
+**Outcome**:
+- Professional, marine-grade instrument look and feel.
+- Settings page is now fully responsive and theme-consistent.
+- improved readability of all critical data points.
+- Dashboard remains usable under slow or offline conditions.
 
 ---
 
@@ -740,9 +741,9 @@ Each feature follows this structure:
 | 1 | Critical Fixes | ✅ DONE | Safety issue (alarms), must be first |
 | 2 | Dead Code Removal | ✅ DONE | Reduces confusion for all future work |
 | 3 | Architectural Alignment | ✅ DONE | Establishes patterns before more features |
-| 4 | Contract Cleanup | 🔄 NEXT | Low risk, completes type system cleanup |
-| 5 | Testing Infrastructure | ⏳ Pending | Enables confident future changes |
-| 6 | Dashboard Hardening | ⏳ Pending | Most-used feature, production polish |
+| 4 | Contract Cleanup | �o. DONE | Low risk, completes type system cleanup |
+| 5 | Testing Infrastructure | DONE | Enables confident future changes |
+| 6 | Dashboard Hardening | DONE | Most-used feature, production polish |
 | 7 | Chart Stabilization | ⏳ Pending | Second most-used feature |
 | 8 | True Wind | ⏳ Pending | First new sailing feature |
 
@@ -784,7 +785,18 @@ Deleted (22 files, 4,379 lines):
 
 ---
 
-**Document Version**: 3.0
+**Document Version**: 6.0
 **Author**: AI Architecture Analysis
-**Last Updated**: 2026-01-28 (After Milestone 3)
-**Next Review**: After Milestone 4 completion
+**Last Updated:** 2026-01-28 (After Milestone 6)
+**Next Review**: After Milestone 7 completion
+
+
+
+
+
+
+
+
+
+
+

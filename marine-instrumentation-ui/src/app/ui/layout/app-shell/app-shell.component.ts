@@ -5,11 +5,12 @@ import { TopBarComponent } from '../top-bar/top-bar.component';
 import { AlarmBannerComponent } from '../alarm-banner/alarm-banner.component';
 import { ThemeService } from '../../../core/theme/theme.service';
 import { SignalKClientService } from '../../../data-access/signalk/signalk-client.service';
+import { TranslatePipe } from '../../../shared/pipes/translate.pipe';
 
 @Component({
   selector: 'app-app-shell',
   standalone: true,
-  imports: [CommonModule, RouterModule, TopBarComponent, AlarmBannerComponent],
+  imports: [CommonModule, RouterModule, TopBarComponent, AlarmBannerComponent, TranslatePipe],
   templateUrl: './app-shell.component.html',
   styleUrls: ['./app-shell.component.css'],
   changeDetection: ChangeDetectionStrategy.OnPush,

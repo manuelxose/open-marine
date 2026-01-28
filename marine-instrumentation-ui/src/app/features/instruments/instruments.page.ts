@@ -1,5 +1,6 @@
 import { Component, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { TranslatePipe } from '../../shared/pipes/translate.pipe';
 import { SogInstrumentComponent } from '../../ui/instruments/sog/sog-instrument.component';
 import { HeadingInstrumentComponent } from '../../ui/instruments/heading/heading-instrument.component';
 import { DepthInstrumentComponent } from '../../ui/instruments/depth/depth-instrument.component';
@@ -7,13 +8,13 @@ import { DepthInstrumentComponent } from '../../ui/instruments/depth/depth-instr
 @Component({
   selector: 'app-instruments-page',
   standalone: true,
-  imports: [CommonModule, SogInstrumentComponent, HeadingInstrumentComponent, DepthInstrumentComponent],
+  imports: [CommonModule, TranslatePipe, SogInstrumentComponent, HeadingInstrumentComponent, DepthInstrumentComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="instruments-page">
       <div class="page-header">
-        <h1>Instruments</h1>
-        <p class="subtitle">All available instrumentation data</p>
+        <h1>{{ 'instruments.page.title' | translate }}</h1>
+        <p class="subtitle">{{ 'instruments.page.subtitle' | translate }}</p>
       </div>
 
       <div class="instruments-grid">
