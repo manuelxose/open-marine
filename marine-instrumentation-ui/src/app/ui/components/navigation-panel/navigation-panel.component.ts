@@ -260,12 +260,12 @@ export class NavigationPanelComponent {
       this.prefs.preferences$,
       this.tick$,
     ]).pipe(
-      map(([sog, hdg, cog, pos, prefs, _tick]) => {
+      map(([sog, hdg, cog, pos, prefs, _]) => {
         const now = Date.now();
         const posAge = pos?.timestamp ? (now - pos.timestamp) / 1000 : null;
         const isStale = posAge !== null && posAge > 5;
 
-        const sogFormatted = formatSpeed(sog?.value, prefs.speedUnit);
+        const sogFormatted = formatSpeed(sog?.value, prefs.units.speed);
         const hdgFormatted = formatAngleDegrees(hdg?.value);
         const cogFormatted = formatAngleDegrees(cog?.value);
 

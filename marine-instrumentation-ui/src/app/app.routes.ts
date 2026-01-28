@@ -9,12 +9,12 @@ export const routes: Routes = [
   },
   { 
     path: 'dashboard', 
-    loadComponent: () => import('./features/dashboard/dashboard.page').then(m => m.DashboardPage),
+    loadComponent: () => import('@features/dashboard').then(m => m.DashboardPage),
     title: 'Dashboard'
   },
   { 
     path: 'chart', 
-    loadComponent: () => import('./features/chart/chart.page').then(m => m.ChartPage),
+    loadComponent: () => import('@features/chart').then(m => m.ChartPage),
     title: 'Chart'
   },
   { 

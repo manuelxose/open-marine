@@ -216,8 +216,8 @@ export class DepthPanelComponent {
       this.prefs.preferences$,
     ]).pipe(
       map(([depth, history, prefs]) => {
-        const formatted = formatDepth(depth?.value, prefs.depthUnit);
-        const thresholdFormatted = formatDepth(prefs.shallowThreshold, prefs.depthUnit);
+        const formatted = formatDepth(depth?.value, prefs.units.depth);
+        const thresholdFormatted = formatDepth(prefs.shallowThreshold, prefs.units.depth);
 
         // Calculate trend over last 15 seconds
         const trendWindow = filterToWindow(history, 15 * 1000);

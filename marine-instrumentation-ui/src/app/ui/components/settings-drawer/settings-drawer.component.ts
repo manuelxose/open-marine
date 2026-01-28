@@ -1,6 +1,7 @@
 import { Component, ChangeDetectionStrategy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { PreferencesService, SpeedUnit, DepthUnit } from '../../../core/services/preferences.service';
+import { PreferencesService } from '../../../core/preferences/preferences.service';
+import { SpeedUnit, DepthUnit } from '../../../core/preferences/preferences.schema';
 import { ThemeService } from '../../../core/theme/theme.service';
 import { LayoutService } from '../../../core/services/layout.service';
 
@@ -54,10 +55,10 @@ import { LayoutService } from '../../../core/services/layout.service';
                     <button 
                         (click)="toggleCompact()" 
                         class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--accent)] focus:ring-offset-2"
-                        [class.bg-[var(--accent)]]="(prefs.prefs$ | async)?.density === 'compact'"
-                        [class.bg-[var(--surface-2)]]="(prefs.prefs$ | async)?.density !== 'compact'"
+                        [class.bg-[var(--accent)]]="(prefs.preferences$ | async)?.density === 'compact'"
+                        [class.bg-[var(--surface-2)]]="(prefs.preferences$ | async)?.density !== 'compact'"
                     >
-                        <span class="translate-x-1 inline-block h-4 w-4 transform rounded-full bg-white transition-transform" [class.translate-x-6]="(prefs.prefs$ | async)?.density === 'compact'"></span>
+                        <span class="translate-x-1 inline-block h-4 w-4 transform rounded-full bg-white transition-transform" [class.translate-x-6]="(prefs.preferences$ | async)?.density === 'compact'"></span>
                     </button>
                 </div>
             </section>
@@ -70,7 +71,7 @@ import { LayoutService } from '../../../core/services/layout.service';
                     <div class="flex flex-col gap-2">
                         <label class="text-sm text-[var(--text-2)]">Speed</label>
                         <select 
-                            [value]="(prefs.prefs$ | async)?.speedUnit" 
+                            [value]="(prefs.preferences$ | async)?.units?.speed" 
                             (change)="onSpeedUnitChange($event)"
                             class="bg-[var(--surface-2)] border border-[var(--border)] text-[var(--fg)] rounded p-2 text-sm focus:outline-none focus:border-[var(--accent)]"
                         >
@@ -83,7 +84,7 @@ import { LayoutService } from '../../../core/services/layout.service';
                     <div class="flex flex-col gap-2">
                         <label class="text-sm text-[var(--text-2)]">Depth</label>
                         <select 
-                            [value]="(prefs.prefs$ | async)?.depthUnit" 
+                            [value]="(prefs.preferences$ | async)?.units?.depth" 
                             (change)="onDepthUnitChange($event)"
                             class="bg-[var(--surface-2)] border border-[var(--border)] text-[var(--fg)] rounded p-2 text-sm focus:outline-none focus:border-[var(--accent)]"
                         >

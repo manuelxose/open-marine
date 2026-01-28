@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { map, distinctUntilChanged } from 'rxjs';
 import { Theme } from './theme.types';
-import { PreferencesService } from '../services/preferences.service';
+import { PreferencesService } from '../preferences/preferences.service';
 
 @Injectable({
   providedIn: 'root',

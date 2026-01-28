@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { PreferencesService } from '../../core/services/preferences.service';
 import { ThemeService } from '../../core/theme/theme.service';
 import { LayoutService } from '../../core/services/layout.service';
+import { ChartSourceRegistryService } from '../../core/chart-sources/chart-source.registry';
 
 @Component({
   selector: 'app-settings-page',
@@ -40,7 +41,7 @@ import { LayoutService } from '../../core/services/layout.service';
             <button 
               (click)="toggleCompact()" 
               class="toggle-btn"
-              [class.active]="(prefs.prefs$ | async)?.density === 'compact'"
+              [class.active]="(prefs.preferences$ | async)?.density === 'compact'"
             >
               <span class="toggle-slider"></span>
             </button>
@@ -57,7 +58,7 @@ import { LayoutService } from '../../core/services/layout.service';
               <span class="setting-description">Display unit for speed measurements</span>
             </div>
             <select 
-              [value]="(prefs.prefs$ | async)?.speedUnit" 
+              [value]="(prefs.preferences$ | async)?.units?.speed" 
               (change)="onSpeedUnitChange($event)"
               class="setting-select"
             >
@@ -73,12 +74,77 @@ import { LayoutService } from '../../core/services/layout.service';
               <span class="setting-description">Display unit for depth measurements</span>
             </div>
             <select 
-              [value]="(prefs.prefs$ | async)?.depthUnit" 
+              [value]="(prefs.preferences$ | async)?.units?.depth" 
               (change)="onDepthUnitChange($event)"
               class="setting-select"
             >
               <option value="m">Meters (m)</option>
               <option value="ft">Feet (ft)</option>
+            </select>
+          </div>
+        </section>
+
+        <!-- Chart Section -->
+        <section class="settings-section">
+          <h2>Chart Defaults</h2>
+          
+          <div class="setting-item">
+            <div class="setting-info">
+              <span class="setting-label">Auto-Center</span>
+              <span class="setting-description">Keep boat in view automatically</span>
+            </div>
+            <button 
+              (click)="toggleAutoCenter()" 
+              class="toggle-btn"
+              [class.active]="(prefs.preferences$ | async)?.chart?.autoCenter"
+            >
+              <span class="toggle-slider"></span>
+            </button>
+          </div>
+
+          <div class="setting-item">
+            <div class="setting-info">
+              <span class="setting-label">Track Length</span>
+              <span class="setting-description">History to show on chart (minutes)</span>
+            </div>
+            <select 
+              [value]="(prefs.preferences$ | async)?.chart?.trackLengthMinutes" 
+              (change)="onTrackLengthChange($event)"
+              class="setting-select"
+            >
+              <option [value]="15">15 min</option>
+              <option [value]="60">1 hour</option>
+              <option [value]="240">4 hours</option>
+              <option [value]="1440">24 hours</option>
+            </select>
+          </div>
+
+          <div class="setting-item">
+            <div class="setting-info">
+              <span class="setting-label">Data Source</span>
+              <span class="setting-description">Primary signal source for chart</span>
+            </div>
+            <select 
+              [value]="(prefs.preferences$ | async)?.chart?.source" 
+              (change)="onChartSourceChange($event)"
+              class="setting-select"
+            >
+              <option value="signalk">Signal K</option>
+              <option value="mock">Internal Mock</option>
+            </select>
+          </div>
+
+          <div class="setting-item">
+            <div class="setting-info">
+              <span class="setting-label">Chart Imagery</span>
+              <span class="setting-description">Select the map layer to display</span>
+            </div>
+            <select 
+              [value]="(prefs.preferences$ | async)?.chart?.mapSourceId" 
+              (change)="onMapSourceChange($event)"
+              class="setting-select"
+            >
+              <option *ngFor="let s of chartSources" [value]="s.id">{{ s.name }}</option>
             </select>
           </div>
         </section>
@@ -313,6 +379,11 @@ export class SettingsPage {
   prefs = inject(PreferencesService);
   theme = inject(ThemeService);
   layout = inject(LayoutService);
+  chartRegistry = inject(ChartSourceRegistryService);
+
+  get chartSources() {
+    return this.chartRegistry.getAllSources();
+  }
 
   get widgetDefs() {
     return this.layout.getWidgetDefinitions();
@@ -347,5 +418,24 @@ export class SettingsPage {
   onDepthUnitChange(event: Event) {
     const target = event.target as HTMLSelectElement;
     this.prefs.setDepthUnit(target.value as 'm' | 'ft');
+  }
+
+  toggleAutoCenter() {
+    this.prefs.setChartAutoCenter(!this.prefs.snapshot.chart.autoCenter);
+  }
+
+  onTrackLengthChange(event: Event) {
+    const target = event.target as HTMLSelectElement;
+    this.prefs.setChartTrackLength(parseInt(target.value, 10));
+  }
+
+  onChartSourceChange(event: Event) {
+    const target = event.target as HTMLSelectElement;
+    this.prefs.setChartSource(target.value as 'signalk' | 'mock');
+  }
+
+  onMapSourceChange(event: Event) {
+    const target = event.target as HTMLSelectElement;
+    this.prefs.setMapSourceId(target.value);
   }
 }

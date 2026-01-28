@@ -14,6 +14,7 @@ import { ChartControlsComponent } from './components/chart-controls/chart-contro
 import { ChartHudComponent } from './components/chart-hud/chart-hud.component';
 import { ChartWaypointListComponent } from './components/chart-waypoint-list/chart-waypoint-list.component';
 import { MapLibreEngineService } from './services/maplibre-engine.service';
+import { ChartSourceRegistryService } from '@core/chart-sources';
 import { toSignal } from '@angular/core/rxjs-interop';
 import type { RouteFeatureCollection, WaypointFeatureCollection } from './types/chart-geojson';
 
@@ -86,6 +87,19 @@ export class ChartPage implements AfterViewInit, OnDestroy {
 
     effect(() => {
       this.engine.updateView(this.centerSignal());
+    });
+
+    const activeMapSourceId = toSignal(this.facade.activeMapSourceId$);
+    const registry = inject(ChartSourceRegistryService);
+
+    effect(() => {
+      const id = activeMapSourceId();
+      if (id) {
+        const config = registry.getSource(id);
+        if (config) {
+          this.engine.setBaseSource(config);
+        }
+      }
     });
   }
 

@@ -18,7 +18,52 @@ module.exports = {
         "prettier"
       ],
       rules: {
-        "@typescript-eslint/no-explicit-any": "error"
+        "@typescript-eslint/no-explicit-any": "error",
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": ["@features/*/*", "!@features/*/index"],
+                "message": "Deep imports from features are not allowed. Use the public API."
+              },
+              {
+                "group": ["@state/*/*", "!@state/*/index"],
+                "message": "Deep imports from state modules are not allowed. Use the public API."
+              },
+              {
+                "group": ["@core/*/*", "!@core/*/index"],
+                "message": "Deep imports from core modules are not allowed. Use the public API."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": ["src/app/core/**/*.ts", "src/app/state/**/*.ts", "src/app/data-access/**/*.ts"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "paths": [
+              {
+                "name": "@features",
+                "message": "Core/State/Data-access layers cannot depend on features."
+              },
+              {
+                "name": "@ui",
+                "message": "Core/State/Data-access layers cannot depend on presentational UI."
+              }
+            ],
+            "patterns": [
+              {
+                "group": ["@features/*", "@ui/*"],
+                "message": "Core/State/Data-access layers cannot depend on features or UI."
+              }
+            ]
+          }
+        ]
       }
     },
     {

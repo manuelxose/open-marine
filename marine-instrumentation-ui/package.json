@@ -10,7 +10,9 @@
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
     "lint": "eslint .",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "test:ci": "ng test --watch=false --browsers=ChromeHeadless",
+    "ci": "npm run lint && npm run test:ci && npm run build"
   },
   "dependencies": {
     "@angular/common": "^21.1.0",

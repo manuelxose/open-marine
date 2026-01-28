@@ -180,7 +180,7 @@ export class CriticalStripComponent {
     this.prefs.preferences$,
     this.tick$,
   ]).pipe(
-    map(([sog, hdg, depth, aws, awa, voltage, prefs, _tick]) => {
+    map(([sog, hdg, depth, aws, awa, voltage, prefs, _]) => {
       const now = Date.now();
       const STALE_THRESHOLD = 5000; // 5 seconds
 
@@ -204,10 +204,10 @@ export class CriticalStripComponent {
       };
 
       return [
-        makeValue('SOG', sog, (v) => formatSpeed(v, prefs.speedUnit)),
+        makeValue('SOG', sog, (v) => formatSpeed(v, prefs.units.speed)),
         makeValue('HDG', hdg, formatAngleDegrees),
-        makeValue('Depth', depth, (v) => formatDepth(v, prefs.depthUnit)),
-        makeValue('AWS', aws, (v) => formatSpeed(v, prefs.speedUnit)),
+        makeValue('Depth', depth, (v) => formatDepth(v, prefs.units.depth)),
+        makeValue('AWS', aws, (v) => formatSpeed(v, prefs.units.speed)),
         makeValue('AWA', awa, formatAngleDegrees),
         makeValue('BAT', voltage, formatVoltage),
       ];

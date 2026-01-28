@@ -1,6 +1,7 @@
 import maplibregl from 'maplibre-gl';
 import type { FeatureCollection, LineString, Point } from 'geojson';
 import type { WaypointFeatureCollection } from '../types/chart-geojson';
+import { ChartSourceConfig } from '../../../core/chart-sources/chart-source.types';
 
 export interface MapLibreInitView {
   center: [number, number];
@@ -9,29 +10,6 @@ export interface MapLibreInitView {
   pitch?: number;
 }
 
-export interface ChartSourceConfig {
-  id: string;
-  style: maplibregl.StyleSpecification | string;
-}
-
-const DEFAULT_STYLE: maplibregl.StyleSpecification = {
-  version: 8,
-  sources: {
-    'osm-raster': {
-      type: 'raster',
-      tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
-      tileSize: 256,
-      attribution: '(c) OpenStreetMap contributors',
-    },
-  },
-  layers: [
-    {
-      id: 'osm-raster',
-      type: 'raster',
-      source: 'osm-raster',
-    },
-  ],
-};
 
 const VESSEL_ICON_ID = 'chart-vessel-icon';
 const VESSEL_SOURCE_ID = 'chart-vessel-source';
@@ -92,7 +70,11 @@ export class MapLibreEngineService {
       return;
     }
 
-    const style = this.baseSource?.style ?? DEFAULT_STYLE;
+    const style = this.baseSource?.style;
+    if (!style) {
+      console.warn('Cannot initialize map: style is missing');
+      return;
+    }
 
     this.map = new maplibregl.Map({
       container: containerEl,
