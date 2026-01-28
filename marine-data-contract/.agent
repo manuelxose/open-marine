@@ -1,0 +1,363 @@
+# marine-data-contract - AI Agent Guide
+
+**Purpose:** Shared TypeScript types, Signal K paths, and utilities (v0.1.0)
+**Status:** Stable, foundational package
+**Dependencies:** None (zero external dependencies)
+**Dependents:** All other packages in monorepo
+
+---
+
+## 🎯 Quick Facts
+
+- **Package Type:** TypeScript library (ESM)
+- **Key Exports:** DataPoint<T>, PATHS, QualityFlag, unit converters
+- **Build Output:** dist/ folder
+- **Must Build First:** Yes - all other packages depend on this
+
+---
+
+## 📂 File Structure
+
+```
+marine-data-contract/
+├── src/
+│   ├── index.ts          # Main export barrel
+│   ├── types.ts          # DataPoint, SourceRef, Position, QualityFlag
+│   ├── paths.ts          # PATHS constant (Signal K type-safe paths)
+│   ├── units.ts          # Unit converters (deg↔rad, knots↔m/s)
+│   └── quality.ts        # Quality state machine logic
+├── dist/                 # Compiled output (do not edit)
+├── tsconfig.json
+├── package.json
+└── .agent                # This file
+```
+
+---
+
+## 🔑 Core Exports (Must Know)
+
+### Types (from types.ts)
+
+```typescript
+export interface DataPoint<T> {
+  path: SignalKPath;
+  value: T;
+  timestamp: string;
+  source: SourceRef;
+  quality: QualityFlag;
+}
+
+export interface SourceRef {
+  label: string;
+  type?: string;
+  priority?: number;
+  fallback?: string;
+  validityTimeoutMs?: number;
+}
+
+export interface Position {
+  latitude: number;
+  longitude: number;
+  altitude?: number;
+}
+
+export enum QualityFlag {
+  Good = "good",
+  Suspect = "suspect",
+  Bad = "bad"
+}
+```
+
+### Paths (from paths.ts)
+
+```typescript
+export const PATHS = {
+  navigation: {
+    position: 'navigation.position',
+    speedOverGround: 'navigation.speedOverGround',
+    courseOverGroundTrue: 'navigation.courseOverGroundTrue',
+    headingTrue: 'navigation.headingTrue',
+    // ... add more as needed
+  },
+  environment: {
+    depth: { belowTransducer: 'environment.depth.belowTransducer' },
+    wind: {
+      angleApparent: 'environment.wind.angleApparent',
+      speedApparent: 'environment.wind.speedApparent',
+    },
+  },
+  electrical: {
+    batteries: {
+      house: {
+        voltage: 'electrical.batteries.house.voltage',
+        current: 'electrical.batteries.house.current',
+      },
+    },
+  },
+};
+```
+
+### Unit Converters (from units.ts)
+
+```typescript
+export function degToRad(degrees: number): number
+export function radToDeg(radians: number): number
+export function knotsToMetersPerSecond(knots: number): number
+export function metersPerSecondToKnots(mps: number): number
+```
+
+---
+
+## ✅ DO - When Modifying Contract
+
+1. **Add new Signal K path:**
+   - Edit `src/paths.ts`
+   - Follow existing structure (nested objects)
+   - Test: `npm run build && npm run lint`
+   - Update other packages: `npm install` in dependent packages
+
+2. **Add new type:**
+   - Edit `src/types.ts`
+   - Export from `src/index.ts`
+   - Document unit convention (in docs/data-model.md)
+   - Build and test: `npm run build && npm run lint`
+
+3. **Add unit converter:**
+   - Edit `src/units.ts`
+   - Add export to `src/index.ts`
+   - Document in `docs/data-model.md`
+   - Test with sample values
+
+4. **Before publishing:**
+   - Run: `npm run lint` (ESLint clean)
+   - Run: `npm run build` (TypeScript compiles)
+   - Verify: `dist/` folder has output
+   - Update dependent packages' node_modules
+
+---
+
+## ❌ DON'T - Never Do This
+
+1. **Don't add external dependencies**
+   - This package must remain zero-dependency
+   - Keep it lightweight and fast-compiling
+
+2. **Don't break existing exports**
+   - If removing something: Keep stub with deprecation warning
+   - Check what other packages are importing
+
+3. **Don't hardcode unit values**
+   - Use constants in `units.ts`
+   - Document conversion factors with source
+
+4. **Don't use any types**
+   - Strict TypeScript required
+   - All types must be fully specified
+
+5. **Don't change path strings**
+   - Signal K paths are standardized
+   - Changing breaks all consumers
+
+6. **Don't export implementation details**
+   - Only export public API in `index.ts`
+   - Keep internal functions private
+
+---
+
+## 🔄 Development Workflow
+
+### Making a Change
+
+1. **Edit files** in `src/`
+2. **Run linter:** `npm run lint`
+3. **Build:** `npm run build` (generates dist/)
+4. **Test imports** in dependent packages:
+   ```bash
+   cd ../marine-instrumentation-ui
+   npm install  # Re-links local package
+   npm run build  # Verify can import
+   ```
+
+### Adding New Signal K Path
+
+**Example:** Adding `navigation.headingMagnetic`
+
+1. **Edit src/paths.ts:**
+   ```typescript
+   navigation: {
+     headingTrue: 'navigation.headingTrue',
+     headingMagnetic: 'navigation.headingMagnetic',  // NEW
+   }
+   ```
+
+2. **Build and verify:**
+   ```bash
+   npm run build
+   npm run lint
+   ```
+
+3. **Update documentation:**
+   - Edit `docs/data-model.md` - Signal K Paths section
+   - Add unit convention (radians)
+   - Add example DataPoint
+
+4. **Update simulator** (if needed):
+   ```bash
+   cd ../marine-data-simulator
+   npm install
+   # Update basicCruise.ts to publish this path
+   ```
+
+5. **Update UI** (if needed):
+   ```bash
+   cd ../marine-instrumentation-ui
+   npm install
+   # Use PATHS.navigation.headingMagnetic in components
+   ```
+
+### Adding New Type
+
+**Example:** Adding `Battery` type
+
+1. **Edit src/types.ts:**
+   ```typescript
+   export interface Battery {
+     voltage: number;  // volts
+     current: number;  // amps
+     stateOfCharge?: number;  // percentage
+   }
+   ```
+
+2. **Export from src/index.ts:**
+   ```typescript
+   export * from "./types.js";  // Already wildcard export
+   ```
+
+3. **Build:**
+   ```bash
+   npm run build
+   npm run lint
+   ```
+
+4. **Document in docs/data-model.md**
+
+---
+
+## 🧪 Testing
+
+### Unit Tests (if added)
+
+```bash
+npm test
+```
+
+### Verifying in Consumer Packages
+
+```bash
+# After building contract
+cd ../marine-instrumentation-ui
+npm install  # Re-links to contract
+npm run build  # Verify can use types
+npm run lint  # Check no errors
+```
+
+---
+
+## 📊 Current State
+
+### Exported Types
+- `DataPoint<T>` - Generic marine data wrapper
+- `SourceRef` - Data source metadata
+- `Position` - Geographic position (lat/lon)
+- `QualityFlag` - Data quality enum (good/suspect/bad)
+
+### Exported Constants
+- `PATHS` - Signal K path constants (type-safe)
+
+### Exported Utilities
+- `degToRad()`, `radToDeg()` - Angle conversion
+- `knotsToMetersPerSecond()`, etc. - Speed conversion
+- `normalizeTimestamp()` - Clock drift handling
+- `isSourceValid()` - Source validation
+
+### Known Issues ⚠️
+
+1. **Missing path:** `navigation.headingMagnetic`
+   - Used in UI but not defined in contract
+   - Status: Pending M4 (Add in next update)
+
+2. **Quality naming mismatch:**
+   - Contract: `QualityFlag.Suspect`
+   - UI: `DataQuality = 'warn'`
+   - Status: Needs standardization
+
+3. **Unused exports:**
+   - Type aliases (`Angle`, `Speed`, `Depth`) not imported anywhere
+   - Status: Clean up in next update
+
+---
+
+## 🔗 Dependencies on This Package
+
+| Package | Imports From | Usage |
+|---------|--------------|-------|
+| marine-data-simulator | PATHS, DataPoint, SourceRef | Publishing deltas |
+| marine-sensor-gateway | All (types, paths, utils) | Adapter interfaces |
+| marine-instrumentation-ui | All (types, paths, utils) | Everything |
+
+**Note:** All packages depend on this, so changes here affect everything!
+
+---
+
+## 📚 Documentation
+
+- **Full reference:** `docs/data-model.md` in root
+- **Type checklist:** `docs/data-model.md` - Type Safety Checklist
+- **Examples:** `docs/data-model.md` - Example payloads
+
+---
+
+## 🚀 Build Process
+
+```bash
+# Compile TypeScript → JavaScript
+npm run build
+# Output: dist/index.js, dist/index.d.ts, etc.
+
+# Lint
+npm run lint
+# Checks: No any types, imports correct, formatting
+
+# Format
+npm run format
+# Auto-fixes: Prettier formatting
+```
+
+---
+
+## ⚡ Quick Commands
+
+```bash
+npm install    # Install dependencies (none, but needed for tooling)
+npm run build  # Compile TypeScript
+npm run lint   # Check code quality
+npm run format # Auto-fix formatting
+npm test       # Run tests (if any)
+```
+
+---
+
+## ✅ Checklist for Changes
+
+- [ ] Edited files in `src/`
+- [ ] Ran `npm run build` (no errors)
+- [ ] Ran `npm run lint` (clean)
+- [ ] Ran `npm run format`
+- [ ] Updated `docs/data-model.md` if adding types/paths
+- [ ] Verified imports work in dependent packages
+- [ ] No external dependencies added
+- [ ] All exports in `index.ts` are public API
+
+---
+
+**Status:** Stable, foundational | Last Updated: 2026-01-28 | Agent Version: 1.0

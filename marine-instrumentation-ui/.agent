@@ -1,0 +1,906 @@
+# marine-instrumentation-ui - AI Agent Guide
+
+**Purpose:** Angular 21 standalone component dashboard for marine vessel data visualization (v0.1.0)
+**Status:** MVP complete, stabilizing on M4, refactoring in progress
+**Dependencies:** marine-data-contract, RxJS, MapLibre GL JS, Angular standalone
+
+---
+
+## 🎯 Quick Facts
+
+- **Framework:** Angular 21.1 (standalone components, no NgModules)
+- **Build:** Angular CLI 21.1.1 + esbuild, Vitest 4.0.8 for tests
+- **Data:** RxJS observables, custom DatapointStoreService (single source of truth)
+- **UI Library:** Custom (no Material, no Bootstrap)
+- **Maps:** MapLibre GL JS 5.16 (OpenStreetMap-based)
+- **Entry Point:** `src/main.ts` → `src/app/app.ts` (AppComponent)
+- **Development:** `npm start` runs on localhost:4200
+- **Routing:** `app.routes.ts` with lazy loading (dashboard, chart, diagnostics)
+
+---
+
+## 📂 File Structure (Organized by Purpose)
+
+### Core App Structure
+```
+src/
+├── main.ts                          # Angular bootstrap
+├── app/
+│   ├── app.ts                       # AppComponent (root)
+│   ├── app.routes.ts                # Routing configuration
+│   ├── app.config.ts                # Dependency injection config
+│   ├── app.scss                     # Global styles
+│   └── core/                        # Core services (no features depend here)
+```
+
+### Data Access Layer
+```
+app/data-access/
+├── chart/
+│   ├── chart-types.ts               # Types (DataSeries, PlotConfig)
+│   └── chart-sources.ts             # Signal K data → chart data
+├── signalk/
+│   ├── signalk-client.service.ts    # WebSocket connection manager
+│   ├── signalk-mapper.ts            # Delta message → DataPoint[]
+│   └── signalk-message.types.ts     # Delta, Notification types
+```
+
+### State Management (CUSTOM)
+```
+app/state/
+├── datapoint.store.service.ts       # ⭐ SINGLE SOURCE OF TRUTH
+├── datapoints/
+│   ├── datapoint-*.service.ts       # Domain-specific stores (alarms, wind, etc.)
+│   └── quality.service.ts           # Quality tracking
+├── calculations/
+│   ├── trend.ts                     # Trend calculation (rising/falling/stable)
+│   └── dewpoint.ts                  # Derived values
+```
+
+### Features (UI Pages + Logic)
+```
+app/features/
+├── dashboard/
+│   ├── dashboard.page.ts            # Container component
+│   ├── dashboard.page.html
+│   ├── dashboard.page.scss
+│   └── dashboard.html.page.spec.ts
+├── chart/
+│   ├── chart.page.ts
+│   ├── chart.page.html
+│   ├── chart.page.css
+│   └── instances/
+├── alarms/
+│   ├── alarms.page.ts
+│   ├── alarms-facade.service.ts    # Orchestrates multiple stores
+│   └── alarms.page.html
+├── diagnostics/
+│   ├── diagnostics.page.ts
+│   └── diagnostics.page.html
+├── instruments/                     # Sub-components
+│   ├── digital-display/
+│   ├── analog-gauge/
+│   ├── compass-rose/
+│   ├── wind-indicator/
+│   └── etc.
+└── shared/
+    └── components/
+        ├── header.ts
+        ├── navigation.ts
+        └── etc.
+```
+
+### Services Layer
+```
+app/core/
+├── services/
+│   ├── layout.service.ts            # Layout state (sidebar, fullscreen)
+│   ├── preferences.service.ts       # User settings (theme, units)
+│   └── alarm.service.ts             # Alarm thresholds & notifications
+├── theme/
+│   ├── theme.service.ts
+│   └── theme.types.ts
+├── formatting/
+│   ├── formatters.ts                # Number → string (units, decimals)
+│   └── trend.ts                     # Trend calculation
+├── config/
+│   ├── app-environment.token.ts     # Injection tokens
+│   └── app-environment.ts           # Environment config
+└── calculations/
+    └── trend.ts                     # Data trend analysis
+```
+
+---
+
+## 🎯 Critical Architecture Rules
+
+### ⚠️ DATA FLOW RULE (MUST ENFORCE)
+
+```
+User Action → Feature Component
+    ↓
+DatapointStoreService.setDatapoint() OR
+DatapointStoreService.updateDatapoint()
+    ↓
+Signal K (WebSocket) receives delta update
+    ↓
+Signal K broadcasts back
+    ↓
+Mapper converts Delta → DataPoint[]
+    ↓
+DatapointStoreService receives update
+    ↓
+All subscribed components auto-update (RxJS)
+```
+
+**CRITICAL CONSTRAINT:**
+- ❌ DON'T bypass DatapointStoreService (breaking change!)
+- ❌ DON'T update local component state directly
+- ✅ DO use `.subscribe(datapoints$ from store)` everywhere
+- ✅ DO dispatch actions through store methods
+
+### Architecture Layers
+
+```
+FEATURES LAYER (dashboard.page, chart.page, alarms.page)
+    ↓ (uses)
+CORE SERVICES (DatapointStoreService, AlarmService, PreferencesService)
+    ↓ (uses)
+DATA ACCESS (SignalKClientService, SignalKMapper)
+    ↓ (connects to)
+SIGNAL K SERVER (external, via WebSocket/HTTP)
+    ↓
+SENSOR GATEWAYS (simulator, NMEA adapters, etc.)
+```
+
+### Dependency Rules (MUST FOLLOW)
+
+1. **Features MAY import from:**
+   - `@omi/marine-data-contract` (types, paths)
+   - `app/core/services` (DatapointStoreService, PreferencesService)
+   - `app/data-access` (SignalKClientService - via injection only)
+   - Other features (careful - can cause circular!)
+
+2. **Features MUST NOT import from:**
+   - ❌ App component
+   - ❌ Routing configuration
+   - ❌ Environment variables (use injection tokens)
+
+3. **Core Services MAY import from:**
+   - `@omi/marine-data-contract`
+   - Other core services (DatapointStoreService is core)
+   - `app/data-access`
+
+4. **Core Services MUST NOT import from:**
+   - ❌ Features
+   - ❌ Components
+   - ❌ Directives (except if providing)
+
+5. **Data Access MAY import from:**
+   - `@omi/marine-data-contract`
+   - Core config tokens
+
+6. **Data Access MUST NOT import from:**
+   - ❌ Features
+   - ❌ Core services (except tokens)
+
+### Singleton Pattern (Critical)
+
+**These MUST be singletons** (provided in `app.config.ts`):
+
+```typescript
+// ✅ Correct: Provide once at root
+export const appConfig: ApplicationConfig = {
+  providers: [
+    DatapointStoreService,         // Singleton
+    SignalKClientService,          // Singleton
+    AlarmService,                  // Singleton
+    PreferencesService,            // Singleton
+    // All others are singletons by default
+  ]
+};
+```
+
+**NEVER:**
+```typescript
+// ❌ Wrong: Providing in component
+@Component({
+  providers: [DatapointStoreService]  // Creates new instance!
+})
+
+// ❌ Wrong: Manual instantiation
+new DatapointStoreService()             // Creates new instance!
+```
+
+---
+
+## 🔑 How Data Flows (UNDERSTAND THIS)
+
+### Step 1: User Opens Dashboard
+
+```typescript
+// dashboard.page.ts
+export class DashboardPage implements OnInit {
+  constructor(private store: DatapointStoreService) {}
+
+  ngOnInit() {
+    // Subscribe to speed data
+    this.store.getDatapointByPath(PATHS.navigation.speedOverGround)
+      .subscribe(datapoint => {
+        this.speed = datapoint.value;  // Auto-updates when data changes
+      });
+  }
+}
+```
+
+### Step 2: Signal K Sends New Data
+
+```typescript
+// signalk-client.service.ts
+private handleDelta(delta: Delta) {
+  // Delta arrives via WebSocket from Signal K
+  const dataPoints = this.mapper.deltaToDataPoints(delta);
+  this.store.updateDatapoints(dataPoints);  // ← Updates SSOT
+}
+```
+
+### Step 3: Store Broadcasts Update
+
+```typescript
+// datapoint.store.service.ts
+updateDatapoints(dataPoints: DataPoint[]) {
+  dataPoints.forEach(dp => {
+    this.datapoints$.next([...this.datapoints, dp]);  // ← All subscribers notified
+  });
+}
+```
+
+### Step 4: Component Auto-Updates
+
+```typescript
+// dashboard.page.ts
+ngOnInit() {
+  // This subscription fires automatically when data changes
+  this.store.getDatapointByPath(PATHS.navigation.speedOverGround)
+    .subscribe(datapoint => {
+      this.speed = datapoint.value;  // ← Updates automatically
+      // Component re-renders (Angular change detection)
+    });
+}
+```
+
+---
+
+## ✅ DO - When Modifying UI
+
+### 1. Adding New Dashboard Widget
+
+```typescript
+// Step 1: Create component
+// src/app/features/dashboard/widgets/my-widget.ts
+import { Component, Input } from '@angular/core';
+import { CommonModule } from '@angular/common';
+
+@Component({
+  selector: 'app-my-widget',
+  standalone: true,
+  imports: [CommonModule],
+  template: `<div>{{ value }}</div>`
+})
+export class MyWidgetComponent {
+  @Input() value: number = 0;
+}
+
+// Step 2: Use in dashboard
+// src/app/features/dashboard/dashboard.page.ts
+export class DashboardPage {
+  constructor(private store: DatapointStoreService) {}
+
+  ngOnInit() {
+    this.store.getDatapointByPath(PATHS.environment.wind.speedApparent)
+      .subscribe(dp => this.windSpeed = dp.value);
+  }
+}
+
+// In template:
+// <app-my-widget [value]="windSpeed"></app-my-widget>
+```
+
+### 2. Displaying Alarm Thresholds
+
+```typescript
+// Use AlarmService (facade that combines multiple stores)
+constructor(private alarmService: AlarmService) {}
+
+ngOnInit() {
+  this.alarmService.getAlarmsByPriority('warning')
+    .subscribe(alarms => {
+      this.warnings = alarms;
+    });
+}
+```
+
+### 3. Persisting User Preferences
+
+```typescript
+// Use PreferencesService
+constructor(private prefs: PreferencesService) {}
+
+changeTheme(theme: 'light' | 'dark') {
+  this.prefs.setTheme(theme);  // ← Auto-persisted to localStorage
+}
+
+ngOnInit() {
+  this.prefs.theme$.subscribe(theme => {
+    // Auto-updates when preference changes
+  });
+}
+```
+
+### 4. Adding New Chart Type
+
+```typescript
+// src/app/features/chart/chart.page.ts
+const config: PlotConfig = {
+  title: 'Temperature Over Time',
+  series: [
+    {
+      label: 'Water Temp',
+      path: PATHS.environment.water.temperature,
+      color: '#0099ff'
+    }
+  ],
+  yAxis: { min: 0, max: 30, unit: '°C' }
+};
+```
+
+### 5. Handling Real-Time Updates
+
+```typescript
+// Always use async pipe in templates (auto-unsubscribe)
+export class MyComponent {
+  speed$ = this.store.getDatapointByPath(PATHS.navigation.speedOverGround)
+    .pipe(
+      map(dp => dp.value),
+      startWith(0)
+    );
+
+  constructor(private store: DatapointStoreService) {}
+}
+
+// In template:
+// <div>Speed: {{ speed$ | async }} m/s</div>
+```
+
+### 6. Routing with Lazy Loading
+
+```typescript
+// app.routes.ts
+export const APP_ROUTES: Routes = [
+  {
+    path: 'dashboard',
+    loadComponent: () => import('./features/dashboard/dashboard.page').then(m => m.DashboardPage)
+  },
+  {
+    path: 'chart',
+    loadComponent: () => import('./features/chart/chart.page').then(m => m.ChartPage)
+  }
+];
+```
+
+---
+
+## ❌ DON'T - Common Mistakes
+
+### 1. ❌ Bypassing DatapointStoreService
+
+```typescript
+// WRONG:
+export class BadComponent {
+  value = 0;  // Local state
+
+  constructor(private signalkClient: SignalKClientService) {}
+
+  ngOnInit() {
+    this.signalkClient.subscribe((delta) => {
+      this.value = delta.values[0].value;  // Bypasses store!
+    });
+  }
+}
+
+// RIGHT:
+export class GoodComponent {
+  constructor(private store: DatapointStoreService) {}
+
+  ngOnInit() {
+    this.store.getDatapointByPath(PATHS.navigation.speedOverGround)
+      .subscribe(dp => this.value = dp.value);  // Uses store
+  }
+}
+```
+
+### 2. ❌ Creating Multiple Service Instances
+
+```typescript
+// WRONG:
+export class BadComponent {
+  constructor() {
+    this.store = new DatapointStoreService();  // New instance!
+  }
+}
+
+// RIGHT:
+export class GoodComponent {
+  constructor(private store: DatapointStoreService) {}  // Injected singleton
+}
+```
+
+### 3. ❌ Manual Error Handling on Subscriptions
+
+```typescript
+// WRONG:
+this.store.getDatapoint(...).subscribe(
+  dp => this.value = dp.value,
+  error => console.error(error),  // You're handling it
+  () => console.log('complete')
+);
+
+// RIGHT: Use error handling in signal k client + store error stream
+// Errors are caught at source, store emits error state
+this.store.getDatapointByPath(...).subscribe(dp => {
+  if (dp.quality !== 'good') {
+    // Handle bad quality (don't show, gray out, etc.)
+  }
+  this.value = dp.value;
+});
+```
+
+### 4. ❌ Subscribing Without Unsubscribing
+
+```typescript
+// WRONG: Memory leak!
+export class BadComponent implements OnInit {
+  ngOnInit() {
+    this.store.getDatapoint(...).subscribe(dp => {
+      // Never unsubscribed - adds subscriber on every init!
+    });
+  }
+}
+
+// RIGHT 1: Use takeUntilDestroyed
+export class GoodComponent implements OnInit, OnDestroy {
+  private destroy$ = new Subject<void>();
+
+  ngOnInit() {
+    this.store.getDatapoint(...)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(dp => { /* ... */ });
+  }
+
+  ngOnDestroy() {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+}
+
+// RIGHT 2: Use async pipe (auto-unsubscribe)
+export class BestComponent {
+  speed$ = this.store.getDatapointByPath(PATHS.navigation.speedOverGround)
+    .pipe(map(dp => dp.value));
+  // Template: {{ speed$ | async }}
+}
+```
+
+### 5. ❌ Not Using Type Safety
+
+```typescript
+// WRONG: No types, brittle paths
+const speed = store.get('navigation.speedOverGround');
+
+// RIGHT: Use types from contract
+const speed$ = store.getDatapointByPath(PATHS.navigation.speedOverGround)
+  .pipe(map((dp: DataPoint<number>) => dp.value));
+```
+
+### 6. ❌ Modifying Received Objects
+
+```typescript
+// WRONG: Mutating shared state
+constructor(private store: DatapointStoreService) {}
+
+ngOnInit() {
+  this.store.getDatapoint(...).subscribe(dp => {
+    dp.value = 42;  // Mutates shared datapoint!
+  });
+}
+
+// RIGHT: Create new objects
+ngOnInit() {
+  this.store.getDatapoint(...).subscribe(dp => {
+    const modified = { ...dp, value: 42 };
+    // Use modified without mutating original
+  });
+}
+```
+
+### 7. ❌ Importing Components Directly
+
+```typescript
+// WRONG: Tight coupling
+import { DashboardPage } from './features/dashboard/dashboard.page';
+
+// RIGHT: Use routing
+// In app.routes.ts: loadComponent with dynamic import
+```
+
+### 8. ❌ Circular Dependencies
+
+```typescript
+// WRONG:
+// feature-a imports from feature-b
+// feature-b imports from feature-a
+// Import cycles cause issues!
+
+// RIGHT:
+// Extract shared logic to core/services
+// Both features import from core (one-way dependency)
+```
+
+### 9. ❌ Direct DOM Manipulation
+
+```typescript
+// WRONG:
+constructor(private elementRef: ElementRef) {}
+
+ngOnInit() {
+  this.elementRef.nativeElement.querySelector('.item').style.color = 'red';
+}
+
+// RIGHT: Use Angular templates + CSS
+// <div [style.color]="color"></div>
+```
+
+### 10. ❌ Not Handling Quality Flags
+
+```typescript
+// WRONG: Show stale/invalid data
+this.store.getDatapoint(...).subscribe(dp => {
+  this.speed = dp.value;  // What if quality is 'fail'?
+});
+
+// RIGHT: Check quality
+this.store.getDatapoint(...).subscribe(dp => {
+  if (dp.quality === 'good') {
+    this.speed = dp.value;
+    this.speedValid = true;
+  } else {
+    this.speedValid = false;  // Show error state
+  }
+});
+```
+
+---
+
+## 🔄 Development Workflow
+
+### Running Locally
+
+```bash
+# Terminal 1: Start Signal K (required)
+cd signalk-runtime
+docker compose up -d
+
+# Terminal 2: Start simulator (optional, for test data)
+cd marine-data-simulator
+npm run dev
+
+# Terminal 3: Start UI
+cd marine-instrumentation-ui
+npm start
+# Open http://localhost:4200
+```
+
+### Common Development Tasks
+
+#### Adding a New Feature Page
+
+1. **Create feature folder:**
+   ```bash
+   mkdir src/app/features/my-feature
+   ```
+
+2. **Create page component:**
+   ```typescript
+   // my-feature.page.ts
+   import { Component } from '@angular/core';
+   import { DatapointStoreService } from 'app/state/datapoint.store.service';
+
+   @Component({
+     selector: 'app-my-feature',
+     standalone: true,
+     template: `<div>{{ data$ | async }}</div>`
+   })
+   export class MyFeaturePage {
+     data$ = this.store.getDatapointByPath(...);
+     constructor(private store: DatapointStoreService) {}
+   }
+   ```
+
+3. **Add to routing:**
+   ```typescript
+   // app.routes.ts
+   {
+     path: 'my-feature',
+     loadComponent: () => import('./features/my-feature/my-feature.page').then(m => m.MyFeaturePage)
+   }
+   ```
+
+4. **Add navigation link:**
+   ```typescript
+   // features/shared/components/navigation.ts
+   // Add route to menu
+   ```
+
+#### Adding a New Data Source
+
+1. **Ensure path exists in contract:**
+   ```typescript
+   // Check PATHS in marine-data-contract/src/paths.ts
+   PATHS.my.new.path
+   ```
+
+2. **Subscribe in component:**
+   ```typescript
+   this.store.getDatapointByPath(PATHS.my.new.path)
+     .subscribe(dp => this.myValue = dp.value);
+   ```
+
+3. **That's it!** (Signal K automatically publishes to store)
+
+#### Debugging Real-Time Data
+
+```bash
+# In browser console (F12):
+localStorage.setItem('debug', 'app:*');  // Enable debug logs
+
+# Watch store emissions:
+// In DevTools → Sources → App component
+// Set breakpoint in datapoint.store.service.ts
+
+# Check Signal K directly:
+curl http://localhost:3000/signalk/v1/api/
+```
+
+---
+
+## 🎨 UI Components Reference
+
+### Digital Display
+```typescript
+<digital-display [value]="speed$ | async" unit="m/s"></digital-display>
+```
+
+### Analog Gauge
+```typescript
+<analog-gauge
+  [value]="depth$ | async"
+  [min]="0"
+  [max]="100"
+  unit="m"
+></analog-gauge>
+```
+
+### Compass Rose
+```typescript
+<compass-rose [heading]="heading$ | async"></compass-rose>
+```
+
+### Wind Indicator
+```typescript
+<wind-indicator
+  [speed]="windSpeed$ | async"
+  [angle]="windAngle$ | async"
+></wind-indicator>
+```
+
+---
+
+## 📊 State Management Deep Dive
+
+### DatapointStoreService API
+
+```typescript
+// Get single datapoint by path
+getDatapointByPath(path: string): Observable<DataPoint<any>>
+
+// Get multiple datapoints
+getDatapointsByFilter(filter: (dp: DataPoint) => boolean): Observable<DataPoint[]>
+
+// Update one datapoint (triggers Signal K delta)
+updateDatapoint(datapoint: DataPoint): void
+
+// Update multiple
+updateDatapoints(datapoints: DataPoint[]): void
+
+// Clear all
+clear(): void
+
+// Get all (for debugging)
+getAllDatapoints(): Observable<DataPoint[]>
+```
+
+### Quality Lifecycle
+
+```
+Signal K publishes: { path, value, timestamp, quality: 'good' }
+    ↓
+Mapper converts to DataPoint
+    ↓
+Store broadcasts to all subscribers
+    ↓
+If signal lost for >5 seconds:
+  - Quality changes to 'warn'
+  - Components can gray out
+    ↓
+If signal lost for >30 seconds:
+  - Quality changes to 'fail'
+  - Components show error state
+```
+
+### Memory Management
+
+```typescript
+// ✅ SAFE: Automatically unsubscribed when component destroyed
+export class SafeComponent {
+  speed$ = this.store.getDatapointByPath(PATHS.navigation.speedOverGround);
+  // Template: {{ speed$ | async }}
+}
+
+// ✅ SAFE: Using takeUntilDestroyed from Angular 16+
+export class SafeComponent implements OnInit {
+  private destroy$ = new Subject<void>();
+
+  ngOnInit() {
+    this.store.getDatapointByPath(...)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(...);
+  }
+
+  ngOnDestroy() {
+    this.destroy$.next();
+  }
+}
+
+// ❌ LEAK: Not unsubscribing
+export class LeakyComponent implements OnInit {
+  sub: Subscription;
+
+  ngOnInit() {
+    this.sub = this.store.getDatapointByPath(...).subscribe(...);
+    // Never unsubscribed in ngOnDestroy
+  }
+}
+```
+
+---
+
+## 🧪 Testing Strategy
+
+### Running Tests
+
+```bash
+npm run test          # Run all tests
+npm run test:watch   # Watch mode
+npm run test:ui      # Vitest UI
+```
+
+### Example Test
+
+```typescript
+// my-component.spec.ts
+import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { DatapointStoreService } from 'app/state/datapoint.store.service';
+import { of } from 'rxjs';
+import { MyComponent } from './my-component';
+
+describe('MyComponent', () => {
+  let component: MyComponent;
+  let store: DatapointStoreService;
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      imports: [MyComponent],
+      providers: [DatapointStoreService]
+    }).compileComponents();
+
+    store = TestBed.inject(DatapointStoreService);
+    component = TestBed.createComponent(MyComponent).componentInstance;
+  });
+
+  it('displays datapoint value', (done) => {
+    const mockDatapoint = { path: PATHS.navigation.speedOverGround, value: 5 };
+    spyOn(store, 'getDatapointByPath').and.returnValue(of(mockDatapoint));
+
+    component.ngOnInit();
+
+    component.speed$.subscribe(speed => {
+      expect(speed).toBe(5);
+      done();
+    });
+  });
+});
+```
+
+---
+
+## 🐛 Debugging Checklist
+
+### Data Not Showing
+
+- [ ] Signal K server running? `curl http://localhost:3000`
+- [ ] Simulator publishing? Check console logs
+- [ ] Correct path? Verify in `@omi/marine-data-contract/src/paths.ts`
+- [ ] Subscription active? Check component ngOnInit
+- [ ] Quality flag bad? Check store quality state
+
+### Performance Issues
+
+- [ ] Unsubscribed properly? Check ngOnDestroy
+- [ ] Using async pipe? Prevents memory leaks
+- [ ] OnPush change detection? Use for expensive renders
+- [ ] Too many subscribers? Check DevTools memory profiler
+
+### Build Errors
+
+- [ ] TypeScript strict mode? `npm run lint`
+- [ ] Missing imports? Check import paths
+- [ ] Circular dependencies? Use `npm run analyze`
+- [ ] Node version? Use v20 LTS
+
+---
+
+## 📈 Known Issues & Workarounds
+
+| Issue | Severity | Workaround | Status |
+|-------|----------|-----------|--------|
+| COG unit inconsistency | HIGH | Apply degToRad conversion | ⏳ M4 |
+| Memory leaks on fast navigation | MEDIUM | Use takeUntilDestroyed pattern | ✅ Documented |
+| Chart performance with >1000 points | MEDIUM | Implement data windowing | ⏳ M5 |
+| MapLibre zoom animation janky | LOW | Use easing function | ⏳ Backlog |
+
+---
+
+## ⚡ Quick Commands
+
+```bash
+npm install                # Install dependencies
+npm start                  # Development server (localhost:4200)
+npm run build             # Production build
+npm run lint              # ESLint + format check
+npm run format            # Auto-format code
+npm run test              # Run Vitest
+npm run test:watch       # Watch mode
+npm run analyze           # Bundle analysis
+npm run type-check        # TypeScript strict check
+```
+
+---
+
+## 🎯 Implementation Checklist
+
+Before merging any UI feature:
+
+- [ ] Imports: Uses `DatapointStoreService` (never SignalKClientService directly)
+- [ ] Unsubscribe: Uses async pipe OR takeUntilDestroyed OR ngOnDestroy
+- [ ] Types: No `any` types, imports from `@omi/marine-data-contract`
+- [ ] Paths: Uses `PATHS` constant (never strings)
+- [ ] Quality: Checks datapoint.quality before displaying
+- [ ] Styling: SCSS only, no inline styles
+- [ ] Tests: Unit test for component logic
+- [ ] Accessibility: Semantic HTML, ARIA labels for complex widgets
+- [ ] Performance: No blocking operations, uses OnPush change detection
+- [ ] Linting: Passes ESLint + Prettier
+
+---
+
+**Status:** MVP complete, M4 stabilization | Last Updated: 2026-01-28 | Agent Version: 1.0

@@ -2,6 +2,7 @@ import { Component, ChangeDetectionStrategy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { map, combineLatest, timer, startWith } from 'rxjs';
+import { PATHS } from '@omi/marine-data-contract';
 import { DatapointStoreService } from '../../../state/datapoints/datapoint-store.service';
 import { InstrumentCardComponent, DataQuality } from '../../components/instrument-card/instrument-card.component';
 import { formatSpeed } from '../../../core/formatting/formatters';
@@ -30,7 +31,7 @@ export class SogInstrumentComponent {
   // Create a 250ms ticker for age updates
   private ticker$ = timer(0, 250);
 
-  private point$ = this.store.observe<number>('navigation.speedOverGround');
+  private point$ = this.store.observe<number>(PATHS.navigation.speedOverGround);
 
   // Combine data + ticker + prefs to update age and formatted value
   vm$ = combineLatest([
