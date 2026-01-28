@@ -20,9 +20,6 @@ import { DepthInstrumentComponent } from '../../ui/instruments/depth/depth-instr
         <app-sog-instrument></app-sog-instrument>
         <app-heading-instrument></app-heading-instrument>
         <app-depth-instrument></app-depth-instrument>
-        <app-sog-instrument></app-sog-instrument>
-        <app-heading-instrument></app-heading-instrument>
-        <app-depth-instrument></app-depth-instrument>
       </div>
     </div>
   `,
