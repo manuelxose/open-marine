@@ -28,6 +28,9 @@ import {
   selectPosition,
   selectSeries,
   selectSog,
+  selectTws,
+  selectTwd,
+  selectTwa,
   type PositionValue,
 } from '../../state/datapoints/datapoint.selectors';
 import { PATHS } from '@omi/marine-data-contract';
@@ -110,6 +113,9 @@ export class DashboardFacadeService {
   private readonly depth$ = selectDepth(this.store).pipe(shareReplay({ bufferSize: 1, refCount: true }));
   private readonly aws$ = selectAws(this.store).pipe(shareReplay({ bufferSize: 1, refCount: true }));
   private readonly awa$ = selectAwa(this.store).pipe(shareReplay({ bufferSize: 1, refCount: true }));
+  private readonly tws$ = selectTws(this.store).pipe(shareReplay({ bufferSize: 1, refCount: true }));
+  private readonly twd$ = selectTwd(this.store).pipe(shareReplay({ bufferSize: 1, refCount: true }));
+  private readonly twa$ = selectTwa(this.store).pipe(shareReplay({ bufferSize: 1, refCount: true }));
   private readonly voltage$ = selectBatteryVoltage(this.store).pipe(shareReplay({ bufferSize: 1, refCount: true }));
   private readonly current$ = selectBatteryCurrent(this.store).pipe(shareReplay({ bufferSize: 1, refCount: true }));
 
@@ -271,15 +277,21 @@ export class DashboardFacadeService {
   readonly windVm$ = combineLatest({
     aws: this.aws$,
     awa: this.awa$,
+    tws: this.tws$,
+    twd: this.twd$,
+    twa: this.twa$,
     series: this.windSeries$,
     prefs: this.prefs$,
     isLoading: this.isLoading$,
   }).pipe(
-    map(({ aws, awa, series, prefs, isLoading }) => ({
+    map(({ aws, awa, tws, twd, twa, series, prefs, isLoading }) => ({
       title: 'dashboard.panels.wind',
       metrics: [
         { ...metric('dashboard.metrics.aws', formatSpeed(coerceNumber(aws?.value), prefs.speedUnit)), series },
         metric('dashboard.metrics.awa', formatAngleDegrees(coerceNumber(awa?.value))),
+        metric('dashboard.metrics.tws', formatSpeed(coerceNumber(tws?.value), prefs.speedUnit)),
+        metric('dashboard.metrics.twd', formatAngleDegrees(coerceNumber(twd?.value))),
+        metric('dashboard.metrics.twa', formatAngleDegrees(coerceNumber(twa?.value))),
       ],
       primarySeries: series,
       isLoading,

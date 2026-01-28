@@ -44,8 +44,10 @@ const WAYPOINT_SOURCE_ID = 'chart-waypoints-source';
 const WAYPOINT_LAYER_ID = 'chart-waypoints-layer';
 const ROUTE_SOURCE_ID = 'chart-route-source';
 const ROUTE_LAYER_ID = 'chart-route-layer';
+const TRUE_WIND_SOURCE_ID = 'chart-true-wind-source';
+const TRUE_WIND_LAYER_ID = 'chart-true-wind-layer';
 
-const EMPTY_POINTS: WaypointFeatureCollection = {
+const EMPTY_POINTS: FeatureCollection<Point> = {
   type: 'FeatureCollection',
   features: [],
 };
@@ -79,8 +81,12 @@ export class MapLibreEngineService {
     coords: [],
     visible: false,
   };
-  private lastWaypoints: WaypointFeatureCollection = EMPTY_POINTS;
+  private lastWaypoints: WaypointFeatureCollection = EMPTY_POINTS as unknown as WaypointFeatureCollection;
   private lastRoute: FeatureCollection<LineString> = EMPTY_LINE;
+  private lastTrueWind: { coords: [number, number][]; visible: boolean } = {
+    coords: [],
+    visible: false,
+  };
 
   init(containerEl: HTMLElement, initialView: MapLibreInitView): void {
     if (this.map) {
@@ -164,6 +170,14 @@ export class MapLibreEngineService {
     this.applyRoute();
   }
 
+  updateTrueWind(lineStringCoords: [number, number][], visible: boolean): void {
+    this.lastTrueWind = { coords: lineStringCoords, visible };
+    if (!this.mapReady) {
+      return;
+    }
+    this.applyTrueWind();
+  }
+
   updateView(center: [number, number] | null): void {
     this.pendingCenter = center;
     if (!this.mapReady || !this.map || !center) {
@@ -189,20 +203,17 @@ export class MapLibreEngineService {
   }
 
   private onStyleReady(): void {
-    if (!this.map) {
-      return;
-    }
-
-    this.mapReady = true;
     this.ensureVesselLayer();
     this.ensureTrackLayer();
     this.ensureVectorLayer();
+    this.ensureTrueWindLayer();
     this.ensureWaypointsLayer();
     this.ensureRouteLayer();
 
     this.applyVessel();
     this.applyTrack();
     this.applyVector();
+    this.applyTrueWind();
     this.applyWaypoints();
     this.applyRoute();
     this.applyView();
@@ -297,6 +308,37 @@ export class MapLibreEngineService {
           'line-width': 2,
           'line-opacity': 0.85,
           'line-dasharray': [1.5, 1.5],
+        },
+      });
+    }
+  }
+
+  private ensureTrueWindLayer(): void {
+    if (!this.map) {
+      return;
+    }
+
+    if (!this.map.getSource(TRUE_WIND_SOURCE_ID)) {
+      this.map.addSource(TRUE_WIND_SOURCE_ID, {
+        type: 'geojson',
+        data: EMPTY_LINE,
+      });
+    }
+
+    if (!this.map.getLayer(TRUE_WIND_LAYER_ID)) {
+      this.map.addLayer({
+        id: TRUE_WIND_LAYER_ID,
+        type: 'line',
+        source: TRUE_WIND_SOURCE_ID,
+        layout: {
+          'line-cap': 'round',
+          'line-join': 'round',
+          visibility: 'none',
+        },
+        paint: {
+          'line-color': '#10b981', // Emerald-500
+          'line-width': 3,
+          'line-opacity': 0.85,
         },
       });
     }
@@ -429,6 +471,40 @@ export class MapLibreEngineService {
     };
 
     source.setData(data);
+  }
+
+  private applyTrueWind(): void {
+    if (!this.map) {
+      return;
+    }
+
+    const source = this.map.getSource(TRUE_WIND_SOURCE_ID) as maplibregl.GeoJSONSource | undefined;
+    if (!source || !this.map.getLayer(TRUE_WIND_LAYER_ID)) {
+      return;
+    }
+
+    if (!this.lastTrueWind.visible || this.lastTrueWind.coords.length < 2) {
+      source.setData(EMPTY_LINE);
+      this.map.setLayoutProperty(TRUE_WIND_LAYER_ID, 'visibility', 'none');
+      return;
+    }
+
+    const data: FeatureCollection<LineString> = {
+      type: 'FeatureCollection',
+      features: [
+        {
+          type: 'Feature',
+          geometry: {
+            type: 'LineString',
+            coordinates: this.lastTrueWind.coords,
+          },
+          properties: {},
+        },
+      ],
+    };
+
+    source.setData(data);
+    this.map.setLayoutProperty(TRUE_WIND_LAYER_ID, 'visibility', 'visible');
   }
 
   private applyVector(): void {
