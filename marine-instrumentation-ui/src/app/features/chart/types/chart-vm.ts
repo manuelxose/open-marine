@@ -32,7 +32,9 @@ export interface ChartControlsVm {
   autoCenter: boolean;
   showTrack: boolean;
   showVector: boolean;
+  showTrueWind: boolean;
   canCenter: boolean;
+  sourceId: string;
 }
 
 export interface ChartWaypointVm {

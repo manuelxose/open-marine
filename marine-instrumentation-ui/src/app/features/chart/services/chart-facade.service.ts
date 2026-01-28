@@ -1,5 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import { auditTime, combineLatest, firstValueFrom, map, scan, shareReplay, startWith, timer } from 'rxjs';
+import { BehaviorSubject, auditTime, combineLatest, firstValueFrom, map, scan, shareReplay, startWith, timer } from 'rxjs';
 import { DatapointStoreService } from '../../../state/datapoints/datapoint-store.service';
 import {
   isPositionValue,
@@ -10,6 +10,8 @@ import {
   selectHeading,
   selectPosition,
   selectSog,
+  selectTws,
+  selectTwd,
   selectTrackPoints,
   type PositionValue,
 } from '../../../state/datapoints/datapoint.selectors';
@@ -67,6 +69,30 @@ const DEFAULT_BASE_SOURCE: ChartSourceConfig = {
   },
 };
 
+const SATELLITE_SOURCE: ChartSourceConfig = {
+  id: 'satellite',
+  style: {
+    version: 8,
+    sources: {
+      'satellite': {
+        type: 'raster',
+        tiles: [
+          'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+        ],
+        tileSize: 256,
+        attribution: 'Esri, Maxar, Earthstar Geographics',
+      },
+    },
+    layers: [
+      {
+        id: 'satellite',
+        type: 'raster',
+        source: 'satellite',
+      },
+    ],
+  },
+};
+
 const hudRow = (labelKey: string, value: string, unit: string): ChartHudRow => ({
   labelKey,
   value,
@@ -119,6 +145,8 @@ export class ChartFacadeService {
   private readonly depth$ = selectDepth(this.store).pipe(shareReplay({ bufferSize: 1, refCount: true }));
   private readonly aws$ = selectAws(this.store).pipe(shareReplay({ bufferSize: 1, refCount: true }));
   private readonly awa$ = selectAwa(this.store).pipe(shareReplay({ bufferSize: 1, refCount: true }));
+  private readonly tws$ = selectTws(this.store).pipe(shareReplay({ bufferSize: 1, refCount: true }));
+  private readonly twd$ = selectTwd(this.store).pipe(shareReplay({ bufferSize: 1, refCount: true }));
 
   private readonly positionValue$ = this.position$.pipe(
     map((point) => this.extractPosition(point)),
@@ -203,7 +231,8 @@ export class ChartFacadeService {
     zoom: 12,
   };
 
-  readonly baseSourceConfig: ChartSourceConfig = DEFAULT_BASE_SOURCE;
+  private readonly _baseSource$ = new BehaviorSubject<ChartSourceConfig>(DEFAULT_BASE_SOURCE);
+  readonly baseSource$ = this._baseSource$.asObservable();
 
   readonly hudVm$ = combineLatest({
     fixState: this.fixState$,
@@ -352,6 +381,53 @@ export class ChartFacadeService {
       };
     }),
     shareReplay({ bufferSize: 1, refCount: true }),
+  );trueWindUpdate$ = combineLatest({
+    position: this.positionValue$,
+    twd: this.twd$,
+    tws: this.tws$,
+    settings: this.settingsService.settings$,
+  }).pipe(
+    auditTime(200),
+    map(({ position, twd, tws, settings }) => {
+      if (!settings.showTrueWind || !position) {
+        return { coords: [] as [number, number][], visible: false };
+      }
+
+      const twdRad = coerceNumber(twd?.value);
+      if (twdRad === null) {
+        return { coords: [] as [number, number][], visible: false };
+      }
+
+      const twdDeg = normalizeDegrees(toDegrees(twdRad));
+
+      // Calculate wind vector length
+      // TWS is in m/s. We project where the "wind particle" would be in 60 seconds
+      // OR we just use a fixed length.
+      // Let's use the same logic as SOG: 60 seconds of travel.
+      // NOTE: Wind vector normally points WITH the wind.
+      // If TWD is North (0), wind is blowing FROM North TO South.
+      // Standard vector points South (180).
+      // BUT we want a "Wind Barb" which points INTO the wind (North).
+      // So use TWD directly.
+      
+      const twsMps = coerceNumber(tws?.value) ?? 0;
+      const vectorMeters = Math.max(DEFAULT_VECTOR_NM * METERS_PER_NM, twsMps * VECTOR_TIME_SECONDS);
+      
+      const destination = projectDestination(
+        { lat: position.latitude, lon: position.longitude },
+        twdDeg,
+        vectorMeters,
+      );
+
+      return {
+        coords: [
+          [position.longitude, position.latitude],
+          [destination.lon, destination.lat],
+        ] as [number, number][],
+        visible: true,
+      };
+    }),
+    shareReplay({ bufferSize: 1, refCount: true }),
   );
 
   readonly waypointsGeoJson$ = combineLatest({
@@ -396,12 +472,15 @@ export class ChartFacadeService {
   readonly controlsVm$ = combineLatest({
     settings: this.settingsService.settings$,
     canCenter: this.hasFix$,
+    source: this.baseSource$,
   }).pipe(
-    map(({ settings, canCenter }) => ({
+    map(({ settings, canCenter, source }) => ({
       autoCenter: settings.autoCenter,
       showTrack: settings.showTrack,
       showVector: settings.showVector,
+      showTrueWind: settings.showTrueWind,
       canCenter,
+      sourceId: source.id,
     } satisfies ChartControlsVm)),
     shareReplay({ bufferSize: 1, refCount: true }),
   );
@@ -427,6 +506,19 @@ export class ChartFacadeService {
 
   toggleVector(): void {
     this.settingsService.toggleVector();
+  }
+
+  toggleTrueWind(): void {
+    this.settingsService.toggleTrueWind();
+  }
+
+  toggleLayer(): void {
+    const current = this._baseSource$.value;
+    if (current.id === 'osm-raster') {
+      this._baseSource$.next(SATELLITE_SOURCE);
+    } else {
+      this._baseSource$.next(DEFAULT_BASE_SOURCE);
+    }
   }
 
   centerOnBoat(): void {

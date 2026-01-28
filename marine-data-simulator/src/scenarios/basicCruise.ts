@@ -21,10 +21,10 @@ interface BasicCruiseState {
   shallowDurationSec: number;
   shallowSeverity: number;
   nextShallowSec: number;
-  windSpeed: number;
-  windSpeedTarget: number;
-  windAngle: number;
-  windAngleTarget: number;
+  tws: number;          // True Wind Speed
+  twsTarget: number;
+  twd: number;          // True Wind Direction (North ref)
+  twdTarget: number;
   gustRemainingSec: number;
   gustDurationSec: number;
   gustAmplitude: number;
@@ -206,10 +206,10 @@ export const createBasicCruiseScenario = (): Scenario<BasicCruiseState> => {
       shallowDurationSec: 0,
       shallowSeverity: 0,
       nextShallowSec: 160,
-      windSpeed: 5.4,
-      windSpeedTarget: 5.4,
-      windAngle: 0.8,
-      windAngleTarget: 0.8,
+      tws: 5.4,
+      twsTarget: 5.4,
+      twd: 3.2, // ~South wind
+      twdTarget: 3.2,
       gustRemainingSec: 0,
       gustDurationSec: 0,
       gustAmplitude: 0,
@@ -260,17 +260,18 @@ export const createBasicCruiseScenario = (): Scenario<BasicCruiseState> => {
       const rawDepth = Math.max(MIN_DEPTH, jitter(profileDepth - shallowDrop, 0.15));
       const nextDepth = smoothValue(state.depth, rawDepth, 0.2);
 
-      const nextWindSpeedTarget = clamp(
-        state.windSpeedTarget + randomInRange(-0.1, 0.1),
+      // Wind Dynamics (True Wind)
+      const nextTwsTarget = clamp(
+        state.twsTarget + randomInRange(-0.1, 0.1),
         MIN_WIND_SPEED,
         MAX_WIND_SPEED,
       );
-      const nextWindSpeed = smoothValue(state.windSpeed, nextWindSpeedTarget, 0.12);
+      const nextTws = smoothValue(state.tws, nextTwsTarget, 0.12);
 
-      const nextWindAngleTarget = wrapRadians(
-        state.windAngleTarget + randomInRange(-0.012, 0.012),
+      const nextTwdTarget = wrapRadians(
+        state.twdTarget + randomInRange(-0.012, 0.012),
       );
-      const nextWindAngle = smoothAngle(state.windAngle, nextWindAngleTarget, 0.1);
+      const nextTwd = smoothAngle(state.twd, nextTwdTarget, 0.1);
 
       let gustRemainingSec = Math.max(0, state.gustRemainingSec - dtSeconds);
       let gustDurationSec = state.gustDurationSec;
@@ -286,9 +287,30 @@ export const createBasicCruiseScenario = (): Scenario<BasicCruiseState> => {
       }
 
       const gustBoost = computeGustBoost(gustRemainingSec, gustDurationSec, gustAmplitude);
-      const windInstant = Math.max(0, nextWindSpeed + gustBoost);
-      const reportedWindSpeed = Math.max(0, jitter(windInstant, 0.12));
-      const reportedWindAngle = wrapRadians(jitter(nextWindAngle, 0.06));
+      const twsInstant = Math.max(0, nextTws + gustBoost);
+      
+      // Calculate Apparent Wind
+      // Vectors: Wind comes FROM TWD, Boat moves TOWARDS COG
+      const windU = -twsInstant * Math.sin(nextTwd);
+      const windV = -twsInstant * Math.cos(nextTwd);
+      const boatU = nextSog * Math.sin(nextCog);
+      const boatV = nextSog * Math.cos(nextCog);
+      
+      const appU = windU - boatU;
+      const appV = windV - boatV;
+      
+      const awsInstant = Math.sqrt(appU * appU + appV * appV);
+      // atan2(x, y) for Map/Nav conventions (Clockwise from North) is typically atan2(x, y) 
+      // but JS atan2 is (y, x). 
+      // Let's use standard atan2(-u, -v) to get direction FROM.
+      // u is East (sin), v is North (cos).
+      const awaGeo = Math.atan2(-appU, -appV); // Direction FROM
+      
+      const reportedAws = Math.max(0, jitter(awsInstant, 0.12));
+      const reportedAwa = wrapRadians(angleDelta(nextHeading, awaGeo)); // Relative to Bow
+      const reportedTws = Math.max(0, jitter(twsInstant, 0.12));
+      const reportedTwd = wrapRadians(jitter(nextTwd, 0.05));
+      const reportedTwa = wrapRadians(angleDelta(nextHeading, reportedTwd)); // True Wind Angle (Bow ref)
 
       let batteryPhaseRemainingSec = Math.max(0, state.batteryPhaseRemainingSec - dtSeconds);
       let batteryMode = state.batteryMode;
@@ -331,10 +353,10 @@ export const createBasicCruiseScenario = (): Scenario<BasicCruiseState> => {
         shallowDurationSec,
         shallowSeverity,
         nextShallowSec,
-        windSpeed: nextWindSpeed,
-        windSpeedTarget: nextWindSpeedTarget,
-        windAngle: nextWindAngle,
-        windAngleTarget: nextWindAngleTarget,
+        tws: nextTws,
+        twsTarget: nextTwsTarget,
+        twd: nextTwd,
+        twdTarget: nextTwdTarget,
         gustRemainingSec,
         gustDurationSec,
         gustAmplitude,
@@ -359,13 +381,31 @@ export const createBasicCruiseScenario = (): Scenario<BasicCruiseState> => {
         makePoint(PATHS.environment.depth.belowTransducer, nextDepth, timestamp, QualityFlag.Good),
         makePoint(
           PATHS.environment.wind.speedApparent,
-          reportedWindSpeed,
+          reportedAws,
           timestamp,
           QualityFlag.Good,
         ),
         makePoint(
           PATHS.environment.wind.angleApparent,
-          reportedWindAngle,
+          reportedAwa,
+          timestamp,
+          QualityFlag.Good,
+        ),
+        makePoint(
+          PATHS.environment.wind.speedTrue,
+          reportedTws,
+          timestamp,
+          QualityFlag.Good,
+        ),
+        makePoint(
+          PATHS.environment.wind.angleTrueGround,
+          reportedTwd,
+          timestamp,
+          QualityFlag.Good,
+        ),
+        makePoint(
+          PATHS.environment.wind.angleTrueWater,
+          reportedTwa,
           timestamp,
           QualityFlag.Good,
         ),
