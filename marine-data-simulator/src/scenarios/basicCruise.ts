@@ -61,15 +61,6 @@ const wrapRadians = (value: number): number => {
   return wrapped < 0 ? wrapped + twoPi : wrapped;
 };
 
-const toDegrees = (radians: number): number => {
-  return (radians * 180) / Math.PI;
-};
-
-const wrapDegrees = (value: number): number => {
-  const wrapped = value % 360;
-  return wrapped < 0 ? wrapped + 360 : wrapped;
-};
-
 const angleDelta = (from: number, to: number): number => {
   const delta = wrapRadians(to - from);
   return delta > Math.PI ? delta - Math.PI * 2 : delta;
@@ -362,7 +353,6 @@ export const createBasicCruiseScenario = (): Scenario<BasicCruiseState> => {
 
       const reportedSog = Math.max(0, jitter(nextSog, 0.08));
       const reportedCog = wrapRadians(jitter(nextCog, 0.03));
-      const reportedCogDegrees = wrapDegrees(toDegrees(reportedCog));
       const reportedHeading = wrapRadians(jitter(nextHeading, 0.02));
 
       const points: ScenarioPoint[] = [
@@ -395,7 +385,7 @@ export const createBasicCruiseScenario = (): Scenario<BasicCruiseState> => {
         makePoint(PATHS.navigation.speedOverGround, reportedSog, timestamp, QualityFlag.Good),
         makePoint(
           PATHS.navigation.courseOverGroundTrue,
-          reportedCogDegrees,
+          reportedCog,
           timestamp,
           QualityFlag.Good,
         ),

@@ -17,19 +17,19 @@ export const routes: Routes = [
     loadComponent: () => import('./features/chart/chart.page').then(m => m.ChartPage),
     title: 'Chart'
   },
-  { 
-    path: 'instruments', 
-    loadComponent: () => import('./pages/instruments/instruments.page').then(m => m.InstrumentsPage),
+  {
+    path: 'instruments',
+    loadComponent: () => import('./features/instruments/instruments.page').then(m => m.InstrumentsPage),
     title: 'Instruments'
   },
-  { 
-    path: 'alarms', 
-    loadComponent: () => import('./pages/alarms/alarms.page').then(m => m.AlarmsPage),
+  {
+    path: 'alarms',
+    loadComponent: () => import('./features/alarms/alarms.page').then(m => m.AlarmsPage),
     title: 'Alarms'
   },
-  { 
-    path: 'diagnostics', 
-    loadComponent: () => import('./pages/diagnostics/diagnostics.page').then(m => m.DiagnosticsPage),
+  {
+    path: 'diagnostics',
+    loadComponent: () => import('./features/diagnostics/diagnostics.page').then(m => m.DiagnosticsPage),
     title: 'Diagnostics'
   },
   { 

@@ -1,5 +1,36 @@
+<<<<<<< HEAD
 .sparkline {
   display: inline-block;
   vertical-align: middle;
   overflow: visible;
+=======
+:host {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 24px;
+}
+
+.sparkline-svg {
+  width: 100%;
+  height: 100%;
+  opacity: 0.9;
+}
+
+.sparkline-threshold {
+  stroke: var(--danger);
+  stroke-width: 1;
+  stroke-dasharray: 4 4;
+  opacity: 0.7;
+}
+
+.sparkline-empty {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+  font-size: 0.75rem;
+>>>>>>> claude/analyze-codebase-JJQG3
 }
