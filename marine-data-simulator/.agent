@@ -1,0 +1,312 @@
+# marine-data-simulator - AI Agent Guide
+
+**Purpose:** Generates realistic sailboat telemetry for development/testing (v0.1.0)
+**Status:** Functional, generates data for Signal K
+**Dependencies:** marine-data-contract
+
+---
+
+## 🎯 Quick Facts
+
+- **Runtime:** Node.js 20 LTS
+- **Frequency:** 1 Hz (publishes every 1000ms)
+- **Publishes To:** Signal K HTTP endpoint (POST to localhost:3000)
+- **Development:** Run with `npm run dev` (tsx with hot reload)
+- **Production:** Run with `npm run build && npm start` (compiled Node)
+
+---
+
+## 📂 File Structure
+
+```
+marine-data-simulator/
+├── src/
+│   ├── index.ts              # Entry point (main loop)
+│   ├── engine/
+│   │   └── simulatorEngine.ts # Event loop (1 Hz timer)
+│   ├── publishers/
+│   │   ├── publisher.ts       # Interface
+│   │   ├── httpPublisher.ts   # HTTP POST (used)
+│   │   └── wsPublisher.ts     # WebSocket (stub, unused)
+│   └── scenarios/
+│       ├── scenario.ts        # Interface
+│       └── basicCruise.ts     # Default scenario (main implementation)
+├── dist/                      # Compiled output
+├── tsconfig.json
+├── package.json
+└── .agent                     # This file
+```
+
+---
+
+## 🔑 How It Works
+
+### Main Loop (src/index.ts)
+
+```typescript
+1. Load scenario (basicCruise by default)
+2. Initialize HTTP publisher to localhost:3000
+3. Loop every 1000ms:
+   a. Call scenario.update()
+   b. Get generated data points
+   c. Publish via HTTP POST to Signal K
+   d. Log: [timestamp] Publishing: position, speed, depth, etc.
+```
+
+### Data Generation (src/scenarios/basicCruise.ts)
+
+Simulates a sailboat cruise with:
+- **Position:** Realistic track (lat/lon drifting)
+- **Speed:** 0-5 m/s with acceleration/deceleration
+- **Heading:** Constant with minor variations
+- **Wind:** Apparent wind with random gusts
+- **Depth:** Variable with shoal zones
+- **Battery:** 12V with charge/discharge cycles
+
+**Events simulated:**
+- Gusts (wind speed + 1-2 m/s temporary)
+- Shallow water (depth < 2m alert)
+- Battery cycles (solar charging)
+
+---
+
+## ✅ DO - When Modifying Simulator
+
+1. **To change data values:**
+   - Edit `src/scenarios/basicCruise.ts`
+   - Modify constants: `INITIAL_POSITION`, `MAX_SPEED`, etc.
+   - Rebuild: `npm run build`
+   - Test: `npm run dev` (watch logs)
+
+2. **To add new data path:**
+   - Ensure path exists in contract: `PATHS.xxx.yyy`
+   - Add to scenario output: `values: [{ path: PATHS.xxx, value: ... }]`
+   - Publish via HTTP publisher (already configured)
+   - Verify Signal K receives it: Check server logs
+
+3. **To create new scenario:**
+   - Copy `src/scenarios/basicCruise.ts`
+   - Implement `Scenario` interface
+   - Export from `src/scenarios/index.ts`
+   - Update `src/index.ts` to use: `const scenario = new YourScenario()`
+
+4. **To fix unit inconsistencies:**
+   - ⚠️ **CRITICAL BUG:** COG published in degrees, heading in radians
+   - Fix: Use `degToRad()` to convert both to radians
+   - Verify: Check simulator logs show consistent units
+
+---
+
+## ❌ DON'T - Never Do This
+
+1. **Don't hardcode paths**
+   - Use: `PATHS.navigation.speedOverGround`
+   - Not: `'navigation.speedOverGround'`
+
+2. **Don't bypass contract types**
+   - Import types: `import { DataPoint, PATHS } from '@omi/marine-data-contract'`
+   - All data must be DataPoint<T>
+
+3. **Don't publish at wrong frequency**
+   - 1 Hz is standard (1000ms interval)
+   - Don't change without Signal K agreement
+
+4. **Don't leave dead code**
+   - HttpPublisher used ✅
+   - WsPublisher not used (should stay minimal stub)
+
+5. **Don't mix units**
+   - Standard: angles in radians, speed in m/s
+   - Currently: Bug where COG is in degrees (fix in M4)
+
+6. **Don't lose data quality**
+   - Always include: path, value, timestamp, source, quality
+   - Default quality: "good"
+
+---
+
+## 🔄 Development Workflow
+
+### Running During Development
+
+```bash
+npm install  # First time only
+npm run dev  # Hot reload with tsx
+```
+
+**Output should show:**
+```
+Simulator started, publishing to http://localhost:3000/signalk/v1/messages
+Publishing deltas every 1000ms...
+[1000ms] Position: 60.17, 24.94 | SOG: 3.2 m/s | Depth: 2.5 m | ...
+[2000ms] Position: 60.17, 24.94 | SOG: 3.3 m/s | Depth: 2.4 m | ...
+```
+
+### Modifying Scenario
+
+**Example:** Increase speed range
+
+1. **Edit src/scenarios/basicCruise.ts:**
+   ```typescript
+   const MAX_SPEED = 8;  // Was 5, now 8 m/s
+   ```
+
+2. **Save** (hot reload automatic)
+
+3. **Check logs:** Should see speed values up to 8 m/s
+
+4. **Test in UI:** Watch dashboard speed gauge change
+
+### Debugging
+
+```bash
+# Check what's being published
+npm run dev  # Watch console output
+
+# Verify HTTP requests reaching Signal K
+# Terminal 2: curl http://localhost:3000/signalk/v1/api/
+# Should show recent vessel data
+
+# Check timestamp format
+# Should be ISO 8601: "2026-01-28T22:10:00.000Z"
+```
+
+---
+
+## 📊 Current Data Generation
+
+### Paths Published (From basicCruise.ts)
+
+| Path | Unit | Range | Notes |
+|------|------|-------|-------|
+| `navigation.position` | lat/lon | Realistic | 60.1-60.2°N, 24.8-25.0°E (Helsinki area) |
+| `navigation.speedOverGround` | m/s | 0-5 | Accelerates/decelerates realistically |
+| `navigation.courseOverGroundTrue` | degrees | 0-360 | ⚠️ BUG: Should be radians (M4 fix) |
+| `navigation.headingTrue` | radians | 0-2π | Correct unit |
+| `environment.depth.belowTransducer` | meters | 0.5-50 | Includes shoal zones |
+| `environment.wind.angleApparent` | radians | 0-2π | Relative to bow |
+| `environment.wind.speedApparent` | m/s | 2-8 | With gusts |
+| `electrical.batteries.house.voltage` | volts | 10.5-14 | Charge/discharge cycles |
+| `electrical.batteries.house.current` | amps | -50 to +10 | Positive = charging |
+
+### Known Issues ⚠️
+
+1. **Unit Inconsistency (HIGH PRIORITY)**
+   - COG published in degrees, should be radians
+   - Heading published in radians ✅
+   - Fix: Apply `degToRad()` to COG before publish
+   - Status: Pending M4
+
+2. **Dead Code (LOW)**
+   - WsPublisher.ts exists but unused
+   - HttpPublisher.ts working correctly
+   - Status: Can clean up later
+
+3. **Limited Scenarios (LOW)**
+   - Only basicCruise.ts implemented
+   - Could add: storm, racing, mooring scenarios
+   - Status: Future enhancement
+
+---
+
+## 🚀 Build & Deploy
+
+### Development
+
+```bash
+npm install
+npm run dev  # Hot reload, fast iteration
+```
+
+### Production Build
+
+```bash
+npm run build  # Compiles to dist/
+npm start      # Runs compiled version
+```
+
+### Docker (Future)
+
+```dockerfile
+FROM node:20-alpine
+COPY . /app
+WORKDIR /app
+RUN npm install && npm run build
+CMD ["npm", "start"]
+```
+
+---
+
+## 📚 Integration with UI
+
+### What Happens When Running
+
+1. **Simulator publishes** data via HTTP POST every 1 second
+2. **Signal K receives** and aggregates
+3. **UI connects** via WebSocket to Signal K
+4. **UI receives** delta updates in real-time
+5. **Dashboard updates** every 1 second
+
+### Manual Test
+
+```bash
+# Terminal 1: Start Signal K
+cd signalk-runtime
+docker compose up -d
+
+# Terminal 2: Start Simulator
+cd marine-data-simulator
+npm run dev
+
+# Terminal 3: Check data in Signal K
+curl http://localhost:3000/signalk/v1/api/ | jq '.navigation'
+# Should show position, heading, speed, etc.
+
+# Terminal 4: Start UI
+cd marine-instrumentation-ui
+npm start
+# Open http://localhost:4200
+# Should see dashboard with live data
+```
+
+---
+
+## ⚡ Quick Commands
+
+```bash
+npm install    # Install dependencies
+npm run dev    # Development (tsx with HMR)
+npm run build  # Production build to dist/
+npm start      # Run compiled version
+npm run lint   # ESLint check
+npm run format # Code formatting
+```
+
+---
+
+## 🎯 Improvements Roadmap
+
+| Item | Priority | Effort | Status |
+|------|----------|--------|--------|
+| Fix COG unit bug | P1 | 1 hour | ⏳ M4 |
+| Add more scenarios | P2 | 1 day | ⏳ M6+ |
+| Improve event frequency | P2 | 2 hours | ⏳ Future |
+| Add storm scenario | P3 | 1 day | ⏳ Backlog |
+
+---
+
+## ✅ Checklist for Changes
+
+- [ ] Edited in `src/scenarios/` or `src/engine/`
+- [ ] Ran `npm run build` (compiles clean)
+- [ ] Ran `npm run lint` (ESLint passes)
+- [ ] Tested: `npm run dev` (logs show data)
+- [ ] Verified data reaches Signal K
+- [ ] Checked UI displays data correctly
+- [ ] Used types from marine-data-contract
+- [ ] No hardcoded paths (used PATHS)
+- [ ] Units correct (radians for angles, m/s for speed)
+
+---
+
+**Status:** Functional MVP | Last Updated: 2026-01-28 | Agent Version: 1.0

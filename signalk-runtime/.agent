@@ -1,0 +1,664 @@
+# signalk-runtime - AI Agent Guide
+
+**Purpose:** Docker-containerized Signal K server runtime for marine data aggregation (v4.x)
+**Status:** Production-ready, data aggregation working, APIs stable
+**Dependencies:** Docker, Docker Compose (no source code in this package)
+
+---
+
+## 🎯 Quick Facts
+
+- **Runtime:** Signal K v4.x (containerized)
+- **Base Image:** Node.js 18-alpine (lightweight)
+- **Entry Point:** `docker compose up -d` in signalk-runtime/
+- **Ports Exposed:**
+  - `3000` - HTTP API + WebSocket stream
+  - `5000` - Admin interface (not used in development)
+- **Data Persistence:** Docker volume `signalk-data` (survives container restarts)
+- **Start Time:** ~5-10 seconds from `docker compose up -d`
+
+---
+
+## 📂 File Structure
+
+```
+signalk-runtime/
+├── docker-compose.yml        # Container orchestration (KEY FILE)
+├── README.md                 # Basic setup instructions
+├── data/                     # Persistent volume mount point
+│   └── package.json          # Signal K plugins config
+│   └── plugin-config-data/   # Plugin configurations
+│       ├── course-provider.json      # Course calculation (unused)
+│       ├── freeboard-sk.json         # Freeboard UI config (unused)
+│       └── resources-provider.json   # Resource provider config (unused)
+└── .agent                    # This file
+```
+
+---
+
+## 🔑 Docker Compose Configuration
+
+### docker-compose.yml
+
+```yaml
+services:
+  signalk:
+    image: signalk/signalk-server:v4.x
+    container_name: signalk-server
+    ports:
+      - "3000:3000"   # ← API, WebSocket, HTML
+      - "5000:5000"   # ← Admin (not used)
+    volumes:
+      - signalk-data:/signalk/appdata  # Persistent data
+    environment:
+      - NODE_ENV=development           # ← Key for allowing self-signed certs
+      - SIGNALK_LOGLEVEL=info         # ← Verbosity
+
+volumes:
+  signalk-data:
+    driver: local
+```
+
+### Key Settings Explained
+
+| Setting | Purpose | Value | Notes |
+|---------|---------|-------|-------|
+| `image: signalk/signalk-server:v4.x` | Container image | v4.x stable | Update to latest v4 as needed |
+| `container_name: signalk-server` | Hostname | Fixed | Allows easy reference in compose |
+| `ports: 3000:3000` | HTTP/WS port | Standard | UI, API, delta stream |
+| `ports: 5000:5000` | Admin port | Not used | Can remove in future |
+| `signalk-data:/signalk/appdata` | Persistent volume | Docker managed | Survives container restarts |
+| `NODE_ENV=development` | Environment | development | Allows self-signed certs, verbose logging |
+| `SIGNALK_LOGLEVEL=info` | Log level | info | Shows important events, not too verbose |
+
+---
+
+## ✅ DO - When Working with Signal K
+
+### 1. Starting Signal K for Development
+
+```bash
+# From signalk-runtime/ directory
+docker compose up -d
+
+# Verify running
+docker ps | grep signalk
+
+# Check logs
+docker compose logs -f signalk
+
+# Output should show:
+# [2026-01-28T22:10:00.000Z] info Server running on http://localhost:3000
+```
+
+### 2. Checking Server Health
+
+```bash
+# HTTP endpoint (returns current vessel state)
+curl http://localhost:3000/signalk/v1/api/
+
+# Should return JSON with:
+# {
+#   "self": "vessels/self",
+#   "navigation": { ... },
+#   "environment": { ... },
+#   ...
+# }
+
+# WebSocket endpoint (delta stream)
+websocat ws://localhost:3000/signalk/v1/stream?subscribe=all
+# Should show incoming delta messages from simulator
+```
+
+### 3. Persisting Configuration
+
+```bash
+# Configuration lives in Docker volume
+docker volume inspect signalk-data
+# Shows mount path on host machine
+
+# View plugin configs
+docker compose exec signalk cat /signalk/appdata/package.json
+
+# To edit configuration:
+docker compose exec signalk vi /signalk/appdata/app-settings.json
+```
+
+### 4. Accessing Admin Interface (Future)
+
+```bash
+# Open browser: http://localhost:5000
+# Currently not used in development
+# May be needed for plugin management in future
+```
+
+### 5. Publishing Test Data to Signal K
+
+```bash
+# Using cURL (HTTP POST)
+curl -X POST http://localhost:3000/signalk/v1/messages \
+  -H "Content-Type: application/json" \
+  -d '{
+    "context": "vessels/self",
+    "updates": [
+      {
+        "source": {
+          "src": "test-client",
+          "type": "mqtt"
+        },
+        "timestamp": "2026-01-28T22:10:00.000Z",
+        "values": [
+          {
+            "path": "navigation.speedOverGround",
+            "value": 5.2
+          }
+        ]
+      }
+    ]
+  }'
+
+# Should return 200 OK
+# Data immediately available at:
+curl http://localhost:3000/signalk/v1/api/navigation/speedOverGround
+```
+
+### 6. Connecting UI to Signal K
+
+```typescript
+// In marine-instrumentation-ui
+// src/app/data-access/signalk/signalk-client.service.ts
+
+const wsUrl = 'ws://localhost:3000/signalk/v1/stream?subscribe=all';
+this.ws = new WebSocket(wsUrl);
+
+// Server sends delta messages:
+// {
+//   "context": "vessels/self",
+//   "updates": [
+//     { "source": { ... }, "timestamp": "...", "values": [...] }
+//   ]
+// }
+
+// Mapper converts to DataPoint[] → stored in DatapointStoreService
+```
+
+### 7. Debugging Message Flow
+
+```bash
+# Terminal 1: Watch Signal K logs
+docker compose logs -f signalk
+
+# Terminal 2: Send test message
+curl -X POST http://localhost:3000/signalk/v1/messages -d '...'
+
+# Terminal 3: Subscribe to updates
+curl http://localhost:3000/signalk/v1/api/ | jq '.navigation'
+
+# Logs should show:
+# [timestamp] info PUT /signalk/v1/messages
+# [timestamp] info Valid delta from test-client
+```
+
+---
+
+## ❌ DON'T - Common Mistakes
+
+### 1. ❌ Trying to Connect Before Signal K Starts
+
+```bash
+# WRONG: Starting UI before Signal K
+npm start  # → WebSocket connection fails!
+
+# RIGHT: Always start in order
+docker compose up -d    # Terminal 1: Signal K first
+sleep 5                 # Wait for startup
+npm run dev             # Terminal 2: Simulator
+# Terminal 3: UI (after Signal K ready)
+```
+
+### 2. ❌ Publishing Data to Wrong Endpoint
+
+```bash
+# WRONG: Posting to API endpoint
+curl -X POST http://localhost:3000/signalk/v1/api/navigation/speedOverGround
+# → Returns 405 (Method Not Allowed)
+
+# RIGHT: Post to /messages endpoint
+curl -X POST http://localhost:3000/signalk/v1/messages -d '{...}'
+# → Accepts data, broadcasts to all subscribers
+```
+
+### 3. ❌ Not Including Required Fields in Delta
+
+```bash
+# WRONG: Missing context/updates
+{
+  "navigation.speedOverGround": 5.2
+}
+
+# RIGHT: Proper delta format
+{
+  "context": "vessels/self",
+  "updates": [
+    {
+      "source": { "src": "simulator", "type": "mqtt" },
+      "timestamp": "2026-01-28T22:10:00.000Z",
+      "values": [
+        { "path": "navigation.speedOverGround", "value": 5.2 }
+      ]
+    }
+  ]
+}
+```
+
+### 4. ❌ Assuming Timestamp Automatically Set
+
+```javascript
+// WRONG: No timestamp (server uses current time, may be inconsistent)
+{
+  "values": [{ "path": "navigation.speedOverGround", "value": 5.2 }]
+}
+
+// RIGHT: Always include ISO 8601 timestamp
+{
+  "timestamp": "2026-01-28T22:10:00.000Z",
+  "values": [{ "path": "navigation.speedOverGround", "value": 5.2 }]
+}
+```
+
+### 5. ❌ Modifying Container Config Without Rebuild
+
+```bash
+# WRONG: Editing docker-compose.yml, then just:
+docker compose up -d
+
+# RIGHT: Rebuild after config changes
+docker compose down
+docker compose up -d --build
+```
+
+### 6. ❌ Losing Data on Container Restart
+
+```bash
+# WRONG: No volume mount (data lost on restart)
+docker run -p 3000:3000 signalk/signalk-server:v4.x
+# → Container restart = data gone!
+
+# RIGHT: docker-compose.yml includes volume
+signalk-data:/signalk/appdata
+# → Data persists across restarts
+```
+
+### 7. ❌ Accessing localhost From Simulator (Container Network)
+
+```bash
+# WRONG: Simulator trying to POST to http://localhost:3000
+// Error: Cannot reach localhost (inside container context)
+
+# RIGHT: Use container network name
+const signalkUrl = 'http://signalk:3000';
+// or use host.docker.internal (Mac/Windows)
+const signalkUrl = 'http://host.docker.internal:3000';
+```
+
+### 8. ❌ Not Checking WebSocket Connection Status
+
+```typescript
+// WRONG: Assuming connection ready
+const ws = new WebSocket('ws://localhost:3000/...');
+ws.send(JSON.stringify(data));  // May fail if not ready!
+
+// RIGHT: Wait for connection
+const ws = new WebSocket('ws://localhost:3000/...');
+ws.onopen = () => {
+  ws.send(JSON.stringify(data));  // Now safe
+};
+```
+
+---
+
+## 🔄 Development Workflow
+
+### Standard Setup
+
+```bash
+# Step 1: Start Signal K (required)
+cd signalk-runtime
+docker compose up -d
+
+# Step 2: Wait for server to be ready
+docker compose logs -f signalk
+# Wait for: "Server running on http://localhost:3000"
+# Press Ctrl+C to exit logs
+
+# Step 3: Start simulator (optional, for test data)
+cd marine-data-simulator
+npm install
+npm run dev
+
+# Step 4: Start UI (in new terminal)
+cd marine-instrumentation-ui
+npm install
+npm start
+
+# Step 5: Open browser
+# http://localhost:4200
+```
+
+### Testing Integration
+
+```bash
+# Terminal 1: Watch Signal K
+docker compose logs -f signalk
+
+# Terminal 2: Publish test data
+curl -X POST http://localhost:3000/signalk/v1/messages \
+  -H "Content-Type: application/json" \
+  -d '{
+    "context": "vessels/self",
+    "updates": [{
+      "source": { "src": "manual-test", "type": "test" },
+      "timestamp": "'$(date -u +%Y-%m-%dT%H:%M:%S.000Z)'",
+      "values": [{ "path": "navigation.speedOverGround", "value": 3.5 }]
+    }]
+  }'
+
+# Terminal 3: Check if UI received data
+# Browser console: Should see speed update on dashboard
+```
+
+### Persistence Testing
+
+```bash
+# Save vessel state
+curl http://localhost:3000/signalk/v1/api/ > vessel-state.json
+
+# Restart container
+docker compose restart signalk
+
+# Wait for startup
+sleep 5
+
+# Check data persisted
+curl http://localhost:3000/signalk/v1/api/ | diff - vessel-state.json
+# Should be identical (or recent data)
+```
+
+### Upgrading Signal K Version
+
+```bash
+# Step 1: Check available versions
+docker pull signalk/signalk-server:latest
+
+# Step 2: Update docker-compose.yml
+# Change: image: signalk/signalk-server:v4.5
+# To:     image: signalk/signalk-server:v4.6
+
+# Step 3: Restart with new image
+docker compose pull
+docker compose up -d
+
+# Step 4: Verify
+docker compose logs -f signalk
+# Should show new version in startup messages
+```
+
+---
+
+## 🌐 API Reference
+
+### REST Endpoints
+
+| Endpoint | Method | Purpose | Example |
+|----------|--------|---------|---------|
+| `/signalk/v1/api/` | GET | Get full vessel state | `curl http://localhost:3000/signalk/v1/api/` |
+| `/signalk/v1/api/{path}` | GET | Get specific datapoint | `curl http://localhost:3000/signalk/v1/api/navigation` |
+| `/signalk/v1/messages` | POST | Publish delta message | See examples below |
+
+### WebSocket Streams
+
+| Endpoint | Purpose | Message Format |
+|----------|---------|-----------------|
+| `ws://localhost:3000/signalk/v1/stream?subscribe=all` | Stream all deltas | Delta (see format below) |
+| `ws://localhost:3000/signalk/v1/stream?subscribe=self` | Stream vessel deltas only | Delta |
+
+### Delta Message Format
+
+```javascript
+{
+  "context": "vessels/self",          // Required: context path
+  "updates": [                         // Required: array of updates
+    {
+      "source": {                      // Required: data source
+        "src": "simulator",           // Source identifier
+        "type": "mqtt",               // Source type
+        "instance": "0"               // Optional: instance ID
+      },
+      "timestamp": "2026-01-28T22:10:00.000Z",  // Required: ISO 8601
+      "values": [                      // Required: array of values
+        {
+          "path": "navigation.speedOverGround",  // Full dotted path
+          "value": 5.2                           // SI units
+        },
+        {
+          "path": "navigation.courseOverGroundTrue",
+          "value": 1.5707963267948966            // Radians
+        }
+      ]
+    }
+  ]
+}
+```
+
+### Example Requests
+
+**Get Current Speed:**
+```bash
+curl http://localhost:3000/signalk/v1/api/navigation/speedOverGround
+# Returns: { "value": 5.2, "timestamp": "2026-01-28T22:10:00.000Z", ... }
+```
+
+**Publish Wind Data:**
+```bash
+curl -X POST http://localhost:3000/signalk/v1/messages \
+  -H "Content-Type: application/json" \
+  -d '{
+    "context": "vessels/self",
+    "updates": [{
+      "source": { "src": "weather-api", "type": "http" },
+      "timestamp": "'$(date -u +%Y-%m-%dT%H:%M:%S.000Z)'",
+      "values": [
+        { "path": "environment.wind.speedApparent", "value": 4.5 },
+        { "path": "environment.wind.angleApparent", "value": 0.785 }
+      ]
+    }]
+  }'
+```
+
+**Stream All Updates:**
+```bash
+websocat ws://localhost:3000/signalk/v1/stream?subscribe=all
+# Outputs deltas as they arrive (real-time)
+```
+
+---
+
+## 🐛 Troubleshooting
+
+### Signal K Not Starting
+
+```bash
+# Check logs
+docker compose logs signalk
+
+# Common issues:
+# 1. Port 3000 already in use
+docker lsof -i :3000  # Find what's using port
+docker compose down   # Stop everything, clean up
+
+# 2. Docker not running
+docker ps  # Should list containers
+
+# 3. Insufficient disk space
+docker system prune  # Clean up old images
+
+# Solution: Restart fresh
+docker compose down
+docker volume rm signalk-data  # Wipes persistent data!
+docker compose up -d
+```
+
+### WebSocket Connection Fails
+
+```bash
+# Check if server responding
+curl http://localhost:3000/signalk/v1/api/
+
+# Check if WebSocket port open
+netstat -an | grep 3000  # Should show LISTENING
+
+# Check browser console for specific error
+# Likely causes:
+# - Signal K not running
+# - Network firewall blocking
+# - Incorrect URL format
+```
+
+### Data Not Appearing on Dashboard
+
+```bash
+# Step 1: Verify simulator publishing
+# Terminal running simulator should show:
+# [1000ms] Publishing: position, speed, depth, ...
+
+# Step 2: Verify Signal K receiving
+curl http://localhost:3000/signalk/v1/api/navigation/speedOverGround
+# Should show recent value
+
+# Step 3: Verify UI connected
+# Browser console: Should show WebSocket OPEN
+localStorage.setItem('debug', 'app:*');
+# Refresh page, check logs for subscription messages
+
+# Step 4: Check data path
+# Ensure path matches PATHS constant in contract
+# Case-sensitive!
+```
+
+### Container Won't Stop Gracefully
+
+```bash
+# Graceful stop (gives 30 seconds)
+docker compose stop
+
+# Forced stop (immediate)
+docker compose kill
+
+# If stuck, remove and restart
+docker compose down
+docker compose up -d
+```
+
+---
+
+## 📊 Monitoring
+
+### Check Container Status
+
+```bash
+# Is it running?
+docker ps | grep signalk
+
+# Memory/CPU usage
+docker stats signalk-server
+
+# Logs (last 50 lines)
+docker compose logs --tail=50 signalk
+
+# Continuous logs
+docker compose logs -f signalk
+```
+
+### Data Flow Verification
+
+```bash
+# 1. Test endpoint accessibility
+curl -v http://localhost:3000/signalk/v1/api/ 2>&1 | head -20
+
+# 2. Check if simulator connected
+docker compose logs signalk | grep -i "simulator\|mqtt"
+
+# 3. Monitor incoming messages
+docker compose logs -f signalk | grep -i "PUT\|delta"
+
+# 4. Check vessel state size
+curl http://localhost:3000/signalk/v1/api/ | wc -c
+# Should be > 1000 bytes (indicates data present)
+```
+
+---
+
+## 📚 Integration Points
+
+### Incoming Data Sources
+
+```
+Simulator → HTTP POST to /signalk/v1/messages
+Sensor Gateway → HTTP POST to /signalk/v1/messages (future)
+Real Sensors → NMEA adapters → HTTP POST (future)
+```
+
+### Outgoing Data Consumers
+
+```
+Signal K ↓
+├─→ HTTP API (UI polls for state)
+└─→ WebSocket Stream (UI real-time subscriptions)
+    ↓
+    UI (marine-instrumentation-ui)
+    ↓
+    Browser Display
+```
+
+### Data Format Pipeline
+
+```
+Sensor Data (various formats: NMEA, JSON, etc.)
+    ↓
+Adapter Parsing (marine-sensor-gateway)
+    ↓
+Signal K Delta Format (standardized)
+    ↓
+Signal K Server (this package)
+    ↓
+JSON API / WebSocket Stream
+    ↓
+UI Mapper (signalk-mapper.ts)
+    ↓
+DataPoint[] (typed, validated)
+    ↓
+DatapointStoreService (single source of truth)
+    ↓
+Dashboard Components (display)
+```
+
+---
+
+## ✅ Implementation Checklist
+
+Before deploying Signal K:
+
+- [ ] `docker compose.yml` edited correctly
+- [ ] Port 3000 available (not in use)
+- [ ] `docker compose up -d` runs without errors
+- [ ] Server logs show "Server running on http://localhost:3000"
+- [ ] `curl http://localhost:3000/signalk/v1/api/` returns valid JSON
+- [ ] WebSocket stream connection works: `websocat ws://localhost:3000/signalk/v1/stream?subscribe=all`
+- [ ] Test data published successfully (via cURL)
+- [ ] Simulator can reach Signal K (check logs)
+- [ ] UI receives data on dashboard
+- [ ] Data persists after container restart
+
+---
+
+**Status:** Production ready | Last Updated: 2026-01-28 | Agent Version: 1.0

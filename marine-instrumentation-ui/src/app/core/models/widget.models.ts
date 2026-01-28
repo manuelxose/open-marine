@@ -1,3 +1,5 @@
+import { PATHS, type SignalKPath } from '@omi/marine-data-contract';
+
 export type WidgetSize = 'S' | 'M' | 'L';
 
 export interface WidgetDefinition {
@@ -5,7 +7,7 @@ export interface WidgetDefinition {
     title: string;
     description: string;
     size: WidgetSize;
-    requiredPaths: string[];
+    requiredPaths: SignalKPath[];
     category: 'navigation' | 'environment' | 'electrical' | 'system';
 }
 
@@ -27,10 +29,10 @@ export const WIDGET_DEFINITIONS: WidgetDefinition[] = [
         description: 'SOG, COG, HDG, Position with trend',
         size: 'L',
         requiredPaths: [
-            'navigation.speedOverGround',
-            'navigation.courseOverGroundTrue',
-            'navigation.headingTrue',
-            'navigation.position'
+            PATHS.navigation.speedOverGround,
+            PATHS.navigation.courseOverGroundTrue,
+            PATHS.navigation.headingTrue,
+            PATHS.navigation.position
         ],
         category: 'navigation'
     },
@@ -40,8 +42,8 @@ export const WIDGET_DEFINITIONS: WidgetDefinition[] = [
         description: 'Apparent wind speed and angle',
         size: 'L',
         requiredPaths: [
-            'environment.wind.speedApparent',
-            'environment.wind.angleApparent'
+            PATHS.environment.wind.speedApparent,
+            PATHS.environment.wind.angleApparent
         ],
         category: 'environment'
     },
@@ -50,7 +52,7 @@ export const WIDGET_DEFINITIONS: WidgetDefinition[] = [
         title: 'Depth',
         description: 'Depth below transducer with trend',
         size: 'M',
-        requiredPaths: ['environment.depth.belowTransducer'],
+        requiredPaths: [PATHS.environment.depth.belowTransducer],
         category: 'environment'
     },
     {
@@ -59,8 +61,8 @@ export const WIDGET_DEFINITIONS: WidgetDefinition[] = [
         description: 'Battery voltage and current',
         size: 'M',
         requiredPaths: [
-            'electrical.batteries.house.voltage',
-            'electrical.batteries.house.current'
+            PATHS.electrical.batteries.house.voltage,
+            PATHS.electrical.batteries.house.current
         ],
         category: 'electrical'
     },
@@ -77,7 +79,7 @@ export const WIDGET_DEFINITIONS: WidgetDefinition[] = [
         title: 'SOG (Simple)',
         description: 'Speed over ground - compact',
         size: 'S',
-        requiredPaths: ['navigation.speedOverGround'],
+        requiredPaths: [PATHS.navigation.speedOverGround],
         category: 'navigation'
     },
     {
@@ -85,7 +87,7 @@ export const WIDGET_DEFINITIONS: WidgetDefinition[] = [
         title: 'Heading (Simple)',
         description: 'True heading - compact',
         size: 'S',
-        requiredPaths: ['navigation.headingTrue'],
+        requiredPaths: [PATHS.navigation.headingTrue],
         category: 'navigation'
     },
     {
@@ -93,7 +95,7 @@ export const WIDGET_DEFINITIONS: WidgetDefinition[] = [
         title: 'Depth (Simple)',
         description: 'Depth - compact',
         size: 'S',
-        requiredPaths: ['environment.depth.belowTransducer'],
+        requiredPaths: [PATHS.environment.depth.belowTransducer],
         category: 'environment'
     }
 ];

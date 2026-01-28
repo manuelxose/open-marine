@@ -1,0 +1,357 @@
+# Open Marine Instrumentation - AI Agent Guide
+
+**Last Updated:** 2026-01-28
+**Purpose:** Comprehensive guidance for AI agents working on this monorepo
+
+---
+
+## 🎯 Quick Facts
+
+- **Project Type:** TypeScript monorepo (5 npm packages)
+- **Status:** MVP complete (M0-M3), stabilizing (M4)
+- **Primary Language:** TypeScript 5.5+ (strict mode)
+- **Architecture Pattern:** Layered (core → state → features)
+- **Key Constraint:** Single source of truth via DatapointStoreService
+
+---
+
+## 📂 Monorepo Structure
+
+```
+open-marine/                          (Root: Main documentation + config)
+├── marine-data-contract/             (Package 1: Types & paths - no deps)
+├── marine-data-simulator/            (Package 2: Data generator)
+├── marine-sensor-gateway/            (Package 3: Adapter stubs)
+├── marine-instrumentation-ui/        (Package 4: Angular app - LARGEST)
+└── signalk-runtime/                  (Package 5: Docker container)
+```
+
+**Build Dependency Order:**
+1. `marine-data-contract` (builds first, zero deps)
+2. Others can build in parallel (all depend on contract)
+
+---
+
+## 🔑 Critical Constraints for AI Agents
+
+### MUST DO ✅
+
+1. **Read CLAUDE.md before any code changes**
+   - DO and DON'T rules are non-negotiable
+   - Architecture patterns must be followed
+   - Type safety is enforced via ESLint
+
+2. **Use types from marine-data-contract**
+   - Import: `import { DataPoint, PATHS } from '@omi/marine-data-contract'`
+   - Never hardcode Signal K paths
+   - All types must be TypeScript strict
+
+3. **Route data through DatapointStoreService**
+   - All marine data flows through this single service
+   - Components subscribe to Observables, never write directly
+   - Located: `marine-instrumentation-ui/src/app/state/datapoints/`
+
+4. **Follow layered architecture**
+   - Features can import: Shared, State, Data-Access, Core, Contract
+   - Features CANNOT import other Features
+   - Prevents circular dependencies
+
+5. **Run linting before committing**
+   - `npm run lint` in affected package
+   - `npm run format` to auto-fix
+   - ESLint must be clean (no warnings/errors)
+
+### MUST NOT DO ❌
+
+1. **Don't use `any` types** - Violates TypeScript strict mode
+2. **Don't bypass DatapointStoreService** - It's the single source of truth
+3. **Don't hardcode paths** - Use PATHS constant from contract
+4. **Don't create circular imports** - Check dependency rules
+5. **Don't add global state** - Use DatapointStoreService only
+6. **Don't duplicate components** - Refactor to shared/ instead
+7. **Don't modify PROJECT_STATE.md** - It's read-only, system-generated
+8. **Don't ignore ESLint errors** - Fix before committing
+9. **Don't break type safety** - Use proper TypeScript interfaces
+10. **Don't skip tests** - Run tests after changes
+
+---
+
+## 📖 Where to Find Information
+
+| Question | File | Section |
+|----------|------|---------|
+| **How do I set up?** | `docs/SETUP_GUIDE.md` | Complete Setup |
+| **How do I code?** | `CLAUDE.md` | Code Conventions & Patterns |
+| **What's the architecture?** | `docs/architecture.md` | System Overview |
+| **What types exist?** | `docs/data-model.md` | Core Type Definitions |
+| **What's the status?** | `docs/STATUS.md` | Health Scorecard |
+| **What's planned?** | `docs/roadmap.md` | Milestones |
+| **Which file do I read?** | `docs/INDEX.md` | Documentation Index |
+
+---
+
+## 🔄 Common Tasks & Where to Code
+
+### Adding a New Feature
+
+1. Check `docs/roadmap.md` - Is it planned? What milestone?
+2. Read `CLAUDE.md` section "How AI Assistants Should Work Here"
+3. Create feature in `marine-instrumentation-ui/src/app/features/{name}/`
+4. Follow folder structure:
+   - `{name}.page.ts` (route component)
+   - `{name}-facade.service.ts` (orchestration)
+   - `components/` (feature-specific UI)
+   - `types/` (feature types)
+5. Wire up in `app.routes.ts`
+6. Test: `npm run lint && npm test`
+
+### Adding a Data Type
+
+1. Edit `marine-data-contract/src/types.ts`
+2. Add export to `marine-data-contract/src/index.ts`
+3. If Signal K path: Add to `paths.ts` PATHS constant
+4. Build contract: `npm run build`
+5. Update dependents: `npm install` in other packages
+6. Run tests: `npm test`
+
+### Fixing a Bug
+
+1. Check `docs/STATUS.md` - Known Issues section
+2. Identify which package: contract, simulator, ui, gateway, or runtime
+3. Reproduce in browser or terminal
+4. Debug using tips in `CLAUDE.md` - Debugging section
+5. Make fix with unit tests if possible
+6. Run `npm run lint && npm test`
+7. Update relevant docs if architecture changed
+
+### Understanding Data Flow
+
+1. Read `docs/architecture.md` - Data Flow Architecture section
+2. Trace from Signal K → SignalKClientService → DatapointStoreService
+3. Components read from DatapointStoreService via Observable streams
+4. See example in `docs/data-model.md` - Data Flow Sequence
+
+---
+
+## 🧪 Testing & Verification
+
+### Before Committing
+
+```bash
+# Lint everything
+npm run lint
+
+# Format code
+npm run format
+
+# Run tests (if in UI package)
+npm test
+
+# Build to verify no compilation errors
+npm run build
+```
+
+### If Tests Fail
+
+1. Check `docs/SETUP_GUIDE.md` - Troubleshooting section
+2. Clear node_modules: `rm -rf node_modules && npm install`
+3. Check specific file: `npm test -- filename.spec.ts`
+4. View full error stack, not just first line
+
+---
+
+## 🏗️ Architecture Quick Reference
+
+```
+UI Components (presentational)
+    ↓ (read Observable)
+Feature Facade Service (orchestrates)
+    ↓ (reads from)
+State/DatapointStoreService (SINGLE SOURCE OF TRUTH)
+    ↓ (gets data from)
+Data-Access/SignalK Client (external API)
+    ↓ (fetches from)
+Signal K Server (WebSocket/REST)
+```
+
+**Core Principle:** Unidirectional data flow, read-only views, immutable state updates.
+
+---
+
+## 📦 Package-Specific Notes
+
+### marine-data-contract
+- **Purpose:** TypeScript types & Signal K paths
+- **Dependencies:** None (zero external deps)
+- **Must build first:** Before any other package
+- **Key exports:** DataPoint<T>, PATHS, QualityFlag, unit converters
+- **Rule:** No imports from other packages
+
+### marine-data-simulator
+- **Purpose:** Generates test data for development
+- **Dependencies:** marine-data-contract
+- **Publishes to:** Signal K HTTP endpoint (localhost:3000)
+- **Frequency:** 1 Hz
+- **Scalability:** Not for production
+
+### marine-sensor-gateway
+- **Purpose:** Interface stubs for real sensor adapters
+- **Status:** Stub only (no implementation)
+- **Adapters planned:** NMEA0183, NMEA2000, custom serial
+- **Currently:** Not used (future feature)
+
+### marine-instrumentation-ui
+- **Purpose:** Angular dashboard application
+- **Framework:** Angular 21.1 (standalone components)
+- **Largest package:** Most of the codebase
+- **Key service:** DatapointStoreService
+- **Routes:** dashboard, chart, instruments, alarms, diagnostics, settings
+
+### signalk-runtime
+- **Purpose:** Docker container with Signal K server
+- **Runs independently:** No npm dependencies
+- **Port:** 3000 (HTTP + WebSocket)
+- **Data format:** Signal K deltas (JSON)
+
+---
+
+## 🚦 Development Workflow
+
+### Before Starting Work
+
+1. ✅ Pull latest: `git pull origin main`
+2. ✅ Read relevant .agent file (this file + specific package .agent)
+3. ✅ Read CLAUDE.md (especially DO/DON'T)
+4. ✅ Run setup: `npm install && npm run build` (if first time)
+
+### While Coding
+
+1. ✅ Follow patterns in existing code (CLAUDE.md for reference)
+2. ✅ Lint frequently: `npm run lint`
+3. ✅ Format code: `npm run format`
+4. ✅ Test changes: `npm test`
+5. ✅ Check imports work: `npm run build`
+
+### Before Committing
+
+1. ✅ All tests pass: `npm test`
+2. ✅ Linter clean: `npm run lint` (no warnings)
+3. ✅ Code formatted: `npm run format`
+4. ✅ Build successful: `npm run build`
+5. ✅ Documentation updated (if API changed)
+
+---
+
+## 🐛 Debugging Checklist
+
+- [ ] WebSocket not connecting? → Check Signal K running on :3000
+- [ ] No data in dashboard? → Check DatapointStoreService (browser console)
+- [ ] Build fails? → Delete node_modules, npm install, npm run build
+- [ ] Tests fail? → Check test file exists and has .spec.ts suffix
+- [ ] TypeScript errors? → Check imports use types from contract
+- [ ] ESLint fails? → Run npm run format (auto-fix most issues)
+- [ ] Circular import error? → Check layering rules in CLAUDE.md
+
+---
+
+## 📊 Key Metrics to Maintain
+
+| Metric | Current | Target | Notes |
+|--------|---------|--------|-------|
+| **Code Quality** | 8/10 | 9/10 | Maintain strict TypeScript |
+| **Test Coverage** | 5% | 80%+ | Major gap, planned for M5 |
+| **ESLint Errors** | 0 | 0 | Must maintain clean |
+| **Dead Code** | 0 lines | 0 lines | Removed 4,400 in M2 |
+| **Bundle Size** | 500 KB | <400 KB | Future optimization |
+| **Load Time** | 2 sec | 1 sec | Performance goal |
+
+---
+
+## 🎓 Learning Resources
+
+**For New Agents:**
+1. Read this file (.agent) - You're reading it now ✅
+2. Read `CLAUDE.md` (20 min) - Conventions & patterns
+3. Read `docs/architecture.md` (15 min) - System design
+4. Explore `marine-instrumentation-ui/src/app/features/` - Real code
+
+**For Specific Questions:**
+- Architecture: `docs/architecture.md`
+- Data types: `docs/data-model.md`
+- Setup: `docs/SETUP_GUIDE.md`
+- Status: `docs/STATUS.md`
+- Index: `docs/INDEX.md`
+
+**For Implementation Patterns:**
+- Facade pattern: `marine-instrumentation-ui/src/app/features/dashboard/*-facade.service.ts`
+- State management: `marine-instrumentation-ui/src/app/state/datapoints/datapoint-store.service.ts`
+- Component structure: Any file in `marine-instrumentation-ui/src/app/features/*/components/`
+
+---
+
+## 🔗 Related Files
+
+**Root-level documentation:**
+- `README.md` - Quick start + overview
+- `CLAUDE.md` - Code conventions (MUST READ)
+- `docs/SETUP_GUIDE.md` - Step-by-step setup
+
+**In each package folder:**
+- `.agent` file (specific to that package)
+- Package-specific guidelines
+
+---
+
+## ⚡ Quick Command Reference
+
+```bash
+# Setup
+npm install
+npm run build
+
+# Development
+npm start              # UI dev server with HMR
+npm run dev            # Simulator dev (hot reload)
+npm run lint           # Check code quality
+npm run format         # Auto-fix code style
+npm test               # Run Vitest tests
+
+# Building
+npm run build          # Production build
+npm run watch          # Watch mode
+
+# Docker (Signal K)
+docker compose up -d   # Start background
+docker compose down    # Stop
+docker compose logs -f # View logs
+```
+
+---
+
+## ✅ Verification Checklist Before Submit
+
+- [ ] Code passes ESLint: `npm run lint`
+- [ ] Code is formatted: `npm run format`
+- [ ] Tests pass or are new: `npm test`
+- [ ] Build succeeds: `npm run build`
+- [ ] No TypeScript errors: Check compiler output
+- [ ] Uses types from contract (no hardcoded paths)
+- [ ] Follows patterns from CLAUDE.md
+- [ ] Documentation updated if API changed
+- [ ] No circular imports
+- [ ] DatapointStoreService used for data (not direct API calls)
+
+---
+
+## 🆘 If You Get Stuck
+
+1. **Check the documentation index:** `docs/INDEX.md`
+2. **Read relevant .agent file:** In current package folder
+3. **Check existing code examples:** Look at similar feature
+4. **Review CLAUDE.md:** DO/DON'T section
+5. **Check STATUS.md:** Known issues section
+6. **Run full rebuild:** `rm -rf node_modules && npm install && npm run build`
+
+---
+
+**Last Updated:** 2026-01-28 | Agent Version: 1.0 | Status: Ready for AI agents
