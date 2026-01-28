@@ -13,4 +13,8 @@ import type { SystemPanelVm } from '../../../types/dashboard-vm';
 })
 export class SystemPanelComponent {
   @Input({ required: true }) vm!: SystemPanelVm;
+
+  trackByLine(index: number, line: string): string {
+    return line;
+  }
 }

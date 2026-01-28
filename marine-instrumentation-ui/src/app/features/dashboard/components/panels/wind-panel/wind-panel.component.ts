@@ -14,4 +14,8 @@ import type { WindPanelVm } from '../../../types/dashboard-vm';
 })
 export class WindPanelComponent {
   @Input({ required: true }) vm!: WindPanelVm;
+
+  trackByMetric(index: number, item: WindPanelVm['metrics'][number]): string {
+    return item.label;
+  }
 }

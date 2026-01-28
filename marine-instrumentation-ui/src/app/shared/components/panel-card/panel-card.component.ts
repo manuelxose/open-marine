@@ -14,4 +14,6 @@ export class PanelCardComponent {
   @Input() subtitle = '';
   @Input() statusLabel = '';
   @Input() statusTone: 'ok' | 'warn' | 'alert' | 'neutral' = 'neutral';
+  @Input() loading = false;
+  @Input() error?: string;
 }

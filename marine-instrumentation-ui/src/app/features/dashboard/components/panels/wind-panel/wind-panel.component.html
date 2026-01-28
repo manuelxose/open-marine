@@ -1,7 +1,7 @@
-<app-shared-panel-card [title]="vm.title">
+<app-shared-panel-card [title]="vm.title" [loading]="vm.isLoading" [error]="vm.error">
   <div class="wind-content">
     <div class="metrics-list">
-      <div class="metric-row" *ngFor="let m of vm.metrics">
+      <div class="metric-row" *ngFor="let m of vm.metrics; trackBy: trackByMetric">
         <div class="metric-info">
           <span class="metric-label">{{ m.label }}</span>
           <div class="metric-value-group">
