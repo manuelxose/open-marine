@@ -36,13 +36,13 @@ export class SogInstrumentComponent {
   vm$ = combineLatest([
     this.point$.pipe(startWith(undefined)),
     this.ticker$,
-    this.prefs.prefs$
+    this.prefs.preferences$
   ]).pipe(
-    map(([point, , prefs]) => {
+    map(([point, _, prefs]) => {
       if (!point) {
         return {
           value: '--',
-          unit: prefs.speedUnit,
+          unit: prefs.units.speed,
           quality: 'bad' as DataQuality,
           age: null,
           source: ''
@@ -56,7 +56,7 @@ export class SogInstrumentComponent {
       if (age > 2) quality = 'warn';
       if (age > 5) quality = 'bad';
 
-      const { value, unit } = formatSpeed(point.value, prefs.speedUnit);
+      const { value, unit } = formatSpeed(point.value, prefs.units.speed);
 
       return {
         value,

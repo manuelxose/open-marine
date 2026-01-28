@@ -1,19 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { auditTime, combineLatest, firstValueFrom, map, scan, shareReplay, startWith, timer } from 'rxjs';
-import { DatapointStoreService } from '../../../state/datapoints/datapoint-store.service';
-import {
-  isPositionValue,
-  selectAwa,
-  selectAws,
-  selectCog,
-  selectDepth,
-  selectHeading,
-  selectPosition,
-  selectSog,
-  selectTrackPoints,
-  type PositionValue,
-} from '../../../state/datapoints/datapoint.selectors';
-import type { DataPoint, TrackPoint } from '../../../state/datapoints/datapoint.models';
+import { DatapointStoreService, selectDepth, selectPosition, selectSog, selectCog, selectHeading, selectAws, selectAwa, selectTrackPoints, isPositionValue, type PositionValue, type DataPoint, type TrackPoint } from '@state/datapoints';
 import type {
   ChartCanvasVm,
   ChartControlsVm,
@@ -27,7 +14,9 @@ import type {
 import { ChartSettingsService } from './chart-settings.service';
 import { WaypointService, type Waypoint } from './waypoint.service';
 import { RouteService } from './route.service';
-import type { ChartSourceConfig, MapLibreInitView } from './maplibre-engine.service';
+import { PreferencesService } from '@core/preferences';
+import { ChartSourceRegistryService, type ChartSourceConfig } from '@core/chart-sources';
+import type { MapLibreInitView } from './maplibre-engine.service';
 import type { WaypointFeatureCollection, WaypointFeatureProperties } from '../types/chart-geojson';
 import {
   bearingDistanceNm,
@@ -45,27 +34,6 @@ const STALE_THRESHOLD_MS = 5000;
 const VECTOR_TIME_SECONDS = 60;
 const DEFAULT_VECTOR_NM = 0.2;
 
-const DEFAULT_BASE_SOURCE: ChartSourceConfig = {
-  id: 'osm-raster',
-  style: {
-    version: 8,
-    sources: {
-      'osm-raster': {
-        type: 'raster',
-        tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
-        tileSize: 256,
-        attribution: '(c) OpenStreetMap contributors',
-      },
-    },
-    layers: [
-      {
-        id: 'osm-raster',
-        type: 'raster',
-        source: 'osm-raster',
-      },
-    ],
-  },
-};
 
 const hudRow = (label: string, value: string, unit: string): ChartHudRow => ({
   label,
@@ -107,6 +75,8 @@ export class ChartFacadeService {
   private readonly settingsService = inject(ChartSettingsService);
   private readonly waypointService = inject(WaypointService);
   private readonly routeService = inject(RouteService);
+  private readonly preferences = inject(PreferencesService);
+  private readonly registry = inject(ChartSourceRegistryService);
   private readonly tick$ = timer(0, 1000);
   private readonly position$ = selectPosition(this.store).pipe(shareReplay({ bufferSize: 1, refCount: true }));
   private readonly trackPoints$ = selectTrackPoints(this.store).pipe(
@@ -203,7 +173,15 @@ export class ChartFacadeService {
     zoom: 12,
   };
 
-  readonly baseSourceConfig: ChartSourceConfig = DEFAULT_BASE_SOURCE;
+  get baseSourceConfig(): ChartSourceConfig {
+    const id = this.preferences.snapshot.chart.mapSourceId;
+    return this.registry.getSource(id) || this.registry.getSource('osm-raster')!;
+  }
+
+  readonly activeMapSourceId$ = this.preferences.preferences$.pipe(
+    map(p => p.chart.mapSourceId),
+    shareReplay(1)
+  );
 
   readonly hudVm$ = combineLatest({
     fixState: this.fixState$,

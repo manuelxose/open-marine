@@ -302,7 +302,7 @@ export class WindPanelComponent {
       this.prefs.preferences$,
     ]).pipe(
       map(([aws, awa, history, prefs]) => {
-        const awsFormatted = formatSpeed(aws?.value, prefs.speedUnit);
+        const awsFormatted = formatSpeed(aws?.value, prefs.units.speed);
         const awaFormatted = formatAngleDegrees(awa?.value);
 
         // Calculate gust and avg over last 60s
@@ -310,8 +310,8 @@ export class WindPanelComponent {
         const gustMps = calculateMax(recentHistory);
         const avgMps = calculateMean(recentHistory);
 
-        const gustFormatted = formatSpeed(gustMps, prefs.speedUnit);
-        const avgFormatted = formatSpeed(avgMps, prefs.speedUnit);
+        const gustFormatted = formatSpeed(gustMps, prefs.units.speed);
+        const avgFormatted = formatSpeed(avgMps, prefs.units.speed);
 
         // AWA in degrees for dial rotation
         let awaDeg = 0;

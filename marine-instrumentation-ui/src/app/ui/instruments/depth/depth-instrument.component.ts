@@ -32,10 +32,10 @@ export class DepthInstrumentComponent {
   vm$ = combineLatest([
     this.point$.pipe(startWith(undefined)),
     this.ticker$,
-    this.prefs.prefs$
+    this.prefs.preferences$
   ]).pipe(
-    map(([point, , prefs]) => {
-      if (!point) return { value: '--', unit: prefs.depthUnit, quality: 'bad' as DataQuality, age: null, source: '' };
+    map(([point, _, prefs]) => {
+      if (!point) return { value: '--', unit: prefs.units.depth, quality: 'bad' as DataQuality, age: null, source: '' };
 
       const now = Date.now();
       const age = (now - point.timestamp) / 1000;
@@ -43,7 +43,7 @@ export class DepthInstrumentComponent {
       if (age > 2) quality = 'warn';
       if (age > 5) quality = 'bad';
 
-      const { value, unit } = formatDepth(point.value, prefs.depthUnit);
+      const { value, unit } = formatDepth(point.value, prefs.units.depth);
 
       return { value, unit, quality, age, source: point.source };
     })

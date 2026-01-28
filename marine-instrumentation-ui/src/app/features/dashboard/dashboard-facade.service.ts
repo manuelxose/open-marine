@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { combineLatest, map, shareReplay, startWith, timer } from 'rxjs';
 import { DatapointStoreService } from '../../state/datapoints/datapoint-store.service';
-import { PreferencesService } from '../../services/preferences.service';
+import { PreferencesService } from '../../core/preferences/preferences.service';
 import {
   isPositionValue,
   selectAwa,
@@ -131,10 +131,10 @@ export class DashboardFacadeService {
     prefs: this.prefs$,
   }).pipe(
     map(({ sog, heading, depth, aws, awa, voltage, prefs }) => {
-      const sogMetric = formatSpeed(coerceNumber(sog?.value), prefs.speedUnit);
+      const sogMetric = formatSpeed(coerceNumber(sog?.value), prefs.units.speed);
       const headingMetric = formatAngleDegrees(coerceNumber(heading?.value));
-      const depthMetric = formatDepth(coerceNumber(depth?.value), prefs.depthUnit);
-      const awsMetric = formatSpeed(coerceNumber(aws?.value), prefs.speedUnit);
+      const depthMetric = formatDepth(coerceNumber(depth?.value), prefs.units.depth);
+      const awsMetric = formatSpeed(coerceNumber(aws?.value), prefs.units.speed);
       const voltageMetric = formatVoltage(coerceNumber(voltage?.value));
 
       const depthValue = coerceNumber(depth?.value);
@@ -174,7 +174,7 @@ export class DashboardFacadeService {
     prefs: this.prefs$,
   }).pipe(
     map(({ fixLabel, position, sog, cog, heading, sogSeries, prefs }) => {
-      const sogMetric = formatSpeed(coerceNumber(sog?.value), prefs.speedUnit);
+      const sogMetric = formatSpeed(coerceNumber(sog?.value), prefs.units.speed);
       const cogMetric = formatAngleDegrees(coerceNumber(cog?.value));
       const headingMetric = formatAngleDegrees(coerceNumber(heading?.value));
 
@@ -210,7 +210,7 @@ export class DashboardFacadeService {
     map(({ aws, awa, series, prefs }) => ({
       title: 'Wind',
       metrics: [
-        { ...metric('AWS', formatSpeed(coerceNumber(aws?.value), prefs.speedUnit)), series },
+        { ...metric('AWS', formatSpeed(coerceNumber(aws?.value), prefs.units.speed)), series },
         metric('AWA', formatAngleDegrees(coerceNumber(awa?.value))),
       ],
       primarySeries: series,
@@ -228,7 +228,7 @@ export class DashboardFacadeService {
       title: 'Depth',
       metrics: [
         {
-          ...metric('Below transducer', formatDepth(coerceNumber(depth?.value), prefs.depthUnit)),
+          ...metric('Below transducer', formatDepth(coerceNumber(depth?.value), prefs.units.depth)),
           series,
         },
       ],

@@ -39,6 +39,33 @@
 - Vessel, track, and vector overlays are GeoJSON sources/layers updated in place for smooth performance.
 - The chart service is structured to swap in raster XYZ tiles, vector MVT styles, or locally served MBTiles later.
 
+## UI Application Architecture (marine-instrumentation-ui)
+
+The UI follows a strict layered architecture to prevent monolithic growth and ensure maintainability.
+
+### Layered Dependencies
+Boundaries are enforced via ESLint rules and path aliases. Dependency flow is **downward** only:
+1.  **Features**: High-level page features (e.g., `@features/chart`, `@features/dashboard`).
+2.  **UI**: Shared presentational components (`@ui/*`).
+3.  **Data Access**: External API/SignalK clients (`@data-access/*`).
+4.  **State**: Application state and pure logic (`@state/*`).
+5.  **Core**: Infrastructure, preferences, and theme (`@core/*`).
+
+### Pattern: Facade + Presentational
+- **Facades**: Orchestrate data from the state and data-access layers. They provide a high-level API for features.
+- **Presentational Components**: Receive data via `@Input` and emit events via `@Output`. They have no knowledge of the state management system.
+
+### Public APIs
+Each module must expose a `public-api.ts` or `index.ts`. Deep imports into a module's internals are prohibited.
+- Correct: `import { AlarmStoreService } from '@state/alarms';`
+- Incorrect: `import { AlarmStoreService } from '../../state/alarms/alarm-store.service';`
+
+### CI Pipeline
+The codebase is guarded by a CI pipeline:
+- `npm run lint`: Enforces type safety and module boundaries.
+- `npm run test:ci`: Runs unit tests in headless mode.
+- `npm run build`: Verifies the production bundle.
+
 ## Reproducibility
 
 - Node 20 LTS recommended for all Node/TS modules.
