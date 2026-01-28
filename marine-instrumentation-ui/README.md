@@ -59,7 +59,7 @@ export const environment = {
 - Depth is simulated with a seabed profile and shallow-water events.
 - Fix quality is derived from the age of the last position update:
   - Good: <= 2 seconds
-  - Suspect: <= 10 seconds
+  - Warn: <= 10 seconds
   - Bad: > 10 seconds
 - Low depth alarms trigger below 3.0 m and clear above 3.5 m.
 - Acknowledged alarms remain visible until depth clears the hysteresis band.

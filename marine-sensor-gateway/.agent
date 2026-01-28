@@ -1,0 +1,388 @@
+# marine-sensor-gateway - AI Agent Guide
+
+**Purpose:** Adapter interface library for connecting real/virtual marine sensors (v0.1.0)
+**Status:** Stub implementation (no real adapters yet)
+**Dependencies:** marine-data-contract
+
+---
+
+## 🎯 Quick Facts
+
+- **Runtime:** Node.js 20 LTS
+- **Scope:** Interfaces only (no concrete implementations)
+- **Platforms:** NMEA 0183, NMEA 2000, custom serial adapters
+- **Development:** Modify `src/adapters/base.ts` interface
+- **Status:** Ready for M5+ implementation
+
+---
+
+## 📂 File Structure
+
+```
+marine-sensor-gateway/
+├── src/
+│   ├── cli.ts              # Future CLI entry point (stub)
+│   ├── gateway.ts          # Future gateway orchestrator (stub)
+│   ├── index.ts            # Exports (base adapter interface)
+│   └── adapters/
+│       ├── index.ts        # Exports all adapters
+│       ├── base.ts         # BaseAdapter interface (KEY FILE)
+│       ├── nmea0183.ts     # NMEA 0183 stub
+│       ├── nmea2000.ts     # NMEA 2000 stub
+│       └── custom-serial.ts # Custom serial stub
+├── tsconfig.json
+├── package.json
+└── .agent                  # This file
+```
+
+---
+
+## 🔑 Core Concepts
+
+### BaseAdapter Interface
+
+This is the **ONLY** thing implemented (in src/adapters/base.ts):
+
+```typescript
+export interface BaseAdapter {
+  // Configuration
+  name: string;
+  enabled: boolean;
+
+  // Lifecycle
+  connect(): Promise<void>;
+  disconnect(): Promise<void>;
+  isConnected(): boolean;
+
+  // Data flow
+  getData(): DataPoint<unknown>[];
+  publish(data: DataPoint<unknown>[]): Promise<void>;
+}
+```
+
+**Every real adapter must:**
+1. Implement this interface
+2. Handle connection state
+3. Return DataPoint[] (typed with contract)
+4. Call publish() to send to Signal K
+
+### Current State
+
+```
+✅ Interface defined: BaseAdapter
+❌ NMEA 0183 adapter: Stub only
+❌ NMEA 2000 adapter: Stub only
+❌ Custom serial adapter: Stub only
+❌ Gateway orchestrator: Not implemented
+```
+
+---
+
+## ✅ DO - When Implementing Adapters
+
+1. **To add real sensor adapter (future):**
+   - Create file: `src/adapters/yourProtocol.ts`
+   - Import: `import { BaseAdapter, DataPoint, PATHS } from '@omi/marine-data-contract'`
+   - Implement interface:
+     ```typescript
+     export class YourAdapter implements BaseAdapter {
+       name = "Your Protocol";
+       enabled = true;
+       private connected = false;
+
+       async connect(): Promise<void> {
+         // Open serial port, establish connection
+         this.connected = true;
+       }
+
+       async disconnect(): Promise<void> {
+         // Close port
+         this.connected = false;
+       }
+
+       isConnected(): boolean {
+         return this.connected;
+       }
+
+       getData(): DataPoint<unknown>[] {
+         // Parse incoming data from sensor
+         // Return typed DataPoints using PATHS
+       }
+
+       async publish(data: DataPoint<unknown>[]): Promise<void> {
+         // Send to Signal K (via HTTP or WebSocket)
+       }
+     }
+     ```
+   - Export from `src/adapters/index.ts`
+   - Test: Create unit tests in `src/adapters/yourProtocol.test.ts`
+
+2. **To extend adapter with new method:**
+   - Add to `BaseAdapter` interface (breaking change!)
+   - All adapters must implement
+   - Consider backwards compatibility
+   - Document change in .agent file
+
+3. **To parse NMEA 0183 sentence:**
+   - NMEA format: `$<talker><sentence>,<field1>,<field2>,...*<checksum>`
+   - Example: `$GPRMC,092750.000,A,5321.6802,N,00630.3372,W,0.295,,121199*29`
+   - Parse → Extract fields → Map to DataPoint
+   - Always validate checksum before using
+
+4. **To convert sensor value to contract path:**
+   - Lookup in PATHS (e.g., PATHS.navigation.speedOverGround)
+   - Ensure unit matches: NMEA gives knots → convert to m/s (*0.51444)
+   - Create DataPoint with proper type: `{ path, value, timestamp, source, quality }`
+   - Include metadata: vessel ID, quality flag, source reference
+
+5. **To publish adapter data to Signal K:**
+   - Use HTTP POST (synchronous): `POST /signalk/v1/messages` with Delta
+   - Or WebSocket (async): Connect to Signal K WebSocket endpoint
+   - Both adapters in simulator use HTTP - follow that pattern
+   - Retry on failure (implement exponential backoff)
+
+---
+
+## ❌ DON'T - Never Do This
+
+1. **Don't hardcode paths**
+   - Use: `PATHS.navigation.speedOverGround`
+   - Not: `'navigation.speedOverGround'`
+
+2. **Don't implement without contract types**
+   - Every DataPoint must be typed
+   - No `any` types allowed
+   - Use `DataPoint<T>` where T is known type
+
+3. **Don't bypass BaseAdapter interface**
+   - All adapters must implement interface
+   - No custom methods outside interface
+   - Consistency is critical
+
+4. **Don't forget units**
+   - NMEA 0183: Knots, degrees, meters → Convert!
+   - NMEA 2000: CAN format → Parse to SI units
+   - Always document conversion in code
+
+5. **Don't leak sensor errors to app**
+   - Catch connection exceptions
+   - Graceful degradation (adapter disabled, not crash)
+   - Log errors but don't propagate upward
+
+6. **Don't add external dependencies**
+   - Package should remain minimal
+   - Use Node.js built-ins: `serialport` only if needed (discuss first)
+   - Keep typescript + marine-data-contract only
+
+7. **Don't publish incomplete data**
+   - Always include: path, value, timestamp, quality
+   - Never partial deltas
+   - Quality must be set: "good", "warn", "fail"
+
+---
+
+## 🔄 Development Workflow
+
+### Current State: Stub Only
+
+Today's tasks are **preparation only**:
+
+```
+Phase 1 (CURRENT): Define interface ✅
+Phase 2 (M5+): Implement real adapters
+Phase 3 (M6+): Deploy in production
+```
+
+### When Implementing NMEA 0183 Adapter (Future)
+
+1. **Create parser library:**
+   ```bash
+   # Install NMEA parser if available
+   npm install nmea-simple  # Example
+   ```
+
+2. **Implement adapter:**
+   ```typescript
+   // src/adapters/nmea0183.ts
+   import { BaseAdapter } from './base';
+   import { Parser } from 'nmea-simple';
+
+   export class NMEA0183Adapter implements BaseAdapter {
+     private port: SerialPort;
+     private parser: Parser;
+
+     async connect(): Promise<void> {
+       this.port = new SerialPort({ path: '/dev/ttyUSB0' });
+       this.parser = new Parser();
+       this.parser.on('sentence', (sentence) => {
+         this.handleSentence(sentence);
+       });
+     }
+
+     private handleSentence(sentence: any) {
+       // Parse RMC, GGA, MWV sentences
+       // Convert to DataPoints
+     }
+   }
+   ```
+
+3. **Test with real data:**
+   ```bash
+   npm run test  # Unit tests
+   # Manual test: Serial data → Parser → DataPoints
+   ```
+
+### Testing Strategy (Future)
+
+```bash
+# Unit tests for each adapter
+npm run test
+
+# Integration test: Adapter → Signal K
+docker compose up -d  # Signal K
+npm run test:integration
+
+# Manual test: Real sensor → Adapter → UI
+```
+
+---
+
+## 📊 Adapter Mapping
+
+### NMEA 0183 Sentences (When Implemented)
+
+| Sentence | Type | Maps To | Source |
+|----------|------|---------|--------|
+| `$GPRMC` | Position/Speed/Time | navigation.position, SOG | GPS |
+| `$GPGGA` | Position/Altitude | navigation.position, altitude | GPS |
+| `$GPGSA` | DOP | navigation.magneticVariation | GPS |
+| `$GPGSV` | Satellites | environmental.satellites (future) | GPS |
+| `$WIMWV` | Wind | environment.wind | Anemometer |
+| `$INDPT` | Depth | environment.depth | Depth Sounder |
+| `$IIVHW` | Heading/Speed | navigation.heading, speed (water) | Compass/Log |
+
+### NMEA 2000 PGNs (When Implemented)
+
+| PGN | Type | Maps To | Source |
+|-----|------|---------|--------|
+| 129025 | Position | navigation.position | GPS |
+| 129026 | SOG/COG | navigation.speed*, navigation.courseOverGround | GPS |
+| 128267 | Depth | environment.depth | Depth Sounder |
+| 130306 | Wind Speed/Angle | environment.wind.* | Wind Instrument |
+| 130311 | Temperature/Humidity | environment.outside.* | Met Station |
+
+---
+
+## 📝 Implementation Checklist (For Future Adapters)
+
+### Before Starting Implementation
+
+- [ ] BaseAdapter interface finalized in code review
+- [ ] Sensor protocol specification documented
+- [ ] Unit conversion rules defined
+- [ ] Error handling strategy designed
+- [ ] Connection retry logic planned
+
+### During Implementation
+
+- [ ] All PATHS use marine-data-contract PATHS constant
+- [ ] All values properly typed (no `any`)
+- [ ] Units converted to SI (m/s, radians, etc.)
+- [ ] DataPoints include quality flags
+- [ ] Connection state managed correctly
+- [ ] Errors caught and logged (not propagated)
+- [ ] No blocking operations (async/await)
+
+### Before Merging
+
+- [ ] Unit tests passing (>80% coverage)
+- [ ] ESLint clean (`npm run lint`)
+- [ ] TypeScript strict mode passes
+- [ ] Adapter implements BaseAdapter fully
+- [ ] No external dependencies (discuss if needed)
+- [ ] Documentation updated in .agent file
+- [ ] Ready to integrate with gateway orchestrator
+
+---
+
+## 🏗️ Architecture Context
+
+### Where This Fits
+
+```
+Real Sensors (NMEA 0183/2000, Serial)
+         ↓
+[marine-sensor-gateway] ← YOU ARE HERE
+         ↓
+marine-data-contract (type validation)
+         ↓
+Signal K Server (data aggregation)
+         ↓
+[marine-instrumentation-ui] (visualization)
+```
+
+### Connection to Other Packages
+
+1. **Depends On:**
+   - `@omi/marine-data-contract` - Types, paths, quality flags
+
+2. **Feeds Data To:**
+   - Signal K HTTP endpoint (via publish() method)
+
+3. **Consumed By:**
+   - Signal K server (aggregates all adapters)
+   - UI receives aggregated data
+
+4. **Related But Not Connected Yet:**
+   - `marine-data-simulator` - Alternative data source (for testing)
+   - `marine-instrumentation-ui` - Displays data (consumes via Signal K)
+
+---
+
+## 🎯 Future Roadmap
+
+| Milestone | Adapter | Status | Effort |
+|-----------|---------|--------|--------|
+| M4 | Interface finalized | ✅ Done | - |
+| M5 | NMEA 0183 parser | ⏳ Ready | 3 days |
+| M5 | NMEA 2000 CAN parser | ⏳ Ready | 5 days |
+| M6 | Custom serial adapter | ⏳ Ready | 2 days |
+| M6 | Gateway orchestrator | ⏳ Ready | 3 days |
+| M7+ | Production adapters | ⏳ Backlog | TBD |
+
+---
+
+## ⚡ Quick Commands (Future)
+
+```bash
+npm install      # Install dependencies
+npm run dev      # Watch mode (when implemented)
+npm run build    # Production build
+npm start        # Run gateway (when implemented)
+npm run lint     # ESLint check
+npm run test     # Unit tests (when implemented)
+npm run format   # Code formatting
+```
+
+---
+
+## 📚 Reference Documentation
+
+### NMEA 0183 Resources
+- [NMEA 0183 Sentence Format](https://www.nmea.org/)
+- Common sentences: RMC, GGA, MWV, VHW, DBT
+- Checksum calculation: XOR all characters between $ and *
+
+### NMEA 2000 Resources
+- [NMEA 2000 PGN Database](https://www.actisense.com/knowledge-base-nmea-2000-pgns/)
+- CAN message format with PGN (Parameter Group Number)
+- 29-bit CAN ID encodes priority, PGN, source address
+
+### Signal K Integration
+- POST to: `/signalk/v1/messages` with Delta format
+- WebSocket endpoint: `ws://localhost:3000/signalk/v1/stream`
+- Follow delta message format from contract
+
+---
+
+**Status:** Interface only (stub) | Next: M5 implementation | Last Updated: 2026-01-28 | Agent Version: 1.0

@@ -1,9 +1,15 @@
-<div class="strip">
+<div class="strip" *ngIf="!vm.isLoading; else loading">
   <app-shared-instrument-tile
-    *ngFor="let item of vm.items"
-    [label]="item.label"
+    *ngFor="let item of vm.items; trackBy: trackByLabel"
+    [label]="item.label | translate"
     [value]="item.value"
     [unit]="item.unit"
     [tone]="item.tone"
   ></app-shared-instrument-tile>
 </div>
+
+<ng-template #loading>
+  <div class="strip strip--loading">
+    <div class="tile-skeleton" *ngFor="let _ of placeholders; trackBy: trackByIndex"></div>
+  </div>
+</ng-template>

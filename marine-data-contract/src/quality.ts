@@ -1,18 +1,18 @@
 export enum QualityFlag {
   Good = "good",
-  Suspect = "suspect",
+  Warn = "warn",
   Bad = "bad",
 }
 
 export const QUALITY_LIFECYCLE = [
   QualityFlag.Good,
-  QualityFlag.Suspect,
+  QualityFlag.Warn,
   QualityFlag.Bad,
 ] as const;
 
 export const QUALITY_DEGRADATION: Record<QualityFlag, QualityFlag> = {
-  [QualityFlag.Good]: QualityFlag.Suspect,
-  [QualityFlag.Suspect]: QualityFlag.Bad,
+  [QualityFlag.Good]: QualityFlag.Warn,
+  [QualityFlag.Warn]: QualityFlag.Bad,
   [QualityFlag.Bad]: QualityFlag.Bad,
 };
 
@@ -22,8 +22,8 @@ export const degradeQuality = (current: QualityFlag): QualityFlag => {
 
 export const isQualityTransitionValid = (from: QualityFlag, to: QualityFlag): boolean => {
   const allowed: Record<QualityFlag, QualityFlag[]> = {
-    [QualityFlag.Good]: [QualityFlag.Good, QualityFlag.Suspect],
-    [QualityFlag.Suspect]: [QualityFlag.Suspect, QualityFlag.Bad],
+    [QualityFlag.Good]: [QualityFlag.Good, QualityFlag.Warn],
+    [QualityFlag.Warn]: [QualityFlag.Warn, QualityFlag.Bad],
     [QualityFlag.Bad]: [QualityFlag.Bad],
   };
 

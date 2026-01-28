@@ -2,6 +2,7 @@ import { Component, ChangeDetectionStrategy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { map, combineLatest, timer, startWith } from 'rxjs';
+import { PATHS } from '@omi/marine-data-contract';
 import { DatapointStoreService } from '../../../state/datapoints/datapoint-store.service';
 import { InstrumentCardComponent, DataQuality } from '../../components/instrument-card/instrument-card.component';
 import { formatDepth } from '../../../core/formatting/formatters';
@@ -27,7 +28,7 @@ export class DepthInstrumentComponent {
   private store = inject(DatapointStoreService);
   private prefs = inject(PreferencesService);
   private ticker$ = timer(0, 500);
-  private point$ = this.store.observe<number>('environment.depth.belowTransducer');
+  private point$ = this.store.observe<number>(PATHS.environment.depth.belowTransducer);
 
   vm$ = combineLatest([
     this.point$.pipe(startWith(undefined)),

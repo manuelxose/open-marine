@@ -1,3 +1,5 @@
+import { PATHS, type SignalKPath } from '@omi/marine-data-contract';
+
 export type WidgetSize = 'S' | 'M' | 'L';
 
 export interface WidgetDefinition {
@@ -5,7 +7,7 @@ export interface WidgetDefinition {
     title: string;
     description: string;
     size: WidgetSize;
-    requiredPaths: string[];
+    requiredPaths: SignalKPath[];
     category: 'navigation' | 'environment' | 'electrical' | 'system';
 }
 
@@ -23,51 +25,51 @@ export interface DashboardLayout {
 export const WIDGET_DEFINITIONS: WidgetDefinition[] = [
     {
         id: 'navigation-card',
-        title: 'Navigation',
-        description: 'SOG, COG, HDG, Position with trend',
+        title: 'dashboard.panels.navigation',
+        description: 'settings.widgets.desc.navigation',
         size: 'L',
         requiredPaths: [
-            'navigation.speedOverGround',
-            'navigation.courseOverGroundTrue',
-            'navigation.headingTrue',
-            'navigation.position'
+            PATHS.navigation.speedOverGround,
+            PATHS.navigation.courseOverGroundTrue,
+            PATHS.navigation.headingTrue,
+            PATHS.navigation.position
         ],
         category: 'navigation'
     },
     {
         id: 'wind-card',
-        title: 'Wind',
-        description: 'Apparent wind speed and angle',
+        title: 'dashboard.panels.wind',
+        description: 'settings.widgets.desc.wind',
         size: 'L',
         requiredPaths: [
-            'environment.wind.speedApparent',
-            'environment.wind.angleApparent'
+            PATHS.environment.wind.speedApparent,
+            PATHS.environment.wind.angleApparent
         ],
         category: 'environment'
     },
     {
         id: 'depth-card',
-        title: 'Depth',
-        description: 'Depth below transducer with trend',
+        title: 'dashboard.panels.depth',
+        description: 'settings.widgets.desc.depth',
         size: 'M',
-        requiredPaths: ['environment.depth.belowTransducer'],
+        requiredPaths: [PATHS.environment.depth.belowTransducer],
         category: 'environment'
     },
     {
         id: 'power-card',
-        title: 'Power',
-        description: 'Battery voltage and current',
+        title: 'dashboard.panels.power',
+        description: 'settings.widgets.desc.power',
         size: 'M',
         requiredPaths: [
-            'electrical.batteries.house.voltage',
-            'electrical.batteries.house.current'
+            PATHS.electrical.batteries.house.voltage,
+            PATHS.electrical.batteries.house.current
         ],
         category: 'electrical'
     },
     {
-        id: 'diagnostics-summary',
-        title: 'System',
-        description: 'Connection status and diagnostics',
+        id: 'system-card',
+        title: 'dashboard.panels.system',
+        description: 'settings.widgets.desc.system',
         size: 'S',
         requiredPaths: [],
         category: 'system'
@@ -75,25 +77,25 @@ export const WIDGET_DEFINITIONS: WidgetDefinition[] = [
     {
         id: 'sog-simple',
         title: 'SOG (Simple)',
-        description: 'Speed over ground - compact',
+        description: 'settings.widgets.desc.sog_simple',
         size: 'S',
-        requiredPaths: ['navigation.speedOverGround'],
+        requiredPaths: [PATHS.navigation.speedOverGround],
         category: 'navigation'
     },
     {
         id: 'heading-simple',
         title: 'Heading (Simple)',
-        description: 'True heading - compact',
+        description: 'settings.widgets.desc.heading_simple',
         size: 'S',
-        requiredPaths: ['navigation.headingTrue'],
+        requiredPaths: [PATHS.navigation.headingTrue],
         category: 'navigation'
     },
     {
         id: 'depth-simple',
         title: 'Depth (Simple)',
-        description: 'Depth - compact',
+        description: 'settings.widgets.desc.depth_simple',
         size: 'S',
-        requiredPaths: ['environment.depth.belowTransducer'],
+        requiredPaths: [PATHS.environment.depth.belowTransducer],
         category: 'environment'
     }
 ];
@@ -105,7 +107,7 @@ export const DEFAULT_LAYOUT: DashboardLayout = {
         { id: 'wind-card', visible: true, order: 1 },
         { id: 'depth-card', visible: true, order: 2 },
         { id: 'power-card', visible: true, order: 3 },
-        { id: 'diagnostics-summary', visible: true, order: 4 },
+        { id: 'system-card', visible: true, order: 4 },
         { id: 'sog-simple', visible: false, order: 5 },
         { id: 'heading-simple', visible: false, order: 6 },
         { id: 'depth-simple', visible: false, order: 7 }

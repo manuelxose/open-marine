@@ -6,7 +6,7 @@ export interface ChartPosition {
 }
 
 export interface ChartHudRow {
-  label: string;
+  labelKey: string;
   value: string;
   unit: string;
 }
@@ -15,14 +15,14 @@ export interface ChartCanvasVm {
   fixState: ChartFixState;
   hasFix: boolean;
   center: ChartPosition;
-  statusLabel: string;
+  statusLabelKey: string;
   centerLabel: string;
 }
 
 export interface ChartHudVm {
   fixState: ChartFixState;
-  statusLabel: string;
-  ageLabel: string;
+  statusLabelKey: string;
+  ageSeconds: number | null;
   latLabel: string;
   lonLabel: string;
   rows: ChartHudRow[];

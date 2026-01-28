@@ -1,11 +1,12 @@
 import { ChangeDetectionStrategy, Component, EventEmitter, Input, Output } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { TranslatePipe } from '../../../../shared/pipes/translate.pipe';
 import type { ChartWaypointListVm } from '../../types/chart-vm';
 
 @Component({
   selector: 'app-chart-waypoint-list',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, TranslatePipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './chart-waypoint-list.component.html',
   styleUrls: ['./chart-waypoint-list.component.css'],

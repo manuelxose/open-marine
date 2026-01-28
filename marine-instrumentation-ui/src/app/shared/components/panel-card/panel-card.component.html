@@ -1,4 +1,4 @@
-<div class="card">
+<div class="card" [class.is-loading]="loading" [class.has-error]="!!error">
   <div class="card-header">
     <div class="title-group">
       <h3 class="title">{{ title }}</h3>
@@ -16,6 +16,15 @@
   </div>
 
   <div class="card-content">
-    <ng-content></ng-content>
+    <ng-container *ngIf="!error; else errorState">
+      <ng-content></ng-content>
+    </ng-container>
+    <ng-template #errorState>
+      <div class="error-message">{{ error || '' | translate }}</div>
+    </ng-template>
+  </div>
+
+  <div class="card-overlay" *ngIf="loading && !error">
+    <div class="loading-spinner"></div>
   </div>
 </div>

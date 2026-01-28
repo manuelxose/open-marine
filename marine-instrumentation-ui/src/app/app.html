@@ -56,7 +56,7 @@
       class="nav-panel"
       *ngIf="fixQuality$ | async as fixQuality"
       [class.quality-good]="fixQuality === 'good'"
-      [class.quality-suspect]="fixQuality === 'suspect'"
+      [class.quality-warn]="fixQuality === 'warn'"
       [class.quality-bad]="fixQuality === 'bad'"
     >
       <header class="panel-header">
