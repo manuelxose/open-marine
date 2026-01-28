@@ -1,20 +1,32 @@
 import { Injectable } from "@angular/core";
 import { BehaviorSubject, interval } from "rxjs";
-import type { SignalKPath } from "@omi/marine-data-contract";
-import { DataStoreService } from "./data-store.service";
-import { TELEMETRY_PATHS, type TelemetryPoint } from "./telemetry";
+import { PATHS, type SignalKPath } from "@omi/marine-data-contract";
+import { DatapointStoreService } from "../state/datapoints/datapoint-store.service";
+import type { DataPoint } from "../state/datapoints/datapoint.models";
+
+const DIAGNOSTIC_PATHS: SignalKPath[] = [
+  PATHS.navigation.position,
+  PATHS.navigation.speedOverGround,
+  PATHS.navigation.courseOverGroundTrue,
+  PATHS.navigation.headingTrue,
+  PATHS.environment.depth.belowTransducer,
+  PATHS.environment.wind.angleApparent,
+  PATHS.environment.wind.speedApparent,
+  PATHS.electrical.batteries.house.voltage,
+  PATHS.electrical.batteries.house.current,
+];
 
 export type Freshness = "fresh" | "stale" | "dead" | "unknown";
 
 export interface DiagnosticEntry {
   path: SignalKPath;
-  lastTimestamp?: string;
+  lastTimestampMs?: number;
   latencyMs: number | null;
   freshness: Freshness;
   sourceLabel: string;
   previousSourceLabel?: string;
   sourceSwitchCount: number;
-  lastSwitchTimestamp?: string;
+  lastSwitchTimestampMs?: number;
 }
 
 export interface DiagnosticsState {
@@ -42,14 +54,6 @@ const computeFreshness = (latencyMs: number | null): Freshness => {
   return "dead";
 };
 
-const parseTimestampMs = (timestamp?: string): number | null => {
-  if (!timestamp) {
-    return null;
-  }
-  const ms = Date.parse(timestamp);
-  return Number.isFinite(ms) ? ms : null;
-};
-
 const createEntry = (path: SignalKPath): DiagnosticEntry => ({
   path,
   latencyMs: null,
@@ -74,10 +78,10 @@ export class DiagnosticsService {
 
   readonly state$ = this.stateSubject.asObservable();
 
-  constructor(store: DataStoreService) {
-    TELEMETRY_PATHS.forEach((path) => {
+  constructor(store: DatapointStoreService) {
+    DIAGNOSTIC_PATHS.forEach((path) => {
       this.entries.set(path, createEntry(path));
-      store.point$(path).subscribe((point) => {
+      store.observe(path).subscribe((point) => {
         this.updateFromPoint(path, point ?? null);
       });
     });
@@ -87,31 +91,31 @@ export class DiagnosticsService {
     });
   }
 
-  private updateFromPoint(path: SignalKPath, point: TelemetryPoint | null): void {
+  private updateFromPoint(path: SignalKPath, point: DataPoint | null): void {
     const entry = this.entries.get(path) ?? createEntry(path);
     if (!point) {
       this.entries.set(path, entry);
       return;
     }
 
-    const sourceLabel = point.source?.label ?? "unknown";
+    const sourceLabel = point.source ?? "unknown";
     let previousSourceLabel = entry.previousSourceLabel;
     let sourceSwitchCount = entry.sourceSwitchCount;
-    let lastSwitchTimestamp = entry.lastSwitchTimestamp;
+    let lastSwitchTimestampMs = entry.lastSwitchTimestampMs;
 
     if (entry.sourceLabel !== "unknown" && sourceLabel !== entry.sourceLabel) {
       previousSourceLabel = entry.sourceLabel;
       sourceSwitchCount += 1;
-      lastSwitchTimestamp = point.timestamp;
+      lastSwitchTimestampMs = point.timestamp;
     }
 
     const updated: DiagnosticEntry = {
       ...entry,
-      lastTimestamp: point.timestamp,
+      lastTimestampMs: point.timestamp,
       sourceLabel,
       previousSourceLabel,
       sourceSwitchCount,
-      lastSwitchTimestamp,
+      lastSwitchTimestampMs,
     };
 
     this.entries.set(path, updated);
@@ -121,8 +125,7 @@ export class DiagnosticsService {
   private refresh(): void {
     const nowMs = Date.now();
     const entryList = Array.from(this.entries.values()).map((entry) => {
-      const timestampMs = parseTimestampMs(entry.lastTimestamp);
-      const latencyMs = timestampMs !== null ? Math.max(0, nowMs - timestampMs) : null;
+      const latencyMs = entry.lastTimestampMs !== undefined ? Math.max(0, nowMs - entry.lastTimestampMs) : null;
       return {
         ...entry,
         latencyMs,

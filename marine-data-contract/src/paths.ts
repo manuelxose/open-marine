@@ -4,6 +4,7 @@ export const PATHS = {
     speedOverGround: "navigation.speedOverGround",
     courseOverGroundTrue: "navigation.courseOverGroundTrue",
     headingTrue: "navigation.headingTrue",
+    headingMagnetic: "navigation.headingMagnetic",
   },
   environment: {
     depth: {
