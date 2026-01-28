@@ -67,21 +67,21 @@ const DEFAULT_BASE_SOURCE: ChartSourceConfig = {
   },
 };
 
-const hudRow = (label: string, value: string, unit: string): ChartHudRow => ({
-  label,
+const hudRow = (labelKey: string, value: string, unit: string): ChartHudRow => ({
+  labelKey,
   value,
   unit,
 });
 
 const EMPTY_HUD_ROWS: ChartHudRow[] = [
-  hudRow('SOG', '--', 'kn'),
-  hudRow('COG', '--', 'deg'),
-  hudRow('HDG', '--', 'deg'),
-  hudRow('Depth', '--', 'm'),
-  hudRow('AWS', '--', 'kn'),
-  hudRow('AWA', '--', 'deg'),
-  hudRow('WP BRG', '--', 'deg'),
-  hudRow('WP DST', '--', 'nm'),
+  hudRow('chart.hud.sog', '--', 'kn'),
+  hudRow('chart.hud.cog', '--', 'deg'),
+  hudRow('chart.hud.hdg', '--', 'deg'),
+  hudRow('chart.hud.depth', '--', 'm'),
+  hudRow('chart.hud.aws', '--', 'kn'),
+  hudRow('chart.hud.awa', '--', 'deg'),
+  hudRow('chart.hud.wp_brg', '--', 'deg'),
+  hudRow('chart.hud.wp_dst', '--', 'nm'),
 ];
 
 const coerceNumber = (value: unknown): number | null => {
@@ -91,11 +91,11 @@ const coerceNumber = (value: unknown): number | null => {
 const fixStateLabel = (state: ChartFixState): string => {
   switch (state) {
     case 'fix':
-      return 'FIX';
+      return 'settings.dashboard.status.fix';
     case 'stale':
-      return 'STALE';
+      return 'settings.dashboard.status.stale';
     default:
-      return 'NO FIX';
+      return 'settings.dashboard.status.nofix';
   }
 };
 
@@ -251,20 +251,20 @@ export class ChartFacadeService {
       const waypointDistance = formatFixed(waypoint?.distanceNm ?? null, 2);
 
       const rows: ChartHudRow[] = [
-        hudRow('SOG', sogLabel, 'kn'),
-        hudRow('COG', cogLabel, 'deg'),
-        hudRow('HDG', headingLabel, 'deg'),
-        hudRow('Depth', depthLabel, 'm'),
-        hudRow('AWS', awsLabel, 'kn'),
-        hudRow('AWA', awaLabel, 'deg'),
-        hudRow('WP BRG', waypointBearing, 'deg'),
-        hudRow('WP DST', waypointDistance, 'nm'),
+        hudRow('chart.hud.sog', sogLabel, 'kn'),
+        hudRow('chart.hud.cog', cogLabel, 'deg'),
+        hudRow('chart.hud.hdg', headingLabel, 'deg'),
+        hudRow('chart.hud.depth', depthLabel, 'm'),
+        hudRow('chart.hud.aws', awsLabel, 'kn'),
+        hudRow('chart.hud.awa', awaLabel, 'deg'),
+        hudRow('chart.hud.wp_brg', waypointBearing, 'deg'),
+        hudRow('chart.hud.wp_dst', waypointDistance, 'nm'),
       ];
 
       return {
         fixState,
-        statusLabel: fixStateLabel(fixState),
-        ageLabel: `Age ${ageLabelValue}s`,
+        statusLabelKey: fixStateLabel(fixState),
+        ageSeconds: age,
         latLabel: position ? formatFixed(position.latitude, 4) : '--',
         lonLabel: position ? formatFixed(position.longitude, 4) : '--',
         rows,
@@ -272,8 +272,8 @@ export class ChartFacadeService {
     }),
     startWith({
       fixState: 'no-fix' as ChartFixState,
-      statusLabel: fixStateLabel('no-fix'),
-      ageLabel: 'Age --s',
+      statusLabelKey: fixStateLabel('no-fix'),
+      ageSeconds: null,
       latLabel: '--',
       lonLabel: '--',
       rows: EMPTY_HUD_ROWS,
@@ -387,7 +387,7 @@ export class ChartFacadeService {
       fixState,
       hasFix,
       center,
-      statusLabel: fixStateLabel(fixState),
+      statusLabelKey: fixStateLabel(fixState),
       centerLabel: `${formatFixed(center.lat, 4)}, ${formatFixed(center.lon, 4)}`,
     }) satisfies ChartCanvasVm),
     shareReplay({ bufferSize: 1, refCount: true }),

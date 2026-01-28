@@ -1,16 +1,37 @@
 .system-content {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 0;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+  padding: 0.75rem;
+  border: 1px solid var(--panel-border);
+  height: 100%;
+  overflow-y: auto;
 }
 
 .status-line {
   font-family: 'Share Tech Mono', monospace;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   color: var(--text-muted);
+  line-height: 1.5;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  padding: 2px 0;
+}
+
+.status-line:last-child {
+  border-bottom: none;
+}
+
+:host-context([theme='light']) .system-content {
+  background: rgba(0, 0, 0, 0.03);
 }
 
 /* Compact Overrides */
+:host-context(.compact) .system-content {
+  padding: 0.5rem;
+}
+
 :host-context(.compact) .status-line {
-  font-size: 0.8rem;
+  font-size: 0.75rem;
 }

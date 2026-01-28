@@ -1,19 +1,20 @@
 import { Component, ChangeDetectionStrategy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { toSignal } from '@angular/core/rxjs-interop';
+import { TranslatePipe } from '../../shared/pipes/translate.pipe';
 import { AlarmsFacadeService } from './alarms-facade.service';
 
 @Component({
   selector: 'app-alarms-page',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, TranslatePipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="alarms-page">
       <div class="page-header">
-        <h1>Alarms</h1>
+        <h1>{{ 'alarms.page.title' | translate }}</h1>
         <p class="subtitle" [class.has-alarm]="vm()?.hasActiveAlarm">
-          {{ vm()?.hasActiveAlarm ? 'Active alarm' : 'No active alarms' }}
+          {{ (vm()?.hasActiveAlarm ? 'alarms.page.active' : 'alarms.page.no_active') | translate }}
         </p>
       </div>
 

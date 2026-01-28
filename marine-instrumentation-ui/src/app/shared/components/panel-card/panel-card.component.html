@@ -20,7 +20,7 @@
       <ng-content></ng-content>
     </ng-container>
     <ng-template #errorState>
-      <div class="error-message">{{ error }}</div>
+      <div class="error-message">{{ error || '' | translate }}</div>
     </ng-template>
   </div>
 

@@ -1,20 +1,20 @@
 <div class="controls">
   <div class="toggle-panel">
     <button class="toggle" [class.active]="vm.autoCenter" (click)="onToggleAutoCenter()">
-      <span class="toggle-label">Auto-center</span>
-      <span class="toggle-state">{{ vm.autoCenter ? 'ON' : 'OFF' }}</span>
+      <span class="toggle-label">{{ 'chart.controls.auto_center' | translate }}</span>
+      <span class="toggle-state">{{ (vm.autoCenter ? 'chart.controls.on' : 'chart.controls.off') | translate }}</span>
     </button>
     <button class="toggle" [class.active]="vm.showTrack" (click)="onToggleTrack()">
-      <span class="toggle-label">Track</span>
-      <span class="toggle-state">{{ vm.showTrack ? 'ON' : 'OFF' }}</span>
+      <span class="toggle-label">{{ 'chart.controls.track' | translate }}</span>
+      <span class="toggle-state">{{ (vm.showTrack ? 'chart.controls.on' : 'chart.controls.off') | translate }}</span>
     </button>
     <button class="toggle" [class.active]="vm.showVector" (click)="onToggleVector()">
-      <span class="toggle-label">Vector</span>
-      <span class="toggle-state">{{ vm.showVector ? 'ON' : 'OFF' }}</span>
+      <span class="toggle-label">{{ 'chart.controls.vector' | translate }}</span>
+      <span class="toggle-state">{{ (vm.showVector ? 'chart.controls.on' : 'chart.controls.off') | translate }}</span>
     </button>
   </div>
 
   <button class="center-btn" (click)="onCenterOnBoat()" [disabled]="!vm.canCenter">
-    Center on Boat
+    {{ 'chart.controls.center_boat' | translate }}
   </button>
 </div>

@@ -1,53 +1,73 @@
 .power-content {
   display: flex;
   flex-direction: column;
+  height: 100%;
 }
 
 .metrics-list {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 0;
+  height: 100%;
 }
 
 .metric-row {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: center; /* Center vertically for sparklines */
+  padding: 1rem 0;
+  border-bottom: 1px dashed var(--panel-border);
+  flex: 1;
+}
+
+.metric-row:last-child {
+  border-bottom: none;
 }
 
 .metric-info {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 0.25rem;
 }
 
 .metric-label {
-  font-size: 0.7rem;
+  font-size: 0.75rem;
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.1em;
   color: var(--text-muted);
 }
 
 .metric-value-group {
   display: flex;
   align-items: baseline;
-  gap: 6px;
+  gap: 0.5rem;
 }
 
 .value {
   font-family: 'Share Tech Mono', monospace;
-  font-size: 1.8rem;
-  font-weight: 600;
+  font-size: 2rem;
+  font-weight: 500;
   color: var(--text-primary);
   line-height: 1;
 }
 
 .unit {
-  font-size: 0.85rem;
+  font-size: 0.9rem;
+  font-weight: 500;
   color: var(--text-muted);
 }
 
+.metric-trend {
+  flex-shrink: 0;
+  opacity: 0.7;
+}
+
 /* Compact Overrides */
+:host-context(.compact) .metric-row {
+  padding: 0.5rem 0;
+}
+
 :host-context(.compact) .value {
-  font-size: 1.4rem;
+  font-size: 1.6rem;
 }

@@ -1,23 +1,23 @@
 <div class="hud" [class.hud--fix]="vm.fixState === 'fix'" [class.hud--stale]="vm.fixState === 'stale'">
   <div class="hud-header">
-    <span class="hud-status">{{ vm.statusLabel }}</span>
-    <span class="hud-age">{{ vm.ageLabel }}</span>
+    <span class="hud-status">{{ vm.statusLabelKey | translate }}</span>
+    <span class="hud-age">{{ 'chart.hud.age' | translate }} {{ vm.ageSeconds !== null ? vm.ageSeconds : '--' }}s</span>
   </div>
 
   <div class="hud-position">
     <div class="hud-coord">
-      <span class="hud-label">Lat</span>
+      <span class="hud-label">{{ 'chart.hud.lat' | translate }}</span>
       <span class="hud-value">{{ vm.latLabel }}</span>
     </div>
     <div class="hud-coord">
-      <span class="hud-label">Lon</span>
+      <span class="hud-label">{{ 'chart.hud.lon' | translate }}</span>
       <span class="hud-value">{{ vm.lonLabel }}</span>
     </div>
   </div>
 
   <div class="hud-grid">
     <div class="hud-item" *ngFor="let row of vm.rows">
-      <span class="hud-label">{{ row.label }}</span>
+      <span class="hud-label">{{ row.labelKey | translate }}</span>
       <span class="hud-value">{{ row.value }}</span>
       <span class="hud-unit">{{ row.unit }}</span>
     </div>
