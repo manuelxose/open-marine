@@ -34,6 +34,16 @@ export const es: Translations = {
     },
     widgets: {
       reset: 'Restablecer diseño predeterminado',
+      desc: {
+        navigation: 'SOG, COG, HDG, Posición con tendencia',
+        wind: 'Velocidad y ángulo de viento aparente',
+        depth: 'Profundidad bajo el transductor con tendencia',
+        power: 'Voltaje y corriente de batería',
+        system: 'Estado de conexión y diagnósticos',
+        sog_simple: 'Velocidad sobre el fondo - compacto',
+        heading_simple: 'Rumbo verdadero - compacto',
+        depth_simple: 'Profundidad - compacto',
+      },
     },
   },
   nav: {

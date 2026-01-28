@@ -25,8 +25,8 @@ export interface DashboardLayout {
 export const WIDGET_DEFINITIONS: WidgetDefinition[] = [
     {
         id: 'navigation-card',
-        title: 'Navigation',
-        description: 'SOG, COG, HDG, Position with trend',
+        title: 'dashboard.panels.navigation',
+        description: 'settings.widgets.desc.navigation',
         size: 'L',
         requiredPaths: [
             PATHS.navigation.speedOverGround,
@@ -38,8 +38,8 @@ export const WIDGET_DEFINITIONS: WidgetDefinition[] = [
     },
     {
         id: 'wind-card',
-        title: 'Wind',
-        description: 'Apparent wind speed and angle',
+        title: 'dashboard.panels.wind',
+        description: 'settings.widgets.desc.wind',
         size: 'L',
         requiredPaths: [
             PATHS.environment.wind.speedApparent,
@@ -49,16 +49,16 @@ export const WIDGET_DEFINITIONS: WidgetDefinition[] = [
     },
     {
         id: 'depth-card',
-        title: 'Depth',
-        description: 'Depth below transducer with trend',
+        title: 'dashboard.panels.depth',
+        description: 'settings.widgets.desc.depth',
         size: 'M',
         requiredPaths: [PATHS.environment.depth.belowTransducer],
         category: 'environment'
     },
     {
         id: 'power-card',
-        title: 'Power',
-        description: 'Battery voltage and current',
+        title: 'dashboard.panels.power',
+        description: 'settings.widgets.desc.power',
         size: 'M',
         requiredPaths: [
             PATHS.electrical.batteries.house.voltage,
@@ -67,9 +67,9 @@ export const WIDGET_DEFINITIONS: WidgetDefinition[] = [
         category: 'electrical'
     },
     {
-        id: 'diagnostics-summary',
-        title: 'System',
-        description: 'Connection status and diagnostics',
+        id: 'system-card',
+        title: 'dashboard.panels.system',
+        description: 'settings.widgets.desc.system',
         size: 'S',
         requiredPaths: [],
         category: 'system'
@@ -77,7 +77,7 @@ export const WIDGET_DEFINITIONS: WidgetDefinition[] = [
     {
         id: 'sog-simple',
         title: 'SOG (Simple)',
-        description: 'Speed over ground - compact',
+        description: 'settings.widgets.desc.sog_simple',
         size: 'S',
         requiredPaths: [PATHS.navigation.speedOverGround],
         category: 'navigation'
@@ -85,7 +85,7 @@ export const WIDGET_DEFINITIONS: WidgetDefinition[] = [
     {
         id: 'heading-simple',
         title: 'Heading (Simple)',
-        description: 'True heading - compact',
+        description: 'settings.widgets.desc.heading_simple',
         size: 'S',
         requiredPaths: [PATHS.navigation.headingTrue],
         category: 'navigation'
@@ -93,7 +93,7 @@ export const WIDGET_DEFINITIONS: WidgetDefinition[] = [
     {
         id: 'depth-simple',
         title: 'Depth (Simple)',
-        description: 'Depth - compact',
+        description: 'settings.widgets.desc.depth_simple',
         size: 'S',
         requiredPaths: [PATHS.environment.depth.belowTransducer],
         category: 'environment'
@@ -107,7 +107,7 @@ export const DEFAULT_LAYOUT: DashboardLayout = {
         { id: 'wind-card', visible: true, order: 1 },
         { id: 'depth-card', visible: true, order: 2 },
         { id: 'power-card', visible: true, order: 3 },
-        { id: 'diagnostics-summary', visible: true, order: 4 },
+        { id: 'system-card', visible: true, order: 4 },
         { id: 'sog-simple', visible: false, order: 5 },
         { id: 'heading-simple', visible: false, order: 6 },
         { id: 'depth-simple', visible: false, order: 7 }
