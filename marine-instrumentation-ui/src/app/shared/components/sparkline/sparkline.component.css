@@ -1,9 +1,3 @@
-<<<<<<< HEAD
-.sparkline {
-  display: inline-block;
-  vertical-align: middle;
-  overflow: visible;
-=======
 :host {
   display: block;
   width: 100%;
@@ -32,5 +26,4 @@
   justify-content: center;
   color: var(--muted);
   font-size: 0.75rem;
->>>>>>> claude/analyze-codebase-JJQG3
 }
