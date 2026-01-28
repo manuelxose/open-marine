@@ -1,0 +1,19 @@
+<svg [attr.viewBox]="viewBox" class="sparkline">
+  <polyline
+    *ngIf="hasPoints"
+    [attr.points]="points"
+    [attr.stroke]="stroke"
+    fill="none"
+    stroke-width="2"
+  />
+  <line
+    *ngIf="thresholdY !== null"
+    [attr.y1]="thresholdY"
+    [attr.y2]="thresholdY"
+    [attr.x2]="width"
+    stroke="currentColor"
+    stroke-width="1"
+    opacity="0.5"
+    stroke-dasharray="2,2"
+  />
+</svg>

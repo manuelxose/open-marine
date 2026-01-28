@@ -1,15 +1,81 @@
+# Dependencies
 node_modules/
+**/node_modules/
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Build outputs
 dist/
-coverage/
-.cache/
+build/
+**/dist/
+*.tsbuildinfo
+out/
+
+# Angular
 .angular/
-.DS_Store
+*.ng-compiled
+
+# Testing
+coverage/
+.nyc_output/
+*.lcov
+
+# Environment variables
 .env
-.env.*
+.env.local
+.env.*.local
+
+# IDE & Editor
 .idea/
 .vscode/*
 !.vscode/settings.json
+!.vscode/extensions.json
+!.vscode/launch.json
+!.vscode/tasks.json
+.vscode/history/
+*.suo
+*.sln.docstates
+*.swp
+*.swo
+*~
+.DS_Store
+
+# OS
+Thumbs.db
+.DS_Store
+*.log
+
+# Logs
 npm-debug.log*
+npm-error.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
+pnpm-error.log*
+lerna-debug.log*
+
+# Temporary files
+*.tmp
+*.bak
+*.swp
+*.swo
+*~
+.cache/
+.turbo/
+
+# Local env files
+.env.local
+.env.*.local
+
+# IDE local files
+.vscode/settings.json.bak
+.idea/workspace.xml
+.idea/shelf
+
+# Firebase
+.firebase/
+.firebaserc
+
+# Generated files
+.generated/
