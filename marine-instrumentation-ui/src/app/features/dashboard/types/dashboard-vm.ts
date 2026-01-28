@@ -56,11 +56,16 @@ export interface PowerPanelVm {
   error?: string;
 }
 
+export interface SystemPanelLine {
+  labelKey: string;
+  value: string;
+}
+
 export interface SystemPanelVm {
   title: string;
   status: string;
   statusTone: StatusTone;
-  lines: string[];
+  lines: SystemPanelLine[];
   isLoading: boolean;
   error?: string;
 }

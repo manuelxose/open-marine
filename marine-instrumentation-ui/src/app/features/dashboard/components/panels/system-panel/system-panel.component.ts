@@ -1,12 +1,13 @@
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { PanelCardComponent } from '../../../../../shared/components/panel-card/panel-card.component';
-import type { SystemPanelVm } from '../../../types/dashboard-vm';
+import { TranslatePipe } from '../../../../../shared/pipes/translate.pipe';
+import type { SystemPanelVm, SystemPanelLine } from '../../../types/dashboard-vm';
 
 @Component({
   selector: 'app-dashboard-system-panel',
   standalone: true,
-  imports: [CommonModule, PanelCardComponent],
+  imports: [CommonModule, PanelCardComponent, TranslatePipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './system-panel.component.html',
   styleUrls: ['./system-panel.component.css'],
@@ -14,7 +15,7 @@ import type { SystemPanelVm } from '../../../types/dashboard-vm';
 export class SystemPanelComponent {
   @Input({ required: true }) vm!: SystemPanelVm;
 
-  trackByLine(index: number, line: string): string {
-    return line;
+  trackByLine(index: number, line: SystemPanelLine): string {
+    return line.labelKey;
   }
 }

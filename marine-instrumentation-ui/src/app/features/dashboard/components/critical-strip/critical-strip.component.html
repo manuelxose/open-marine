@@ -1,7 +1,7 @@
 <div class="strip" *ngIf="!vm.isLoading; else loading">
   <app-shared-instrument-tile
     *ngFor="let item of vm.items; trackBy: trackByLabel"
-    [label]="item.label"
+    [label]="item.label | translate"
     [value]="item.value"
     [unit]="item.unit"
     [tone]="item.tone"

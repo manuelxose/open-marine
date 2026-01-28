@@ -643,24 +643,36 @@ Each feature follows this structure:
 
 ---
 
-### Milestone 6: Dashboard Hardening
+### Milestone 6: Dashboard Hardening & UI/UX Overhaul
 
-**Goal**: Polish dashboard for production use.
+**Goal**: Polish dashboard for production use and major UI/UX improvements.
 
 **Status**: COMPLETED (2026-01-28)
 
 **Completed Changes**:
 - **Status/Error Banners**: Added dashboard banners for offline/stream errors with pulse animations for alerts ✅
 - **Loading States**: Replaced text overlays with centered spinners & content blur for better UX ✅
-- **Offline Detection**: Robust detection for browser connectivity & Signal K stream status
-- **Mobile Layout**: Improved spacing, density toggle touch targets, and grid responsiveness
-- **Performance**: Reduced change detection churn (trackBy + computed status tone)
+- **Dashboard Cards UI**:
+  - **Navigation**: Structured grid layout, distinct coordinate box, and high-visibility typography.
+  - **Wind**: Grid layout with massive font size for AWS, maximizing readability.
+  - **Depth**: Increased font size (6rem) for critical depth readability.
+  - **Power**: Clean list layout with improved spacing and hierarchy.
+  - **System**: Terminal-style styling with scrollable log view.
+- **Settings Page Overhaul**:
+  - Fixed responsive layout (removed fixed width, added mobile adaptations).
+  - **Scroll Fix**: Added correct `:host` display/height properties to enable internal scrolling within the app shell.
+  - Applied correct theme variables (`--bg`, `--panel`, `--text-primary`) for consistent Dark/Light mode.
+  - **UI Refinements**:
+    - **Toggle Buttons**: Resized to 44x24px (standard UI size) and added visible inactive state background for better affordance.
+    - **Internationalization (i18n)**: Implemented scalable `LanguageService` and `TranslatePipe` with English/Spanish support, persisting user preference.
+  - Improved form controls (custom toggles, styled selects).
+- **Mobile Layout**: Improved spacing, density toggle touch targets, and grid responsiveness.
 
 **Outcome**:
-- Dashboard remains usable under slow or offline conditions
-- Clear visibility into connection/data freshness
-- Improved small-screen usability and smoother updates
-- Professional visual polish on loading/error states
+- Professional, marine-grade instrument look and feel.
+- Settings page is now fully responsive and theme-consistent.
+- improved readability of all critical data points.
+- Dashboard remains usable under slow or offline conditions.
 
 ---
 

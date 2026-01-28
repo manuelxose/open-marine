@@ -1,4 +1,4 @@
-<app-shared-panel-card [title]="vm.title" [loading]="vm.isLoading" [error]="vm.error">
+<app-shared-panel-card [title]="vm.title | translate" [loading]="vm.isLoading" [error]="vm.error">
   <div class="depth-content">
     <div class="main-metric" *ngFor="let m of vm.metrics; trackBy: trackByMetric">
       <div class="metric-value-group">

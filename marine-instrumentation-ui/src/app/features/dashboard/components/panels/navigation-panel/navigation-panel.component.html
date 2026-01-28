@@ -1,6 +1,6 @@
 <app-shared-panel-card
-  [title]="vm.title"
-  [statusLabel]="vm.fixLabel"
+  [title]="vm.title | translate"
+  [statusLabel]="vm.fixLabel | translate"
   [statusTone]="vm.statusTone"
   [loading]="vm.isLoading"
   [error]="vm.error"
@@ -14,7 +14,7 @@
     <div class="metrics-list">
       <div class="metric-row" *ngFor="let m of vm.metrics; trackBy: trackByMetric">
         <div class="metric-info">
-          <span class="metric-label">{{ m.label }}</span>
+          <span class="metric-label">{{ m.label | translate }}</span>
           <div class="metric-value-group">
             <span class="value">{{ m.value }}</span>
             <span class="unit">{{ m.unit }}</span>

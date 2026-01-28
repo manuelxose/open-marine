@@ -1,11 +1,12 @@
 import { ChangeDetectionStrategy, Component, EventEmitter, Input, Output } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { TranslatePipe } from '../../../../shared/pipes/translate.pipe';
 import type { ChartControlsVm } from '../../types/chart-vm';
 
 @Component({
   selector: 'app-chart-controls',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, TranslatePipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './chart-controls.component.html',
   styleUrls: ['./chart-controls.component.css'],
