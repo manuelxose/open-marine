@@ -12,6 +12,14 @@
       <span class="toggle-label">{{ 'chart.controls.vector' | translate }}</span>
       <span class="toggle-state">{{ (vm.showVector ? 'chart.controls.on' : 'chart.controls.off') | translate }}</span>
     </button>
+    <button class="toggle" [class.active]="vm.showTrueWind" (click)="onToggleTrueWind()">
+      <span class="toggle-label">{{ 'chart.controls.true_wind' | translate }}</span>
+      <span class="toggle-state">{{ (vm.showTrueWind ? 'chart.controls.on' : 'chart.controls.off') | translate }}</span>
+    </button>
+    <button class="toggle" [class.active]="vm.sourceId === 'satellite'" (click)="onToggleLayer()">
+      <span class="toggle-label">{{ 'chart.controls.layer' | translate }}</span>
+      <span class="toggle-state">{{ (vm.sourceId === 'satellite' ? 'chart.controls.satellite' : 'chart.controls.map') | translate }}</span>
+    </button>
   </div>
 
   <button class="center-btn" (click)="onCenterOnBoat()" [disabled]="!vm.canCenter">
