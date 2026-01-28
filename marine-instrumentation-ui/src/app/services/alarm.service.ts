@@ -1,7 +1,7 @@
 import { Injectable } from "@angular/core";
-import { BehaviorSubject } from "rxjs";
+import { BehaviorSubject, filter } from "rxjs";
 import { PATHS } from "@omi/marine-data-contract";
-import { DataStoreService } from "./data-store.service";
+import { DatapointStoreService } from "../state/datapoints/datapoint-store.service";
 
 export type AlarmSeverity = "warning" | "critical";
 
@@ -106,17 +106,15 @@ export class AlarmService {
 
   readonly state$ = this.stateSubject.asObservable();
 
-  constructor(store: DataStoreService) {
-    store.point$(PATHS.environment.depth.belowTransducer).subscribe((point) => {
-      if (!point || typeof point.value !== "number") {
-        return;
-      }
+  constructor(store: DatapointStoreService) {
+    store.observe<number>(PATHS.environment.depth.belowTransducer).pipe(
+      filter((point): point is NonNullable<typeof point> => point !== undefined && typeof point.value === "number")
+    ).subscribe((point) => {
       this.updateAlarm("depth", point.value);
     });
-    store.point$(PATHS.electrical.batteries.house.voltage).subscribe((point) => {
-      if (!point || typeof point.value !== "number") {
-        return;
-      }
+    store.observe<number>(PATHS.electrical.batteries.house.voltage).pipe(
+      filter((point): point is NonNullable<typeof point> => point !== undefined && typeof point.value === "number")
+    ).subscribe((point) => {
       this.updateAlarm("voltage", point.value);
     });
   }
