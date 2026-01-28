@@ -132,10 +132,10 @@ Quick reference for the current state of the Open Marine Instrumentation project
 âœ… M2: Code Quality (Removed 4,400 lines of dead code)
 âœ… M3: Feature Facade Pattern (Consistent architecture)
 ƒo. M4: Contract & Data Cleanup (Completed 2026-01-28)
-â³ M5: Testing Infrastructure (Planned Q1 2026)
-â³ M6: True Wind Implementation (Planned Q2 2026)
-â³ M7: Real Sensor Integration (Planned Q2-Q3 2026)
-â³ M8: Offline Support (Planned Q3 2026)
+ƒo. M5: Testing Infrastructure (Completed 2026-01-28)
+ƒo. M6: Dashboard Hardening (Completed 2026-01-28)
+ƒ?ü M7: Chart Stabilization (Planned Q1 2026)
+ƒ?ü M8: True Wind Implementation (Planned Q2 2026)
 ```
 
 ---

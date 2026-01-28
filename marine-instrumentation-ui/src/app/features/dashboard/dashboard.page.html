@@ -4,6 +4,30 @@
       <app-dashboard-critical-strip class="critical-strip" [vm]="criticalVm"></app-dashboard-critical-strip>
     </ng-container>
 
+    <ng-container *ngIf="errorMessage$ | async as errorMessage">
+      <div class="error-banner" *ngIf="errorMessage">
+        <span>{{ errorMessage }}</span>
+        <button type="button" class="error-dismiss" (click)="dismissError()">Dismiss</button>
+      </div>
+    </ng-container>
+
+    <ng-container *ngIf="statusVm$ | async as statusVm">
+      <div
+        class="status-banner"
+        *ngIf="statusVm.isVisible"
+        [class.status-ok]="statusVm.tone === 'ok'"
+        [class.status-warn]="statusVm.tone === 'warn'"
+        [class.status-alert]="statusVm.tone === 'alert'"
+        [class.status-neutral]="statusVm.tone === 'neutral'"
+      >
+        <span class="status-dot"></span>
+        <div class="status-text">
+          <span class="status-label">{{ statusVm.label }}</span>
+          <span class="status-detail">{{ statusVm.detail }}</span>
+        </div>
+      </div>
+    </ng-container>
+
     <div class="panel-grid">
       <ng-container *ngIf="navigationVm$ | async as navigationVm">
         <app-dashboard-navigation-panel class="panel navigation" [vm]="navigationVm"></app-dashboard-navigation-panel>

@@ -1,4 +1,10 @@
-<app-shared-panel-card [title]="vm.title" [statusLabel]="vm.fixLabel" [statusTone]="vm.fixLabel === 'FIX' ? 'ok' : vm.fixLabel === 'STALE' ? 'warn' : 'alert'">
+<app-shared-panel-card
+  [title]="vm.title"
+  [statusLabel]="vm.fixLabel"
+  [statusTone]="vm.statusTone"
+  [loading]="vm.isLoading"
+  [error]="vm.error"
+>
   <div class="navigation-content">
     <div class="position-display">
       <div class="coord">{{ vm.position.lat }}</div>
@@ -6,7 +12,7 @@
     </div>
 
     <div class="metrics-list">
-      <div class="metric-row" *ngFor="let m of vm.metrics">
+      <div class="metric-row" *ngFor="let m of vm.metrics; trackBy: trackByMetric">
         <div class="metric-info">
           <span class="metric-label">{{ m.label }}</span>
           <div class="metric-value-group">

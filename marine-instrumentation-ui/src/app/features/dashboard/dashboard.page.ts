@@ -34,8 +34,14 @@ export class DashboardPage {
   readonly depthVm$ = this.facade.depthVm$;
   readonly powerVm$ = this.facade.powerVm$;
   readonly systemVm$ = this.facade.systemVm$;
+  readonly statusVm$ = this.facade.statusVm$;
+  readonly errorMessage$ = this.facade.errorMessage$;
 
   toggleDensity(): void {
     this.facade.toggleDensity();
+  }
+
+  dismissError(): void {
+    this.facade.clearError();
   }
 }

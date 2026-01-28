@@ -15,7 +15,42 @@
   display: none;
 }
 
+.strip--loading {
+  gap: 10px;
+}
+
+.tile-skeleton {
+  width: 120px;
+  height: 56px;
+  border-radius: 18px;
+  background: linear-gradient(110deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.06));
+  background-size: 200% 100%;
+  animation: shimmer 1.4s ease infinite;
+  border: 1px solid var(--panel-border);
+  flex: 0 0 auto;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tile-skeleton {
+    animation: none;
+  }
+}
+
 /* Compact Overrides */
 :host-context(.compact) .strip {
   gap: 8px;
+}
+
+:host-context(.compact) .tile-skeleton {
+  height: 46px;
+  border-radius: 14px;
 }

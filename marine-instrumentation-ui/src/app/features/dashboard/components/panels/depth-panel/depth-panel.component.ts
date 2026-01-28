@@ -14,4 +14,8 @@ import type { DepthPanelVm } from '../../../types/dashboard-vm';
 })
 export class DepthPanelComponent {
   @Input({ required: true }) vm!: DepthPanelVm;
+
+  trackByMetric(index: number, item: DepthPanelVm['metrics'][number]): string {
+    return item.label;
+  }
 }
