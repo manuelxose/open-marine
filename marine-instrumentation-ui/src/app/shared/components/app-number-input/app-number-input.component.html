@@ -1,0 +1,30 @@
+<div class="number-input-container" [class.disabled]="disabled">
+  <button 
+    type="button" 
+    class="stepper-btn minus" 
+    (click)="decrement()" 
+    [disabled]="disabled || value() <= min"
+    tabindex="-1">
+    <app-icon name="minus" size="sm"></app-icon>
+  </button>
+  
+  <input 
+    class="number-field"
+    type="number" 
+    [min]="min" 
+    [max]="max" 
+    [step]="step" 
+    [value]="value()" 
+    (input)="onInput($event)"
+    (blur)="onBlur()"
+    [disabled]="disabled">
+    
+  <button 
+    type="button" 
+    class="stepper-btn plus" 
+    (click)="increment()" 
+    [disabled]="disabled || value() >= max"
+    tabindex="-1">
+    <app-icon name="plus" size="sm"></app-icon>
+  </button>
+</div>

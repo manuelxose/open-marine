@@ -1,43 +1,61 @@
 import { Component, ChangeDetectionStrategy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { TranslatePipe } from '../../shared/pipes/translate.pipe';
-import { AlarmsFacadeService } from './alarms-facade.service';
+import { AlarmsFacadeService } from './services/alarms-facade.service';
+import { AlarmSeverity, AlarmState } from '../../state/alarms/alarm.models';
+import { map } from 'rxjs';
+import { AlarmSettingsService, AlarmSettings } from '../../state/alarms/alarm-settings.service';
+import { AnchorWatchComponent } from './components/anchor-watch/anchor-watch.component';
+import { AppButtonComponent } from '../../shared/components/app-button/app-button.component';
+import { AppModalComponent } from '../../shared/components/app-modal/app-modal.component';
 
 @Component({
   selector: 'app-alarms-page',
   standalone: true,
-  imports: [CommonModule, TranslatePipe],
+  imports: [CommonModule, FormsModule, TranslatePipe, AnchorWatchComponent, AppButtonComponent, AppModalComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="alarms-page">
       <div class="page-header">
-        <h1>{{ 'alarms.page.title' | translate }}</h1>
-        <p class="subtitle" [class.has-alarm]="vm()?.hasActiveAlarm">
-          {{ (vm()?.hasActiveAlarm ? 'alarms.page.active' : 'alarms.page.no_active') | translate }}
-        </p>
+        <div>
+          <h1>{{ 'alarms.page.title' | translate }}</h1>
+          <p class="subtitle" [class.has-alarm]="vm()?.hasActiveAlarm">
+            {{ (vm()?.hasActiveAlarm ? 'alarms.page.active' : 'alarms.page.no_active') | translate }}
+          </p>
+        </div>
+        <div class="header-actions">
+          <app-button variant="secondary" [iconLeft]="'settings'" (click)="showSettings = true">
+            Configurar
+          </app-button>
+        </div>
       </div>
 
       @if (vm()?.hasActiveAlarm) {
-        <div class="alarm-card" [class]="vm()?.severityClass">
-          <div class="alarm-icon">
-            <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
-              <line x1="12" y1="9" x2="12" y2="13"></line>
-              <line x1="12" y1="17" x2="12.01" y2="17"></line>
-            </svg>
-          </div>
-          <div class="alarm-content">
-            <div class="alarm-severity">{{ vm()?.severity | uppercase }}</div>
-            <div class="alarm-message">{{ vm()?.message }}</div>
-            @if (vm()?.isAcknowledged) {
-              <div class="alarm-ack-badge">Acknowledged</div>
-            }
-          </div>
-          @if (!vm()?.isAcknowledged) {
-            <button class="ack-button" (click)="onAcknowledge()">
-              Acknowledge
-            </button>
+        <div class="active-alarms-list">
+          @for (alarm of vm()!.alarms; track alarm.id) {
+            <div class="alarm-card" [class]="alarm.severityClass">
+              <div class="alarm-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                  <line x1="12" y1="9" x2="12" y2="13"></line>
+                  <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                </svg>
+              </div>
+              <div class="alarm-content">
+                <div class="alarm-severity">{{ alarm.severity | uppercase }}</div>
+                <div class="alarm-message">{{ alarm.message }}</div>
+                @if (alarm.acknowledged) {
+                  <div class="alarm-ack-badge">Acknowledged</div>
+                }
+              </div>
+              @if (!alarm.acknowledged) {
+                <button class="ack-button" (click)="onAcknowledge(alarm.id)">
+                  Acknowledge
+                </button>
+              }
+            </div>
           }
         </div>
       } @else {
@@ -51,32 +69,117 @@ import { AlarmsFacadeService } from './alarms-facade.service';
         </div>
       }
 
-      <div class="alarm-info">
-        <h2>Monitored Conditions</h2>
-        <div class="condition-list">
-          <div class="condition">
-            <span class="condition-label">Shallow Depth</span>
-            <span class="condition-threshold">&lt; 3.0 m</span>
-          </div>
-          <div class="condition">
-            <span class="condition-label">Low Battery Voltage</span>
-            <span class="condition-threshold">&lt; 11.6 V</span>
-          </div>
+      <app-modal
+        [isOpen]="showSettings"
+        title="Configuracion de alarmas"
+        size="lg"
+        [showFooter]="false"
+        (close)="showSettings = false"
+      >
+        <div class="settings-header">
+          <h2>CONFIGURACION DE ALARMAS</h2>
+          <p>Ajusta umbrales y sensibilidad de las alertas activas.</p>
         </div>
-      </div>
+        <div class="settings-grid">
+          <div class="settings-card">
+            <h3>Shallow Water</h3>
+            <div class="settings-row">
+              <label>Threshold (m)</label>
+              <input
+                type="number"
+                min="0.5"
+                max="50"
+                step="0.1"
+                [ngModel]="settings().shallowDepthThreshold"
+                (ngModelChange)="updateSetting('shallowDepthThreshold', $event, 0.5, 50, 1)"
+              />
+            </div>
+          </div>
+
+          <div class="settings-card">
+            <h3>Battery Low</h3>
+            <div class="settings-row">
+              <label>Threshold (V)</label>
+              <input
+                type="number"
+                min="9"
+                max="14"
+                step="0.1"
+                [ngModel]="settings().lowBatteryThreshold"
+                (ngModelChange)="updateSetting('lowBatteryThreshold', $event, 9, 14, 1)"
+              />
+            </div>
+          </div>
+
+          <div class="settings-card">
+            <h3>CPA Warning</h3>
+            <div class="settings-row">
+              <label>Distance (NM)</label>
+              <input
+                type="number"
+                min="0.1"
+                max="5"
+                step="0.1"
+                [ngModel]="settings().cpaThresholdNm"
+                (ngModelChange)="updateSetting('cpaThresholdNm', $event, 0.1, 5, 2)"
+              />
+            </div>
+            <div class="settings-row">
+              <label>TCPA (min)</label>
+              <input
+                type="number"
+                min="1"
+                max="60"
+                step="1"
+                [ngModel]="settings().cpaTcpaMinutes"
+                (ngModelChange)="updateSetting('cpaTcpaMinutes', $event, 1, 60, 0)"
+              />
+            </div>
+          </div>
+
+          <div class="settings-card">
+            <h3>GPS Lost</h3>
+            <div class="settings-row">
+              <label>Timeout (s)</label>
+              <input
+                type="number"
+                min="5"
+                max="180"
+                step="1"
+                [ngModel]="settings().gpsLostSeconds"
+                (ngModelChange)="updateSetting('gpsLostSeconds', $event, 5, 180, 0)"
+              />
+            </div>
+          </div>
+
+          <app-anchor-watch class="settings-anchor"></app-anchor-watch>
+        </div>
+      </app-modal>
     </div>
   `,
   styles: [`
+    :host {
+      display: block;
+      height: 100%;
+      min-height: 0;
+    }
+
     .alarms-page {
       padding: 1.5rem;
       height: 100%;
       display: flex;
       flex-direction: column;
       gap: 1.5rem;
+      overflow-y: auto;
+      min-height: 0;
     }
 
     .page-header {
       flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
     }
 
     h1 {
@@ -96,6 +199,12 @@ import { AlarmsFacadeService } from './alarms-facade.service';
       color: var(--danger);
     }
 
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
     .alarm-card {
       background: var(--card-bg);
       border: 2px solid var(--card-border);
@@ -104,6 +213,7 @@ import { AlarmsFacadeService } from './alarms-facade.service';
       display: flex;
       align-items: center;
       gap: 1.5rem;
+      margin-bottom: 0.75rem;
     }
 
     .alarm-card.alarm-warning {
@@ -206,49 +316,131 @@ import { AlarmsFacadeService } from './alarms-facade.service';
       margin: 0;
     }
 
-    .alarm-info {
-      background: var(--card-bg);
+    .settings-header h2 {
+      margin: 0;
+      font-size: 0.9rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .settings-header p {
+      margin: 0.35rem 0 0;
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+
+    .settings-grid {
+      display: grid;
+      gap: 1rem;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      align-items: start;
+    }
+
+    .settings-card {
+      background: var(--surface-1);
       border: 1px solid var(--card-border);
       border-radius: var(--radius);
-      padding: 1rem 1.5rem;
-    }
-
-    .alarm-info h2 {
-      font-size: 0.875rem;
-      font-weight: 600;
-      color: var(--muted);
-      margin-bottom: 0.75rem;
-    }
-
-    .condition-list {
+      padding: 1rem;
       display: flex;
       flex-direction: column;
-      gap: 0.5rem;
+      gap: 0.85rem;
+      box-shadow: var(--shadow);
     }
 
-    .condition {
+    .settings-card h3 {
+      margin: 0;
+      font-size: 0.85rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-2, var(--muted));
+      font-weight: 700;
+    }
+
+    .settings-row {
       display: flex;
-      justify-content: space-between;
       align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
     }
 
-    .condition-label {
-      color: var(--fg);
+    .settings-row label {
+      font-size: 0.8rem;
+      color: var(--text-1, var(--fg));
     }
 
-    .condition-threshold {
+    .settings-row input {
+      width: 120px;
+      background: var(--surface-2);
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      padding: 0.4rem 0.5rem;
+      color: var(--text-1, var(--fg));
       font-family: var(--font-mono);
-      color: var(--muted);
-      font-size: 0.875rem;
+      font-size: 0.85rem;
+      text-align: right;
+    }
+
+    .settings-anchor {
+      width: 100%;
     }
   `],
 })
 export class AlarmsPage {
   private readonly facade = inject(AlarmsFacadeService);
+  private readonly settingsService = inject(AlarmSettingsService);
+  showSettings = false;
 
-  readonly vm = toSignal(this.facade.vm$);
+  readonly vm = toSignal(
+    this.facade.activeAlarms$.pipe(
+      map((alarms) => {
+        const items = alarms.map((alarm) => {
+          const severity =
+            alarm.severity === AlarmSeverity.Critical || alarm.severity === AlarmSeverity.Emergency
+              ? 'critical'
+              : 'warning';
 
-  onAcknowledge(): void {
-    this.facade.acknowledge();
+          return {
+            id: alarm.id,
+            acknowledged: alarm.state !== AlarmState.Active,
+            severity,
+            message: alarm.message,
+            threshold: alarm.data?.threshold ?? null,
+            severityClass: severity === 'critical' ? 'alarm-critical' : 'alarm-warning',
+          };
+        });
+
+        return {
+          hasActiveAlarm: items.length > 0,
+          alarms: items,
+        };
+      })
+    )
+  );
+
+  readonly settings = toSignal(this.settingsService.settings$, {
+    initialValue: this.settingsService.snapshot,
+  });
+
+  onAcknowledge(id?: string): void {
+    if (!id) return;
+    this.facade.acknowledgeAlarm(id);
+  }
+
+  updateSetting(
+    key: keyof AlarmSettings,
+    value: number,
+    min: number,
+    max: number,
+    decimals: number
+  ): void {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) {
+      return;
+    }
+    const clamped = Math.min(max, Math.max(min, numeric));
+    const rounded = decimals >= 0 ? Number(clamped.toFixed(decimals)) : clamped;
+    this.settingsService.update({ [key]: rounded } as Partial<AlarmSettings>);
   }
 }

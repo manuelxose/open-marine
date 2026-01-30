@@ -1,0 +1,8 @@
+﻿
+      track: 'Vessel Track',
+      vector: 'COG Vector',
+      true_wind: 'True Wind Arrow',
+      range_rings: 'Range Rings',
+      layer: 'Layer',
+      satellite: 'Satellite',
+

@@ -1,0 +1,56 @@
+.depth-gauge {
+  display: grid;
+  grid-template-columns: 28px 1fr;
+  gap: 12px;
+  align-items: center;
+  min-height: 96px;
+}
+
+.gauge-track {
+  position: relative;
+  height: 96px;
+  width: 24px;
+  border-radius: 14px;
+  background: linear-gradient(180deg, rgba(12, 74, 110, 0.2) 0%, rgba(12, 74, 110, 0.55) 100%);
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  overflow: hidden;
+}
+
+.gauge-fill {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  border-radius: 12px;
+  background: linear-gradient(180deg, rgba(14, 116, 144, 0.8) 0%, rgba(59, 130, 246, 0.95) 100%);
+  box-shadow: 0 0 12px rgba(14, 116, 144, 0.35);
+  transition: height 160ms ease;
+}
+
+.gauge-fill.shallow {
+  background: linear-gradient(180deg, rgba(234, 88, 12, 0.85) 0%, rgba(239, 68, 68, 0.9) 100%);
+  box-shadow: 0 0 16px rgba(239, 68, 68, 0.35);
+}
+
+.depth-readout {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.depth-readout .value {
+  font-size: 2.2rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.depth-readout .unit {
+  font-size: 0.95rem;
+  color: var(--text-muted, #94a3b8);
+}
+
+.depth-threshold {
+  margin-top: 8px;
+  font-size: 0.75rem;
+  color: var(--text-muted, #94a3b8);
+}

@@ -1,0 +1,65 @@
+:host {
+  display: flex;
+  box-sizing: border-box;
+  gap: var(--stack-gap);
+  
+  // Directions
+  &.app-stack--column {
+    flex-direction: column;
+  }
+  
+  &.app-stack--row {
+    flex-direction: row;
+  }
+
+  // Wrap
+  &.app-stack--wrap {
+    flex-wrap: wrap;
+  }
+
+  // Align Items
+  &.app-stack--align-start { align-items: flex-start; }
+  &.app-stack--align-center { align-items: center; }
+  &.app-stack--align-end { align-items: flex-end; }
+  &.app-stack--align-stretch { align-items: stretch; }
+  &.app-stack--align-baseline { align-items: baseline; }
+
+  // Justify Content
+  &.app-stack--justify-start { justify-content: flex-start; }
+  &.app-stack--justify-center { justify-content: center; }
+  &.app-stack--justify-end { justify-content: flex-end; }
+  &.app-stack--justify-between { justify-content: space-between; }
+  &.app-stack--justify-around { justify-content: space-around; }
+  &.app-stack--justify-evenly { justify-content: space-evenly; }
+
+  // Divider
+  &.app-stack--divider {
+    // Determine border color based on theme context or default border color
+    --stack-divider-color: var(--border-color);
+
+    // Apply separator to children except the first one
+    &.app-stack--column > ::ng-deep * + * {
+      border-top: 1px solid var(--stack-divider-color);
+      padding-top: calc(var(--stack-gap) / 2);
+      margin-top: calc(var(--stack-gap) / 2);
+      // If we use gap, we need to be careful. The divider approach often conflicts with gap.
+      // Approach A: Use gap only, no borders (if !divider)
+      // Approach B: If divider is true, disable gap and use margins + borders?
+      // Or use a pseudo-element?
+    }
+
+    &.app-stack--row > ::ng-deep * + * {
+      border-left: 1px solid var(--stack-divider-color);
+      padding-left: calc(var(--stack-gap) / 2);
+      margin-left: calc(var(--stack-gap) / 2);
+    }
+  }
+}
+
+// Logic for Divider when Gap is present is tricky in Flexbox.
+// The cleanest way with gap is to put a literal divider element, but the requirement is just a prop.
+// If using gap, visual space is created. If we want a line in that space:
+// We can turn off gap if divider is on, and use the lobotomized owl selector * + *
+:host.app-stack--divider {
+  gap: 0 !important; // Disable gap so we can control spacing via margin/padding around border
+}

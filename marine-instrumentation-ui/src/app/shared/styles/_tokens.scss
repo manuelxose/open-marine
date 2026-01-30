@@ -1,0 +1,248 @@
+// Design Tokens - Color Palette (Nord Inspired + Nautical)
+
+:root {
+  // ---------------------------------------------------------------------------
+  // BASE PALETTE (Nord)
+  // ---------------------------------------------------------------------------
+  
+  // Polar Night (Dark)
+  --nord-0: #2e3440;
+  --nord-1: #3b4252;
+  --nord-2: #434c5e;
+  --nord-3: #4c566a;
+
+  // Snow Storm (Light)
+  --nord-4: #d8dee9;
+  --nord-5: #e5e9f0;
+  --nord-6: #eceff4;
+  --nord-white: #ffffff;
+
+  // Frost (Accents)
+  --nord-7: #8fbcbb; // Teal
+  --nord-8: #88c0d0; // Cyan
+  --nord-9: #81a1c1; // Light Blue
+  --nord-10: #5e81ac; // Blue
+
+  // Aurora (Status)
+  --nord-11: #bf616a; // Red (Danger)
+  --nord-12: #d08770; // Orange (Warn)
+  --nord-13: #ebcb8b; // Yellow (Caution)
+  --nord-14: #a3be8c; // Green (Success)
+  --nord-15: #b48ead; // Purple
+
+  // Nautical Specific
+  --marine-blue: #0077be;
+  --marine-dark: #004b78;
+
+  // ---------------------------------------------------------------------------
+  // SEMANTIC TOKENS (Default: DAY MODE)
+  // ---------------------------------------------------------------------------
+
+  // Brand / Semantic
+  --primary: var(--marine-blue);
+  --primary-rgb: 0, 119, 190;
+  --primary-contrast: #ffffff;
+  
+  --secondary: var(--nord-9);
+  --secondary-rgb: 129, 161, 193;
+  
+  --accent: var(--marine-blue);
+  
+  // Status
+  --success: #059669;
+  --success-bg: #d1fae5;
+  --success-text: #064e3b;
+  
+  --warn: #d97706;
+  --warn-bg: #fef3c7;
+  --warn-text: #78350f;
+  
+  --danger: #dc2626;
+  --danger-bg: #fee2e2;
+  --danger-text: #7f1d1d;
+
+  --info: var(--nord-9);
+  
+  // Surfaces & Backgrounds (Day)
+  --bg-app: var(--nord-6);
+  --bg-surface: var(--nord-white);
+  --bg-surface-secondary: var(--nord-5);
+  --bg-panel: var(--nord-white);
+  
+  // Text (Day)
+  --text-primary: var(--nord-0);
+  --text-secondary: var(--nord-2);
+  --text-tertiary: var(--nord-3);
+  --text-disabled: var(--nord-4);
+  --text-inverse: var(--nord-6);
+
+  // Borders (Day)
+  --border-subtle: var(--nord-5);
+  --border-default: var(--nord-4);
+  --border-strong: var(--nord-3);
+  
+  --radius-none: 0;
+  --radius-sm: 0.25rem; // 4px
+  --radius-md: 0.5rem;  // 8px (default)
+  --radius-lg: 0.75rem; // 12px
+  --radius-xl: 1rem;    // 16px
+  --radius-full: 9999px; // Pills
+  
+  --border-width-1: 1px;
+  --border-width-2: 2px;
+  
+  // Shadows
+  // Designed for depth perception in bright environments (Day)
+  --shadow-none: none;
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  --shadow-2xl: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  
+  // Specific for sunken elements (displays)
+  --shadow-inner: inset 0 2px 4px 0 rgba(0, 0, 0, 0.06);
+
+  // ---------------------------------------------------------------------------
+  // SPACING TOKENS (Base 4px / 0.25rem)
+  // ---------------------------------------------------------------------------
+  --space-0: 0;
+  --space-1: 0.25rem;  // 4px
+  --space-2: 0.5rem;   // 8px
+  --space-3: 0.75rem;  // 12px
+  --space-4: 1rem;     // 16px
+  --space-5: 1.25rem;  // 20px
+  --space-6: 1.5rem;   // 24px
+  --space-8: 2rem;     // 32px
+  --space-10: 2.5rem;  // 40px
+  --space-12: 3rem;    // 48px
+  --space-16: 4rem;    // 64px
+  
+  --layout-gutter: var(--space-4);
+  --section-spacing: var(--space-8);
+
+  // ---------------------------------------------------------------------------
+  // Z-INDEX TOKENS (T.8)
+  // ---------------------------------------------------------------------------
+  --z-minus: -1;
+  --z-0: 0;
+  --z-10: 10;   // Dropdowns
+  --z-20: 20;   // Sticky headers
+  --z-30: 30;   // Backdrops
+  --z-40: 40;   // Modals / Drawers
+  --z-50: 50;   // Popovers / Toasts
+  --z-max: 9999;
+
+  // ---------------------------------------------------------------------------
+  // LEGACY COMPATIBILITY (Maps old vars to new system)
+  // ---------------------------------------------------------------------------
+  --bg: var(--bg-app);
+  --surface-0: var(--bg-app);
+  --surface-1: var(--bg-surface);
+  --surface-2: var(--bg-surface-secondary);
+  --surface-3: var(--nord-4);
+  
+  --border: var(--border-default);
+  --border-strong: var(--border-strong);
+  
+  --shadow: var(--shadow-md);
+  // --shadow-lg defined above
+  
+  --text-1: var(--text-primary);
+  --text-2: var(--text-secondary);
+  --text-3: var(--text-tertiary);
+  
+  --text-primary: var(--text-1); // Self-ref safety
+  --text-secondary: var(--text-2);
+  --text-tertiary: var(--text-3);
+  --text-muted: var(--text-tertiary);
+  --muted: var(--text-tertiary);
+  --fg: var(--text-primary);
+  
+  --accent-light: var(--nord-9);
+  --accent-dark: var(--nord-10);
+  
+  --primary-400: var(--nord-9);
+  --primary-500: var(--primary);
+  --primary-600: var(--nord-10);
+  --primary-700: var(--marine-dark);
+  --primary-500-rgb: var(--primary-rgb);
+  
+  --success-400: var(--nord-14); // Approximate
+  --success-500: var(--success);
+  --success-600: var(--success-text);
+  
+  --warn-bg: var(--warn-bg);
+  --warning-400: var(--nord-13); // Yellowish
+  --warning-500: var(--warn);
+  
+  --danger-400: var(--nord-11);
+  --danger-500: var(--danger);
+  --danger-600: var(--danger-text);
+  
+  --info-500: var(--info);
+  --ok: var(--success);
+  
+  --radius: 8px;
+  --radius-sm: 4px;
+  --radius-lg: 12px;
+  
+  --card-bg: var(--bg-surface);
+  --card-border: var(--border-default);
+  --panel-bg: var(--bg-surface);
+  --panel-border: var(--border-default);
+  // End Legacy
+}
+
+// ---------------------------------------------------------------------------
+// NIGHT MODE OVERRIDES
+// ---------------------------------------------------------------------------
+[data-theme='night'] {
+  // Brand
+  --primary: var(--nord-8); // Cyans are better for night readability
+  --primary-rgb: 136, 192, 208;
+  --primary-contrast: var(--nord-0);
+  
+  --accent: var(--nord-8);
+
+  // Status (Desaturated for night vision)
+  --success: #2d8a66; // Darker green
+  --success-bg: #0f291e;
+  --success-text: #a8e6cf;
+  
+  --warn: #b05c0d; // Darker orange
+  --warn-bg: #2b1604;
+  --warn-text: #fcd5a4;
+  
+  --danger: #a63434; // Darker red
+  --danger-bg: #2b0b0b;
+  --danger-text: #fca5a5;
+
+  // Surfaces & Backgrounds (Night)
+  --bg-app: var(--nord-0);
+  --bg-surface: var(--nord-1);
+  --bg-surface-secondary: var(--nord-2);
+  --bg-panel: var(--nord-1);
+
+  // Text (Night)
+  --text-primary: var(--nord-6);
+  --text-secondary: var(--nord-4);
+  --text-tertiary: var(--nord-3); // Muted
+  --text-disabled: var(--nord-2);
+  --text-inverse: var(--nord-0);
+
+  // Borders (Night)
+  --border-subtle: var(--nord-1);
+  --border-default: var(--nord-2);
+  --border-strong: var(--nord-3);
+  
+  // Shadows (Lighter or invisible in dark mode)
+  // In Night Mode, shadows are less useful for depth; borders become more important.
+  // We make them very subtle or darker to blend with dark backgrounds.
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.5);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.6);
+  --shadow-2xl: 0 25px 50px -12px rgba(0, 0, 0, 0.8);
+  --shadow-inner: inset 0 2px 4px 0 rgba(0, 0, 0, 0.5);
+}

@@ -1,6 +1,11 @@
 <div class="hud" [class.hud--fix]="vm.fixState === 'fix'" [class.hud--stale]="vm.fixState === 'stale'">
   <div class="hud-header">
     <span class="hud-status">{{ vm.statusLabelKey | translate }}</span>
+    <button *ngIf="vm.canToggleAutopilot" 
+            class="hud-ap-btn" 
+            (click)="toggleAutopilot.emit()">
+      AP
+    </button>
     <span class="hud-age">{{ 'chart.hud.age' | translate }} {{ vm.ageSeconds !== null ? vm.ageSeconds : '--' }}s</span>
   </div>
 

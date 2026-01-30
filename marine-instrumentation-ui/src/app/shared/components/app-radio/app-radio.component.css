@@ -1,0 +1,88 @@
+:host {
+  display: inline-flex;
+}
+
+.app-radio-container {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  user-select: none;
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  line-height: 1.5;
+}
+
+/* Hide native radio */
+.native-radio {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}
+
+/* Custom Control */
+.radio-control {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.25rem; /* 20px */
+  height: 1.25rem;
+  border: 2px solid var(--border-default);
+  border-radius: 50%;
+  background-color: var(--bg-surface);
+  transition: all 0.2s ease;
+}
+
+.radio-dot {
+  width: 0.625rem; /* 10px */
+  height: 0.625rem;
+  border-radius: 50%;
+  background-color: var(--primary-500);
+  transform: scale(0);
+  transition: transform 0.2s ease-out;
+}
+
+/* Hover */
+.app-radio-container:hover:not(.disabled) .radio-control {
+  border-color: var(--primary-400);
+}
+
+/* Checked State */
+.radio-control.checked {
+  border-color: var(--primary-500);
+}
+
+.radio-control.checked .radio-dot {
+  transform: scale(1);
+}
+
+/* Focus styles via native input focus-visible */
+.native-radio:focus-visible + .radio-control {
+  box-shadow: 0 0 0 2px var(--bg-surface), 0 0 0 4px var(--primary-500);
+}
+
+/* Disabled State */
+.app-radio-container.disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.app-radio-container.disabled .radio-control {
+  background-color: var(--bg-surface-secondary);
+  border-color: var(--border-subtle);
+}
+
+.app-radio-container.disabled .radio-control.checked .radio-dot {
+  background-color: var(--text-tertiary);
+}
+
+/* Content sizing */
+.label-text {
+  padding-top: 1px;
+}

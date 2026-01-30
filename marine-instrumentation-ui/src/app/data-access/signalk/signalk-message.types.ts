@@ -22,7 +22,18 @@ export interface SignalKDeltaMessage {
   // ... potentially others
 }
 
+export interface SignalKHelloMessage {
+  name?: string;
+  self?: string;
+  version?: string;
+  timestamp?: string;
+  contexts?: Record<string, string>;
+}
+
+export type SignalKMessage = SignalKDeltaMessage | SignalKHelloMessage;
+
 export interface NormalizedDataPoint {
+  context?: string;
   path: string;
   value: unknown;
   timestamp: number; // Date.now()

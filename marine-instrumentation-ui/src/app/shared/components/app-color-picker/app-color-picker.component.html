@@ -1,0 +1,11 @@
+<div class="color-picker-container" [class.disabled]="disabled">
+  <div class="swatch" [style.background-color]="value()"></div>
+  <div class="color-code">{{ value() }}</div>
+  <input 
+    type="color" 
+    class="native-color"
+    [value]="value()" 
+    (input)="onInput($event)" 
+    (blur)="onBlur()"
+    [disabled]="disabled">
+</div>

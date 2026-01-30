@@ -15,10 +15,13 @@ npm run build
 
 ## Paths (MVP)
 
+- name
 - navigation.position
 - navigation.speedOverGround
 - navigation.courseOverGroundTrue
 - navigation.headingTrue
+- navigation.destination
+- communication.callsignVhf
 - environment.depth.belowTransducer
 - environment.wind.angleApparent
 - environment.wind.speedApparent
@@ -37,6 +40,7 @@ npm run build
 
 ```json
 {
+  "context": "vessels.self",
   "path": "navigation.headingTrue",
   "value": 1.57,
   "timestamp": "2026-01-24T22:10:00.000Z",

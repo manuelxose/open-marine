@@ -51,12 +51,19 @@ import { DiagnosticsFacadeService, type DiagnosticsRow } from './diagnostics-fac
     </div>
   `,
   styles: [`
+    :host {
+      display: block;
+      height: 100%;
+      min-height: 0;
+    }
+
     .diag-page {
       height: 100%;
       display: flex;
       flex-direction: column;
       padding: 1rem;
       gap: 1rem;
+      min-height: 0;
     }
 
     .toolbar {
@@ -92,6 +99,7 @@ import { DiagnosticsFacadeService, type DiagnosticsRow } from './diagnostics-fac
       background: var(--card-bg);
       border-radius: var(--radius);
       border: 1px solid var(--card-border);
+      min-height: 0;
     }
 
     .diag-table {

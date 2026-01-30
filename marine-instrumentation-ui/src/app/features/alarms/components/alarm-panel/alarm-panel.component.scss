@@ -1,0 +1,142 @@
+:host {
+    display: block;
+    height: 100%;
+    padding: 16px;
+    background: var(--bg-color, #0f172a);
+    color: var(--text-primary, #e2e8f0);
+    overflow-y: auto;
+  }
+  
+  .alarm-dashboard {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 32px;
+  }
+  
+  h2 {
+    font-size: 1rem;
+    color: var(--text-secondary, #94a3b8);
+    font-weight: 700;
+    margin-bottom: 16px;
+    letter-spacing: 1px;
+    border-bottom: 1px solid var(--border-color, #334155);
+    padding-bottom: 8px;
+  }
+  
+  .empty-state {
+    padding: 32px;
+    border: 2px dashed var(--border-color, #334155);
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-secondary);
+    gap: 16px;
+    
+    .icon {
+      font-size: 2rem;
+    }
+  }
+  
+  .alarms-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  
+  .alarm-card {
+    display: flex;
+    align-items: center;
+    background: var(--panel-bg, #1e293b);
+    border-radius: 8px;
+    padding: 16px;
+    gap: 16px;
+    border-left: 6px solid transparent;
+    transition: transform 0.2s;
+    
+    /* Severities */
+    &.warning {
+      border-left-color: #f59e0b;
+      background: rgba(245, 158, 11, 0.05);
+    }
+    
+    &.critical {
+      border-left-color: #ef4444;
+      background: rgba(239, 68, 68, 0.1);
+      animation: pulse-soft 2s infinite;
+    }
+    
+    &.emergency {
+      border-left-color: #ff0000;
+      background: rgba(255, 0, 0, 0.2);
+      animation: pulse-hard 1s infinite;
+    }
+  
+    /* States */
+    &.acknowledged {
+      opacity: 0.8;
+      background: var(--panel-bg);
+      animation: none;
+    }
+  
+    .card-icon {
+      font-size: 1.5rem;
+      flex-shrink: 0;
+    }
+  
+    .card-content {
+      flex: 1;
+      
+      .header {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        margin-bottom: 4px;
+        
+        h3 {
+          margin: 0;
+          font-size: 1.1rem;
+          font-weight: 700;
+        }
+        
+        .timestamp {
+          font-family: monospace;
+          color: var(--text-secondary);
+          font-size: 0.9rem;
+        }
+      }
+      
+      .meta {
+        font-size: 0.85rem;
+        color: var(--text-secondary);
+        text-transform: uppercase;
+        font-weight: 600;
+      }
+    }
+    
+    .card-actions {
+      display: flex;
+      gap: 8px;
+    }
+  }
+  
+  .config-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 24px;
+  }
+  
+  @keyframes pulse-soft {
+    0% { background: rgba(239, 68, 68, 0.05); }
+    50% { background: rgba(239, 68, 68, 0.15); }
+    100% { background: rgba(239, 68, 68, 0.05); }
+  }
+  
+  @keyframes pulse-hard {
+    0% { background: rgba(255, 0, 0, 0.1); }
+    50% { background: rgba(255, 0, 0, 0.3); }
+    100% { background: rgba(255, 0, 0, 0.1); }
+  }

@@ -2,13 +2,28 @@ import { Injectable } from '@angular/core';
 import { BehaviorSubject, Observable, distinctUntilChanged, map } from 'rxjs';
 import { PATHS } from '@omi/marine-data-contract';
 import { filterToWindow } from '../../core/calculations/trend';
+import { calculateTrueWind } from '../../core/calculations/wind';
 import { haversineDistanceMeters } from '../calculations/navigation';
+import { HistoryService } from '../../core/services/history.service';
+import { PLAYBACK_POSITION_LAT_PATH, PLAYBACK_POSITION_LON_PATH } from '../playback/playback.models';
 import { DataPoint, DataPointMap, HistoryPoint, TrackPoint } from './datapoint.models';
 
 const MAX_TRACK_POINTS = 1000;
 const TRACK_WINDOW_MS = 30 * 60 * 1000;
 const TRACK_MIN_TIME_MS = 1000;
 const TRACK_MIN_DISTANCE_METERS = 10;
+const PERSISTED_HISTORY_PATHS = new Set<string>([
+  PATHS.navigation.speedOverGround,
+  PATHS.navigation.courseOverGroundTrue,
+  PATHS.navigation.headingTrue,
+  PATHS.environment.depth.belowTransducer,
+  PATHS.environment.wind.speedApparent,
+  PATHS.environment.wind.angleApparent,
+  PATHS.environment.wind.speedTrue,
+  PATHS.environment.wind.angleTrueGround,
+  PATHS.environment.wind.angleTrueWater,
+  PATHS.electrical.batteries.house.voltage,
+]);
 class RingBuffer<T> {
   private buffer: T[] = [];
 
@@ -56,7 +71,7 @@ export class DatapointStoreService {
 
   public readonly state$ = this._state.asObservable();
 
-  constructor() {
+  constructor(private historyService: HistoryService) {
     for (const path of Object.keys(this.HISTORY_CONFIG)) {
       this._history.set(path, new RingBuffer<HistoryPoint>(this.HISTORY_CONFIG[path]));
       this._historySubjects.set(path, new BehaviorSubject<HistoryPoint[]>([]));
@@ -89,6 +104,16 @@ export class DatapointStoreService {
             this._trackPoints.push(sample);
             this.emitTrackPoints(sample.ts);
           }
+          void this.historyService.addPoint(
+            PLAYBACK_POSITION_LAT_PATH,
+            { timestamp: point.timestamp, value: pos.latitude },
+            point.source,
+          );
+          void this.historyService.addPoint(
+            PLAYBACK_POSITION_LON_PATH,
+            { timestamp: point.timestamp, value: pos.longitude },
+            point.source,
+          );
         }
       }
 
@@ -100,10 +125,89 @@ export class DatapointStoreService {
           subject.next(buffer.toArray());
         }
       }
+
+      if (PERSISTED_HISTORY_PATHS.has(point.path) && typeof point.value === 'number') {
+        void this.historyService.addPoint(
+          point.path,
+          { timestamp: point.timestamp, value: point.value },
+          point.source,
+        );
+      }
     }
+
+    this.deriveTrueWind(next, latestTimestamp || Date.now());
 
     this._state.next(next);
     this._lastUpdate.next(latestTimestamp || Date.now());
+  }
+
+  private deriveTrueWind(state: DataPointMap, timestamp: number): void {
+    const P = PATHS;
+    // Do not overwrite if source provides it (unless it's our own previous calculation, but we want freshness)
+    // Actually, if we just set it in the loop above (from 'points'), 'source' will be the external source.
+    // If it was already there from previous calculation, 'source' is 'derived'.
+    // We want to calculate if:
+    // 1. It's missing.
+    // 2. It's present but stale (timestamp old)?
+    // For now, simple logic: If the current map has a value from an external source, don't touch it. [Not completely robust but safe]
+    
+    // Check if we have True Wind Speed from an external source
+    const currentTws = state.get(P.environment.wind.speedTrue);
+    if (currentTws && currentTws.source !== 'derived') {
+      return; 
+    }
+
+    const aws = state.get(P.environment.wind.speedApparent)?.value;
+    const awa = state.get(P.environment.wind.angleApparent)?.value;
+    const sog = state.get(P.navigation.speedOverGround)?.value;
+    
+    // We need Heading Use Heading (preferred) or COG
+    const hdg = state.get(P.navigation.headingTrue)?.value;
+    const cog = state.get(P.navigation.courseOverGroundTrue)?.value;
+
+    if (
+      typeof aws !== 'number' ||
+      typeof awa !== 'number' ||
+      typeof sog !== 'number'
+    ) {
+      return;
+    }
+
+    const headingRef = typeof hdg === 'number' ? hdg : (typeof cog === 'number' ? cog : undefined);
+    
+    // calculateTrueWind requires boatHead/COG.
+    // If we have neither, we can't calculate Earth frame wind.
+    if (typeof headingRef !== 'number') return;
+
+    // Use COG as fallback for the computation if heading is missing
+    const cogRef = typeof cog === 'number' ? cog : headingRef; 
+
+    // Calculate
+    const result = calculateTrueWind(aws, awa, sog, cogRef, headingRef);
+
+    // Update State
+    const source = 'derived';
+    
+    state.set(P.environment.wind.speedTrue, {
+      path: P.environment.wind.speedTrue,
+      value: result.tws,
+      timestamp,
+      source
+    });
+    
+    state.set(P.environment.wind.angleTrueGround, { // TWD
+      path: P.environment.wind.angleTrueGround,
+      value: result.twd,
+      timestamp,
+      source
+    });
+
+    state.set(P.environment.wind.angleTrueWater, { // TWA
+      path: P.environment.wind.angleTrueWater,
+      value: result.twa,
+      timestamp,
+      source
+    });
   }
 
   observe<T>(path: string): Observable<DataPoint<T> | undefined> {

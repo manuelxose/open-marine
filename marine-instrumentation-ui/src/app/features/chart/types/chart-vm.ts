@@ -1,5 +1,7 @@
 export type ChartFixState = 'no-fix' | 'fix' | 'stale';
 
+export type MapOrientation = 'north-up' | 'course-up';
+
 export interface ChartPosition {
   lat: number;
   lon: number;
@@ -26,6 +28,7 @@ export interface ChartHudVm {
   latLabel: string;
   lonLabel: string;
   rows: ChartHudRow[];
+  canToggleAutopilot?: boolean; 
 }
 
 export interface ChartControlsVm {
@@ -33,6 +36,8 @@ export interface ChartControlsVm {
   showTrack: boolean;
   showVector: boolean;
   showTrueWind: boolean;
+  showRangeRings: boolean;
+  rangeRingIntervals: number[];
   canCenter: boolean;
   sourceId: string;
 }

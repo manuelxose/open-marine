@@ -85,3 +85,20 @@
   font-size: 0.6rem;
   color: var(--muted);
 }
+
+.hud-ap-btn {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  border-radius: var(--radius-sm);
+  padding: 0.1rem 0.4rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  cursor: pointer;
+  margin: 0 0.5rem;
+}
+
+.hud-ap-btn:hover {
+  background: var(--surface-1);
+  border-color: var(--primary);
+}

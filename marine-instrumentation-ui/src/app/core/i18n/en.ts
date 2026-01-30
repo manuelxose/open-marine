@@ -6,6 +6,10 @@ export const en = {
       general: 'General',
       appearance: 'Appearance',
       units: 'Units',
+      chart: 'Chart',
+      safety: 'Safety',
+      connections: 'Connections',
+      experiments: 'Experiments',
       dashboard: 'Dashboard Widgets',
     },
     language: {
@@ -44,13 +48,32 @@ export const en = {
       },
     },
   },
+  widgets: {
+    title: 'Widgets',
+    subtitle: 'Manage visibility and order for instruments and dashboard widgets',
+    sections: {
+      instruments: 'Instruments',
+      dashboard: 'Dashboard Widgets',
+    },
+    instruments: {
+      desc: 'Control the instruments drawer widgets shown on the chart.',
+    },
+    dashboard: {
+      desc: 'Control the widgets shown on the dashboard layout.',
+    },
+    reset: 'Reset',
+  },
   nav: {
     dashboard: 'Dashboard',
     chart: 'Chart',
+    autopilot: 'Autopilot',
+    resources: 'Resources',
     instruments: 'Instruments',
     alarms: 'Alarms',
     diagnostics: 'Diagnostics',
     settings: 'Settings',
+    widgets: 'Widgets',
+    styleguide: 'Styleguide',
   },
   chart: {
     controls: {
@@ -58,6 +81,14 @@ export const en = {
       track: 'Track',
       vector: 'Vector',
       true_wind: 'True Wind',
+      range_rings: 'Range Rings',
+      range_rings_label: 'Intervals (NM)',
+      range_rings_placeholder: '0.25, 0.5, 1',
+      range_rings_hint: 'Comma or space separated distances in nautical miles.',
+      range_rings_error: 'Enter at least one positive distance.',
+      range_rings_preset_harbor: 'Harbor',
+      range_rings_preset_coastal: 'Coastal',
+      apply: 'Apply',
       layer: 'Layer',
       satellite: 'Satellite',
       map: 'Map',

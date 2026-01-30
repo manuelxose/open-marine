@@ -1,0 +1,121 @@
+:host {
+  display: block;
+  width: 100%;
+}
+
+.app-input-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  transition: all 0.2s ease;
+  height: 2.5rem; /* 40px default md */
+}
+
+.input-wrapper:focus-within {
+  border-color: var(--primary-500);
+  box-shadow: 0 0 0 2px var(--primary-500-20); /* 20% opacity approximation handled in tokens typically or rgba */
+}
+
+/* Disabled */
+.app-input-container.disabled .input-wrapper {
+  background-color: var(--bg-surface-secondary);
+  border-color: var(--border-subtle);
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+/* Error */
+.app-input-container.has-error .input-wrapper {
+  border-color: var(--danger-500);
+}
+.app-input-container.has-error .input-wrapper:focus-within {
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.2);
+}
+
+/* Native Input */
+.native-input {
+  width: 100%;
+  height: 100%;
+  border: none;
+  background: transparent;
+  padding: 0 0.75rem;
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  outline: none;
+}
+
+.native-input::placeholder {
+  color: var(--text-tertiary);
+}
+
+.disabled .native-input {
+  cursor: not-allowed;
+}
+
+/* Icon Support */
+.has-icon .native-input {
+  padding-left: 2.5rem;
+}
+
+.input-icon {
+  position: absolute;
+  left: 0.75rem;
+  color: var(--text-tertiary);
+  pointer-events: none;
+  transition: color 0.2s;
+}
+
+.input-wrapper:focus-within .input-icon {
+  color: var(--primary-500);
+}
+.has-error .input-icon {
+  color: var(--danger-500);
+}
+
+/* Clear Button */
+.clear-btn {
+  position: absolute;
+  right: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  padding: 0;
+  transition: background-color 0.2s;
+}
+
+.clear-btn:hover {
+  background-color: var(--bg-surface-tertiary);
+  color: var(--text-secondary);
+}
+
+.app-input-container.has-clear:not(.disabled) .native-input {
+  padding-right: 2.25rem;
+}
+
+/* Error Text */
+.error-text {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: var(--text-xs);
+  color: var(--danger-500);
+  font-weight: 500;
+  padding-left: 0.25rem;
+}
