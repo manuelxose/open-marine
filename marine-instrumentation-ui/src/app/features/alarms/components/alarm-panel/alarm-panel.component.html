@@ -1,0 +1,59 @@
+<div class="alarm-dashboard">
+  
+  <!-- Active Alarms Section -->
+  <section class="active-alarms-section">
+    <h2>ACTIVE ALARMS</h2>
+    <div class="alarms-list">
+      <div *ngIf="(activeAlarms$ | async)?.length === 0" class="empty-state">
+        <span class="icon">✅</span>
+        <span>NO ACTIVE ALARMS</span>
+      </div>
+
+      <div *ngFor="let alarm of activeAlarms$ | async" 
+           class="alarm-card" 
+           [ngClass]="[alarm.severity, alarm.state]">
+        
+        <div class="card-icon">
+          <span *ngIf="alarm.severity === 'warning'">⚠️</span>
+          <span *ngIf="alarm.severity === 'critical'">🚨</span>
+          <span *ngIf="alarm.severity === 'emergency'">🆘</span>
+        </div>
+
+        <div class="card-content">
+          <div class="header">
+            <h3>{{ alarm.message }}</h3>
+            <span class="timestamp">{{ alarm.timestamp | date:'HH:mm:ss' }}</span>
+          </div>
+          <div class="meta" *ngIf="alarm.state === AlarmState.Active">Active - Unacknowledged</div>
+          <div class="meta" *ngIf="alarm.state === AlarmState.Acknowledged">Acknowledged</div>
+          <div class="meta" *ngIf="alarm.state === AlarmState.Silenced">Silenced</div>
+        </div>
+
+        <div class="card-actions">
+           <!-- Actions depend on state -->
+           <ng-container *ngIf="alarm.state === AlarmState.Active">
+              <app-button variant="secondary" (click)="acknowledge(alarm.id)">
+                ACKNOWLEDGE
+              </app-button>
+           </ng-container>
+
+           <ng-container *ngIf="alarm.state === AlarmState.Acknowledged || alarm.state === AlarmState.Silenced">
+              <app-button variant="ghost" (click)="clear(alarm.id)">
+                CLEAR
+              </app-button>
+           </ng-container>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Configuration Cards / specialized controls -->
+  <section class="config-section">
+    <h2>SAFETY MONITORING</h2>
+    <div class="config-grid">
+      <app-anchor-watch></app-anchor-watch>
+      <!-- Future: Depth Alarm Card, Battery Alarm Card -->
+    </div>
+  </section>
+
+</div>

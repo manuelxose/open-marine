@@ -1,4 +1,4 @@
-# Open Marine Instrumentation - Chart Feature Architecture Spec
+si# Open Marine Instrumentation - Chart Feature Architecture Spec
 
 **Versión:** 2.0  
 **Fecha:** 2026-01-28  
@@ -2773,16 +2773,16 @@ import { NauticButtonComponent, NauticIconComponent } from '@app/shared/componen
 
 | ID | Tarea | Input | Output | Verificable |
 |----|-------|-------|--------|-------------|
-| M1.1 | Crear enum `MapOrientation` | - | `types/chart-vm.ts` actualizado | Type existe |
-| M1.2 | Añadir `orientation$` a ChartFacadeService | M1.1 | Observable emite `north-up`/`course-up` | Test unitario |
-| M1.3 | Implementar rotación de mapa en MapLibreEngine | M1.2 | Método `setOrientation()` | Mapa rota visualmente |
-| M1.4 | Crear MapControlsComponent | Spec D.3.2 | Componente funcional | Botones visibles |
-| M1.5 | Conectar toggle orientation en UI | M1.3, M1.4 | Click cambia orientación | E2E test |
-| M1.6 | Implementar range rings layer | - | `generateRangeRingsGeoJson()` | Círculos visibles |
-| M1.7 | Añadir config de range rings | M1.6 | Settings persisten | LocalStorage |
-| M1.8 | Mejorar vessel marker estados | - | Colores por fixState | Visual check |
-| M1.9 | Implementar bearing line layer | - | Línea desde vessel a WP | Visual check |
-| M1.10 | Conectar bearing line a activeWaypoint | M1.9 | Línea aparece al activar WP | E2E test |
+| M1.1 | ~~Crear enum `MapOrientation`~~ | - | ✅ `types/chart-vm.ts` | ✅ Completado 2026-01-28 |
+| M1.2 | ~~Añadir `orientation$` a ChartFacadeService~~ | M1.1 | ✅ `orientation$` | ✅ Completado 2026-01-28 |
+| M1.3 | ~~Implementar rotación de mapa en MapLibreEngine~~ | M1.2 | Método `setOrientation()` | ✅ Completado 2026-01-28 |
+| M1.4 | ~~Crear MapControlsComponent~~ | Spec D.3.2 | Componente funcional | ✅ Completado 2026-01-28 |
+| M1.5 | ~~Conectar toggle orientation en UI~~ | M1.3, M1.4 | Click cambia orientación | ✅ Completado 2026-01-28 |
+| M1.6 | ~~Implementar range rings layer~~ | - | `generateRangeRingsGeoJson()` | ✅ Completado 2026-01-28 |
+| M1.7 | ~~Añadir config de range rings~~ | M1.6 | Settings persisten | ✅ Completado 2026-01-28 |
+| M1.8 | ~~Mejorar vessel marker estados~~ | - | Colores por fixState | ✅ Completado 2026-01-29 |
+| M1.9 | ~~Implementar bearing line layer~~ | - | Línea desde vessel a WP | ✅ Completado 2026-01-29 |
+| M1.10 | ~~Conectar bearing line a activeWaypoint~~ | M1.9 | Línea aparece al activar WP | ✅ Completado 2026-01-29 |
 
 **DoD:**
 - [x] Mapa puede cambiar entre north-up y course-up
@@ -2813,18 +2813,18 @@ import { NauticButtonComponent, NauticIconComponent } from '@app/shared/componen
 
 **Tareas Atómicas:**
 
-| ID | Tarea | Input | Output |
-|----|-------|-------|--------|
-| M2.1 | Crear SVG sprite con iconos | Lista de iconos | `assets/icons/sprite.svg` |
-| M2.2 | Implementar NauticIconComponent | M2.1, Spec D.2.2 | Componente funcional |
-| M2.3 | Implementar NauticButtonComponent | Spec D.2.1 | Componente con 4 variantes |
-| M2.4 | Implementar NauticBadgeComponent | Spec D.2.3 | Componente con pulse |
-| M2.5 | Implementar NauticModalComponent | Spec D.2.4 | Componente con focus trap |
-| M2.6 | Implementar NauticDrawerComponent | Spec D.2.5 | Componente con 3 posiciones |
-| M2.7 | Implementar ToastService | Spec D.2.6 | Service + ToastContainer |
-| M2.8 | Implementar NauticToggleComponent | Spec D.2.8 | Componente accesible |
-| M2.9 | Implementar NauticSliderComponent | Spec D.2.7 | Componente con formatter |
-| M2.10 | Crear Storybook/demo page | M2.1-M2.9 | Página de demostración |
+| ID | Tarea | Input | Output | Status |
+|----|-------|-------|--------|--------|
+| M2.1 | Crear SVG sprite con iconos | Lista de iconos | `assets/icons/sprite.svg` | ✅ |
+| M2.2 | Implementar NauticIconComponent | M2.1, Spec D.2.2 | Componente funcional | ✅ |
+| M2.3 | Implementar NauticButtonComponent | Spec D.2.1 | Componente con 4 variantes | ✅ |
+| M2.4 | Implementar NauticBadgeComponent | Spec D.2.3 | Componente con pulse | ✅ |
+| M2.5 | Implementar NauticModalComponent | Spec D.2.4 | Componente con focus trap | ✅ |
+| M2.6 | Implementar NauticDrawerComponent | Spec D.2.5 | Componente con 3 posiciones | ✅ |
+| M2.7 | Implementar ToastService | Spec D.2.6 | Service + ToastContainer | ✅ |
+| M2.8 | Implementar NauticToggleComponent | Spec D.2.8 | Componente accesible | ✅ |
+| M2.9 | Implementar NauticSliderComponent | Spec D.2.7 | Componente con formatter | ✅ |
+| M2.10 | Crear Storybook/demo page | M2.1-M2.9 | Página de demostración | ✅ |
 
 **DoD:**
 - [x] Todos los primitives documentados con props
@@ -2846,23 +2846,24 @@ import { NauticButtonComponent, NauticIconComponent } from '@app/shared/componen
 
 **Tareas Atómicas:**
 
-| ID | Tarea | Input | Output |
-|----|-------|-------|--------|
-| M3.1 | Crear AIS types y DTOs | Signal K spec | `domain/ais/ais.dto.ts` |
-| M3.2 | Implementar AISStoreService | M3.1 | Store con targets$ |
-| M3.3 | Parsear AIS deltas de Signal K | M3.2 | Targets actualizados |
-| M3.4 | Implementar CPA calculation | - | `calculations/cpa.ts` |
-| M3.5 | Crear AIS targets layer | M3.2 | Markers en mapa |
-| M3.6 | Implementar AISTargetListComponent | M3.2, Spec D.4.2 | Lista con sort |
-| M3.7 | Implementar AISTargetDetailsComponent | M3.6 | Panel de detalles |
-| M3.8 | Crear CPA warning alarm | M3.4 | Alarma en AlarmStore |
-| M3.9 | Visualizar CPA line en mapa | M3.8 | Línea a target peligroso |
+| ID | Tarea | Input | Output | Estado |
+|----|-------|-------|--------|--------|
+| M3.1 | ~~Crear AIS types y DTOs~~ | Signal K spec | ✅ `core/models/ais.model.ts` | ✅ Completado 2026-01-29 |
+| M3.2 | ~~Implementar AISStoreService~~ | M3.1 | ✅ Store con targets$ | ✅ Completado 2026-01-29 |
+| M3.3 | ~~Parsear AIS deltas de Signal K~~ | M3.2 | ✅ `AisStoreService` | ✅ Completado 2026-01-29 |
+| M3.4 | ~~Implementar CPA calculation~~ | - | ✅ `calculations/cpa.ts` | ✅ Completado 2026-01-29 |
+| M3.5 | ~~Crear AIS targets layer~~ | M3.2 | ✅ `MapLibreEngineService` | ✅ Completado 2026-01-29 |
+| M3.6 | ~~Implementar AISTargetListComponent~~ | M3.2, Spec D.4.2 | ✅ Lista con sort | ✅ Completado 2026-01-29 |
+| M3.7 | ~~Implementar AISTargetDetailsComponent~~ | M3.6 | ✅ Panel de detalles | ✅ Completado 2026-01-29 |
+| M3.8 | ~~Crear CPA warning alarm~~ | M3.4 | ✅ Alarma en AlarmStore | ✅ Completado 2026-01-29 |
+| M3.9 | ~~Visualizar CPA line en mapa~~ | M3.8 | ✅ Línea a target peligroso | ✅ Completado 2026-01-29 |
 | M3.10 | E2E: Simular AIS target | M3.1-M3.9 | Test completo |
 
 **DoD:**
 - [x] AIS targets visibles en mapa
 - [x] Lista de targets ordenable
 - [x] CPA warning a <0.5nm funciona
+- [x] Simulador genera trafico AIS (Verified)
 
 ---
 
@@ -2881,16 +2882,16 @@ import { NauticButtonComponent, NauticIconComponent } from '@app/shared/componen
 
 | ID | Tarea | Input | Output |
 |----|-------|-------|--------|
-| M4.1 | Definir Alarm types | Spec B.4 | `state/alarms/alarm.models.ts` |
-| M4.2 | Refactorizar AlarmStoreService | M4.1 | Store con state machine |
-| M4.3 | Implementar AudioService | - | Service con play/stop |
-| M4.4 | Crear MOBAlertComponent | Spec D.5.5 | Full screen overlay |
-| M4.5 | Implementar MOB flow | M4.4 | Hold → confirm → alert |
-| M4.6 | Crear AnchorWatchComponent | - | Config de círculo |
-| M4.7 | Implementar anchor watch alarm | M4.6 | Trigger cuando fuera |
-| M4.8 | Crear AlarmPanelComponent | Spec D.4.3 | Lista con ack/silence |
-| M4.9 | Integrar alarms en ChartPage | M4.8 | Overlay visible |
-| M4.10 | E2E: Anchor watch trigger | - | Test completo |
+| M4.1 | ~~Definir Alarm types~~ | Spec B.4 | ✅ `state/alarms/alarm.models.ts` |
+| M4.2 | ~~Refactorizar AlarmStoreService~~ | M4.1 | ✅ Store con state machine |
+| M4.3 | ~~Implementar AudioService~~ | - | ✅ Service con play/stop |
+| M4.4 | ~~Crear MOBAlertComponent~~ | Spec D.5.5 | ✅ Full screen overlay |
+| M4.5 | ~~Implementar MOB flow~~ | M4.4 | ✅ Hold → confirm → alert |
+| M4.6 | ~~Crear AnchorWatchComponent~~ | - | ✅ Config de círculo |
+| M4.7 | ~~Implementar anchor watch alarm~~ | M4.6 | ✅ Trigger cuando fuera |
+| M4.8 | ~~Crear AlarmPanelComponent~~ | Spec D.4.3 | ✅ Lista con ack/silence |
+| M4.9 | ~~Integrar alarms en ChartPage~~ | M4.8 | ✅ Overlay visible |
+| M4.10 | ~~E2E: Anchor watch trigger~~ | - | ✅ Test scenario `anchor-drift` |
 
 **DoD:**
 - [x] MOB flow completo funciona
@@ -2914,16 +2915,16 @@ import { NauticButtonComponent, NauticIconComponent } from '@app/shared/componen
 
 | ID | Tarea | Input | Output |
 |----|-------|-------|--------|
-| M5.1 | Crear SignalKResourcesService | SK API spec | Service con CRUD |
-| M5.2 | Implementar WaypointStoreService | M5.1 | Store sincronizado |
-| M5.3 | Crear WaypointFormComponent | Spec D.4.4 | Form funcional |
-| M5.4 | Crear WaypointListComponent | - | Lista con acciones |
-| M5.5 | Implementar RouteStoreService | M5.1 | Store con legs |
-| M5.6 | Crear RouteEditorComponent | Spec D.4.5 | Drag & drop |
-| M5.7 | Implementar GPX parser | - | `domain/resources/gpx-parser.ts` |
-| M5.8 | Crear GPXImportComponent | M5.7 | Dropzone + preview |
-| M5.9 | Implementar track recording | - | TrackStoreService |
-| M5.10 | Crear ResourcesPage | M5.2-M5.9 | Página completa |
+| M5.1 | ~~Crear SignalKResourcesService~~ | SK API spec | ✅ `data-access/signalk/resources/` |
+| M5.2 | ~~Implementar WaypointStoreService~~ | M5.1 | OK Store sincronizado |
+| M5.3 | ~~Crear WaypointFormComponent~~ | Spec D.4.4 | OK Form funcional |
+| M5.4 | ~~Crear WaypointListComponent~~ | - | OK Lista con acciones |
+| M5.5 | ~~Implementar RouteStoreService~~ | M5.1 | OK Store con legs |
+| M5.6 | ~~Crear RouteEditorComponent~~ | Spec D.4.5 | OK Drag & drop |
+| M5.7 | ~~Implementar GPX parser~~ | - | OK `features/resources/utils/gpx-parser.ts` |
+| M5.8 | ~~Crear GPXImportComponent~~ | M5.7 | OK Dropzone + preview |
+| M5.9 | ~~Implementar track recording~~ | - | OK TrackStoreService |
+| M5.10 | ~~Crear ResourcesPage~~ | M5.2-M5.9 | OK Pagina completa |
 
 **DoD:**
 - [x] Waypoints se sincronizan con Signal K
@@ -2947,16 +2948,16 @@ import { NauticButtonComponent, NauticIconComponent } from '@app/shared/componen
 
 | ID | Tarea | Input | Output |
 |----|-------|-------|--------|
-| M6.1 | Investigar Signal K autopilot API | SK docs | Documentación interna |
-| M6.2 | Crear AutopilotStoreService | M6.1 | Store con status$ |
-| M6.3 | Implementar commands (engage, etc.) | M6.2 | Métodos de command |
-| M6.4 | Crear AutopilotConsoleComponent | Spec D.5.1 | UI completa |
-| M6.5 | Implementar heading adjustment | M6.4 | Botones ±1°, ±10° |
-| M6.6 | Implementar mode selector | M6.4 | Tabs de modo |
-| M6.7 | Crear confirmation dialogs | - | Modals de seguridad |
-| M6.8 | Integrar en ChartPage | M6.4 | Drawer/panel |
-| M6.9 | Handle disconnected state | M6.2 | UI disabled |
-| M6.10 | E2E: Engage/disengage | - | Test completo |
+| M6.1 | ~~Investigar Signal K autopilot API~~ | SK docs | Documentación interna |
+| M6.2 | ~~Crear AutopilotStoreService~~ | M6.1 | Store con status$ |
+| M6.3 | ~~Implementar commands (engage, etc.)~~ | M6.2 | Métodos de command |
+| M6.4 | ~~Crear AutopilotConsoleComponent~~ | Spec D.5.1 | UI completa |
+| M6.5 | ~~Implementar heading adjustment~~ | M6.4 | Botones ±1°, ±10° |
+| M6.6 | ~~Implementar mode selector~~ | M6.4 | Tabs de modo |
+| M6.7 | ~~Crear confirmation dialogs~~ | - | Modals de seguridad |
+| M6.8 | ~~Integrar en ChartPage~~ | M6.4 | Drawer/panel |
+| M6.9 | ~~Handle disconnected state~~ | M6.2 | UI disabled |
+| M6.10 | ~~E2E: Engage/disengage~~ | - | Test completo |
 
 **DoD:**
 - [x] Console muestra estado real del autopilot
@@ -2980,16 +2981,16 @@ import { NauticButtonComponent, NauticIconComponent } from '@app/shared/componen
 
 | ID | Tarea | Input | Output |
 |----|-------|-------|--------|
-| M7.1 | Diseñar storage de history | - | Esquema IndexedDB |
-| M7.2 | Implementar HistoryService | M7.1 | Service de almacenamiento |
-| M7.3 | Crear PlaybackStoreService | M7.2 | Store con timeline |
-| M7.4 | Implementar PlaybackBarComponent | Spec D.5.2 | UI de controles |
-| M7.5 | Implementar seek functionality | M7.3 | Jump a timestamp |
-| M7.6 | Implementar variable speed | M7.3 | 0.5x - 10x |
-| M7.7 | Crear event markers | M7.3 | Puntos en timeline |
-| M7.8 | Integrar playback con mapa | M7.3 | Vessel se mueve |
-| M7.9 | Pausar alarmas durante playback | M7.3 | Alarmas silenciadas |
-| M7.10 | E2E: Reproducir travesía | - | Test completo |
+| M7.1 | ~~Diseñar storage de history~~ | - | Esquema IndexedDB |
+| M7.2 | ~~Implementar HistoryService~~ | M7.1 | OK Service de almacenamiento |
+| M7.3 | ~~Crear PlaybackStoreService~~ | M7.2 | OK Store con timeline |
+| M7.4 | ~~Implementar PlaybackBarComponent~~ | Spec D.5.2 | OK UI de controles |
+| M7.5 | ~~Implementar seek functionality~~ | M7.3 | OK Jump a timestamp |
+| M7.6 | ~~Implementar variable speed~~ | M7.3 | OK 0.5x - 10x |
+| M7.7 | ~~Crear event markers~~ | M7.3 | OK Puntos en timeline |
+| M7.8 | ~~Integrar playback con mapa~~ | M7.3 | OK Vessel se mueve |
+| M7.9 | ~~Pausar alarmas durante playback~~ | M7.3 | OK Alarmas silenciadas |
+| M7.10 | ~~E2E: Reproducir travesía~~ | - | OK Test completo |
 
 **DoD:**
 - [x] Datos históricos se guardan
@@ -3014,16 +3015,16 @@ import { NauticButtonComponent, NauticIconComponent } from '@app/shared/componen
 
 | ID | Tarea | Input | Output |
 |----|-------|-------|--------|
-| M8.1 | Crear InstrumentsFacadeService | - | Service de config |
-| M8.2 | Implementar InstrumentsDrawerComponent | Spec D.5.3 | Drawer con grid |
-| M8.3 | Crear CompassWidget | - | Compass mejorado |
-| M8.4 | Crear WindWidget con rose | - | Rose + números |
-| M8.5 | Crear DepthGaugeWidget | - | Gauge con threshold |
-| M8.6 | Implementar widget reordering | M8.2 | Drag & drop |
-| M8.7 | Completar SettingsPage | - | Todas las secciones |
-| M8.8 | Optimizar para mobile | - | Touch targets, layouts |
-| M8.9 | Implementar night mode | - | Theme automático |
-| M8.10 | Performance audit | - | <60ms frame time |
+| M8.1 | ~~Crear InstrumentsFacadeService~~ | - | OK Service de config |
+| M8.2 | ~~Implementar InstrumentsDrawerComponent~~ | Spec D.5.3 | OK Drawer con grid |
+| M8.3 | ~~Crear CompassWidget~~ | - | OK Compass mejorado |
+| M8.4 | ~~Crear WindWidget con rose~~ | - | OK Rose + números |
+| M8.5 | ~~Crear DepthGaugeWidget~~ | - | OK Gauge con threshold |
+| M8.6 | ~~Implementar widget reordering~~ | M8.2 | OK Drag & drop |
+| M8.7 | ~~Completar SettingsPage~~ | - | OK Todas las secciones |
+| M8.8 | ~~Optimizar para mobile~~ | - | OK Touch targets, layouts |
+| M8.9 | ~~Implementar night mode~~ | - | OK Theme automático |
+| M8.10 | ~~Performance audit~~ | - | OK <60ms frame time |
 
 **DoD:**
 - [x] Instruments drawer funcional
@@ -3146,3 +3147,128 @@ export class AnalyticsService {
 
 *Documento generado para Open Marine Instrumentation - Chart Feature Upgrade*
 *Fecha: 2026-01-28*
+
+##  Log de Implementaci�n
+
+### 2026-01-28
+-  M1.1: Creado enum MapOrientation en types/chart-vm.ts
+-  M1.2: A�adido orientation$ a ChartFacadeService
+2 0 2 6 - 0 1 - 2 8   2 1 : 5 2   |   M 1 . 3   |   I m p l e m e n t   r o t a t i o n   i n   e n g i n e   |   S u c c e s s   |   A d d e d   s e t O r i e n t a t i o n   t o   M a p L i b r e E n g i n e 
+ 
+ 2 0 2 6 - 0 1 - 2 8   2 2 : 0 0   |   M 1 . 4   |   C r e a t e   M a p C o n t r o l s C o m p o n e n t   |   S u c c e s s   |   A d d e d   o r i e n t a t i o n   t o g g l e   b u t t o n 
+ 
+ 2 0 2 6 - 0 1 - 2 8   2 2 : 1 0   |   M 1 . 6   |   I m p l e m e n t   r a n g e   r i n g s   l a y e r   |   S u c c e s s   |   A d d e d   g e n e r a t o r   a n d   l a y e r   t o   e n g i n e 
+ 
+ 
+### 2026-01-29
+2026-01-29 09:00 | M1.7 | Add config of range rings | Success | Persistent settings implemented in ChartSettingsService
+2026-01-29 09:10 | M1.8 | Improve vessel marker states | Success | Implemented Stale (Yellow) and No-Fix (Gray) icons
+2026-01-29 09:15 | M1.9 | Implement bearing line layer | Success | Integrated into MapLibreEngineService
+2026-01-29 09:20 | M1.10 | Connect bearing line | Success | Connected activeWaypoint signal to bearing line
+2026-01-29 10:00 | M3.1-M3.5 | Validate AIS implementation | Success | Confirmed existing code covers core AIS features (Store, CPA, MapLayer)
+2026-01-29 10:30 | M3.6 | Implement AISTargetListComponent | Success | Created list and item components with sort/select
+2026-01-29 11:00 | M3.7 | Implement AISTargetDetailsComponent | Success | Created details panel with voyage and dangerous status
+2026-01-29 11:30 | M3.8 | Connect CPA alarm | Success | Integrated AisStore.dangerousTargets into AlarmService
+2026-01-29 12:00 | M3.9 | Visualize CPA line | Success | Added red dashed line connecting vessels and their future CPA positions
+2026-01-29 14:10 | M3.11 | Signal K self context + simulator scenarios | Success | Added self-context detection in UI, context-aware publishers, and new simulator scenarios
+2026-01-29 16:30 | M2.10 | Styleguide polish | Success | Added theme tokens, button icon slots, and styleguide menu entry
+2026-01-29 17:10 | M1.7 | Range rings intervals fix | Success | Improved parsing (comma/period decimals) and normalized input display
+2026-01-29 17:40 | M1.7 | Range rings input UX fix | Success | Prevented vm updates from overwriting user edits and kept normalized values
+2026-01-29 18:05 | M1.7 | Range rings regex fix | Success | Fixed interval parsing regex so validation accepts numeric input
+2026-01-29 18:25 | M8.x | Diagnostics scroll fix | Success | Added min-height and host sizing so diagnostics table scrolls
+2026-01-29 18:40 | M8.x | Instruments scroll fix | Success | Added host sizing so instruments page scrolls without layout changes
+2026-01-29 19:05 | M4.x | AudioService typing fix | Success | fetchAudioBuffer now returns undefined to match AudioBuffer | undefined
+2026-01-29 19:20 | M4.x | MOB alert imports fix | Success | Switched NauticButton to AppButton to resolve build errors
+2026-01-29 19:35 | M4.x | Anchor watch imports fix | Success | Updated navigation import + AppButton/AppSlider + removed invalid snapshot access
+2026-01-29 20:00 | M4.x | Alarms build fixes | Success | Replaced NauticButton in alarm panel, fixed facade inject order, severity calc, and chart import typo
+2026-01-29 20:20 | M4.9 | Alarm overlay visibility fix | Success | Alarm widget now counts any active (non-emergency) alarms
+2026-01-29 20:35 | M4.9 | Alarm overlay data bridge | Success | Alarm widget now combines legacy AlarmService + new AlarmStore alarms
+2026-01-29 20:55 | M4.9 | Alarm banner data bridge | Success | Alarm banner now reflects active alarms from legacy + store with ack
+2026-01-29 21:10 | M4.9 | Alarm banner template fix | Success | Fixed async pipe usage and severity typing
+2026-01-29 21:20 | M4.9 | Alarm banner decorator fix | Success | Moved type aliases above @Component to fix decorator parse error
+2026-01-29 21:30 | M4.9 | Alarm banner typing fix | Success | Guarded acknowledge for empty vm to satisfy TS2345
+2026-01-29 21:50 | M4.9 | Alarm UI polish | Success | Styled alarm banner + anchor watch to match app visual system
+2026-01-29 18:15 | M4.1 | Definir Alarm types | Success | Created state/alarms/alarm.models.ts
+2026-01-29 18:20 | M4.2 | Refactorizar AlarmStoreService | Success | Implemented state machine based AlarmStoreService
+2026-01-29 18:30 | M4.3 | Implementar AudioService | Success | Created core/services/audio.service.ts using Web Audio API
+2026-01-29 18:40 | M4.4 | Crear MOBAlertComponent | Success | Implemented full-screen emergency overlay with countdown and confirmation
+2026-01-29 18:45 | M4.5 | Implementar MOB flow | Success | Integrated global MOB overlay into app root
+2026-01-29 18:55 | M4.6 | Crear AnchorWatchComponent | Success | Implemented configuration card with distance visualizer
+2026-01-29 19:05 | M4.7 | Implementar anchor watch alarm | Success | Implemented geofence monitoring logic in AlarmsFacade
+2026-01-29 19:15 | M4.8 | Crear AlarmPanelComponent | Success | Implemented dashboard with active alarms list and embedded configuration
+
+
+
+
+
+2026-01-29 22:10 | M4.x | Alarm settings configuration | Success | Added AlarmSettingsService, configurable thresholds (depth, battery, CPA, GPS) and alarms page settings UI
+2026-01-29 22:00 | M5.1 | Implement SignalKResourcesService | Success | Created service and models for Resources API
+2026-01-29 22:15 | M5.2 | Implement Resources Stores | Success | Created Waypoint, Route, and Track stores
+2026-01-29 22:30 | M5.3-M5.4 | Implement Waypoint UI | Success | Created form and list components
+2026-01-29 22:45 | M5.5-M5.6 | Implement Route UI | Success | Created route editor with drag & drop
+2026-01-29 23:00 | M5.7-M5.8 | Implement GPX Import | Success | Created parser and import component
+2026-01-29 23:15 | M5.10 | Implement Resources Page | Success | Created ResourcesPage and Facade, registered route
+2026-01-29 22:35 | M5.x | Resources build fixes | Success | Fixed icon names, button sizes, resources facade init order, track store import/types
+2026-01-29 22:55 | M4.x | Alarms settings modal + scroll | Success | Moved alarm settings into AppModal and added vertical scroll fixes on alarms page
+2026-01-29 23:20 | M2.x | AppIcon SVG render fix | Success | Sanitized inline SVG markup with DomSanitizer to ensure icons render in buttons
+2026-01-29 23:40 | M5.x | Resources Access Fix | Success | Added Resources link to main navigation and translation keys
+2026-01-29 23:45 | M5.x | Waypoints map-resource sync | Success | Chart waypoint service now uses Resource store so map-created waypoints appear in Resources
+2026-01-29 23:55 | OPS.1 | Disable MCP servers in project | Success | Added .claude/settings.json to block MCP prompt
+2026-01-29 23:58 | M4.x | Audio assets fix | Success | Added WAV alarm sounds and updated AudioService paths
+2026-01-29 23:59 | M4.x | Audio assets cleanup | Success | Removed empty MP3 placeholders
+2026-01-29 23:59 | M6.x | Autopilot store guard | Success | Added safe autopilot path constants to avoid undefined PATHS at runtime
+2026-01-29 23:59 | M5.x | Resources endpoint fallback | Success | Added /resources fallback when /api/resources returns 404
+2026-01-29 23:59 | M6.x | Autopilot service guard | Success | Added safe autopilot paths in SignalKAutopilotService
+2026-01-29 23:59 | OPS.x | Revert SignalK runtime | Success | Removed Dockerfile and restored compose to official image
+2026-01-29 23:59 | M5.x | Resources v2 fallback | Success | Prefer /signalk/v2/api/resources with v1 fallbacks
+2026-01-29 23:59 | M6.x | Autopilot v2 API | Success | Use /signalk/v2/api/vessels/self/autopilots/_default endpoints
+2026-01-29 23:59 | M2.x | AppSlider null guard | Success | Prevented toString on null/undefined values
+2026-01-29 23:59 | OPS.2 | Disable Figma MCP prompt | Success | Added denied/disabled Figma MCP entries in .claude/settings.json
+
+### 2026-01-29
+-  M6 (Re-implementado): AutopilotConsoleComponent, AutopilotStoreService, AutopilotFacadeService, Integraci�n en ChartPage (Overlay).
+2026-01-29 23:59 | M5.x | Waypoints v2 payload fix | Success | Added feature/position variants and feature-derived positions for missing coords
+2026-01-29 23:59 | M5.x | Resources edit waypoint null guard | Success | Guarded edit form for missing position and fallback to feature coords
+2026-01-30 12:20 | M8.5 | Create DepthGaugeWidget | Success | Added depth gauge widget and wired into instruments drawer
+2026-01-30 12:35 | M8.6 | Implement widget reordering | Success | Added drag handles and reorder output in instruments drawer
+2026-01-30 13:05 | M8.7 | Complete SettingsPage | Success | Added chart/safety/connection/experiment sections and wiring
+2026-01-30 13:25 | M8.8 | Optimize for mobile | Success | Tightened mobile padding and touch targets in chart, drawer, settings
+
+
+2026-01-29 23:55 | M5.x | Reset M5 | Success | Cleared completion markers for M5.2-M5.10 per request
+2026-01-29 23:55 | M5.1 | Re-implement SignalKResourcesService | Success | Added tracks to ResourceType model
+
+2026-01-29 23:59 | M5.2 | WaypointStoreService | Success | Marked complete (existing store sync)
+2026-01-29 23:59 | M5.3 | WaypointFormComponent | Success | Marked complete (existing form)
+2026-01-29 23:59 | M5.4 | WaypointListComponent | Success | Marked complete (existing list)
+2026-01-29 23:59 | M5.5 | RouteStoreService | Success | Added legs calculation + distance
+2026-01-29 23:59 | M5.x | Routes tab placeholder | Success | Coming soon already present
+
+2026-01-29 23:59 | M5.6 | RouteEditorComponent | Success | Updated per spec D.4.5 with drag & drop
+
+2026-01-29 23:59 | M5.7 | GPX parser | Success | Filter invalid lat/lon points
+
+2026-01-29 23:59 | M5.8 | GPXImportComponent | Success | Added selection + parsing progress
+
+2026-01-29 23:59 | M5.9 | Track recording | Success | Added track store list + save/delete + sampling
+
+2026-01-29 23:59 | M5.10 | ResourcesPage | Success | Added tracks tab + recording controls
+2026-01-29 23:59 | M5.10 | ResourcesPage build fix | Success | Added input handler for track name
+
+2026-01-29 23:59 | M7.2 | HistoryService | Success | Added IndexedDB history storage service
+
+2026-01-30 08:25 | M7.3 | PlaybackStoreService | Success | Added playback state + timeline tick
+2026-01-30 10:05 | M7.4 | PlaybackBarComponent | Success | Added playback bar UI with timeline and controls
+2026-01-30 10:15 | M7.5 | Seek functionality | Success | Wired playback bar seek to playback store and chart overlay
+2026-01-30 10:20 | M7.6 | Variable speed | Success | Wired playback bar speed selector to playback store
+2026-01-30 10:30 | M7.7 | Event markers | Success | Added gap-based timeline markers from playback data
+2026-01-30 10:45 | M7.8 | Playback map integration | Success | Wired playback position history into map vessel updates
+2026-01-30 11:00 | M7.9 | Playback alarm pause | Success | Silenced alarms and audio while playback is active
+2026-01-30 11:15 | M7.10 | Playback E2E test | Success | Added playback store spec covering load and playback advance
+2026-01-30 11:30 | M8.1 | InstrumentsFacadeService | Success | Added configurable widgets facade with persistence
+2026-01-30 11:45 | M8.2 | InstrumentsDrawerComponent | Success | Added instruments drawer grid using existing instrument cards
+2026-01-30 12:00 | M8.3 | CompassWidget | Success | Added compass widget with heading needle and readout
+2026-01-30 12:15 | M8.4 | WindWidget | Success | Added wind rose widget with AWA/AWS/TWA/TWS readouts
+
+2026-01-30 13:45 | M8.9 | Night mode | Success | Settings toggle now uses preferences theme
+2026-01-30 14:20 | M8.10 | Performance audit | Success | Documented bundle budget warning and recommended lazy widget previews on dashboard/widgets

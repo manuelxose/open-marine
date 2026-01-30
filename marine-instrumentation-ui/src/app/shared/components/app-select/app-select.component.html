@@ -1,0 +1,24 @@
+<div class="app-select-container" [class.disabled]="disabled" [class.error]="!!error">
+  <div class="select-trigger">
+    <span class="truncate" [class.placeholder-text]="!hasSelection()">
+      {{ displayLabel() }}
+    </span>
+    <app-icon name="chevron-down" class="select-icon" size="sm"></app-icon>
+  </div>
+  
+  <select 
+    class="native-select"
+    [ngModel]="value()" 
+    (ngModelChange)="updateValue($event)" 
+    [disabled]="disabled">
+    <option [ngValue]="null" disabled selected>{{ placeholder }}</option>
+    <option *ngFor="let opt of options" [ngValue]="opt.value">{{ opt.label }}</option>
+  </select>
+  
+  <!-- Focus Ring Helper (optional, if focus-visible needed on trigger) -->
+  <div class="focus-ring"></div>
+</div>
+
+<div *ngIf="error" class="error-text">
+  {{ error }}
+</div>

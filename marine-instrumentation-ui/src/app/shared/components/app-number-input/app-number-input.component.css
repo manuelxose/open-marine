@@ -1,0 +1,90 @@
+:host {
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.number-input-container {
+  display: flex;
+  align-items: center;
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  width: fit-content;
+  transition: all 0.2s ease;
+}
+
+.number-input-container:hover:not(.disabled) {
+  border-color: var(--primary-400);
+}
+
+.number-input-container:focus-within {
+  border-color: var(--primary-500);
+  box-shadow: 0 0 0 2px var(--bg-surface), 0 0 0 4px var(--primary-500);
+}
+
+.stepper-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem; /* 40px */
+  height: 2.5rem;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background-color 0.2s, color 0.2s;
+  padding: 0;
+}
+
+.stepper-btn.minus {
+  border-right: 1px solid var(--border-subtle);
+}
+
+.stepper-btn.plus {
+  border-left: 1px solid var(--border-subtle);
+}
+
+.stepper-btn:hover:not(:disabled) {
+  background-color: var(--bg-surface-secondary);
+  color: var(--text-primary);
+}
+
+.stepper-btn:active:not(:disabled) {
+  background-color: var(--bg-surface-tertiary);
+}
+
+.stepper-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.number-field {
+  width: 3.5rem; /* 56px approx */
+  min-width: 0;
+  text-align: center;
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--text-md);
+  height: 2.5rem;
+  padding: 0 0.5rem;
+  outline: none;
+  -moz-appearance: textfield;
+}
+
+.number-field::-webkit-inner-spin-button, 
+.number-field::-webkit-outer-spin-button { 
+  -webkit-appearance: none; 
+  margin: 0; 
+}
+
+/* Disabled container */
+.number-input-container.disabled {
+  opacity: 0.6;
+  background-color: var(--bg-surface-secondary);
+  border-color: var(--border-subtle);
+  pointer-events: none;
+}

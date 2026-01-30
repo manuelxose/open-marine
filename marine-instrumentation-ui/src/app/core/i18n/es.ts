@@ -1,13 +1,17 @@
-import type { Translations } from './en';
+﻿import type { Translations } from './en';
 
 export const es: Translations = {
   settings: {
-    title: 'Configuración',
+    title: 'ConfiguraciÃ³n',
     subtitle: 'Personaliza tu experiencia MFD',
     sections: {
       general: 'General',
       appearance: 'Apariencia',
       units: 'Unidades',
+      chart: 'Carta',
+      safety: 'Seguridad',
+      connections: 'Conexiones',
+      experiments: 'Experimentos',
       dashboard: 'Widgets del Dashboard',
     },
     language: {
@@ -16,11 +20,11 @@ export const es: Translations = {
     },
     theme: {
       label: 'Tema',
-      description: 'Cambiar entre modo día y noche',
+      description: 'Cambiar entre modo dÃ­a y noche',
     },
     compact: {
       label: 'Modo Compacto',
-      description: 'Aumentar la densidad de información',
+      description: 'Aumentar la densidad de informaciÃ³n',
     },
     units: {
       speed: {
@@ -33,26 +37,45 @@ export const es: Translations = {
       },
     },
     widgets: {
-      reset: 'Restablecer diseño predeterminado',
+      reset: 'Restablecer diseÃ±o predeterminado',
       desc: {
-        navigation: 'SOG, COG, HDG, Posición con tendencia',
-        wind: 'Velocidad y ángulo de viento aparente',
+        navigation: 'SOG, COG, HDG, PosiciÃ³n con tendencia',
+        wind: 'Velocidad y Ã¡ngulo de viento aparente',
         depth: 'Profundidad bajo el transductor con tendencia',
-        power: 'Voltaje y corriente de batería',
-        system: 'Estado de conexión y diagnósticos',
+        power: 'Voltaje y corriente de baterÃ­a',
+        system: 'Estado de conexiÃ³n y diagnÃ³sticos',
         sog_simple: 'Velocidad sobre el fondo - compacto',
         heading_simple: 'Rumbo verdadero - compacto',
         depth_simple: 'Profundidad - compacto',
       },
     },
   },
+  widgets: {
+    title: 'Widgets',
+    subtitle: 'Gestiona la visibilidad y el orden de instrumentos y widgets del panel',
+    sections: {
+      instruments: 'Instrumentos',
+      dashboard: 'Widgets del Dashboard',
+    },
+    instruments: {
+      desc: 'Controla los widgets del drawer de instrumentos en la carta.',
+    },
+    dashboard: {
+      desc: 'Controla los widgets visibles en el dashboard.',
+    },
+    reset: 'Restablecer',
+  },
   nav: {
     dashboard: 'Panel de Control',
     chart: 'Carta',
+    autopilot: 'Piloto Auto',
+    resources: 'Recursos',
     instruments: 'Instrumentos',
     alarms: 'Alarmas',
-    diagnostics: 'Diagnóstico',
+    diagnostics: 'DiagnÃ³stico',
     settings: 'Ajustes',
+    widgets: 'Widgets',
+    styleguide: 'Guia de estilos',
   },
   chart: {
     controls: {
@@ -61,8 +84,16 @@ export const es: Translations = {
       vector: 'Vector',
       true_wind: 'Viento Real',
       layer: 'Capa',
-      satellite: 'Satélite',
+      satellite: 'SatÃ©lite',
       map: 'Mapa',
+      range_rings: 'Anillos',
+      range_rings_label: 'Intervalos (MN)',
+      range_rings_placeholder: '0.25, 0.5, 1',
+      range_rings_hint: 'Valores separados por coma o espacio en millas nauticas.',
+      range_rings_error: 'Introduce al menos una distancia valida.',
+      range_rings_preset_harbor: 'Puerto',
+      range_rings_preset_coastal: 'Costero',
+      apply: 'Aplicar',
       center_boat: 'Centrar en Barco',
       on: 'ON',
       off: 'OFF',
@@ -83,7 +114,7 @@ export const es: Translations = {
     view: {
       title: 'Vista de Carta',
       center: 'Centro',
-      hint: 'Haga clic en la carta para añadir un waypoint.',
+      hint: 'Haga clic en la carta para aÃ±adir un waypoint.',
     },
     waypoints: {
       title: 'Waypoints',
@@ -97,7 +128,7 @@ export const es: Translations = {
   instruments: {
     page: {
       title: 'Instrumentos',
-      subtitle: 'Todos los datos de instrumentación disponibles',
+      subtitle: 'Todos los datos de instrumentaciÃ³n disponibles',
     },
   },
   alarms: {
@@ -125,10 +156,10 @@ export const es: Translations = {
   },
   dashboard: {
     panels: {
-      navigation: 'Navegación',
+      navigation: 'NavegaciÃ³n',
       wind: 'Viento',
       depth: 'Profundidad',
-      power: 'Energía',
+      power: 'EnergÃ­a',
       system: 'Sistema',
     },
     metrics: {
@@ -151,17 +182,18 @@ export const es: Translations = {
     },
     status: {
       fix: 'FIJO',
-      nofix: 'SIN SEÑAL',
+      nofix: 'SIN SEÃ‘AL',
       stale: 'ANTIGUO',
       offline: 'Desconectado',
-      disconnected: 'Sin Conexión',
+      disconnected: 'Sin ConexiÃ³n',
       waiting: 'Esperando datos',
-      streaming: 'En línea',
+      streaming: 'En lÃ­nea',
       error: 'Error del Sistema',
     },
     system: {
       updates_processed: 'Actualizaciones procesadas',
-      last_update: 'Última actualización',
+      last_update: 'Ãšltima actualizaciÃ³n',
     },
   },
 };
+

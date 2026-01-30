@@ -9,3 +9,5 @@ export interface WaypointFeatureProperties {
 export type WaypointFeatureCollection = FeatureCollection<Point, WaypointFeatureProperties>;
 
 export type RouteFeatureCollection = FeatureCollection<LineString>;
+
+export type CpaLinesFeatureCollection = FeatureCollection<LineString>;

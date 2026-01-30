@@ -1,0 +1,81 @@
+:host {
+  display: block;
+  width: 100%;
+}
+
+.app-progress-container {
+  width: 100%;
+  background-color: var(--bg-surface-tertiary); /* surface-300 or similar */
+  border-radius: 9999px;
+  overflow: hidden;
+}
+
+.app-progress-bar {
+  height: 100%;
+  border-radius: 9999px;
+  transition: width 0.3s ease-out;
+  background-color: var(--primary-500);
+}
+
+/* Sizes */
+.size-sm { height: 0.25rem; } /* 4px */
+.size-md { height: 0.5rem; }  /* 8px */
+.size-lg { height: 0.75rem; } /* 12px */
+
+/* Variants */
+.variant-primary { background-color: var(--primary-500); }
+.variant-success { background-color: var(--success-500); }
+.variant-warning { background-color: var(--warn-500); }
+.variant-danger  { background-color: var(--danger-500); }
+
+/* Indeterminate Animation */
+.app-progress-bar.indeterminate {
+  width: 100% !important;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    currentColor 50%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: progress-indeterminate 1.5s infinite linear;
+  color: inherit; /* Use variant color via currentColor if set, or explicit bg overrides */
+}
+
+/* For indeterminate, we need to handle specific bg colors or use opacity mask */
+.variant-primary.indeterminate { 
+  background: var(--bg-surface-tertiary);
+  position: relative;
+  overflow: hidden;
+}
+.variant-primary.indeterminate::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; bottom: 0; right: 0;
+  background: linear-gradient(90deg, transparent, var(--primary-500), transparent);
+  transform: translateX(-100%);
+  animation: shimmer 1.5s infinite;
+}
+/* Repeating for other variants for indeterminate shimmer */
+.variant-success.indeterminate::after {
+  background: linear-gradient(90deg, transparent, var(--success-500), transparent);
+}
+.variant-warning.indeterminate::after {
+  background: linear-gradient(90deg, transparent, var(--warn-500), transparent);
+}
+.variant-danger.indeterminate::after {
+  background: linear-gradient(90deg, transparent, var(--danger-500), transparent);
+}
+
+@keyframes shimmer {
+  100% { transform: translateX(100%); }
+}
+
+.app-progress-label {
+  margin-top: 0.25rem;
+  font-family: var(--font-technical);
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}

@@ -1,5 +1,8 @@
 import { Component, ChangeDetectionStrategy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { ChartSettingsService } from '../../features/chart/services/chart-settings.service';
+import { AlarmSettingsService, AlarmSettings } from '../../state/alarms/alarm-settings.service';
+import { AppIconComponent } from '../../shared/components/app-icon/app-icon.component';
 import { PreferencesService } from '../../core/services/preferences.service';
 import { ThemeService } from '../../core/theme/theme.service';
 import { LayoutService } from '../../core/services/layout.service';
@@ -9,7 +12,7 @@ import { TranslatePipe } from '../../shared/pipes/translate.pipe';
 @Component({
   selector: 'app-settings-page',
   standalone: true,
-  imports: [CommonModule, TranslatePipe],
+  imports: [CommonModule, TranslatePipe, AppIconComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="settings-page">
@@ -102,6 +105,197 @@ import { TranslatePipe } from '../../shared/pipes/translate.pipe';
               <option value="m">Meters (m)</option>
               <option value="ft">Feet (ft)</option>
             </select>
+          </div>
+        </section>
+
+        <!-- Chart Section -->
+        <section class="settings-section">
+          <h2>{{ 'settings.sections.chart' | translate }}</h2>
+
+          <div class="setting-item">
+            <div class="setting-info">
+              <span class="setting-label">Auto-center</span>
+              <span class="setting-description">Center chart on vessel position when moving</span>
+            </div>
+            <button
+              (click)="toggleChartSetting('autoCenter')"
+              class="toggle-btn"
+              [class.active]="chartSettings().autoCenter"
+            >
+              <span class="toggle-slider"></span>
+            </button>
+          </div>
+
+          <div class="setting-item">
+            <div class="setting-info">
+              <span class="setting-label">Track history</span>
+              <span class="setting-description">Show the vessel track on the chart</span>
+            </div>
+            <button
+              (click)="toggleChartSetting('showTrack')"
+              class="toggle-btn"
+              [class.active]="chartSettings().showTrack"
+            >
+              <span class="toggle-slider"></span>
+            </button>
+          </div>
+
+          <div class="setting-item">
+            <div class="setting-info">
+              <span class="setting-label">Course vector</span>
+              <span class="setting-description">Display projected course vector</span>
+            </div>
+            <button
+              (click)="toggleChartSetting('showVector')"
+              class="toggle-btn"
+              [class.active]="chartSettings().showVector"
+            >
+              <span class="toggle-slider"></span>
+            </button>
+          </div>
+
+          <div class="setting-item">
+            <div class="setting-info">
+              <span class="setting-label">True wind</span>
+              <span class="setting-description">Show true wind indicator</span>
+            </div>
+            <button
+              (click)="toggleChartSetting('showTrueWind')"
+              class="toggle-btn"
+              [class.active]="chartSettings().showTrueWind"
+            >
+              <span class="toggle-slider"></span>
+            </button>
+          </div>
+
+          <div class="setting-item">
+            <div class="setting-info">
+              <span class="setting-label">Range rings</span>
+              <span class="setting-description">Show range rings around the vessel</span>
+            </div>
+            <button
+              (click)="toggleChartSetting('showRangeRings')"
+              class="toggle-btn"
+              [class.active]="chartSettings().showRangeRings"
+            >
+              <span class="toggle-slider"></span>
+            </button>
+          </div>
+        </section>
+
+        <!-- Safety Section -->
+        <section class="settings-section">
+          <h2>{{ 'settings.sections.safety' | translate }}</h2>
+
+          <div class="setting-item">
+            <div class="setting-info">
+              <span class="setting-label">Shallow depth (m)</span>
+              <span class="setting-description">Trigger shallow water warning below this depth</span>
+            </div>
+            <input
+              type="number"
+              class="setting-input"
+              [value]="alarmSettings().shallowDepthThreshold"
+              (change)="updateAlarmSetting('shallowDepthThreshold', $event)"
+            />
+          </div>
+
+          <div class="setting-item">
+            <div class="setting-info">
+              <span class="setting-label">CPA threshold (nm)</span>
+              <span class="setting-description">Collision warning threshold</span>
+            </div>
+            <input
+              type="number"
+              class="setting-input"
+              [value]="alarmSettings().cpaThresholdNm"
+              (change)="updateAlarmSetting('cpaThresholdNm', $event)"
+            />
+          </div>
+
+          <div class="setting-item">
+            <div class="setting-info">
+              <span class="setting-label">Low battery (V)</span>
+              <span class="setting-description">Trigger battery warning below this voltage</span>
+            </div>
+            <input
+              type="number"
+              class="setting-input"
+              [value]="alarmSettings().lowBatteryThreshold"
+              (change)="updateAlarmSetting('lowBatteryThreshold', $event)"
+            />
+          </div>
+
+          <div class="setting-item">
+            <div class="setting-info">
+              <span class="setting-label">GPS lost (s)</span>
+              <span class="setting-description">Time without GPS fix before alert</span>
+            </div>
+            <input
+              type="number"
+              class="setting-input"
+              [value]="alarmSettings().gpsLostSeconds"
+              (change)="updateAlarmSetting('gpsLostSeconds', $event)"
+            />
+          </div>
+        </section>
+
+        <!-- Connections Section -->
+        <section class="settings-section">
+          <h2>{{ 'settings.sections.connections' | translate }}</h2>
+
+          <div class="setting-item">
+            <div class="setting-info">
+              <span class="setting-label">Signal K URL</span>
+              <span class="setting-description">Connection details are managed by the runtime</span>
+            </div>
+            <div class="setting-readonly">
+              ws://localhost:3000
+            </div>
+          </div>
+
+          <div class="setting-item">
+            <div class="setting-info">
+              <span class="setting-label">Connection status</span>
+              <span class="setting-description">Real-time updates from Signal K</span>
+            </div>
+            <div class="setting-pill">
+              <app-icon name="check" size="14"></app-icon>
+              Connected
+            </div>
+          </div>
+        </section>
+
+        <!-- Experiments Section -->
+        <section class="settings-section">
+          <h2>{{ 'settings.sections.experiments' | translate }}</h2>
+
+          <div class="setting-item">
+            <div class="setting-info">
+              <span class="setting-label">Night mode beta</span>
+              <span class="setting-description">Enable automatic night/day theming</span>
+            </div>
+            <button
+              (click)="toggleNightMode()"
+              class="toggle-btn"
+              [class.active]="(prefs.prefs$ | async)?.theme === 'night'"
+            >
+              <span class="toggle-slider"></span>
+            </button>
+          </div>
+
+          <div class="setting-item">
+            <div class="setting-info">
+              <span class="setting-label">Advanced instruments</span>
+              <span class="setting-description">Show experimental instrument widgets</span>
+            </div>
+            <button
+              (click)="toggleExperimentalInstruments()"
+              class="toggle-btn"
+              [class.active]="experimentalInstruments"
+            >
+              <span class="toggle-slider"></span>
+            </button>
           </div>
         </section>
 
@@ -318,6 +512,39 @@ import { TranslatePipe } from '../../shared/pipes/translate.pipe';
       transform: translateX(18px);
     }
 
+    .setting-input {
+      background: var(--bg);
+      border: 1px solid var(--panel-border);
+      color: var(--text-main);
+      padding: 0.45rem 0.75rem;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      width: 120px;
+    }
+
+    .setting-readonly {
+      background: var(--surface-2);
+      border: 1px solid var(--panel-border);
+      color: var(--text-sec);
+      padding: 0.45rem 0.75rem;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      min-width: 180px;
+    }
+
+    .setting-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.35rem 0.6rem;
+      border-radius: 999px;
+      background: rgba(34, 197, 94, 0.15);
+      color: #22c55e;
+      font-size: 0.75rem;
+      font-weight: 600;
+      border: 1px solid rgba(34, 197, 94, 0.4);
+    }
+
     /* Widget List */
     .widget-list {
       display: grid;
@@ -403,6 +630,18 @@ import { TranslatePipe } from '../../shared/pipes/translate.pipe';
       .settings-section {
         padding: 1rem;
       }
+
+      .setting-item {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .setting-select,
+      .setting-input,
+      .setting-readonly {
+        width: 100%;
+        min-width: 0;
+      }
       
       .toggle-btn.active .toggle-slider {
         transform: translateX(18px);
@@ -419,6 +658,13 @@ export class SettingsPage {
   theme = inject(ThemeService);
   layout = inject(LayoutService);
   lang = inject(LanguageService);
+  private readonly chartSettingsService = inject(ChartSettingsService);
+  private readonly alarmSettingsService = inject(AlarmSettingsService);
+
+  experimentalInstruments = false;
+
+  readonly chartSettings = () => this.chartSettingsService.snapshot;
+  readonly alarmSettings = () => this.alarmSettingsService.snapshot;
 
   get widgetDefs() {
     return this.layout.getWidgetDefinitions();
@@ -453,6 +699,43 @@ export class SettingsPage {
   onDepthUnitChange(event: Event) {
     const target = event.target as HTMLSelectElement;
     this.prefs.setDepthUnit(target.value as 'm' | 'ft');
+  }
+
+  toggleChartSetting(key: 'autoCenter' | 'showTrack' | 'showVector' | 'showTrueWind' | 'showRangeRings'): void {
+    switch (key) {
+      case 'autoCenter':
+        this.chartSettingsService.toggleAutoCenter();
+        break;
+      case 'showTrack':
+        this.chartSettingsService.toggleTrack();
+        break;
+      case 'showVector':
+        this.chartSettingsService.toggleVector();
+        break;
+      case 'showTrueWind':
+        this.chartSettingsService.toggleTrueWind();
+        break;
+      case 'showRangeRings':
+        this.chartSettingsService.toggleRangeRings();
+        break;
+      default:
+        break;
+    }
+  }
+
+  updateAlarmSetting(key: keyof AlarmSettings, event: Event): void {
+    const target = event.target as HTMLInputElement;
+    const value = Number(target.value);
+    if (!Number.isFinite(value)) return;
+    this.alarmSettingsService.update({ [key]: value } as Partial<AlarmSettings>);
+  }
+
+  toggleNightMode(): void {
+    this.prefs.toggleTheme();
+  }
+
+  toggleExperimentalInstruments(): void {
+    this.experimentalInstruments = !this.experimentalInstruments;
   }
 
   onLanguageChange(event: Event) {

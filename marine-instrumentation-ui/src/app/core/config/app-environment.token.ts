@@ -9,5 +9,5 @@ export const APP_ENVIRONMENT = new InjectionToken<AppEnvironment>('APP_ENVIRONME
 
 export const environment: AppEnvironment = {
   signalKBaseUrl: 'http://localhost:3000/signalk/v1/api',
-  signalKWsUrl: 'ws://localhost:3000/signalk/v1/stream', // Adjust port if needed, usually 3000 for SignalK server
+  signalKWsUrl: 'ws://localhost:3000/signalk/v1/stream?subscribe=all', // Adjust port if needed, usually 3000 for SignalK server
 };

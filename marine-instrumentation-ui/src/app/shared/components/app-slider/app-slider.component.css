@@ -1,0 +1,158 @@
+:host {
+  display: block;
+  width: 100%;
+}
+
+.slider-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.slider-container.disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.slider-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  color: var(--text-primary, #f3f4f6);
+}
+
+.slider-label {
+  font-weight: 500;
+}
+
+.slider-value {
+  font-family: var(--font-mono);
+  color: var(--text-secondary, #9ca3af);
+}
+
+.slider-track-container {
+  position: relative;
+  height: 24px; /* Touch target height */
+  display: flex;
+  align-items: center;
+}
+
+.slider-input {
+  -webkit-appearance: none;
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  outline: none;
+  margin: 0;
+  padding: 0;
+  z-index: 2; /* Above fill */
+  cursor: pointer;
+}
+
+/* Thumb Styling */
+.slider-input::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  height: 20px;
+  width: 20px;
+  border-radius: 50%;
+  background: var(--surface-100, #ffffff);
+  border: 2px solid var(--primary-500, #0ea5e9);
+  cursor: pointer;
+  margin-top: -8px; /* Offset for track */
+  box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+  transition: transform 0.1s;
+}
+
+.slider-input::-moz-range-thumb {
+  height: 20px;
+  width: 20px;
+  border-radius: 50%;
+  background: var(--surface-100, #ffffff);
+  border: 2px solid var(--primary-500, #0ea5e9);
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+  transition: transform 0.1s;
+}
+
+.slider-input:active::-webkit-slider-thumb {
+  transform: scale(1.1);
+  background: var(--primary-500, #0ea5e9);
+}
+
+.slider-input:active::-moz-range-thumb {
+  transform: scale(1.1);
+  background: var(--primary-500, #0ea5e9);
+}
+
+/* Track Styling (Default Gray) */
+.slider-input::-webkit-slider-runnable-track {
+  width: 100%;
+  height: 4px;
+  cursor: pointer;
+  background: var(--surface-300, #4b5563);
+  border-radius: 2px;
+}
+
+.slider-input::-moz-range-track {
+  width: 100%;
+  height: 4px;
+  cursor: pointer;
+  background: var(--surface-300, #4b5563);
+  border-radius: 2px;
+}
+
+/* Custom Fill Layer */
+.slider-fill {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  height: 4px;
+  transform: translateY(-50%);
+  background-color: var(--primary-500, #0ea5e9);
+  border-radius: 2px;
+  pointer-events: none;
+  z-index: 1; /* Below thumb, above default track? No thumb is inside input. 
+                 To show custom fill *over* standard track but *under* thumb, 
+                 we can't easily z-index between track and thumb of a native input.
+                 
+                 Hack: Make input track transparent and use a separate div for background track?
+                 Or just use the fill div ON TOP of the input track but use pointer-events none?
+              */
+}
+
+/* Re-thinking fill strategy for simplicity:
+   Use the native input track as the background (gray).
+   Use .slider-fill as the colored progress bar.
+   It needs to be aligned perfectly with the track.
+   
+   The .slider-input needs a transparent track background?
+   If I set background: transparent on track, I see nothing.
+   
+   Better approach for simple custom fill:
+   1. The .slider-track-container has a background div (gray line).
+   2. The .slider-fill sits on top of background (blue line).
+   3. The .slider-input sits on top of everything, with TRANSPARENT track, visible thumb.
+*/
+
+.slider-track-container::before {
+  /* Background Track */
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 4px;
+  transform: translateY(-50%);
+  background-color: var(--surface-300, #4b5563);
+  border-radius: 2px;
+  z-index: 0;
+}
+
+.slider-input::-webkit-slider-runnable-track {
+  background: transparent; /* Hide native track */
+}
+.slider-input::-moz-range-track {
+  background: transparent;
+}
