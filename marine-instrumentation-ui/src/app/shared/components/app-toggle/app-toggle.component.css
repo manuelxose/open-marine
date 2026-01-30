@@ -1,0 +1,71 @@
+:host {
+  display: inline-block;
+}
+
+.toggle-container {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  user-select: none;
+  gap: 0.75rem;
+}
+
+.toggle-container.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.toggle-switch {
+  position: relative;
+  width: 44px;
+  height: 24px;
+}
+
+.toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: var(--surface-300, #374151);
+  transition: .2s;
+  border-radius: 24px;
+}
+
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 20px;
+  width: 20px;
+  left: 2px;
+  bottom: 2px;
+  background-color: white;
+  transition: .2s;
+  border-radius: 50%;
+}
+
+.toggle-switch.checked .slider {
+  background-color: var(--primary-500, #0ea5e9);
+}
+
+.toggle-switch.checked .slider:before {
+  transform: translateX(20px);
+}
+
+/* Focus styles */
+.toggle-switch input:focus + .slider {
+  box-shadow: 0 0 1px var(--primary-500, #0ea5e9);
+}
+
+.label-text {
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  color: var(--text-primary);
+}

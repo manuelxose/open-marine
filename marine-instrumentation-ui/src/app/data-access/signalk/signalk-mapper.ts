@@ -1,9 +1,9 @@
-import { NormalizedDataPoint, SignalKDeltaMessage } from './signalk-message.types';
+import { NormalizedDataPoint, SignalKMessage } from './signalk-message.types';
 
-export function normalizeDelta(delta: SignalKDeltaMessage): NormalizedDataPoint[] {
+export function normalizeDelta(delta: SignalKMessage): NormalizedDataPoint[] {
   const normalized: NormalizedDataPoint[] = [];
   
-  if (!delta.updates) return normalized;
+  if (!('updates' in delta) || !delta.updates) return normalized;
 
   for (const update of delta.updates) {
     const source = update.$source || (update.source ? update.source.label : 'unknown') || 'unknown';
@@ -14,6 +14,7 @@ export function normalizeDelta(delta: SignalKDeltaMessage): NormalizedDataPoint[
     for (const val of update.values) {
       if (!val.path) continue; // Some updates might be empty or meta
       normalized.push({
+        context: delta.context,
         path: val.path,
         value: val.value,
         timestamp: ts,

@@ -1,6 +1,13 @@
 import { SimulatorEngine } from "./engine/simulatorEngine.js";
+import { createAnchoredStaleScenario } from "./scenarios/anchoredStale.js";
 import { createBasicCruiseScenario } from "./scenarios/basicCruise.js";
+import { createCoastalRunScenario } from "./scenarios/coastalRun.js";
+import { createHarborTrafficScenario } from "./scenarios/harborTraffic.js";
+import { createBusyShippingLaneScenario } from "./scenarios/busyShippingLane.js";
+import { createCombinedFailuresScenario } from "./scenarios/combinedFailures.js";
+import { createAnchorDriftScenario } from "./scenarios/anchorDrift.js";
 import { WsPublisher } from "./publishers/wsPublisher.js";
+import type { Scenario } from "./scenarios/scenario.js";
 
 interface CliOptions {
   host: string;
@@ -23,11 +30,32 @@ Options:
   --scenario <name>  Scenario name (default: ${defaultOptions.scenario})
   --rate <hz>        Update rate in Hz (default: ${defaultOptions.rate})
   --help             Show this help
+
+Scenarios:
+  basic-cruise
+  harbor-traffic
+  coastal-run
+  anchored-stale
+  busy-shipping-lane
+  combined-failures
+  anchor-drift
 `);
 };
 
 const parseArgs = (args: string[]): CliOptions => {
   const options: CliOptions = { ...defaultOptions };
+
+  // Handle positional arguments (fallback)
+  // If first arg doesn't start with --, assume: host scenario rate
+  if (args.length > 0 && !args[0].startsWith("--")) {
+    if (args[0]) options.host = args[0];
+    if (args[1]) options.scenario = args[1];
+    if (args[2]) {
+      const parsed = Number(args[2]);
+      if (Number.isFinite(parsed) && parsed > 0) options.rate = parsed;
+    }
+    return options;
+  }
 
   for (let i = 0; i < args.length; i += 1) {
     const arg = args[i];
@@ -70,12 +98,24 @@ const parseArgs = (args: string[]): CliOptions => {
 const main = async (): Promise<void> => {
   const options = parseArgs(process.argv.slice(2));
 
-  if (options.scenario !== "basic-cruise") {
+  const scenarios: Record<string, () => Scenario<any>> = {
+    "basic-cruise": createBasicCruiseScenario,
+    "harbor-traffic": createHarborTrafficScenario,
+    "coastal-run": createCoastalRunScenario,
+    "anchored-stale": createAnchoredStaleScenario,
+    "busy-shipping-lane": createBusyShippingLaneScenario,
+    "combined-failures": createCombinedFailuresScenario,
+    "anchor-drift": createAnchorDriftScenario,
+  };
+
+  const scenarioFactory = scenarios[options.scenario];
+  if (!scenarioFactory) {
     console.error(`Unsupported scenario: ${options.scenario}`);
+    console.error(`Available: ${Object.keys(scenarios).join(", ")}`);
     process.exit(1);
   }
 
-  const scenario = createBasicCruiseScenario();
+  const scenario = scenarioFactory();
   const token = process.env.SIGNALK_TOKEN;
   const publisher = new WsPublisher(options.host, token);
   const engine = new SimulatorEngine(scenario, publisher, options.rate);

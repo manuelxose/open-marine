@@ -19,6 +19,12 @@ export class ChartWaypointListComponent {
   @Output() deleteWaypoint = new EventEmitter<string>();
   @Output() clearActive = new EventEmitter<void>();
 
+  isExpanded = true;
+
+  toggleExpand(): void {
+    this.isExpanded = !this.isExpanded;
+  }
+
   onSelect(id: string): void {
     this.selectWaypoint.emit(id);
   }

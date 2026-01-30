@@ -34,6 +34,13 @@ interface BasicCruiseState {
   batteryCurrent: number;
   batteryCurrentTarget: number;
   batteryPhaseRemainingSec: number;
+
+  // Intruder (AIS Target)
+  intruderLat: number;
+  intruderLon: number;
+  intruderSog: number;
+  intruderCog: number;
+  intruderBroadcastTimer: number;
 }
 
 const METERS_PER_DEG_LAT = 111_320;
@@ -189,6 +196,22 @@ const makePoint = (
   quality,
 });
 
+const makePointWithContext = (
+  context: string,
+  path: SignalKPath | string,
+  value: number | Position | string,
+  timestamp: string,
+  quality: QualityFlag,
+): ScenarioPoint => ({
+  path: path as any,
+  value: value as any,
+  timestamp,
+  source: SOURCE_REF,
+  quality,
+  context,
+});
+
+
 export const createBasicCruiseScenario = (): Scenario<BasicCruiseState> => {
   return {
     name: "basic-cruise",
@@ -219,6 +242,12 @@ export const createBasicCruiseScenario = (): Scenario<BasicCruiseState> => {
       batteryCurrent: 8.0,
       batteryCurrentTarget: 8.0,
       batteryPhaseRemainingSec: 150,
+      
+      intruderLat: 42.2450, // More to the North
+      intruderLon: -8.7250, // Slightly West
+      intruderSog: 6.5, 
+      intruderCog: 2.8,     // Heading South-East towards our path (approx 160 deg)
+      intruderBroadcastTimer: 0,
     }),
     tick: (state, dtSeconds, timestamp) => {
       const nextSogTarget = clamp(state.sogTarget + randomInRange(-0.08, 0.08), MIN_SOG, MAX_SOG);
@@ -339,6 +368,15 @@ export const createBasicCruiseScenario = (): Scenario<BasicCruiseState> => {
         BATTERY_VOLTAGE_MAX,
       );
 
+      // Intruder Logic
+      const intruderDist = state.intruderSog * dtSeconds;
+      const intruderMoved = stepPosition(state.intruderLat, state.intruderLon, intruderDist, state.intruderCog);
+      let intruderBroadcastTimer = Math.max(0, state.intruderBroadcastTimer - dtSeconds);
+      const shouldBroadcastStatic = intruderBroadcastTimer <= 0;
+      if (shouldBroadcastStatic) {
+         intruderBroadcastTimer = 60; 
+      }
+
       const nextState: BasicCruiseState = {
         latitude: moved.latitude,
         longitude: moved.longitude,
@@ -366,6 +404,12 @@ export const createBasicCruiseScenario = (): Scenario<BasicCruiseState> => {
         batteryCurrent: nextBatteryCurrent,
         batteryCurrentTarget,
         batteryPhaseRemainingSec,
+        
+        intruderLat: intruderMoved.latitude,
+        intruderLon: intruderMoved.longitude,
+        intruderSog: state.intruderSog,
+        intruderCog: state.intruderCog,
+        intruderBroadcastTimer,
       };
 
       const position: Position = {
@@ -431,6 +475,29 @@ export const createBasicCruiseScenario = (): Scenario<BasicCruiseState> => {
         ),
         makePoint(PATHS.navigation.headingTrue, reportedHeading, timestamp, QualityFlag.Good),
       ];
+
+      // Intruder Points
+      const intruderMmsi = "200000000";
+      const intruderContext = `vessels.urn:mrn:imo:mmsi:${intruderMmsi}`;
+      
+      points.push(
+          makePointWithContext(intruderContext, PATHS.navigation.position, { latitude: intruderMoved.latitude, longitude: intruderMoved.longitude }, timestamp, QualityFlag.Good),
+          makePointWithContext(intruderContext, PATHS.navigation.speedOverGround, state.intruderSog, timestamp, QualityFlag.Good),
+          makePointWithContext(intruderContext, PATHS.navigation.courseOverGroundTrue, state.intruderCog, timestamp, QualityFlag.Good),
+          makePointWithContext(intruderContext, PATHS.navigation.headingTrue, state.intruderCog, timestamp, QualityFlag.Good)
+      );
+  
+      if (shouldBroadcastStatic) {
+           points.push(
+               makePointWithContext(intruderContext, "name", "BLACK PEARL", timestamp, QualityFlag.Good),
+               makePointWithContext(intruderContext, "communication.callsignVhf", "PK666", timestamp, QualityFlag.Good),
+               makePointWithContext(intruderContext, "navigation.destination", "TORTUGA", timestamp, QualityFlag.Good),
+               makePointWithContext(intruderContext, "design.length", 12.5, timestamp, QualityFlag.Good), 
+               makePointWithContext(intruderContext, "design.beam", 4.2, timestamp, QualityFlag.Good)
+           );
+      }
+
+      console.log(`[BasicCruise] Generated ${points.length} points`);
 
       return {
         state: nextState,

@@ -1,0 +1,102 @@
+.app-chip {
+  display: inline-flex;
+  align-items: center;
+  height: 2rem; /* 32px */
+  padding: 0 0.75rem;
+  border-radius: 9999px; /* full */
+  border: 1px solid transparent;
+  font-family: var(--font-technical, monospace);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  line-height: 1;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background-color: transparent;
+  color: var(--text-primary);
+  user-select: none;
+  gap: 0.5rem;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.app-chip[disabled] {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.chip-icon {
+  opacity: 0.8;
+  margin-left: -0.25rem;
+  display: flex;
+}
+
+.chip-label {
+  white-space: nowrap;
+}
+
+/* Variants */
+
+/* Neutral (Default - like a tag) */
+.chip-neutral {
+  background-color: var(--bg-surface-secondary);
+  border-color: var(--border-default);
+  color: var(--text-primary);
+}
+.chip-neutral:hover:not([disabled]) {
+  background-color: var(--bg-surface-tertiary);
+}
+
+/* Primary (Action/Choice) */
+.chip-primary {
+  background-color: rgba(14, 165, 233, 0.1);
+  border-color: rgba(14, 165, 233, 0.3);
+  color: var(--primary-400);
+}
+.chip-primary:hover:not([disabled]) {
+  background-color: rgba(14, 165, 233, 0.2);
+}
+.chip-primary.chip-selected {
+  background-color: var(--primary-500);
+  color: white;
+  border-color: var(--primary-500);
+}
+.chip-primary.chip-selected .chip-icon,
+.chip-primary.chip-selected .chip-remove {
+  color: white; /* Ensure icons invert */
+}
+
+/* Input (For filters/selection, often outlined initially) */
+.chip-input {
+  background-color: transparent;
+  border-color: var(--border-default);
+  color: var(--text-secondary);
+}
+.chip-input:hover:not([disabled]) {
+  border-color: var(--text-secondary);
+  color: var(--text-primary);
+}
+.chip-input.chip-selected {
+  background-color: var(--bg-surface-secondary);
+  border-color: var(--primary-400);
+  color: var(--primary-400);
+}
+
+/* Removable X */
+.chip-remove {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: 50%;
+  margin-right: -0.25rem;
+  transition: background-color 0.2s;
+  opacity: 0.6;
+}
+.chip-remove:hover {
+  background-color: rgba(0, 0, 0, 0.1);
+  opacity: 1;
+}
+:host-context(.dark) .chip-remove:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}

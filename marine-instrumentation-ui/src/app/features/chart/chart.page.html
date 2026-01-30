@@ -4,19 +4,44 @@
   </ng-container>
 
   <ng-container *ngIf="hudVm$ | async as hudVm">
-    <app-chart-hud class="chart-hud" [vm]="hudVm"></app-chart-hud>
+    <app-chart-hud class="chart-hud" [vm]="hudVm" (toggleAutopilot)="handleNavigateToAutopilot()"></app-chart-hud>
   </ng-container>
 
+  <app-map-controls
+    class="map-controls-overlay"
+    [orientation]="(orientationSignal() || 'north-up')"
+    [canCenter]="(controlsVm$ | async)?.canCenter ?? false"
+    (zoomIn)="handleZoomIn()"
+    (zoomOut)="handleZoomOut()"
+    (centerOnVessel)="handleToggleAutoCenter()"
+    (toggleOrientation)="handleToggleOrientation()"
+    (toggleLayers)="handleToggleLayers()"
+  ></app-map-controls>
+
+  <app-alarm-status-widget class="alarm-widget"></app-alarm-status-widget>
+
+  <app-fab
+    class="instruments-fab"
+    icon="compass"
+    variant="primary"
+    size="lg"
+    (action)="handleToggleInstruments()"
+  ></app-fab>
+
   <div class="chart-side">
+    <div class="autopilot-overlay" *ngIf="showAutopilot()">
+        <app-autopilot-console></app-autopilot-console>
+        <button class="close-overlay-btn" (click)="showAutopilot.set(false)">Close</button>
+    </div>
+
     <ng-container *ngIf="controlsVm$ | async as controlsVm">
       <app-chart-controls
         [vm]="controlsVm"
-        (toggleAutoCenter)="handleToggleAutoCenter()"
         (toggleTrack)="handleToggleTrack()"
         (toggleVector)="handleToggleVector()"
         (toggleTrueWind)="handleToggleTrueWind()"
-        (toggleLayer)="handleToggleLayer()"
-        (centerOnBoat)="handleCenterOnBoat()"
+        (toggleRangeRings)="handleToggleRangeRings()"
+        (changeRangeRingIntervals)="handleChangeRangeRings($event)"
       ></app-chart-controls>
     </ng-container>
 
@@ -29,5 +54,30 @@
         (clearActive)="handleClearActiveWaypoint()"
       ></app-chart-waypoint-list>
     </ng-container>
+
+    <div *ngIf="selectedAisTarget() as target" class="ais-details-overlay">
+         <app-ais-target-details 
+            [target]="target"
+            (close)="handleCloseAisDetails()"
+         ></app-ais-target-details>
+    </div>
   </div>
+
+  <app-instruments-drawer
+    [isOpen]="showInstruments()"
+    position="right"
+    title="Instruments"
+    [widgets]="instrumentsWidgets()"
+    [data]="instrumentsData()"
+    (close)="showInstruments.set(false)"
+    (reorder)="handleInstrumentsReorder($event)"
+  ></app-instruments-drawer>
+
+  <app-playback-bar
+    class="playback-overlay"
+    *ngIf="playbackStateSignal().status !== 'idle'"
+    [state]="playbackStateSignal()"
+    (seek)="handlePlaybackSeek($event)"
+    (speedChange)="handlePlaybackSpeedChange($event)"
+  ></app-playback-bar>
 </div>

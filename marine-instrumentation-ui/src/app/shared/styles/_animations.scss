@@ -1,0 +1,62 @@
+// Animation Tokens & Mixins
+
+:root {
+  // Easings
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-out: cubic-bezier(0.0, 0, 0.2, 1);
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --ease-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
+  
+  // Durations
+  --duration-75: 75ms;
+  --duration-100: 100ms;
+  --duration-150: 150ms;
+  --duration-200: 200ms;
+  --duration-300: 300ms;
+  --duration-500: 500ms;
+  --duration-700: 700ms;
+  --duration-1000: 1000ms;
+
+  // Semantic Durations
+  --duration-fast: var(--duration-150);   // Micro-interactions (hover, click)
+  --duration-normal: var(--duration-300); // Transitions, fades
+  --duration-slow: var(--duration-500);   // Modals, drawers, layout changes
+}
+
+@keyframes pulse-soft {
+  0% { opacity: 1; }
+  50% { opacity: 0.6; }
+  100% { opacity: 1; }
+}
+
+@keyframes pulse-alert {
+  0% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.05); opacity: 0.8; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes ping {
+  75%, 100% { transform: scale(2); opacity: 0; }
+}
+
+@keyframes flash {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+// Utility Classes
+.animate-spin { animation: spin 1s linear infinite; }
+.animate-pulse { animation: pulse-soft 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+.animate-ping { animation: ping 1s cubic-bezier(0, 0, 0.2, 1) infinite; }
+.animate-bounce { animation: pulse-alert 1s infinite; }
+.animate-flash { animation: flash 1s infinite; } // Specifically for alarms
+
+.transition-all { transition-property: all; transition-timing-function: var(--ease-in-out); transition-duration: var(--duration-normal); }
+.transition-colors { transition-property: color, background-color, border-color, text-decoration-color, fill, stroke; transition-timing-function: var(--ease-in-out); transition-duration: var(--duration-normal); }
+.transition-opacity { transition-property: opacity; transition-timing-function: var(--ease-in-out); transition-duration: var(--duration-normal); }
+.transition-transform { transition-property: transform; transition-timing-function: var(--ease-in-out); transition-duration: var(--duration-normal); }

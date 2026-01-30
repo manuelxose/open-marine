@@ -1,0 +1,101 @@
+:host {
+  display: inline-block;
+  z-index: 100; /* Usually high z-index as it floats */
+}
+
+.fab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border: none;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: var(--shadow-lg);
+  user-select: none;
+  font-family: var(--font-technical, monospace);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0;
+}
+
+.fab:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-xl);
+  filter: brightness(1.1);
+}
+
+.fab:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: var(--shadow-md);
+  filter: brightness(0.9);
+}
+
+.fab:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+  box-shadow: none;
+  background-color: var(--bg-surface-secondary);
+  color: var(--text-disabled);
+}
+
+/* Sizes (Base square dimensions) */
+.fab-sm {
+  width: 40px;
+  height: 40px;
+  font-size: var(--text-xs);
+}
+
+.fab-md {
+  width: 48px;
+  height: 48px;
+  font-size: var(--text-sm);
+}
+
+.fab-lg {
+  width: 56px;
+  height: 56px;
+  font-size: var(--text-base);
+}
+
+/* Extended variants */
+.fab.fab-extended {
+  width: auto;
+  border-radius: var(--radius-full);
+}
+
+.fab-sm.fab-extended {
+  padding: 0 1rem;
+}
+
+.fab-md.fab-extended {
+  padding: 0 1.25rem;
+}
+
+.fab-lg.fab-extended {
+  padding: 0 1.5rem;
+}
+
+/* Color Variants */
+.fab-primary {
+  background-color: var(--primary);
+  color: var(--primary-contrast);
+}
+
+.fab-secondary {
+  background-color: var(--secondary);
+  color: white;
+}
+
+.fab-accent {
+  background-color: var(--accent);
+  color: white;
+}
+
+.fab-warn {
+  background-color: var(--warn);
+  color: var(--warn-text);
+}

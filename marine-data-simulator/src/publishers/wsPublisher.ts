@@ -77,8 +77,7 @@ export class WsPublisher implements Publisher {
   }
 
   async publish(points: ScenarioPoint[]): Promise<void> {
-    const [firstPoint] = points;
-    if (!firstPoint) {
+    if (points.length === 0) {
       return;
     }
 
@@ -87,25 +86,46 @@ export class WsPublisher implements Publisher {
       throw new Error("Signal K WebSocket not connected");
     }
 
-    const timestamp = firstPoint.timestamp;
-    const source = buildDeltaSource(firstPoint.source);
-    const values: DeltaValue[] = points.map((point) => ({
-      path: point.path,
-      value: point.value,
-    }));
+    // Group points by context
+    const pointsByContext = new Map<string, ScenarioPoint[]>();
+    for (const point of points) {
+      const ctx = normalizeContext(point.context);
+      let list = pointsByContext.get(ctx);
+      if (!list) {
+        list = [];
+        pointsByContext.set(ctx, list);
+      }
+      list.push(point);
+    }
 
-    const message: DeltaMessage = {
-      context: "vessels.self",
-      updates: [
-        {
-          timestamp,
-          source,
-          values,
-        },
-      ],
-    };
+    for (const [context, contextPoints] of pointsByContext) {
+      const [p] = contextPoints;
+      if (!p) continue;
 
-    socket.send(JSON.stringify(message));
+      const timestamp = p.timestamp;
+      const source = buildDeltaSource(p.source);
+      const values: DeltaValue[] = contextPoints.map((point) => ({
+        path: point.path,
+        value: point.value,
+      }));
+
+      const message: DeltaMessage = {
+        context,
+        updates: [
+          {
+            timestamp,
+            source,
+            values,
+          },
+        ],
+      };
+
+      if (context.includes("200000000")) {
+        console.log(`[wsPublisher] Sending Intruder update: ${values.length} values`);
+      }
+
+      socket.send(JSON.stringify(message));
+    }
   }
 
   private toWebSocketUrl(baseUrl: string, token?: string): string {
@@ -120,3 +140,10 @@ export class WsPublisher implements Publisher {
     return url.toString();
   }
 }
+
+const normalizeContext = (context?: string): string => {
+  if (!context || context === "self") {
+    return "vessels.self";
+  }
+  return context;
+};

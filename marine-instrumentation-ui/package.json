@@ -13,11 +13,14 @@
     "format": "prettier --write ."
   },
   "dependencies": {
+    "@angular/animations": "21.1.1",
+    "@angular/cdk": "^21.1.1",
     "@angular/common": "^21.1.0",
     "@angular/compiler": "^21.1.0",
     "@angular/core": "^21.1.0",
     "@angular/forms": "^21.1.0",
     "@angular/platform-browser": "^21.1.0",
+    "@angular/platform-browser-dynamic": "^21.1.1",
     "@angular/router": "^21.1.0",
     "@omi/marine-data-contract": "file:../marine-data-contract",
     "maplibre-gl": "^5.16.0",

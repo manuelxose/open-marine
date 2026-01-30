@@ -18,15 +18,17 @@ import {
 } from 'rxjs';
 import { APP_ENVIRONMENT, AppEnvironment } from '../../core/config/app-environment.token';
 import { DatapointStoreService } from '../../state/datapoints/datapoint-store.service';
+import { AisStoreService } from '../../state/ais/ais-store.service';
 import { normalizeDelta } from './signalk-mapper';
-import { SignalKDeltaMessage, NormalizedDataPoint } from './signalk-message.types';
+import { NormalizedDataPoint, SignalKHelloMessage, SignalKMessage } from './signalk-message.types';
 
 @Injectable({
   providedIn: 'root'
 })
 export class SignalKClientService implements OnDestroy {
-  private socket$?: WebSocketSubject<SignalKDeltaMessage>;
+  private socket$?: WebSocketSubject<SignalKMessage>;
   private connectionSubscription?: Subscription;
+  private selfContext: string | null = null;
 
   // Connection State
   private _connected = new BehaviorSubject<boolean>(false);
@@ -36,7 +38,8 @@ export class SignalKClientService implements OnDestroy {
     @Inject(APP_ENVIRONMENT) private env: AppEnvironment,
     @Inject(PLATFORM_ID) private platformId: Object,
     private http: HttpClient,
-    private store: DatapointStoreService
+    private store: DatapointStoreService,
+    private aisStore: AisStoreService
   ) {}
 
   public connect(): void {
@@ -46,7 +49,7 @@ export class SignalKClientService implements OnDestroy {
 
     console.log(`Connecting to Signal K WS at ${this.env.signalKWsUrl}`);
 
-    this.socket$ = webSocket<SignalKDeltaMessage>({
+    this.socket$ = webSocket<SignalKMessage>({
       url: this.env.signalKWsUrl,
       openObserver: {
         next: () => {
@@ -65,8 +68,9 @@ export class SignalKClientService implements OnDestroy {
 
     // Main subscription
     this.connectionSubscription = this.socket$.pipe(
+      tap((msg) => this.captureSelfContext(msg)),
       retry({ delay: 3000 }), // Simple retry logic
-      map((msg: SignalKDeltaMessage) => normalizeDelta(msg)),
+      map((msg: SignalKMessage) => normalizeDelta(msg)),
       filter(points => points.length > 0),
       // Buffer updates to batch writes to store ~10 times a second
       bufferTime(100),
@@ -76,18 +80,75 @@ export class SignalKClientService implements OnDestroy {
         // Flatten
         const allPoints = bufferOfArrays.flat();
         
-        // Deduplicate: Last one for a given path wins in this batch
-        const uniqueUpdates = new Map<string, NormalizedDataPoint>();
+        const uniqueSelfUpdates = new Map<string, NormalizedDataPoint>();
+
         for (const p of allPoints) {
-          // We could compare timestamps here to be strictly correct, 
-          // but usually stream order is reliable enough for this basic dedupe.
-          uniqueUpdates.set(p.path, p);
+          // Self check
+          if (this.isSelfContext(p.context)) {
+             uniqueSelfUpdates.set(p.path, p);
+          } 
+          // AIS check
+          else if (p.context && p.context.startsWith('vessels.')) {
+            this.processAisUpdate(p);
+          }
         }
 
-        this.store.update(Array.from(uniqueUpdates.values()));
+        if (uniqueSelfUpdates.size > 0) {
+          this.store.update(Array.from(uniqueSelfUpdates.values()));
+        }
       },
       error: (err) => console.error('WS Error', err)
     });
+  }
+
+  private processAisUpdate(point: NormalizedDataPoint): void {
+    if (!point.context) return;
+    if (this.isSelfContext(point.context)) return;
+    
+    // Context formats: "vessels.urn:mrn:imo:mmsi:123456789" or "vessels.123456789"
+    const parts = point.context.split(':');
+    let mmsi = parts[parts.length - 1]; // Try last part of colon sep
+    
+    if (mmsi.startsWith('vessels.')) {
+        mmsi = mmsi.replace('vessels.', '');
+    }
+
+    // Basic heuristic: MMSI is typically 9 digits
+    if (mmsi.length < 9) return; 
+
+    const data: any = {};
+    const val = point.value as any;
+
+    switch (point.path) {
+      case 'navigation.position':
+        if (val && typeof val.latitude === 'number' && typeof val.longitude === 'number') {
+           data.latitude = val.latitude;
+           data.longitude = val.longitude;
+        }
+        break;
+      case 'navigation.speedOverGround':
+        data.sog = typeof val === 'number' ? val : undefined;
+        break;
+      case 'navigation.courseOverGroundTrue':
+        data.cog = typeof val === 'number' ? val : undefined;
+        break;
+      case 'navigation.headingTrue':
+        data.heading = typeof val === 'number' ? val : undefined;
+        break;
+      case 'name':
+         data.name = String(val);
+         break;
+      case 'communication.callsignVhf':
+         data.callsign = String(val);
+         break;
+      case 'navigation.destination':
+         data.destination = String(val);
+         break;
+    }
+
+    if (Object.keys(data).length > 0) {
+      this.aisStore.updateTarget(mmsi, data, point.timestamp);
+    }
   }
 
   public disconnect(): void {
@@ -103,5 +164,22 @@ export class SignalKClientService implements OnDestroy {
 
   ngOnDestroy(): void {
     this.disconnect();
+  }
+
+  private captureSelfContext(msg: SignalKMessage): void {
+    if (!msg || typeof msg !== 'object') return;
+    const hello = msg as SignalKHelloMessage;
+    const self = hello.self ?? hello.contexts?.['self'];
+    if (self && self !== this.selfContext) {
+      this.selfContext = self;
+      console.log(`[SignalK] self context: ${self}`);
+    }
+  }
+
+  private isSelfContext(context?: string): boolean {
+    if (!context || context === 'self' || context === 'vessels.self') {
+      return true;
+    }
+    return !!this.selfContext && context === this.selfContext;
   }
 }

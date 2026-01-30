@@ -1,10 +1,25 @@
 export const PATHS = {
+  name: "name",
   navigation: {
     position: "navigation.position",
     speedOverGround: "navigation.speedOverGround",
     courseOverGroundTrue: "navigation.courseOverGroundTrue",
     headingTrue: "navigation.headingTrue",
     headingMagnetic: "navigation.headingMagnetic",
+    destination: "navigation.destination",
+  },
+  communication: {
+    callsignVhf: "communication.callsignVhf",
+  },
+  steering: {
+    autopilot: {
+      state: "steering.autopilot.state",
+      target: {
+        headingTrue: "steering.autopilot.target.headingTrue",
+        headingMagnetic: "steering.autopilot.target.headingMagnetic",
+        windAngleApparent: "steering.autopilot.target.windAngleApparent"
+      }
+    }
   },
   environment: {
     depth: {

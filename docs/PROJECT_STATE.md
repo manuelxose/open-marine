@@ -1,7 +1,7 @@
 # Project State Analysis
 
-**Date:** 2026-01-28
-**Last Updated:** 2026-01-28 (After Milestone 6)
+**Date:** 2026-01-29
+**Last Updated:** 2026-01-29 (After Milestone 9)
 **Purpose:** Comprehensive technical assessment for architectural cleanup and future development planning
 
 ---
@@ -33,7 +33,7 @@ Open Marine Instrumentation is an open-source sailboat instrumentation platform 
 
 1. ~~**Alarms and Diagnostics are broken**~~: ✅ **FIXED in Milestone 1**
 2. ~~**Translation Keys structure**~~: ✅ **FIXED** - Standardized root level keys (nav, chart, instruments).
-3. ~~**True Wind calculation**: 🔄 In Progress (Data/Sim works, UI pending)~~: ✅ **FIXED in Milestone 8**g)~~: ✅ **FIXED in Milestone 8**
+3. ~~**True Wind calculation**: 🔄 In Progress (Data/Sim works, UI pending)~~: ✅ **FIXED in Milestone 8**
 4. **Real sensor integration**: Gateway exists as interfaces only
 5. ~~**Chart offline support**: Infrastructure ready but no offline tile caching~~: ✅ **FIXED in M7**
 
@@ -712,23 +712,40 @@ Each feature follows this structure:
 
 **Goal**: Calculate and display true wind from apparent wind + boat motion.
 
-**Scope**:
-- Implement TWA/TWS calculation per data-model.md
-- Add true wind to simulator output
-- Add true wind display to dashboard
-- Add true wind overlay to chart
+**Status**: ✅ **COMPLETED** (2026-01-28)
 
-**Excluded**:
-- Polars (performance prediction)
-- Routing based on wind
+**Completed Changes**:
+- **Math**: Implemented vector-based True Wind calculation in `core/calculations/wind.ts`.
+- **Store Integration**: Added `deriveTrueWind` to `DatapointStoreService` to auto-calculate TWS/TWA/TWD if missing from stream.
+- **Simulator**: Verified `basicCruise.ts` generates realistic True Wind data.
+- **UI**: Confirmed `WindPanelComponent` and `ChartFacadeService` consume and display the data (including wind barbs on chart).
 
-**Expected Outcome**:
-- Sailors see true wind direction and speed
-- Foundation for future sailing features
+**Outcome**:
+- True Wind is now robustly available (either from sensor or calculated).
+- Sailors can see True Wind direction/speed even if only Apparent + GPS is available.
 
-**Risks**:
-- Medium: Math must be correct for safety
-- Mitigation: Extensive testing, reference implementations
+---
+
+### Milestone 9: Autopilot Integration
+
+**Goal**: Full Autopilot control and monitoring integration.
+
+**Status**: ✅ **COMPLETED** (2026-01-29)
+
+**Completed Changes**:
+- **Contract**: Added `steering.autopilot.*` paths to `marine-data-contract`.
+- **State**: Implemented `AutopilotStoreService` (read state, optimize actions).
+- **Service**: Created `SignalKAutopilotService` for controlling AP via HTTP PUT.
+- **UI**: 
+  - Created `AutopilotPage` and `AutopilotConsoleComponent` with dedicated route `/autopilot`.
+  - Added "Autopilot" link to main navigation.
+  - Implemented unit conversion (Radians <-> Degrees) for user friendly interface.
+  - Implemented Mode switching (Auto/Standby/Wind/Route) and Heading adjustment (+/- 1/10).
+
+**Outcome**:
+- Complete Autopilot control interface.
+- Architecture compliant (Facade/Store pattern).
+- Ready for integration with real or simulated Signal K server supporting Autopilot.
 
 ---
 
@@ -743,7 +760,7 @@ Each feature follows this structure:
 | 5 | Testing Infrastructure | DONE | Enables confident future changes |
 | 6 | Dashboard Hardening | DONE | Most-used feature, production polish |
 | 7 | Chart Stabilization | ✅ DONE | Second most-used feature |
-| 8 | True Wind | 🔄 In Progress | First new sailing feature |
+| 8 | True Wind | ✅ DONE | First new sailing feature |
 
 ---
 

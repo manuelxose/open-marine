@@ -1,13 +1,13 @@
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { InstrumentTileComponent } from '../../../../shared/components/instrument-tile/instrument-tile.component';
+import { AppInstrumentCardComponent, InstrumentStatus } from '../../../../shared/components/app-instrument-card/app-instrument-card.component';
 import { TranslatePipe } from '../../../../shared/pipes/translate.pipe';
-import type { CriticalStripVm } from '../../types/dashboard-vm';
+import type { CriticalStripVm, StatusTone } from '../../types/dashboard-vm';
 
 @Component({
   selector: 'app-dashboard-critical-strip',
   standalone: true,
-  imports: [CommonModule, InstrumentTileComponent, TranslatePipe],
+  imports: [CommonModule, AppInstrumentCardComponent, TranslatePipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './critical-strip.component.html',
   styleUrls: ['./critical-strip.component.css'],
@@ -23,5 +23,15 @@ export class CriticalStripComponent {
 
   trackByIndex(index: number): number {
     return index;
+  }
+
+  getCardStatus(tone: StatusTone): InstrumentStatus {
+    switch (tone) {
+      case 'alert': return 'error';
+      case 'warn': return 'warning';
+      case 'ok': return 'success';
+      case 'neutral': return 'neutral';
+      default: return 'neutral';
+    }
   }
 }

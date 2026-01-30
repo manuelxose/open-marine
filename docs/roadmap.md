@@ -54,50 +54,65 @@ This roadmap outlines the development path for Open Marine Instrumentation from 
 - [x] Consistent error handling across facades
 - [x] Clear separation: page → facade → state/data-access
 
----
+### Milestone 4: Contract & Data Cleanup (✅ Completed)
 
-## Current Sprint: Stabilization (COMPLETED 2026-01-28)
+**Goal**: Ensure data contract matches actual usage, fix known inconsistencies.
 
-### Phase 4: Contract & Data Cleanup
+- [x] Added `navigation.headingMagnetic` to PATHS
+- [x] Fixed simulator unit inconsistency (COG now radians)
+- [x] Updated quality enum naming
+- [x] Removed unused type aliases and utilities
 
-**Target:** Ensure data contract matches actual usage, fix known inconsistencies
+### Milestone 5: Testing Infrastructure (✅ Completed)
 
-| Task | Priority | Status | Notes |
-|------|----------|--------|-------|
-| Add `navigation.headingMagnetic` | P1 | DONE | Added to PATHS |
-| Fix simulator unit inconsistency | P1 | DONE | COG now radians |
-| Update quality enum naming | P2 | DONE | Contract uses "warn" |
-| Implement `isSourceValid()` checker | P2 | DONE | Removed from contract (unused) |
-| Remove unused type aliases | P3 | DONE | Angle, Speed, Depth, Voltage, Current removed |
+**Goal**: Establish automated test pipeline baseline.
 
-**Effort:** 1-2 days
+- [x] Unit tests (Vitest) for Contract
+- [x] Tests for calculations (Navigation, Timestamp)
+- [x] Coverage reporting enabled
+- [x] Tests for True Wind Calculation
 
----
+### Milestone 6: Dashboard Hardening & UI/UX (✅ Completed)
 
-## Next Milestones (Planned 📅)
+**Goal**: Polish dashboard for production use.
+- [x] New Nautical Theme
+- [x] Responsive layout improvements
+- [x] i18n support
+- [x] Improved "System" and "Wind" panels
 
-### Milestone 5: Testing Infrastructure
+### Milestone 7: Chart Stabilization (✅ Completed)
 
-**Goal:** Establish automated test pipeline
+**Goal**: Harden chart for production use.
+- [x] Offline capabilities (Service Worker)
+- [x] Layer controls (Satellite vs Map)
+- [x] Resource management fixes
+- [x] Range Rings and Bearing Line features
 
-| Feature | Scope | Effort |
-|---------|-------|--------|
-| Unit tests (Vitest) | DatapointStoreService, formatters, calculations | 3 days |
-| Integration tests | SignalK client + store flow | 2 days |
-| Component tests | Key dashboard components | 3 days |
-| E2E tests | Full flow: simulator → UI | 2 days |
-| CI pipeline | GitHub Actions | 1 day |
-
-**Expected Impact:** Confidence for refactoring, prevents regressions
-
----
-
-### Milestone 6: True Wind Implementation
+### Milestone 8: True Wind Implementation (✅ Completed)
 
 **Goal:** Calculate true wind from apparent wind + boat motion
 
-| Task | Scope |
-|------|-------|
+- [x] Math implementation (vector based)
+- [x] Store integration (automatic derivation)
+- [x] Visual verification in UI
+- [x] Unit tests for math
+
+---
+
+## Future Milestones (Planned 📅)
+
+### Milestone 9: Sensor Gateway Implementation
+
+**Goal:** Connect real hardware (NMEA 0183/2000)
+
+| Task | Scope | Effort |
+|------|-------|--------|
+| Serial Adapter | Implement Node.js serial reader | 2 days |
+| NMEA Parser | Parse key sentences (RMC, DBT, MWV) | 3 days |
+| PGN Parser | Parse NMEA2000 PGNs (129026, 127250) | 5 days |
+| Gateway Service | Connect Gateway to Signal K | 3 days |
+
+
 | Add TWA/TWS paths to contract | Signal K paths |
 | Implement calculation service | Coordinate transformation |
 | Add validation rules | Low-speed, invalid-heading handling |
