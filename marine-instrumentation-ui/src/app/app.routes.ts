@@ -37,4 +37,24 @@ export const routes: Routes = [
     loadComponent: () => import('./pages/settings/settings.page').then(m => m.SettingsPage),
     title: 'Settings'
   },
+  {
+    path: 'widgets',
+    loadComponent: () => import('./pages/widgets/widgets.page').then(m => m.WidgetsPage),
+    title: 'Widgets'
+  },
+  {
+    path: 'styleguide',
+    loadComponent: () => import('./features/styleguide/styleguide.page').then(m => m.StyleguidePage),
+    title: 'Styleguide'
+  },
+  {
+    path: 'resources',
+    loadComponent: () => import('./features/resources/resources.page').then(m => m.ResourcesPage),
+    title: 'Resources'
+  },
+  {
+    path: 'autopilot',
+    loadComponent: () => import('./features/autopilot/autopilot.page').then(m => m.AutopilotPage),
+    title: 'Autopilot'
+  },
 ];

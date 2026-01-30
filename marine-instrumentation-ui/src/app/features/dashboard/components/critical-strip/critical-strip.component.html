@@ -1,11 +1,12 @@
 <div class="strip" *ngIf="!vm.isLoading; else loading">
-  <app-shared-instrument-tile
+  <app-instrument-card
     *ngFor="let item of vm.items; trackBy: trackByLabel"
     [label]="item.label | translate"
     [value]="item.value"
     [unit]="item.unit"
-    [tone]="item.tone"
-  ></app-shared-instrument-tile>
+    [status]="getCardStatus(item.tone)"
+    class="strip-card"
+  ></app-instrument-card>
 </div>
 
 <ng-template #loading>

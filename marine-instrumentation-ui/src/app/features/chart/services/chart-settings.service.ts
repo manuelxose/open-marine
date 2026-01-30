@@ -7,6 +7,8 @@ export interface ChartSettings {
   showTrack: boolean;
   showVector: boolean;
   showTrueWind: boolean;
+  showRangeRings: boolean;
+  rangeRingIntervals: number[];
 }
 
 const DEFAULT_SETTINGS: ChartSettings = {
@@ -14,6 +16,8 @@ const DEFAULT_SETTINGS: ChartSettings = {
   showTrack: true,
   showVector: true,
   showTrueWind: false,
+  showRangeRings: false,
+  rangeRingIntervals: [0.25, 0.5, 1.0],
 };
 
 const STORAGE_KEY = 'omi-chart-settings';
@@ -72,4 +76,14 @@ export class ChartSettingsService {
   private update(partial: Partial<ChartSettings>): void {
     this.settingsSubject.next({ ...this.settingsSubject.value, ...partial });
   }
+
+  toggleRangeRings(): void {
+    const current = this.settingsSubject.value;
+    this.update({ showRangeRings: !current.showRangeRings });
+  }
+
+  setRangeRingIntervals(intervals: number[]): void {
+    this.update({ rangeRingIntervals: intervals });
+  }
 }
+

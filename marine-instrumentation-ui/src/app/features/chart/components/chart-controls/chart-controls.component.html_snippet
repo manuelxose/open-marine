@@ -1,0 +1,19 @@
+﻿
+  <button 
+    class="control-btn" 
+    [class.active]="vm.showTrueWind"
+    (click)="toggleTrueWind.emit()"
+    title="Toggle True Wind Arrow">
+    <i class="icon"></i>
+  </button>
+
+  <button 
+    class="control-btn" 
+    [class.active]="vm.showRangeRings"
+    (click)="toggleRangeRings.emit()"
+    title="Toggle Range Rings">
+    <i class="icon"></i>
+  </button>
+
+  <div class="divider"></div>
+

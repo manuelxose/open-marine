@@ -1,0 +1,52 @@
+<!-- Main Trigger Button (Visible when Inactive) -->
+<div class="mob-trigger-container" *ngIf="!active && !confirming">
+  <button class="mob-fab" (click)="startConfirmation()">
+    MOB
+  </button>
+</div>
+
+<!-- Confirmation Overlay -->
+<div class="mob-overlay confirmation" *ngIf="confirming">
+  <div class="mob-dialog">
+    <div class="dialog-header">
+      <i class="warning-icon">⚠️</i>
+      <h2>CONFIRM MOB?</h2>
+    </div>
+    <p>Prepare for emergency maneuver.</p>
+    
+    <div class="dialog-actions">
+      <app-button variant="outline" (click)="cancelConfirmation()">
+        CANCEL
+      </app-button>
+      
+      <app-button variant="danger" (click)="confirmMOB()">
+        CONFIRM OVERBOARD
+      </app-button>
+    </div>
+  </div>
+</div>
+
+<!-- Active Emergency Overlay -->
+<div class="mob-overlay emergency" *ngIf="active">
+  <div class="emergency-header">
+    <h1>MAN OVERBOARD</h1>
+    <span class="pulse-indicator"></span>
+  </div>
+
+  <div class="emergency-data">
+    <div class="data-row">
+      <span class="label">TIME ELAPSED</span>
+      <span class="value">{{ elapsedTime }}</span>
+    </div>
+    <div class="info-row">
+      Position Marked. Check Navigation!
+    </div>
+  </div>
+
+  <div class="emergency-actions">
+    <button class="clear-btn" (touchstart)="clearMOB()" (click)="clearMOB()">
+      <span class="icon">⚓</span>
+      <span>RECOVERED / CANCEL</span>
+    </button>
+  </div>
+</div>

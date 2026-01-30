@@ -1,34 +1,57 @@
-<div class="waypoint-panel">
-  <div class="panel-title">{{ 'chart.waypoints.title' | translate }}</div>
-  <div class="waypoint-list" *ngIf="vm.waypoints.length > 0; else emptyWaypoints">
-    <div
-      class="waypoint-item"
-      *ngFor="let waypoint of vm.waypoints"
-      [class.active]="vm.activeId === waypoint.id"
-    >
-      <button class="waypoint-select" type="button" (click)="onSelect(waypoint.id)">
-        {{ (vm.activeId === waypoint.id ? 'chart.waypoints.active' : 'chart.waypoints.select') | translate }}
-      </button>
-      <div class="waypoint-info">
-        <input
-          class="waypoint-name"
-          type="text"
-          [value]="waypoint.name"
-          (blur)="onRename(waypoint.id, $event)"
-          (keydown.enter)="onRename(waypoint.id, $event)"
-        />
-        <span class="waypoint-meta">{{ waypoint.positionLabel }}</span>
+<div class="waypoint-panel" *ngIf="vm.waypoints.length > 0">
+  <div class="panel-header" (click)="toggleExpand()">
+    <div class="panel-title-group">
+      <span class="panel-title">{{ 'chart.waypoints.title' | translate }}</span>
+      <span class="panel-count">{{ vm.waypoints.length }}</span>
+    </div>
+    
+    <button class="panel-toggle" type="button" [class.expanded]="isExpanded">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="6 9 12 15 18 9"></polyline>
+      </svg>
+    </button>
+  </div>
+
+  <div class="panel-content" *ngIf="isExpanded">
+    <div class="waypoint-list">
+      <div
+        class="waypoint-item"
+        *ngFor="let waypoint of vm.waypoints"
+        [class.active]="vm.activeId === waypoint.id"
+      >
+        <div class="waypoint-main">
+          <button class="waypoint-select" type="button" (click)="onSelect(waypoint.id)" [class.selected]="vm.activeId === waypoint.id">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <circle cx="12" cy="12" r="3"></circle>
+            </svg>
+          </button>
+          
+          <div class="waypoint-details">
+             <input
+              class="waypoint-name"
+              type="text"
+              [value]="waypoint.name"
+              (blur)="onRename(waypoint.id, $event)"
+              (keydown.enter)="onRename(waypoint.id, $event)"
+            />
+            <span class="waypoint-coords">{{ waypoint.positionLabel }}</span>
+          </div>
+        </div>
+
+        <button class="waypoint-delete" type="button" (click)="onDelete(waypoint.id)" title="{{ 'chart.waypoints.delete' | translate }}">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
       </div>
-      <button class="waypoint-delete" type="button" (click)="onDelete(waypoint.id)">
-        {{ 'chart.waypoints.delete' | translate }}
+    </div>
+
+    <div class="panel-footer" *ngIf="vm.activeId">
+      <button class="waypoint-clear" (click)="onClearActive()">
+        {{ 'chart.waypoints.clear_active' | translate }}
       </button>
     </div>
   </div>
-  <ng-template #emptyWaypoints>
-    <div class="waypoint-empty">{{ 'chart.waypoints.empty' | translate }}</div>
-  </ng-template>
-
-  <button class="waypoint-clear" *ngIf="vm.activeId" (click)="onClearActive()">
-    {{ 'chart.waypoints.clear_active' | translate }}
-  </button>
 </div>

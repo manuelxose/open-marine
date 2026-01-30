@@ -1,0 +1,82 @@
+// Typography System
+
+:root {
+  // Families
+  --font-family: 'Space Grotesk', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Roboto Mono', monospace;
+  
+  // Semantic Aliases
+  --font-heading: var(--font-family);
+  --font-body: var(--font-family);
+  --font-technical: var(--font-mono);
+  
+  // Scale (Mobile First)
+  --text-xs: 0.75rem;     // 12px
+  --text-sm: 0.875rem;    // 14px
+  --text-base: 1rem;      // 16px
+  --text-lg: 1.125rem;    // 18px
+  --text-xl: 1.25rem;     // 20px
+  --text-2xl: 1.5rem;     // 24px
+  --text-3xl: 2rem;       // 32px
+  --text-4xl: 2.5rem;     // 40px
+  
+  // Weights
+  --font-light: 300;
+  --font-normal: 400;
+  --font-medium: 500;
+  --font-bold: 700;
+  
+  // Line Heights
+  --leading-none: 1;
+  --leading-tight: 1.25;
+  --leading-normal: 1.5;
+  --leading-relaxed: 1.625;
+}
+
+body {
+  font-family: var(--font-family);
+  font-size: var(--text-base);
+  line-height: var(--leading-normal);
+}
+
+h1, h2, h3, h4, h5 {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-weight: var(--font-bold);
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+  line-height: var(--leading-tight);
+}
+
+h1 { font-size: var(--text-4xl); }
+h2 { font-size: var(--text-3xl); }
+h3 { font-size: var(--text-2xl); }
+h4 { font-size: var(--text-xl); }
+h5 { font-size: var(--text-lg); }
+
+small { font-size: var(--text-sm); }
+code { font-family: var(--font-mono); }
+
+// Utilities
+.text-xs { font-size: var(--text-xs); }
+.text-sm { font-size: var(--text-sm); }
+.text-base { font-size: var(--text-base); }
+.text-lg { font-size: var(--text-lg); }
+.text-xl { font-size: var(--text-xl); }
+.text-2xl { font-size: var(--text-2xl); }
+
+.font-light { font-weight: var(--font-light); }
+.font-normal { font-weight: var(--font-normal); }
+.font-bold { font-weight: var(--font-bold); }
+.font-mono { font-family: var(--font-mono); }
+
+.uppercase { text-transform: uppercase; letter-spacing: 0.05em; }
+.tracking-wide { letter-spacing: 0.025em; }
+
+// Instrument/Data specific
+.text-value {
+  font-family: var(--font-mono);
+  font-weight: var(--font-medium);
+  letter-spacing: -0.05em;
+  line-height: 1;
+}

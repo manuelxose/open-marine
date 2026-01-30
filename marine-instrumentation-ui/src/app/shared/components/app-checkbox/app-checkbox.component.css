@@ -1,0 +1,96 @@
+:host {
+  display: inline-flex;
+}
+
+.app-checkbox-container {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  user-select: none;
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  line-height: 1.5;
+}
+
+/* Hide native checkbox visually but keep accessible */
+.native-checkbox {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}
+
+/* Custom Control */
+.checkbox-control {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.25rem; /* 20px */
+  height: 1.25rem;
+  border: 2px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  background-color: var(--bg-surface);
+  transition: all 0.2s ease;
+  color: white;
+}
+
+/* Hover */
+.app-checkbox-container:hover:not(.disabled) .checkbox-control {
+  border-color: var(--primary-400);
+}
+
+/* Checked State */
+.checkbox-control.checked {
+  background-color: var(--primary-500);
+  border-color: var(--primary-500);
+}
+
+/* Indeterminate State */
+.checkbox-control.indeterminate {
+  background-color: var(--primary-500);
+  border-color: var(--primary-500);
+}
+
+/* Focus styles via native input focus-visible */
+.native-checkbox:focus-visible + .checkbox-control {
+  box-shadow: 0 0 0 2px var(--bg-surface), 0 0 0 4px var(--primary-500);
+}
+
+/* Disabled State */
+.app-checkbox-container.disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.app-checkbox-container.disabled .checkbox-control {
+  background-color: var(--bg-surface-secondary);
+  border-color: var(--border-subtle);
+}
+
+.app-checkbox-container.disabled .checkbox-control.checked {
+  background-color: var(--text-tertiary); /* Greyed out checked */
+  border-color: var(--text-tertiary);
+}
+
+/* Icons/Marks */
+.indeterminate-mark {
+  width: 0.625rem; /* 10px */
+  height: 2px;
+  background-color: currentColor;
+  border-radius: 1px;
+}
+
+.checkbox-icon {
+  display: flex; /* Ensures SVG centers exactly */
+}
+
+/* Content sizing */
+.label-text {
+  padding-top: 1px; /* Visual alignment fix */
+}

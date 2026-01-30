@@ -1,0 +1,21 @@
+:host {
+  position: fixed;
+  z-index: 10000; /* Fallback if var not defined */
+  z-index: var(--z-tooltip, 10000);
+  background-color: var(--surface-tooltip, #1e293b);
+  color: var(--text-inverse, #ffffff);
+  padding: 0.5rem 0.75rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  pointer-events: none;
+  opacity: 0;
+  transform: scale(0.95);
+  transition: opacity 0.15s ease, transform 0.15s ease;
+  white-space: nowrap;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+
+  &.visible {
+    opacity: 1;
+    transform: scale(1);
+  }
+}

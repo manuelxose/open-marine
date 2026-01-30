@@ -63,3 +63,5 @@ export const environment = {
   - Bad: > 10 seconds
 - Low depth alarms trigger below 3.0 m and clear above 3.5 m.
 - Acknowledged alarms remain visible until depth clears the hysteresis band.
+- Ownship updates are detected using the Signal K `self` context (hello message). Contexts
+  that match `self`, `vessels.self`, or the server-provided self id are treated as ownship.

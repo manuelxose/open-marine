@@ -1,184 +1,9 @@
-/* Google Fonts - commented out due to build environment restrictions, fallback fonts will be used */
+@use 'app/shared/styles' as *;
+
+/* Google Fonts - commented out due to build environment restrictions */
 /* @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap'); */
 
-:root {
-  /* Daylight / Bright Conditions */
-  --bg: #eceff4;
-  --surface-0: #eceff4;
-  --surface-1: #ffffff;
-  --surface-2: #d8dee9;
-  --surface-3: #e5e9f0;
-  
-  --border: #d8dee9;
-  --border-strong: #c0c8d6;
-  
-  --shadow: 0 4px 12px rgba(46, 52, 64, 0.08);
-  --shadow-lg: 0 10px 30px rgba(46, 52, 64, 0.12);
-
-  --text-1: #2e3440; /* Nord Polar Night - Darkest */
-  --text-2: #4c566a; /* Nord Polar Night - Lighter */
-  --text-3: #949aab;
-  
-  --muted: #6b7b8f;
-  --fg: var(--text-1);
-
-  /* Tactical/Marine Colors */
-  --accent: #0077be;    /* Ocean Blue */
-  --accent-light: #5e81ac;
-  --accent-dark: #005f96;
-  
-  --success: #059669;   /* Emerald Green used for 'OK' states */
-  --success-bg: #d1fae5;
-  
-  --warn: #d97706;      /* Amber for warnings */
-  --warn-bg: #fef3c7;
-  
-  --danger: #dc2626;    /* Red for critical alarms */
-  --danger-bg: #fee2e2;
-
-  --ok: var(--success);
-
-  --radius: 8px;        /* Tighter radius for technical feel */
-  --radius-sm: 4px;
-  --radius-lg: 12px;
-
-  --font-family: 'Space Grotesk', system-ui, -apple-system, sans-serif;
-  --font-mono: 'JetBrains Mono', 'Roboto Mono', monospace;
-
-  --card-bg: var(--surface-1);
-  --card-border: var(--border);
-  
-  /* Subtle mesh gradient for depth without distraction */
-  --bg-gradient: linear-gradient(to bottom right, #eceff4, #e5e9f0);
-}
-
-[data-theme='night'] {
-  /* Night Mode / Red Light optimized options could go here, for now Dark Tactical */
-  --bg: #1c1f26;        /* Deep technical gray/black */
-  --surface-0: #1c1f26;
-  --surface-1: #232730;
-  --surface-2: #2e3440;
-  --surface-3: #3b4252;
-  
-  --border: #2e3440;
-  --border-strong: #434c5e;
-  
-  --shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
-  --shadow-lg: 0 10px 40px rgba(0, 0, 0, 0.6);
-
-  --text-1: #e5e9f0;
-  --text-2: #d8dee9;
-  --text-3: #81a1c1;
-  
-  --muted: #4c566a;
-  --fg: var(--text-1);
-
-  --accent: #5e81ac;    /* Muted Blue for night */
-  --accent-light: #81a1c1;
-  --accent-dark: #4c566a;
-  
-  --success: #22c55e;
-  --success-bg: rgba(34, 197, 94, 0.1);
-  
-  --warn: #f59e0b;
-  --warn-bg: rgba(245, 158, 11, 0.1);
-  
-  --danger: #ef4444;
-  --danger-bg: rgba(239, 68, 68, 0.1);
-  
-  --ok: var(--success);
-
-  --bg-gradient: linear-gradient(to bottom right, #1c1f26, #161920);
-}
-
-* {
-  box-sizing: border-box;
-}
-
-body {
-  margin: 0;
-  font-family: var(--font-family);
-  font-variant-numeric: tabular-nums;
-  background-color: var(--bg);
-  background-image: var(--bg-gradient);
-  background-attachment: fixed;
-  color: var(--text-1);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  overflow: hidden;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-h1, h2, h3, h4, h5 {
-  margin: 0;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  color: var(--text-1);
-}
-
-p {
-  margin: 0;
-  line-height: 1.5;
-}
-
-button {
-  font-family: inherit;
-}
-
-/* Utility Classes */
-.text-muted { color: var(--text-3) !important; }
-.text-accent { color: var(--accent) !important; }
-.text-danger { color: var(--danger) !important; }
-.text-warn { color: var(--warn) !important; }
-.text-success { color: var(--success) !important; }
-
-.bg-surface-1 { background-color: var(--surface-1); }
-.bg-surface-2 { background-color: var(--surface-2); }
-
-.flex { display: flex; }
-.flex-col { display: flex; flex-direction: column; }
-.justify-between { justify-content: space-between; }
-.justify-center { justify-content: center; }
-.items-center { align-items: center; }
-.gap-2 { gap: 0.5rem; }
-.gap-4 { gap: 1rem; }
-.p-2 { padding: 0.5rem; }
-.p-4 { padding: 1rem; }
-.grow { flex-grow: 1; }
-.w-full { width: 100%; }
-.h-full { height: 100%; }
-
-/* Custom Scrollbar for marine interfaces (easier to grab) */
-::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
-}
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-::-webkit-scrollbar-thumb {
-  background: var(--surface-3);
-  border-radius: 5px;
-  border: 2px solid var(--surface-1);
-}
-::-webkit-scrollbar-thumb:hover {
-  background: var(--text-3);
-}
-
-/* Card Common Style */
-.card {
-  background: var(--card-bg);
-  border: 1px solid var(--card-border);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
-  overflow: hidden;
-}
-
-.w-full { width: 100%; }
-.h-full { height: 100%; }
-
-.grid { display: grid; }
-.grid-cols-2 { grid-template-columns: repeat(2, 1fr); }
+// Specific App Layout Styles that don't fit in generic utilities yet
 
 .instrument-grid {
   display: grid;
@@ -193,15 +18,6 @@ button {
   .instrument-grid {
     grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   }
-}
-
-button, a {
-  min-height: 44px;
-  min-width: 44px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
 }
 
 body.compact-mode {
@@ -222,3 +38,5 @@ body.compact-mode {
     font-size: clamp(1.4rem, 4vw, 2.4rem) !important;
   }
 }
+
+.modal-open { overflow: hidden; }

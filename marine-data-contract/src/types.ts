@@ -12,6 +12,8 @@ export interface SourceRef {
 }
 
 export interface DataPoint<T> {
+  // Signal K context (e.g., "vessels.self" or "vessels.urn:mrn:imo:mmsi:123456789")
+  context?: string;
   path: SignalKPath;
   value: T;
   timestamp: Timestamp;

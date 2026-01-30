@@ -1,0 +1,80 @@
+.instruments-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.instrument-item {
+  position: relative;
+}
+
+.drag-handle {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 2;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: rgba(15, 23, 42, 0.65);
+  color: var(--text-primary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+}
+
+.drag-handle:active {
+  cursor: grabbing;
+}
+
+.cdk-drag-preview {
+  border-radius: 12px;
+  box-shadow: 0 16px 32px rgba(15, 23, 42, 0.2);
+}
+
+.cdk-drag-placeholder {
+  opacity: 0.4;
+}
+
+.cdk-drag-animating {
+  transition: transform 160ms ease;
+}
+
+.configure-btn {
+  margin-top: 1rem;
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-primary);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.configure-btn:active {
+  transform: translateY(1px);
+}
+
+@media (max-width: 720px) {
+  .instruments-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .drag-handle {
+    width: 40px;
+    height: 40px;
+    top: 8px;
+    right: 8px;
+  }
+
+  .configure-btn {
+    padding: 0.85rem 1rem;
+  }
+}

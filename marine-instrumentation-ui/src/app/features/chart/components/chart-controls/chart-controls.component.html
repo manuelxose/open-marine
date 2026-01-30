@@ -1,28 +1,88 @@
-<div class="controls">
-  <div class="toggle-panel">
-    <button class="toggle" [class.active]="vm.autoCenter" (click)="onToggleAutoCenter()">
-      <span class="toggle-label">{{ 'chart.controls.auto_center' | translate }}</span>
-      <span class="toggle-state">{{ (vm.autoCenter ? 'chart.controls.on' : 'chart.controls.off') | translate }}</span>
+<div class="chart-controls">
+  <div class="control-group">
+    <!-- Track Toggle -->
+    <button 
+      class="control-btn" 
+      [class.active]="vm.showTrack" 
+      (click)="onToggleTrack()"
+      title="{{ 'chart.controls.track' | translate }}"
+      [attr.aria-label]="'chart.controls.track' | translate"
+    >
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+        <polyline points="22 4 12 14.01 9 11.01"></polyline>
+      </svg>
     </button>
-    <button class="toggle" [class.active]="vm.showTrack" (click)="onToggleTrack()">
-      <span class="toggle-label">{{ 'chart.controls.track' | translate }}</span>
-      <span class="toggle-state">{{ (vm.showTrack ? 'chart.controls.on' : 'chart.controls.off') | translate }}</span>
+
+    <!-- Vector Toggle -->
+    <button 
+      class="control-btn" 
+      [class.active]="vm.showVector" 
+      (click)="onToggleVector()"
+      title="{{ 'chart.controls.vector' | translate }}"
+      [attr.aria-label]="'chart.controls.vector' | translate"
+    >
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="12" y1="19" x2="12" y2="5"></line>
+        <polyline points="5 12 12 5 19 12"></polyline>
+      </svg>
     </button>
-    <button class="toggle" [class.active]="vm.showVector" (click)="onToggleVector()">
-      <span class="toggle-label">{{ 'chart.controls.vector' | translate }}</span>
-      <span class="toggle-state">{{ (vm.showVector ? 'chart.controls.on' : 'chart.controls.off') | translate }}</span>
+
+    <!-- True Wind Toggle -->
+    <button 
+      class="control-btn" 
+      [class.active]="vm.showTrueWind" 
+      (click)="onToggleTrueWind()"
+      title="{{ 'chart.controls.true_wind' | translate }}"
+      [attr.aria-label]="'chart.controls.true_wind' | translate"
+    >
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M9.59 4.59A2 2 0 1 1 11 8H2m10.59 11.41A2 2 0 1 0 14 16H2m15.73-8.27A2.5 2.5 0 1 1 19.5 12H2"></path>
+      </svg>
     </button>
-    <button class="toggle" [class.active]="vm.showTrueWind" (click)="onToggleTrueWind()">
-      <span class="toggle-label">{{ 'chart.controls.true_wind' | translate }}</span>
-      <span class="toggle-state">{{ (vm.showTrueWind ? 'chart.controls.on' : 'chart.controls.off') | translate }}</span>
-    </button>
-    <button class="toggle" [class.active]="vm.sourceId === 'satellite'" (click)="onToggleLayer()">
-      <span class="toggle-label">{{ 'chart.controls.layer' | translate }}</span>
-      <span class="toggle-state">{{ (vm.sourceId === 'satellite' ? 'chart.controls.satellite' : 'chart.controls.map') | translate }}</span>
+
+    <!-- Range Rings Toggle -->
+    <button 
+      class="control-btn" 
+      [class.active]="vm.showRangeRings" 
+      (click)="onToggleRangeRings()"
+      title="{{ 'chart.controls.range_rings' | translate }}"
+      [attr.aria-label]="'chart.controls.range_rings' | translate"
+    >
+       <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+         <circle cx="12" cy="12" r="10"></circle>
+         <circle cx="12" cy="12" r="6"></circle>
+         <circle cx="12" cy="12" r="2"></circle>
+       </svg>
     </button>
   </div>
 
-  <button class="center-btn" (click)="onCenterOnBoat()" [disabled]="!vm.canCenter">
-    {{ 'chart.controls.center_boat' | translate }}
-  </button>
+  <div class="range-rings-panel" *ngIf="vm.showRangeRings">
+    <div class="panel-header">
+      <span class="panel-title">{{ 'chart.controls.range_rings' | translate }}</span>
+      <div class="preset-chips">
+        <button class="chip" type="button" (click)="applyPreset([0.1, 0.25, 0.5])">{{ 'chart.controls.range_rings_preset_harbor' | translate }}</button>
+        <button class="chip" type="button" (click)="applyPreset([0.5, 1, 2])">{{ 'chart.controls.range_rings_preset_coastal' | translate }}</button>
+      </div>
+    </div>
+
+    <label class="input-label" for="range-rings-input">{{ 'chart.controls.range_rings_label' | translate }}</label>
+    <div class="input-row">
+      <input
+        id="range-rings-input"
+        type="text"
+        [value]="intervalsText"
+        (input)="onIntervalsInput($any($event.target).value)"
+        (keydown.enter)="applyIntervals()"
+        placeholder="{{ 'chart.controls.range_rings_placeholder' | translate }}"
+        aria-describedby="range-rings-hint"
+      />
+      <button class="apply-btn" type="button" (click)="applyIntervals()">
+        {{ 'chart.controls.apply' | translate }}
+      </button>
+    </div>
+    <div id="range-rings-hint" class="hint" [class.error]="!!error">
+      {{ (error ? error : 'chart.controls.range_rings_hint') | translate }}
+    </div>
+  </div>
 </div>

@@ -1,6 +1,9 @@
 import { Injectable, inject } from '@angular/core';
+import { toObservable } from '@angular/core/rxjs-interop';
 import { BehaviorSubject, auditTime, combineLatest, firstValueFrom, map, scan, shareReplay, startWith, timer } from 'rxjs';
 import { DatapointStoreService } from '../../../state/datapoints/datapoint-store.service';
+import { AisStoreService } from '../../../state/ais/ais-store.service';
+import type { FeatureCollection, Point } from 'geojson';
 import {
   isPositionValue,
   selectAwa,
@@ -25,6 +28,7 @@ import type {
   ChartPosition,
   ChartWaypointListVm,
   ChartWaypointVm,
+  MapOrientation,
 } from '../types/chart-vm';
 import { ChartSettingsService } from './chart-settings.service';
 import { WaypointService, type Waypoint } from './waypoint.service';
@@ -40,6 +44,8 @@ import {
   projectDestination,
   toDegrees,
 } from '../../../state/calculations/navigation';
+import type { CpaLinesFeatureCollection } from '../types/chart-geojson';
+import { LineString } from 'geojson';
 
 const DEFAULT_CENTER: ChartPosition = { lat: 42.2406, lon: -8.7207 };
 const FIX_THRESHOLD_MS = 2000;
@@ -130,9 +136,136 @@ const fixStateLabel = (state: ChartFixState): string => {
 })
 export class ChartFacadeService {
   private readonly store = inject(DatapointStoreService);
+  private readonly aisStore = inject(AisStoreService);
   private readonly settingsService = inject(ChartSettingsService);
   private readonly waypointService = inject(WaypointService);
   private readonly routeService = inject(RouteService);
+  private readonly _orientation$ = new BehaviorSubject<MapOrientation>('north-up');
+  readonly orientation$ = this._orientation$.asObservable();
+
+  toggleOrientation(): void {
+    const current = this._orientation$.value;
+    this._orientation$.next(current === 'north-up' ? 'course-up' : 'north-up');
+  }
+
+  readonly aisTargetsGeoJson$ = toObservable(this.aisStore.targets).pipe(
+    map((targetsMap) => {
+      const features: any[] = [];
+      for (const t of targetsMap.values()) {
+        if (!t.latitude || !t.longitude) continue;
+
+        features.push({
+          type: 'Feature',
+          geometry: {
+            type: 'Point',
+            coordinates: [t.longitude, t.latitude],
+          },
+          properties: {
+            mmsi: t.mmsi,
+            heading: toDegrees(t.heading ?? t.cog ?? 0),
+            status: t.isDangerous ? 'dangerous' : 'normal',
+            name: t.name ?? t.mmsi,
+          },
+        });
+      }
+      return {
+        type: 'FeatureCollection',
+        features,
+      } as FeatureCollection<Point>;
+    }),
+    shareReplay({ bufferSize: 1, refCount: true }),
+  );
+
+  readonly cpaLinesGeoJson$ = combineLatest([
+    toObservable(this.aisStore.dangerousTargets),
+    selectPosition(this.store),
+    selectSog(this.store),
+    selectCog(this.store)
+  ]).pipe(
+      map(([targets, ownPos, ownSog, ownCog]) => {
+          const features: any[] = [];
+          if (!ownPos || typeof ownSog !== 'number' || typeof ownCog !== 'number' || !ownPos.timestamp) {
+              return { type: 'FeatureCollection', features: [] } as CpaLinesFeatureCollection;
+          }
+
+          // Use position, speed, cog to project
+          for (const t of targets) {
+              if (t.tcpa !== undefined && t.tcpa !== null && Math.abs(t.tcpa) < 120 * 60) { // Limit huge projections
+                 // tcpa is seconds. cpa.ts says tCpa is seconds? 
+                 // Wait, ais-store: TCPA_WARNING_SECONDS = 20 * 60.
+                 // calculateCpa returns tCpa in seconds.
+                 
+                 const tCpaSeconds = t.tcpa;
+                 // It can be negative if passed?
+                 if (tCpaSeconds < -60) continue; // Don't show old lines too long
+                 
+                 // Project Own Ship
+                 // SOG is m/s in store? No knots usually.
+                 // Store types: value is T. 
+                 // marine-data-contract says SOG is m/s usually in SignalK, but we might have converted?
+                 // Let's assume SignalK m/s as per contract.
+                 
+                 // However, projectDestination takes DISTANCE in METERS.
+                 // Distance = speed(m/s) * time(s).
+                 
+                 // We need to confirm units.
+                 // DatapointStore maps raw values. Simulator sends 3.2 (knots? m/s?).
+                 // Simulator: sog: 3.2. Contract doesn't enforce unit but SI is standard.
+                 // 3.2 m/s ~ 6 knots. Reasonable.
+                 // Let's assume m/s.
+                 
+                 const ownDist = Math.max(0, ownSog * tCpaSeconds);
+                 const ownCpaPos = projectDestination(
+                     { lat: ownPos.value.latitude, lon: ownPos.value.longitude }, 
+                     toDegrees(ownCog), // projectDestination takes Degrees
+                     ownDist
+                 );
+
+                 // Project Target
+                 if (typeof t.sog === 'number' && typeof t.cog === 'number' && t.latitude && t.longitude) {
+                     const targetDist = Math.max(0, t.sog * tCpaSeconds);
+                     const targetCpaPos = projectDestination(
+                         { lat: t.latitude, lon: t.longitude },
+                         toDegrees(t.cog),
+                         targetDist
+                     );
+
+                     // Line connecting future positions (The "Miss Distance" geometry)
+                     features.push({
+                         type: 'Feature',
+                         geometry: {
+                             type: 'LineString',
+                             coordinates: [
+                                 [ownCpaPos.lon, ownCpaPos.lat],
+                                 [targetCpaPos.lon, targetCpaPos.lat]
+                             ]
+                         },
+                         properties: {}
+                     });
+                     
+                     // Line connecting current positions (The "Hazard Link") - Optional?
+                     // Spec says "Linea a target peligroso".
+                     // Maybe a line from OwnShip -> Target?
+                     features.push({
+                         type: 'Feature',
+                         geometry: {
+                             type: 'LineString',
+                             coordinates: [
+                                 [ownPos.value.longitude, ownPos.value.latitude],
+                                 [t.longitude, t.latitude]
+                             ]
+                         },
+                         properties: {}
+                     });
+                 }
+              }
+          }
+          return { type: 'FeatureCollection', features } as CpaLinesFeatureCollection;
+      }),
+      startWith({ type: 'FeatureCollection', features: [] } as CpaLinesFeatureCollection),
+      shareReplay({ bufferSize: 1, refCount: true })
+  );
+
   private readonly tick$ = timer(0, 1000);
   private readonly position$ = selectPosition(this.store).pipe(shareReplay({ bufferSize: 1, refCount: true }));
   private readonly trackPoints$ = selectTrackPoints(this.store).pipe(
@@ -163,10 +296,10 @@ export class ChartFacadeService {
       if (ageMs <= FIX_THRESHOLD_MS) {
         return 'fix';
       }
-      if (ageMs > STALE_THRESHOLD_MS) {
+      if (ageMs <= STALE_THRESHOLD_MS) {
         return 'stale';
       }
-      return 'fix';
+      return 'no-fix';
     }),
     startWith('no-fix' as ChartFixState),
     shareReplay({ bufferSize: 1, refCount: true }),
@@ -275,7 +408,7 @@ export class ChartFacadeService {
         awaValue !== null ? normalizeDegrees(toDegrees(awaValue)) : null,
         0,
       );
-      const ageLabelValue = formatFixed(age ?? null, 0);
+      // const ageLabelValue = formatFixed(age ?? null, 0);
       const waypointBearing = formatFixed(waypoint?.bearingDeg ?? null, 0);
       const waypointDistance = formatFixed(waypoint?.distanceNm ?? null, 2);
 
@@ -297,6 +430,7 @@ export class ChartFacadeService {
         latLabel: position ? formatFixed(position.latitude, 4) : '--',
         lonLabel: position ? formatFixed(position.longitude, 4) : '--',
         rows,
+        canToggleAutopilot: true,
       } satisfies ChartHudVm;
     }),
     startWith({
@@ -306,6 +440,7 @@ export class ChartFacadeService {
       latLabel: '--',
       lonLabel: '--',
       rows: EMPTY_HUD_ROWS,
+      canToggleAutopilot: true,
     }),
     shareReplay({ bufferSize: 1, refCount: true }),
   );
@@ -314,11 +449,12 @@ export class ChartFacadeService {
     position: this.positionValue$,
     heading: this.heading$,
     cog: this.cog$,
+    fixState: this.fixState$,
   }).pipe(
     auditTime(200),
-    map(({ position, heading, cog }) => {
+    map(({ position, heading, cog, fixState }) => {
       if (!position) {
-        return { lngLat: null, rotationDeg: null };
+        return { lngLat: null, rotationDeg: null, state: fixState };
       }
 
       const headingRad = coerceNumber(heading?.value);
@@ -329,6 +465,7 @@ export class ChartFacadeService {
       return {
         lngLat: [position.longitude, position.latitude] as [number, number],
         rotationDeg,
+        state: fixState,
       };
     }),
     shareReplay({ bufferSize: 1, refCount: true }),
@@ -479,9 +616,49 @@ export class ChartFacadeService {
       showTrack: settings.showTrack,
       showVector: settings.showVector,
       showTrueWind: settings.showTrueWind,
+      showRangeRings: settings.showRangeRings,
+      rangeRingIntervals: settings.rangeRingIntervals,
       canCenter,
       sourceId: source.id,
     } satisfies ChartControlsVm)),
+    shareReplay({ bufferSize: 1, refCount: true }),
+  );
+
+  readonly rangeRingsUpdate$ = combineLatest({
+    position: this.positionValue$,
+    settings: this.settingsService.settings$,
+  }).pipe(
+    auditTime(200),
+    map(({ position, settings }) => {
+      if (!settings.showRangeRings || !position) {
+        return { center: null, intervals: [] as number[] };
+      }
+      return {
+        center: [position.longitude, position.latitude] as [number, number],
+        intervals: settings.rangeRingIntervals,
+      };
+    }),
+    shareReplay({ bufferSize: 1, refCount: true }),
+  );
+
+  readonly bearingLineUpdate$ = combineLatest({
+    position: this.positionValue$,
+    activeWaypoint: this.waypointService.activeWaypoint$,
+  }).pipe(
+    auditTime(200),
+    map(({ position, activeWaypoint }) => {
+      if (!position || !activeWaypoint) {
+        return { coords: [] as [number, number][], visible: false };
+      }
+
+      return {
+        coords: [
+          [position.longitude, position.latitude],
+          [activeWaypoint.lon, activeWaypoint.lat],
+        ] as [number, number][],
+        visible: true,
+      };
+    }),
     shareReplay({ bufferSize: 1, refCount: true }),
   );
 
@@ -510,6 +687,14 @@ export class ChartFacadeService {
 
   toggleTrueWind(): void {
     this.settingsService.toggleTrueWind();
+  }
+
+  toggleRangeRings(): void {
+    this.settingsService.toggleRangeRings();
+  }
+
+  setRangeRingIntervals(intervals: number[]): void {
+    this.settingsService.setRangeRingIntervals(intervals);
   }
 
   toggleLayer(): void {
