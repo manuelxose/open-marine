@@ -4,8 +4,8 @@
   left: 0;
   width: 100vw;
   height: 100vh;
-  background-color: rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(2px);
+  background-color: var(--overlay-backdrop);
+  backdrop-filter: var(--overlay-blur);
   z-index: 4000;
 }
 
@@ -71,7 +71,7 @@
 
 .close-btn:hover {
   color: var(--text-primary);
-  background-color: var(--bg-surface-tertiary);
+  background-color: var(--bg-hover);
 }
 
 .drawer-content {

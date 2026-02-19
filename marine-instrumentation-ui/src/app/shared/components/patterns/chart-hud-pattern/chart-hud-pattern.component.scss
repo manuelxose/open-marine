@@ -1,0 +1,152 @@
+:host {
+  display: block;
+  width: 100%;
+}
+
+.chart-hud-pattern {
+  --hud-accent: var(--text-secondary);
+  padding: 0.75rem;
+  border: 1px solid var(--border-default);
+  border-left: 3px solid var(--hud-accent);
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.chart-hud-pattern--fix {
+  --hud-accent: var(--success);
+}
+
+.chart-hud-pattern--stale {
+  --hud-accent: var(--warn);
+}
+
+.chart-hud-pattern--no-fix {
+  --hud-accent: var(--danger);
+}
+
+.chart-hud-pattern__header {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.6rem;
+  align-items: center;
+}
+
+.chart-hud-pattern__status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.chart-hud-pattern__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--hud-accent);
+  flex-shrink: 0;
+}
+
+.chart-hud-pattern__dot--pulse {
+  animation: chart-hud-pattern-pulse 1.3s ease-in-out infinite;
+}
+
+.chart-hud-pattern__status-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--hud-accent);
+}
+
+.chart-hud-pattern__age {
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+}
+
+.chart-hud-pattern__coords {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.chart-hud-pattern__coord {
+  margin: 0;
+  padding: 0.45rem 0.55rem;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface-secondary);
+}
+
+.chart-hud-pattern__coord-label {
+  margin: 0;
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
+}
+
+.chart-hud-pattern__coord-value {
+  margin: 0.2rem 0 0;
+  font-size: 0.8rem;
+  font-family: var(--font-mono);
+  color: var(--text-primary);
+}
+
+.chart-hud-pattern__data {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.chart-hud-pattern__item {
+  margin: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface-secondary);
+  padding: 0.4rem 0.5rem;
+}
+
+.chart-hud-pattern__item-label {
+  font-size: 0.64rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.chart-hud-pattern__item-value {
+  margin: 0;
+  font-size: 0.75rem;
+  font-family: var(--font-mono);
+  color: var(--text-primary);
+  font-weight: 700;
+}
+
+@keyframes chart-hud-pattern-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.2);
+    opacity: 0.55;
+  }
+}
+
+@media (max-width: 768px) {
+  .chart-hud-pattern__coords,
+  .chart-hud-pattern__data {
+    grid-template-columns: 1fr;
+  }
+}
+

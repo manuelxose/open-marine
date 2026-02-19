@@ -1,0 +1,154 @@
+:host {
+  display: block;
+  width: 100%;
+}
+
+.route-editor-pattern {
+  padding: 0.75rem;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.route-editor-pattern__header {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.6rem;
+  align-items: flex-end;
+}
+
+.route-editor-pattern__name-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.24rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.route-editor-pattern__label {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+}
+
+.route-editor-pattern__name-input {
+  min-height: 40px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface-secondary);
+  color: var(--text-primary);
+  padding: 0.45rem 0.55rem;
+  font-family: var(--font-mono);
+}
+
+.route-editor-pattern__mode-pill {
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid var(--border-default);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary);
+}
+
+.route-editor-pattern__list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.route-editor-pattern__item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.5rem;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  padding: 0.45rem 0.55rem;
+  background: var(--bg-surface-secondary);
+}
+
+.route-editor-pattern__index {
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--primary) 15%, transparent);
+  color: var(--primary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.route-editor-pattern__info {
+  min-width: 0;
+}
+
+.route-editor-pattern__name {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.route-editor-pattern__leg {
+  margin: 0.2rem 0 0;
+  color: var(--text-secondary);
+  font-size: 0.74rem;
+  font-family: var(--font-mono);
+}
+
+.route-editor-pattern__controls {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.route-editor-pattern__ctrl-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-default);
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.route-editor-pattern__ctrl-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.route-editor-pattern__empty {
+  min-height: 96px;
+  border: 1px dashed var(--border-default);
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  color: var(--text-secondary);
+}
+
+.route-editor-pattern__actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+@media (max-width: 768px) {
+  .route-editor-pattern__item {
+    grid-template-columns: 1fr;
+    align-items: flex-start;
+  }
+
+  .route-editor-pattern__controls {
+    justify-content: flex-end;
+    width: 100%;
+  }
+}

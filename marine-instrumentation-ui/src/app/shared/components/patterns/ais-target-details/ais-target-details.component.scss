@@ -1,0 +1,129 @@
+:host {
+  display: block;
+}
+
+// Header section
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.title {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.title-text {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.truncate {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+// Status icon (circular indicator)
+.status-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-surface-secondary, rgba(255,255,255,0.05));
+  color: var(--text-secondary);
+  flex-shrink: 0;
+
+  &.status-safe {
+    color: var(--success, #22c55e);
+  }
+  &.status-warning {
+    color: var(--warn, #f59e0b);
+  }
+  &.status-danger {
+    color: var(--danger, #ef4444);
+  }
+}
+
+// Status pill badge
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.25rem 0.75rem;
+  border-radius: 999px;
+  background: var(--bg-surface-secondary, rgba(255,255,255,0.05));
+  color: var(--text-secondary);
+  flex-shrink: 0;
+
+  &.status-safe {
+    color: var(--success, #22c55e);
+    background: rgba(34, 197, 94, 0.15);
+  }
+  &.status-warning {
+    color: var(--warn, #f59e0b);
+    background: rgba(245, 158, 11, 0.15);
+  }
+  &.status-danger {
+    color: var(--danger, #ef4444);
+    background: rgba(239, 68, 68, 0.15);
+  }
+}
+
+// Meta info row
+.meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid var(--border-subtle, rgba(255,255,255,0.1));
+}
+
+.meta-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+// Metrics grid
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem;
+  padding: 0.75rem;
+  border-radius: var(--radius-md, 8px);
+  background: var(--bg-surface-secondary, rgba(255,255,255,0.03));
+}
+
+.metric {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+
+  app-text[variant="value"] {
+    font-family: var(--font-mono, monospace);
+    font-weight: 600;
+  }
+}
+
+// Divider
+.divider {
+  height: 1px;
+  background-color: var(--border-subtle, rgba(255,255,255,0.1));
+}
+
+// Actions row
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}

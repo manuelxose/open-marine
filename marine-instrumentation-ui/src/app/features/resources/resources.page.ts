@@ -374,7 +374,7 @@ export class ResourcesPage {
       this.trackName = value;
   }
 
-  trackByTrackId(index: number, track: Track): string {
+  trackByTrackId(_index: number, track: Track): string {
       return track.id;
   }
 
@@ -402,7 +402,11 @@ export class ResourcesPage {
       if (!geometry || geometry.type !== 'Point' || !Array.isArray(geometry.coordinates)) {
           return null;
       }
-      const [longitude, latitude] = geometry.coordinates as number[];
+      const coords = geometry.coordinates as number[];
+      if (coords.length < 2) return null;
+      const longitude = coords[0];
+      const latitude = coords[1];
+      if (typeof latitude !== 'number' || typeof longitude !== 'number') return null;
       if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
           return null;
       }

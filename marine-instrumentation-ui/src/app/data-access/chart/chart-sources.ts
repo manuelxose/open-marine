@@ -60,11 +60,13 @@ export const CHART_SOURCES: ChartSourceDefinition[] = [
   },
 ];
 
+const DEFAULT_CHART_SOURCE = CHART_SOURCES[0]!;
+
 export const resolveChartSource = (id?: string): ChartSourceDefinition => {
   if (!id) {
-    return CHART_SOURCES[0];
+    return DEFAULT_CHART_SOURCE;
   }
-  return CHART_SOURCES.find((source) => source.id === id) ?? CHART_SOURCES[0];
+  return CHART_SOURCES.find((source) => source.id === id) ?? DEFAULT_CHART_SOURCE;
 };
 
 export const resolveChartStyle = (id?: string): StyleSpecification | string => {
@@ -75,5 +77,5 @@ export const resolveChartStyle = (id?: string): StyleSpecification | string => {
   if (source.styleUrl) {
     return source.styleUrl;
   }
-  return CHART_SOURCES[0].style ?? OSM_RASTER_STYLE;
+  return DEFAULT_CHART_SOURCE.style ?? OSM_RASTER_STYLE;
 };

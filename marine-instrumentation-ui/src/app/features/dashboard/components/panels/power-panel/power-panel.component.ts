@@ -16,7 +16,7 @@ import type { PowerPanelVm } from '../../../types/dashboard-vm';
 export class PowerPanelComponent {
   @Input({ required: true }) vm!: PowerPanelVm;
 
-  trackByMetric(index: number, item: PowerPanelVm['metrics'][number]): string {
+  trackByMetric(_index: number, item: PowerPanelVm['metrics'][number]): string {
     return item.label;
   }
 }

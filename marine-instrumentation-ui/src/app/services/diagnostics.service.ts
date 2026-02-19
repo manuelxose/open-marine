@@ -113,9 +113,9 @@ export class DiagnosticsService {
       ...entry,
       lastTimestampMs: point.timestamp,
       sourceLabel,
-      previousSourceLabel,
       sourceSwitchCount,
-      lastSwitchTimestampMs,
+      ...(previousSourceLabel !== undefined ? { previousSourceLabel } : {}),
+      ...(lastSwitchTimestampMs !== undefined ? { lastSwitchTimestampMs } : {}),
     };
 
     this.entries.set(path, updated);

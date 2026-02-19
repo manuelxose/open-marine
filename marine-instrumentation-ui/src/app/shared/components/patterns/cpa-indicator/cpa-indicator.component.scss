@@ -1,0 +1,88 @@
+:host {
+  display: block;
+  width: 100%;
+}
+
+.cpa-indicator {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.header > div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  background: var(--bg-surface-secondary);
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.65rem;
+  font-weight: 600;
+  white-space: nowrap;
+  min-width: 60px;
+  height: 24px;
+  box-sizing: border-box;
+}
+
+.status-safe {
+  color: #fff;
+  background: var(--success, #22c55e);
+}
+
+.status-warning {
+  color: #fff;
+  background: var(--warn, #f59e0b);
+}
+
+.status-danger {
+  color: #fff;
+  background: var(--danger, #ef4444);
+}
+
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  padding: 1rem;
+  border-radius: var(--radius-md);
+  background: var(--bg-surface-secondary);
+  border: 1px solid var(--border-subtle);
+}
+
+.metric {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+
+  app-text[variant="value"] {
+    font-weight: 700;
+    font-size: 1.25rem;
+    color: var(--text-primary);
+  }
+}
+
+:host-context(.compass-card) .cpa-indicator {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  border-radius: 0;
+  padding: 0;
+}

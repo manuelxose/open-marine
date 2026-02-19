@@ -1,0 +1,99 @@
+<div class="coordinate-input-container" [class.disabled]="disabled">
+  <div class="header">
+    <span class="label">{{ label }}</span>
+    @if (showMapButton) {
+      <app-icon-button 
+        icon="locate" 
+        label="Select from map"
+        variant="ghost" 
+        size="sm"
+        (action)="onMapClick()"
+        [disabled]="disabled">
+      </app-icon-button>
+    }
+  </div>
+
+  <div class="inputs-stack">
+    <!-- Latitude Row -->
+    <div class="coordinate-row">
+      <div class="coord-label">LAT</div>
+      
+      <div class="numeric-group">
+        <div class="field deg">
+          <input 
+            type="number" 
+            [ngModel]="latDeg()" 
+            (ngModelChange)="latDeg.set($event); onLatChange()"
+            [disabled]="disabled || readonly"
+            min="0" 
+            max="90"
+            step="1"
+          />
+          <span class="unit">°</span>
+        </div>
+        
+        <div class="field min">
+          <input 
+            type="number" 
+            [ngModel]="latMin()" 
+            (ngModelChange)="latMin.set($event); onLatChange()"
+            [disabled]="disabled || readonly"
+            min="0" 
+            max="59.999"
+            step="0.001"
+          />
+          <span class="unit">'</span>
+        </div>
+      </div>
+
+      <button 
+        class="cardinal-toggle" 
+        [class.active]="latCard() === 'N'"
+        (click)="toggleLatCard()"
+        [disabled]="disabled || readonly">
+        {{ latCard() }}
+      </button>
+    </div>
+
+    <!-- Longitude Row -->
+    <div class="coordinate-row">
+      <div class="coord-label">LON</div>
+      
+      <div class="numeric-group">
+        <div class="field deg">
+          <input 
+            type="number" 
+            [ngModel]="lonDeg()" 
+            (ngModelChange)="lonDeg.set($event); onLonChange()"
+            [disabled]="disabled || readonly"
+            min="0" 
+            max="180"
+            step="1"
+          />
+          <span class="unit">°</span>
+        </div>
+        
+        <div class="field min">
+          <input 
+            type="number" 
+            [ngModel]="lonMin()" 
+            (ngModelChange)="lonMin.set($event); onLonChange()"
+            [disabled]="disabled || readonly"
+            min="0" 
+            max="59.999"
+            step="0.001"
+          />
+          <span class="unit">'</span>
+        </div>
+      </div>
+
+      <button 
+        class="cardinal-toggle" 
+        [class.active]="lonCard() === 'E'"
+        (click)="toggleLonCard()"
+        [disabled]="disabled || readonly">
+        {{ lonCard() }}
+      </button>
+    </div>
+  </div>
+</div>

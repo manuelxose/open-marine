@@ -14,6 +14,7 @@ interface DepthView {
   age: number | null;
   source: string;
   percent: number;
+  barHeight: number; // For SVG
   isShallow: boolean;
 }
 
@@ -22,32 +23,7 @@ interface DepthView {
   standalone: true,
   imports: [CommonModule, InstrumentCardComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
-    <app-instrument-card
-      title="Depth"
-      [value]="'--'"
-      [quality]="view().quality"
-      [ageSeconds]="view().age"
-      [source]="view().source"
-    >
-      <div class="depth-gauge">
-        <div class="gauge-track">
-          <div
-            class="gauge-fill"
-            [class.shallow]="view().isShallow"
-            [style.height.%]="view().percent"
-          ></div>
-        </div>
-        <div class="depth-readout">
-          <span class="value">{{ view().depthValue }}</span>
-          <span class="unit">{{ view().depthUnit }}</span>
-        </div>
-      </div>
-      <div class="depth-threshold" *ngIf="shallowThreshold">
-        Shallow threshold: {{ shallowThreshold }} {{ unit }}
-      </div>
-    </app-instrument-card>
-  `,
+  templateUrl: './depth-gauge-widget.component.html',
   styleUrls: ['./depth-gauge-widget.component.scss'],
 })
 export class DepthGaugeWidgetComponent {
@@ -72,6 +48,7 @@ export class DepthGaugeWidgetComponent {
           age: null,
           source: '',
           percent: 0,
+          barHeight: 0,
           isShallow: false,
         } as DepthView;
       }
@@ -86,6 +63,9 @@ export class DepthGaugeWidgetComponent {
       const valueNum = Number(formatted.value);
       const percent = this.toPercent(valueNum);
       const threshold = this.shallowThreshold || 0;
+      
+      // Calculate SVG bar height (Max height 140px in SVG)
+      const barHeight = (percent / 100) * 140;
 
       return {
         depthValue: formatted.value,
@@ -94,6 +74,7 @@ export class DepthGaugeWidgetComponent {
         age,
         source: depthPoint.source,
         percent,
+        barHeight,
         isShallow: threshold > 0 && valueNum <= threshold,
       } as DepthView;
     })
@@ -107,6 +88,7 @@ export class DepthGaugeWidgetComponent {
       age: null,
       source: '',
       percent: 0,
+      barHeight: 0,
       isShallow: false,
     },
   });

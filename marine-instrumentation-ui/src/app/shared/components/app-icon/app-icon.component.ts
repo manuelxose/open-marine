@@ -8,16 +8,19 @@ export type IconName =
   | 'speedometer' | 'depth' | 'wind' | 'wind-arrow' | 'battery' | 'thermometer' | 'barometer'
   // Actions
   | 'play' | 'pause' | 'stop' | 'forward' | 'backward' | 'zoom-in' | 'zoom-out' | 'center' | 'layers'
-  | 'edit' | 'trash' | 'locate' | 'target' | 'activity'
+  | 'edit' | 'trash' | 'locate' | 'target' | 'activity' | 'maximize' | 'minimize'
   // UI
-  | 'menu' | 'close' | 'check' | 'warning' | 'error' | 'info' | 'settings' | 'search' | 'filter' | 'more-vertical' | 'x'
+  | 'menu' | 'close' | 'check' | 'warning' | 'error' | 'info' | 'settings' | 'search' | 'calendar_today' | 'schedule' | 'filter' | 'more-vertical' | 'x'
+  | 'home'
   // Alarms
-  | 'alarm' | 'mob' | 'anchor-watch' | 'shallow' | 'collision' | 'alert-triangle'
+  | 'alarm' | 'mob' | 'anchor-watch' | 'shallow' | 'collision' | 'alert-triangle' | 'alert-octagon' | 'life-buoy'
   // Communication
   | 'ais' | 'radio' | 'satellite'
   // Controls
   | 'plus' | 'minus' | 'chevron-up' | 'chevron-down' | 'chevron-left' | 'chevron-right'
-  | 'arrow-up' | 'arrow-down' | 'arrow-left' | 'arrow-right' | 'navigation' | 'crosshair';
+  | 'arrow-up' | 'arrow-down' | 'arrow-left' | 'arrow-right' | 'navigation' | 'crosshair'
+  // Theme
+  | 'sun' | 'moon';
 
 @Component({
   selector: 'app-icon',
@@ -58,7 +61,19 @@ export class AppIconComponent {
 
   @Input()
   set size(value: number | string) {
-    this._size.set(Number(value));
+    const parsed = Number(value);
+    if (!isNaN(parsed) && value !== '') {
+      this._size.set(parsed);
+    } else if (typeof value === 'string') {
+      const sizes: Record<string, number> = {
+        'xs': 12,
+        'sm': 16,
+        'md': 24,
+        'lg': 32,
+        'xl': 48
+      };
+      this._size.set(sizes[value] ?? 24);
+    }
   }
 
   @Input()

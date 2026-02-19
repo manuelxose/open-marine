@@ -84,7 +84,7 @@ export class AppSliderComponent implements ControlValueAccessor {
     return ((val - min) / (max - min)) * 100;
   }
 
-  onChange = (value: number) => {};
+  onChange = (_value: number) => {};
   onTouched = () => {};
 
   writeValue(value: number): void {

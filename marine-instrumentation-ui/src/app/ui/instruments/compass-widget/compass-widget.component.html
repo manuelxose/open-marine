@@ -1,0 +1,87 @@
+  <app-instrument-card
+      title="HEADING / COG"
+      [quality]="view().quality"
+      [ageSeconds]="view().age"
+      [source]="view().source"
+      class="marine-card"
+    >
+      <div class="compass-container">
+        
+        <svg viewBox="0 0 240 240" class="compass-svg">
+          <defs>
+            <linearGradient id="bezelGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#3a4b5c"/>
+              <stop offset="100%" stop-color="#182029"/>
+            </linearGradient>
+
+            <filter id="innerShadowCompass">
+              <feOffset dx="0" dy="2"/>
+              <feGaussianBlur stdDeviation="3" result="offset-blur"/>
+              <feComposite operator="out" in="SourceGraphic" in2="offset-blur" result="inverse"/>
+              <feFlood flood-color="black" flood-opacity="0.5" result="color"/>
+              <feComposite operator="in" in="color" in2="inverse" result="shadow"/>
+              <feComposite operator="over" in="shadow" in2="SourceGraphic"/>
+            </filter>
+
+            <filter id="glowNorth">
+               <feGaussianBlur stdDeviation="1.5" result="coloredBlur"/>
+               <feMerge>
+                <feMergeNode in="coloredBlur"/>
+                <feMergeNode in="SourceGraphic"/>
+               </feMerge>
+            </filter>
+          </defs>
+
+          <circle cx="120" cy="120" r="110" fill="#0b1116" stroke="url(#bezelGrad)" stroke-width="2"/>
+          
+          <g [style.transform]="'rotate(' + (-smoothHeading()) + 'deg)'" class="rotating-card">
+            
+            <g class="ticks-group">
+              <line *ngFor="let tick of ticks"
+                    [attr.transform]="'rotate(' + tick.angle + ' 120 120)'"
+                    x1="120" [attr.y1]="tick.major ? 20 : 25" 
+                    x2="120" [attr.y2]="tick.major ? 35 : 30"
+                    [class.major]="tick.major"
+                    [class.minor]="!tick.major"
+                    class="tick-mark" />
+            </g>
+
+            <g class="labels">
+              <text x="120" y="50" class="cardinal north" transform="rotate(0 120 120)">N</text>
+              <text x="120" y="50" class="cardinal" transform="rotate(90 120 120)">E</text>
+              <text x="120" y="50" class="cardinal" transform="rotate(180 120 120)">S</text>
+              <text x="120" y="50" class="cardinal" transform="rotate(270 120 120)">W</text>
+              
+              <ng-container *ngFor="let num of numbers">
+                 <text x="120" y="50" class="degree-num" 
+                       [attr.transform]="'rotate(' + num.angle + ' 120 120)'">
+                   {{ num.label }}
+                 </text>
+              </ng-container>
+            </g>
+
+            <g *ngIf="view().cog !== null" [attr.transform]="'rotate(' + view().cog + ' 120 120)'">
+               <path d="M120 12 L125 5 L115 5 Z" fill="#00e5ff" /> <circle cx="120" cy="14" r="3" fill="#00e5ff" />
+            </g>
+
+          </g> <g class="lubber-line">
+            <path d="M120 5 L128 25 L112 25 Z" fill="#ff9100" stroke="#0b1116" stroke-width="2" />
+            <line x1="120" y1="25" x2="120" y2="40" stroke="#ff9100" stroke-width="2" />
+          </g>
+
+          <g class="center-readout">
+            <circle cx="120" cy="120" r="38" fill="rgba(11, 17, 22, 0.8)" stroke="#3a4b5c" stroke-width="1"/>
+             
+             <text x="120" y="115" class="value-main">{{ view().headingStr }}</text>
+             <text x="120" y="132" class="unit-label">HEADING °T</text>
+             
+             <text x="120" y="145" class="cog-label" *ngIf="view().cog !== null">
+               COG: <tspan fill="#00e5ff">{{ view().cogStr }}</tspan>
+             </text>
+          </g>
+
+          <path d="M120 85 L124 95 L120 92 L116 95 Z" fill="#ff9100" opacity="0.8"/>
+
+        </svg>
+      </div>
+    </app-instrument-card>

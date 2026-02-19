@@ -131,8 +131,11 @@ export class RouteStoreService {
     let totalDistanceNm = 0;
 
     for (let i = 0; i < coordinates.length - 1; i++) {
-      const [fromLon, fromLat] = coordinates[i];
-      const [toLon, toLat] = coordinates[i + 1];
+      const from = coordinates[i];
+      const to = coordinates[i + 1];
+      if (!from || !to) continue;
+      const [fromLon, fromLat] = from;
+      const [toLon, toLat] = to;
       const nav = bearingDistanceNm({ lat: fromLat, lon: fromLon }, { lat: toLat, lon: toLon });
       totalDistanceNm += nav.distanceNm;
       legs.push({
@@ -169,6 +172,7 @@ export class RouteStoreService {
     for (const point of coords) {
       if (!Array.isArray(point) || point.length < 2) continue;
       const [lon, lat] = point as number[];
+      if (typeof lon !== 'number' || typeof lat !== 'number') continue;
       if (!Number.isFinite(lat) || !Number.isFinite(lon)) continue;
       line.push([lon, lat]);
     }

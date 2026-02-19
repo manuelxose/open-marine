@@ -16,7 +16,7 @@ import type { NavigationPanelVm } from '../../../types/dashboard-vm';
 export class NavigationPanelComponent {
   @Input({ required: true }) vm!: NavigationPanelVm;
 
-  trackByMetric(index: number, item: NavigationPanelVm['metrics'][number]): string {
+  trackByMetric(_index: number, item: NavigationPanelVm['metrics'][number]): string {
     return item.label;
   }
 }

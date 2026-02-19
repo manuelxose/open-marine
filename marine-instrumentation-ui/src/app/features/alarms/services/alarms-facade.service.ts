@@ -91,7 +91,7 @@ export class AlarmsFacadeService implements OnDestroy {
           // We want audio ONLY if there is at least one alarm in State.Active (not Ack, not Silenced)
           // (Unless Emergency, maybe that persists?)
         )
-        .subscribe(([severity, playbackActive]) => {
+        .subscribe(([, playbackActive]) => {
            if (playbackActive) {
              this.audioService.stop();
              return;

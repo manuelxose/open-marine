@@ -17,7 +17,7 @@ export class CriticalStripComponent {
 
   readonly placeholders = Array.from({ length: 6 });
 
-  trackByLabel(index: number, item: CriticalStripVm['items'][number]): string {
+  trackByLabel(_index: number, item: CriticalStripVm['items'][number]): string {
     return item.label;
   }
 

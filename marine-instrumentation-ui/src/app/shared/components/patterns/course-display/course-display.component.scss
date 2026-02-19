@@ -1,0 +1,62 @@
+:host {
+  display: block;
+}
+
+.course-display {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  width: 100%;
+}
+
+.main-value {
+  display: flex;
+  align-items: baseline;
+  gap: 0.25rem;
+}
+
+.unit-label {
+    text-transform: uppercase;
+}
+
+.separator {
+  height: 1px;
+  background: color-mix(in srgb, var(--border-default) 70%, transparent);
+  width: 100%;
+}
+
+.secondary-values {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+  width: 100%;
+
+  > * {
+    padding: 0.5rem 0.75rem;
+    border-radius: var(--radius-md);
+    background: var(--bg-surface-secondary);
+    border: 1px solid var(--border-subtle);
+  }
+}
+
+.label-row {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.unit {
+  font-size: 0.6em;
+  color: var(--text-secondary);
+  margin-left: 2px;
+  vertical-align: super;
+}
+
+:host-context(.compass-card) .course-display {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  border-radius: 0;
+  padding: 0;
+}

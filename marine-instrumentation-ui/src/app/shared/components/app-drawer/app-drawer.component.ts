@@ -117,7 +117,7 @@ export class AppDrawerComponent implements OnDestroy {
   ) {}
 
   @HostListener('document:keydown.escape', ['$event'])
-  onEscape(event: KeyboardEvent | Event) {
+  onEscape(_event: KeyboardEvent | Event) {
     if (this._isOpen()) {
       this.close.emit();
     }

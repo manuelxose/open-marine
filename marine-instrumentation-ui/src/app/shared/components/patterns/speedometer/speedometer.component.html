@@ -1,0 +1,51 @@
+<div class="speedometer" [style.width.px]="size" [style.height.px]="size">
+  <div class="speedometer__dial">
+    <!-- Arc Background (SVG) -->
+    <svg class="speedometer__arc" viewBox="0 0 200 200">
+      <!-- Background Track (270 deg) -->
+      <!-- M 30 170 A 100 100 0 1 1 170 170  (approximate path for 270 deg starting bottom left) -->
+      <!-- Let's calculate coords for -135 to +135. Center 100,100, Radius 80. -->
+      <!-- -135 deg: x = 100 + 80*sin(-135) = 100 - 56.5 = 43.5 -->
+      <!--           y = 100 - 80*cos(-135) = 100 + 56.5 = 156.5 -->
+      <!-- Wait, standard math: 0 is right (3 oclock). canvas/svg arc. -->
+      <path d="M 43.43 156.57 A 80 80 0 1 1 156.57 156.57" 
+            fill="none" 
+            stroke="var(--surface-ground)" 
+            stroke-width="12" 
+            stroke-linecap="round"/>
+            
+      <!-- Active Arc (Gradient?) -->
+      <!-- Hard to do dynamic arc length with path without calculating d string in component. -->
+      <!-- For now, we rely on Needle. -->
+    </svg>
+
+    <!-- Ticks -->
+    @for (tick of ticks; track tick.rotation) {
+      <div class="speedometer__tick" [style.transform]="'rotate(' + tick.rotation + 'deg)'">
+         <div class="tick-mark"></div>
+         @if (tick.label !== undefined) {
+           <div class="tick-label" [style.transform]="'rotate(' + (-tick.rotation) + 'deg)'">{{ tick.label }}</div>
+         }
+      </div>
+    }
+
+    <!-- Target Marker -->
+    @if (targetRotation !== null) {
+      <div class="speedometer__target" [style.transform]="'rotate(' + targetRotation + 'deg)'">
+        <div class="target-triangle"></div>
+      </div>
+    }
+
+    <!-- Needle -->
+    <div class="speedometer__needle-container" [style.transform]="'rotate(' + needleRotation + 'deg)'">
+      <div class="speedometer__needle"></div>
+    </div>
+    
+  </div>
+
+  <!-- Digital Readout -->
+  <div class="speedometer__readout">
+    <div class="value">{{ speed | number:'1.1-1' }}</div>
+    <div class="unit">{{ unit }}</div>
+  </div>
+</div>

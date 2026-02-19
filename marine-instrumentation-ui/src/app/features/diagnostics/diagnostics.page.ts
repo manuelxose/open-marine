@@ -2,7 +2,7 @@ import { Component, ChangeDetectionStrategy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { TranslatePipe } from '../../shared/pipes/translate.pipe';
-import { DiagnosticsFacadeService, type DiagnosticsRow } from './diagnostics-facade.service';
+import { DiagnosticsFacadeService } from './diagnostics-facade.service';
 
 @Component({
   selector: 'app-diagnostics-page',

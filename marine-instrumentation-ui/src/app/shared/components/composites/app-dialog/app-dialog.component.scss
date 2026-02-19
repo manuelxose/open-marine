@@ -1,0 +1,82 @@
+@use '../../../styles/tokens' as *;
+
+:host {
+  display: contents;
+}
+
+.dialog-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: var(--overlay-backdrop);
+  backdrop-filter: var(--overlay-blur);
+  z-index: var(--z-modal);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4);
+  animation: fadeIn 0.2s ease-out;
+}
+
+.dialog-box {
+  background-color: var(--bg-surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-xl);
+  width: 100%;
+  max-width: 440px;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border-default);
+  animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  overflow: hidden;
+  color: var(--text-primary);
+}
+
+.dialog-header {
+  padding: var(--space-5) var(--space-6) var(--space-2);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: var(--space-3);
+  
+  .dialog-icon {
+    margin-bottom: var(--space-1);
+  }
+}
+
+.dialog-body {
+  padding: var(--space-2) var(--space-6) var(--space-6);
+  text-align: center;
+  color: var(--text-secondary);
+}
+
+.dialog-actions {
+  padding: var(--space-4) var(--space-6);
+  background-color: var(--bg-surface-secondary);
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  border-top: 1px solid var(--border-default);
+  
+  // Mobile stack actions if needed or just keep flex
+  @media (max-width: 600px) {
+    flex-direction: column-reverse;
+    
+    ::ng-deep app-button, ::ng-deep button {
+      width: 100%;
+    }
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(20px) scale(0.95); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}

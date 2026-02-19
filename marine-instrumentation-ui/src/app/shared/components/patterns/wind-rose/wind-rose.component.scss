@@ -1,0 +1,186 @@
+:host {
+  display: block;
+}
+
+.wind-rose {
+  position: relative;
+  background: radial-gradient(
+    circle at 50% 50%,
+    color-mix(in srgb, var(--bg-surface) 96%, var(--primary) 4%) 0%,
+    var(--bg-surface) 55%,
+    color-mix(in srgb, var(--bg-surface-secondary) 85%, var(--bg-surface) 15%) 100%
+  );
+  border-radius: 50%;
+  border: 2px solid var(--border-default);
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
+  user-select: none;
+  --radius: calc(var(--size) / 2);
+
+  &__dial {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+  }
+
+  /* Port/Starboard sectors background */
+  &__sectors {
+    position: absolute;
+    top: 10%;
+    left: 10%;
+    width: 80%;
+    height: 80%;
+    border-radius: 50%;
+    background: conic-gradient(
+      transparent 0deg 270deg,
+      color-mix(in srgb, var(--danger) 12%, transparent) 270deg 360deg,
+      color-mix(in srgb, var(--success) 12%, transparent) 0deg 90deg,
+      transparent 90deg 270deg,
+      color-mix(in srgb, var(--danger) 12%, transparent) 270deg 360deg
+    );
+    z-index: 0;
+  }
+
+  &__boat {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 15%;
+    height: 30%;
+    transform: translate(-50%, -50%);
+    color: var(--text-tertiary);
+    z-index: 1;
+    opacity: 0.6;
+  }
+
+  &__tick {
+    position: absolute;
+    left: 50%;
+    top: 0;
+    height: 50%; /* reach center */
+    width: 0;
+    transform-origin: bottom center;
+    pointer-events: none;
+    z-index: 2;
+
+    &::after {
+        /* The actual tick mark */
+        content: '';
+        position: absolute;
+        top: 2px;
+        left: -1px;
+        width: 1px;
+        height: 6px;
+        background: var(--text-tertiary);
+    }
+
+    &--major::after {
+        width: 2px;
+        height: 10px;
+        left: -1px;
+        background: var(--text-secondary);
+    }
+  }
+
+  &__label {
+    position: absolute;
+    top: 14px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    font-weight: 600;
+  }
+
+  &__pointer {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    height: 50%;
+    width: 0;
+    transform-origin: bottom center;
+    transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+    will-change: transform;
+    z-index: 5;
+
+    &--apparent .arrow {
+      position: absolute;
+      top: 5px;
+      left: -8px;
+      width: 0;
+      height: 0;
+      border-left: 8px solid transparent;
+      border-right: 8px solid transparent;
+      border-top: 16px solid var(--info, #3b82f6);
+      filter: drop-shadow(0 2px 2px rgba(0,0,0,0.3));
+    }
+
+    &--true .arrow-hollow {
+      position: absolute;
+      top: 15px; /* Inset slightly */
+      left: -8px;
+      width: 0;
+      height: 0;
+      border-left: 8px solid transparent;
+      border-right: 8px solid transparent;
+      border-top: 16px solid var(--success, #22c55e);
+      opacity: 0.8;
+      
+      /* Make it look "hollow" or distinct - let's actually make it a donut or outlined arrow */
+      /* Border generic approach */
+      &::after {
+          content: '';
+          position: absolute;
+          top: -16px; 
+          left: -4px;
+          border-left: 4px solid transparent;
+          border-right: 4px solid transparent;
+          border-top: 8px solid var(--bg-surface);
+      }
+    }
+  }
+
+  &__data {
+    position: absolute;
+    padding: 0.25rem 0.5rem;
+    background: color-mix(in srgb, var(--bg-surface) 82%, transparent);
+    border: 1px solid var(--border-default);
+    backdrop-filter: blur(6px);
+    border-radius: var(--radius-sm);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    z-index: 10;
+    min-width: 60px;
+
+    .label {
+        font-size: 0.65rem;
+        color: var(--text-secondary);
+        font-weight: 700;
+    }
+    .value {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        line-height: 1;
+    }
+    .unit {
+        font-size: 0.65rem;
+        color: var(--text-tertiary);
+    }
+
+    &--app {
+        bottom: 15%;
+        left: 15%;
+        .value { color: var(--color-info-500); }
+    }
+
+    &--true {
+        bottom: 15%;
+        right: 15%;
+        .value { color: var(--color-success-500); }
+    }
+  }
+}

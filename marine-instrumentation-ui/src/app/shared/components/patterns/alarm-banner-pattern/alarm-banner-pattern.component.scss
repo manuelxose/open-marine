@@ -1,0 +1,147 @@
+:host {
+  display: block;
+  width: 100%;
+}
+
+.alarm-banner-pattern {
+  padding: 0.75rem;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.alarm-banner-pattern__content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.alarm-banner-pattern__main {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.alarm-banner-pattern__icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border-default);
+  background: var(--bg-surface-secondary);
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.alarm-banner-pattern__text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.alarm-banner-pattern__title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.alarm-banner-pattern__title {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.alarm-banner-pattern__state-pill {
+  padding: 0.15rem 0.45rem;
+  border-radius: 999px;
+  border: 1px solid var(--border-default);
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
+}
+
+.alarm-banner-pattern__message {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.alarm-banner-pattern__source {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.84rem;
+}
+
+.alarm-banner-pattern__actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+}
+
+.alarm-banner-pattern__empty {
+  min-height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+}
+
+.severity-warning {
+  border-color: color-mix(in srgb, var(--warn) 35%, var(--border-default));
+}
+
+.severity-warning .alarm-banner-pattern__icon {
+  color: var(--warn);
+}
+
+.severity-critical,
+.severity-emergency {
+  border-color: color-mix(in srgb, var(--danger) 45%, var(--border-default));
+}
+
+.severity-critical .alarm-banner-pattern__icon,
+.severity-emergency .alarm-banner-pattern__icon {
+  color: var(--danger);
+}
+
+.severity-emergency {
+  background: color-mix(in srgb, var(--danger) 7%, var(--bg-surface));
+}
+
+.state-active .alarm-banner-pattern__state-pill {
+  color: var(--danger);
+}
+
+.state-acknowledged .alarm-banner-pattern__state-pill {
+  color: var(--warn);
+}
+
+.state-silenced .alarm-banner-pattern__state-pill {
+  color: var(--text-secondary);
+}
+
+@media (max-width: 768px) {
+  .alarm-banner-pattern__content {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

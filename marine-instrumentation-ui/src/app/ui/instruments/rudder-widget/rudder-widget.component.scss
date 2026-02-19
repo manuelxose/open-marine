@@ -1,0 +1,144 @@
+// Glass Bridge Theme - Rudder
+$bg-color: #0b1116;
+$neon-blue: #00e5ff;
+$neon-red: #ff3d00;
+$neon-green: #00e676;
+$text-primary: #ffffff;
+$glass-bg: rgba(255, 255, 255, 0.03);
+$glass-border: 1px solid rgba(255, 255, 255, 0.08);
+
+:host {
+  display: block;
+  width: 100%;
+}
+
+.rudder-container {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
+  height: 100%;
+  padding: 0.5rem;
+}
+
+.scale-view {
+  width: 100%;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  .rudder-svg {
+    width: 100%;
+    max-height: 140px;
+    
+    // Track Background
+    .scale-track-bg {
+      fill: none;
+      stroke: rgba(255, 255, 255, 0.1);
+      stroke-width: 12;
+      stroke-linecap: round;
+    }
+
+    // Track Active Gradient
+    .scale-track {
+      fill: none;
+      stroke-width: 12;
+      stroke-linecap: round;
+      opacity: 0.9;
+    }
+
+    .ticks {
+      
+      .tick-mark {
+        stroke: rgba(255, 255, 255, 0.5);
+        stroke-width: 2;
+        
+        &.center-tick {
+          stroke: #ffffff;
+          stroke-width: 3;
+        }
+      }
+
+      .tick-label {
+        fill: rgba(255, 255, 255, 0.7);
+        font-size: 10px;
+        font-family: 'Space Mono', monospace;
+        text-anchor: middle;
+        
+        &.port-text { fill: $neon-red; opacity: 0.8; }
+        &.stbd-text { fill: $neon-green; opacity: 0.8; }
+      }
+    }
+
+    // Needle Styling
+    .indicator-group {
+      transform-origin: 100px 110px;
+      transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+
+      .needle-head {
+        fill: $neon-blue;
+        stroke: none;
+      }
+      
+      .needle-shaft {
+        stroke: $neon-blue;
+        stroke-width: 2;
+        stroke-dasharray: 4 2;
+        opacity: 0.8;
+      }
+
+      .needle-pivot {
+        fill: #ffffff;
+        stroke: $neon-blue;
+        stroke-width: 2;
+      }
+    }
+  }
+}
+
+.readout-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: -10px;
+  margin-bottom: 10px;
+  z-index: 2;
+
+  .digital-value {
+    font-size: 2.2rem;
+    font-weight: 700;
+    font-family: 'Space Mono', monospace;
+    color: $text-primary;
+    line-height: 1;
+    text-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+
+    &.port { color: $neon-red; text-shadow: 0 0 15px rgba($neon-red, 0.4); }
+    &.stbd { color: $neon-green; text-shadow: 0 0 15px rgba($neon-green, 0.4); }
+  }
+
+  .readout-label {
+    margin-top: 4px;
+    
+    .side-indicator {
+      font-size: 0.9rem;
+      font-weight: 600;
+      letter-spacing: 1px;
+      color: rgba(255, 255, 255, 0.5);
+      background: rgba(255, 255, 255, 0.05);
+      padding: 2px 8px;
+      border-radius: 4px;
+
+      &.active-port { 
+        color: #fff; 
+        background: rgba($neon-red, 0.3); 
+        border: 1px solid rgba($neon-red, 0.5);
+      }
+      &.active-stbd { 
+        color: #fff; 
+        background: rgba($neon-green, 0.3);
+        border: 1px solid rgba($neon-green, 0.5);
+      }
+    }
+  }
+}

@@ -139,7 +139,7 @@ export class WaypointListComponent {
   @Output() edit = new EventEmitter<string>();
   @Output() delete = new EventEmitter<string>();
 
-  trackById(index: number, item: Waypoint): string {
+  trackById(_index: number, item: Waypoint): string {
     return item.id;
   }
 }

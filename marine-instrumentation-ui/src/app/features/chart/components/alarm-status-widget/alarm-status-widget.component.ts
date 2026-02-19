@@ -14,15 +14,24 @@ import { AlarmSeverity } from '../../../../state/alarms/alarm.models';
       class="alarm-widget" 
       *ngIf="activeCount$ | async as count" 
       [class.has-alarms]="count > 0"
-      (click)="navigateToAlarms()">
-      
-      <div class="icon-container" [class.pulse]="count > 0">
-        <span class="icon">⚠️</span>
+      (click)="navigateToAlarms()"
+      role="button"
+      tabindex="0"
+      (keydown.enter)="navigateToAlarms()"
+    >
+      <div class="alarm-widget__indicator" [class.pulse]="count > 0">
+        <span class="alarm-widget__icon">⚠</span>
       </div>
       
-      <div class="content" *ngIf="count > 0">
-        <span class="count">{{ count }}</span>
-        <span class="label">ACTIVE</span>
+      <div class="alarm-widget__content" *ngIf="count > 0">
+        <span class="alarm-widget__count">{{ count }}</span>
+        <span class="alarm-widget__label">ACTIVE</span>
+      </div>
+      
+      <div class="alarm-widget__arrow" *ngIf="count > 0">
+        <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+          <path d="M3 1L7 5L3 9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
       </div>
     </div>
   `,
@@ -33,57 +42,106 @@ import { AlarmSeverity } from '../../../../state/alarms/alarm.models';
     }
 
     .alarm-widget {
-      background: rgba(30, 41, 59, 0.9);
-      backdrop-filter: blur(4px);
-      border: 1px solid var(--border-color, #334155);
-      border-radius: 24px;
-      padding: 8px 16px;
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: var(--space-2);
+      padding: var(--space-2) var(--space-3);
+      
+      background: var(--chart-overlay-bg);
+      backdrop-filter: var(--chart-overlay-blur);
+      border: 1px solid var(--chart-overlay-border);
+      border-radius: var(--radius-full);
+      box-shadow: var(--chart-overlay-shadow);
       cursor: pointer;
-      transition: all 0.3s ease;
-      box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+      transition: all var(--duration-fast) var(--ease-out);
+      
+      &:hover {
+        background: color-mix(in srgb, var(--bg-surface-secondary) 80%, transparent);
+        transform: translateY(-1px);
+        box-shadow: var(--chart-overlay-shadow), 0 4px 12px rgba(0, 0, 0, 0.08);
+      }
+      
+      &:active {
+        transform: translateY(0) scale(0.97);
+      }
 
       &.has-alarms {
-        background: rgba(239, 68, 68, 0.9); /* Red background for alerts */
-        border-color: #ef4444;
-        color: white;
-      }
+        background: color-mix(in srgb, var(--danger) 12%, var(--chart-overlay-bg));
+        border-color: color-mix(in srgb, var(--danger) 40%, var(--chart-overlay-border));
+        box-shadow: var(--chart-overlay-shadow), 0 0 24px -4px color-mix(in srgb, var(--danger) 25%, transparent);
 
-      &:active {
-        transform: scale(0.95);
+        &:hover {
+          background: color-mix(in srgb, var(--danger) 20%, var(--chart-overlay-bg));
+          box-shadow: var(--chart-overlay-shadow), 0 0 28px -2px color-mix(in srgb, var(--danger) 35%, transparent);
+        }
       }
     }
 
-    .icon-container {
-      font-size: 1.2rem;
+    .alarm-widget__indicator {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: color-mix(in srgb, var(--danger) 15%, transparent);
+      flex-shrink: 0;
+
       &.pulse {
-        animation: pulse 2s infinite;
+        animation: alarm-pulse 2s ease-in-out infinite;
       }
     }
 
-    .content {
+    .alarm-widget__icon {
+      font-size: 0.9rem;
+      line-height: 1;
+      filter: none;
+    }
+
+    .alarm-widget__content {
       display: flex;
       flex-direction: column;
       line-height: 1;
+      gap: 1px;
+    }
 
-      .count {
-        font-weight: 900;
-        font-size: 1.1rem;
-      }
+    .alarm-widget__count {
+      font-family: var(--font-mono);
+      font-weight: 800;
+      font-size: 1rem;
+      color: var(--danger);
+      letter-spacing: -0.02em;
+    }
 
-      .label {
-        font-size: 0.6rem;
-        font-weight: 700;
-        opacity: 0.9;
+    .alarm-widget__label {
+      font-size: 0.5rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      color: var(--text-muted);
+      text-transform: uppercase;
+    }
+
+    .alarm-widget__arrow {
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      margin-left: var(--space-1);
+      transition: transform var(--duration-fast);
+
+      .alarm-widget:hover & {
+        transform: translateX(2px);
       }
     }
 
-    @keyframes pulse {
-      0% { transform: scale(1); opacity: 1; }
-      50% { transform: scale(1.2); opacity: 0.8; }
-      100% { transform: scale(1); opacity: 1; }
+    @keyframes alarm-pulse {
+      0%, 100% { 
+        transform: scale(1);
+        box-shadow: 0 0 0 0 color-mix(in srgb, var(--danger) 25%, transparent);
+      }
+      50% { 
+        transform: scale(1.08);
+        box-shadow: 0 0 0 6px color-mix(in srgb, var(--danger) 0%, transparent);
+      }
     }
   `]
 })

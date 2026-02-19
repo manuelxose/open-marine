@@ -1,0 +1,132 @@
+:host {
+  display: block;
+  width: 100%;
+}
+
+.gpx-import-pattern {
+  padding: 0.75rem;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+
+.gpx-import-pattern__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.gpx-import-pattern__title {
+  margin: 0;
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.gpx-import-pattern__state {
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid var(--border-default);
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+
+.gpx-import-pattern__dropzone {
+  border: 1px dashed var(--border-default);
+  border-radius: var(--radius-md);
+  min-height: 130px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  background: var(--bg-surface-secondary);
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+.gpx-import-pattern__dropzone--dropping {
+  border-style: solid;
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.gpx-import-pattern__drop-text {
+  margin: 0;
+  font-size: 0.84rem;
+}
+
+.gpx-import-pattern__file-input {
+  display: none;
+}
+
+.gpx-import-pattern__error {
+  margin: 0;
+  color: var(--danger);
+  font-size: 0.78rem;
+}
+
+.gpx-import-pattern__preview {
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface-secondary);
+  padding: 0.6rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.gpx-import-pattern__file-name {
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.gpx-import-pattern__counts {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.45rem;
+}
+
+.gpx-import-pattern__count {
+  margin: 0;
+  padding: 0.4rem 0.45rem;
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+}
+
+.gpx-import-pattern__count dt {
+  margin: 0;
+  font-size: 0.68rem;
+  color: var(--text-secondary);
+}
+
+.gpx-import-pattern__count dd {
+  margin: 0.2rem 0 0;
+  font-size: 0.88rem;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.gpx-import-pattern__actions {
+  display: flex;
+  gap: 0.45rem;
+  justify-content: flex-end;
+}
+
+@media (max-width: 800px) {
+  .gpx-import-pattern__counts {
+    grid-template-columns: 1fr;
+  }
+}

@@ -1,0 +1,55 @@
+:host {
+  display: block;
+}
+
+.battery-gauge-container {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: radial-gradient(
+    circle at 50% 50%,
+    color-mix(in srgb, var(--bg-surface) 96%, var(--primary) 4%) 0%,
+    var(--bg-surface) 60%,
+    color-mix(in srgb, var(--bg-surface-secondary) 85%, var(--bg-surface) 15%) 100%
+  );
+  border-radius: 50%;
+  border: 2px solid var(--border-default);
+  box-shadow: var(--shadow-sm);
+}
+
+.dial {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.readout {
+  position: relative;
+  z-index: 2;
+  text-align: center;
+  background: color-mix(in srgb, var(--bg-surface) 82%, transparent);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  padding: 0.35rem 0.5rem;
+  backdrop-filter: blur(6px);
+}
+
+.label {
+    position: absolute;
+    font-size: 0.85rem;
+    font-weight: bold;
+    color: var(--text-secondary);
+}
+
+.label.empty {
+    bottom: 18%;
+    left: 20%;
+}
+
+.label.full {
+    bottom: 18%;
+    right: 20%;
+}

@@ -1,0 +1,124 @@
+// Glass Bridge Tanks
+$bg-color: #0b1116;
+$neon-blue: #00e5ff;
+$neon-red: #ff3d00;
+$neon-amber: #ffaad4; // Waste color? Or standard amber.
+$text-primary: #ffffff;
+$color-muted: #8b9bb4;
+
+:host {
+  display: block;
+  width: 100%;
+}
+
+.tanks-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+  gap: 10px;
+  width: 100%;
+}
+
+.tank-card {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  padding: 10px 5px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  
+  &.neon-border {
+     // subtle glow
+  }
+}
+
+.tank-title {
+  font-family: 'Roboto', sans-serif;
+  font-size: 0.7rem;
+  letter-spacing: 1px;
+  color: $color-muted;
+  margin-bottom: 8px;
+}
+
+.visual-area {
+  position: relative;
+  height: 140px;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.tank-svg {
+  height: 100%;
+  width: 100%; 
+  max-width: 50px;
+  overflow: visible;
+
+  .tube-bg {
+    fill: rgba(0,0,0,0.3);
+    stroke: rgba(255,255,255,0.1);
+    stroke-width: 1;
+  }
+
+  .fluid-rect {
+    transition: y 0.5s ease-out, height 0.5s ease-out;
+    
+    &.fuel { fill: $neon-blue; } // Diesel usually yellow/blue? Glass bridge uses Cyans.
+    &.water { fill: #00e676; } // Fresh water green or blue? Let's use Green for Water to differentiate from Fuel Blue? Or vice versa. Standard: Water Blue, Fuel Red?
+    // Let's stick to Glass Bridge palette:
+    // Fuel: Cyan #00e5ff
+    // Water: Green #00e676 (Safe)
+    // Waste: Amber/Orange #ff9100
+    // Gray: Slate/Grey #90a4ae
+    
+    &.fuel { fill: $neon-blue; }
+    &.water { fill: $neon-blue; filter: hue-rotate(90deg); } // Quick hack for green
+    &.waste { fill: #ff9100; }
+    &.gray { fill: #90a4ae; }
+  }
+  
+  .tick {
+    stroke: rgba(255,255,255,0.2);
+    stroke-width: 1;
+    &.major { stroke-width: 2; }
+  }
+}
+
+.tank-readout {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  text-shadow: 0 0 4px rgba(0,0,0,0.8);
+  pointer-events: none;
+
+  .value {
+    font-family: 'Courier New', monospace;
+    font-weight: 700;
+    font-size: 1.1rem;
+    color: #fff;
+    display: block;
+  }
+  .unit {
+    font-size: 0.6rem;
+    color: rgba(255,255,255,0.7);
+  }
+}
+
+.status-indicator {
+  margin-top: 8px;
+  font-size: 0.6rem;
+  color: $color-muted;
+  
+  &.alert {
+    color: $neon-red;
+    font-weight: 700;
+    animation: pulse 1s infinite;
+  }
+}
+
+@keyframes pulse {
+  0% { opacity: 0.5; }
+  100% { opacity: 1; text-shadow: 0 0 5px red; }
+}

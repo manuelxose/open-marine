@@ -1,0 +1,82 @@
+:host {
+  display: block;
+  width: 100%;
+}
+
+.wp-form-pattern {
+  padding: 0.8rem;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.wp-form-pattern__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.wp-form-pattern__title {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.wp-form-pattern__grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.wp-form-pattern__field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.wp-form-pattern__label {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+}
+
+.wp-form-pattern__control {
+  width: 100%;
+  min-height: 40px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface-secondary);
+  color: var(--text-primary);
+  padding: 0.45rem 0.55rem;
+  font-family: var(--font-mono);
+}
+
+.wp-form-pattern__control--textarea {
+  min-height: 90px;
+  resize: vertical;
+}
+
+.wp-form-pattern__error {
+  margin: 0;
+  color: var(--danger);
+  font-size: 0.76rem;
+}
+
+.wp-form-pattern__actions {
+  display: flex;
+  gap: 0.45rem;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 960px) {
+  .wp-form-pattern__grid {
+    grid-template-columns: 1fr;
+  }
+}

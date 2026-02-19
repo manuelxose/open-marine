@@ -227,7 +227,7 @@ export class RouteEditorComponent {
     this.reorder.emit({ previousIndex: event.previousIndex, currentIndex: event.currentIndex });
   }
 
-  trackById(index: number, item: RouteWaypoint): string {
+  trackById(_index: number, item: RouteWaypoint): string {
     return item.id;
   }
 }

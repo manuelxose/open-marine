@@ -1,0 +1,94 @@
+// Glass Bridge Theme - Engine RPM
+$bg-color: #0b1116;
+$neon-blue: #00e5ff;
+$neon-red: #ff3d00;
+$neon-green: #00e676;
+$text-primary: #ffffff;
+$color-muted: #8b9bb4;
+
+:host {
+  display: block;
+  width: 100%;
+}
+
+.rpm-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 220px;
+  background-color: $bg-color;
+  padding: 10px;
+}
+
+.gauge-svg {
+  width: 100%; // Responsive
+  max-width: 180px;
+  max-height: 180px;
+  overflow: visible;
+
+  .scale-track {
+    fill: none;
+    stroke: rgba(255, 255, 255, 0.1);
+    stroke-width: 16;
+    stroke-linecap: round;
+  }
+  
+  .decor-ring {
+    stroke: rgba(255, 255, 255, 0.05);
+  }
+
+  .scale-value {
+    fill: none;
+    stroke-width: 16;
+    stroke-linecap: round;
+    transition: stroke-dashoffset 0.5s ease-out;
+  }
+
+  .ticks {
+    text {
+      font-family: 'Roboto', sans-serif;
+      font-size: 10px;
+      fill: $color-muted;
+      text-anchor: middle;
+      font-weight: 500;
+      
+      &.redline-text {
+        fill: $neon-red;
+      }
+    }
+  }
+
+  .readout {
+    text-anchor: middle;
+    
+    .value {
+      font-family: 'Courier New', monospace;
+      font-weight: 700;
+      font-size: 32px;
+      fill: $text-primary;
+      filter: drop-shadow(0 0 5px rgba($neon-blue, 0.4));
+    }
+
+    .unit {
+      font-family: 'Roboto', sans-serif;
+      font-size: 10px;
+      fill: $color-muted;
+      letter-spacing: 1px;
+    }
+  }
+  
+  .needle-group {
+    transition: transform 0.5s cubic-bezier(0.4, 0.0, 0.2, 1);
+  }
+
+  .needle {
+    fill: $text-primary;
+    filter: drop-shadow(0 0 2px rgba(0,0,0,0.8));
+  }
+
+  .needle-center {
+    fill: $bg-color;
+    stroke: $text-primary;
+    stroke-width: 2;
+  }
+}

@@ -5,8 +5,13 @@ export type InstrumentWidgetType =
   | 'compass'
   | 'speed'
   | 'depth'
+  | 'depth-sonar'
   | 'wind'
+  | 'rudder'
+  | 'engine'
+  | 'tank'
   | 'battery'
+  | 'meteo'
   | 'gps'
   | 'clock';
 
@@ -23,8 +28,13 @@ const DEFAULT_WIDGETS: InstrumentWidget[] = [
   { id: 'compass', type: 'compass', size: 'md', visible: true },
   { id: 'speed', type: 'speed', size: 'md', visible: true },
   { id: 'depth', type: 'depth', size: 'md', visible: true },
+  { id: 'depth-sonar', type: 'depth-sonar', size: 'md', visible: true },
   { id: 'wind', type: 'wind', size: 'md', visible: true },
+  { id: 'rudder', type: 'rudder', size: 'md', visible: true },
+  { id: 'engine', type: 'engine', size: 'md', visible: true },
+  { id: 'tank', type: 'tank', size: 'md', visible: true },
   { id: 'battery', type: 'battery', size: 'sm', visible: true },
+  { id: 'meteo', type: 'meteo', size: 'md', visible: true },
   { id: 'gps', type: 'gps', size: 'sm', visible: true },
   { id: 'clock', type: 'clock', size: 'sm', visible: true },
 ];
@@ -65,6 +75,9 @@ export class InstrumentsFacadeService {
       return;
     }
     const [item] = widgets.splice(fromIndex, 1);
+    if (!item) {
+      return;
+    }
     widgets.splice(toIndex, 0, item);
     this.widgetsSubject.next(widgets);
   }

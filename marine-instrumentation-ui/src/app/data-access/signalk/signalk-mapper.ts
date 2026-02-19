@@ -13,13 +13,16 @@ export function normalizeDelta(delta: SignalKMessage): NormalizedDataPoint[] {
 
     for (const val of update.values) {
       if (!val.path) continue; // Some updates might be empty or meta
-      normalized.push({
-        context: delta.context,
+      const entry: NormalizedDataPoint = {
         path: val.path,
         value: val.value,
         timestamp: ts,
-        source: source
-      });
+        source: source,
+      };
+      if (delta.context) {
+        entry.context = delta.context;
+      }
+      normalized.push(entry);
     }
   }
   return normalized;

@@ -1,0 +1,49 @@
+@use '../../../styles/tokens' as *;
+
+:host {
+  display: block;
+}
+
+.date-range-container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+
+  &.disabled {
+    opacity: 0.6;
+    pointer-events: none;
+  }
+}
+
+.label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.pickers-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  
+  // Mobile stack
+  @media (max-width: 600px) {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-2);
+  }
+}
+
+.range-input {
+  flex: 1;
+}
+
+.separator {
+  color: var(--text-tertiary);
+  font-size: 0.875rem;
+  
+  @media (max-width: 600px) {
+    text-align: center;
+    font-size: 0.75rem;
+  }
+}

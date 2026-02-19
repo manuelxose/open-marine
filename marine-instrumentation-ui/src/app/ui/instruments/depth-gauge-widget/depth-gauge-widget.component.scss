@@ -1,41 +1,69 @@
-.depth-gauge {
-  display: grid;
-  grid-template-columns: 28px 1fr;
-  gap: 12px;
-  align-items: center;
-  min-height: 96px;
+// Paleta Glass Bridge
+$color-bg: #0b1116;
+$color-text: #ffffff;
+$color-cyan: #00e5ff;
+$color-alarm: #ff3d00;
+$color-muted: #8b9bb4;
+
+:host {
+  display: block;
+  width: 100%;
 }
 
-.gauge-track {
-  position: relative;
-  height: 96px;
-  width: 24px;
-  border-radius: 14px;
-  background: linear-gradient(180deg, rgba(12, 74, 110, 0.2) 0%, rgba(12, 74, 110, 0.55) 100%);
-  border: 1px solid rgba(148, 163, 184, 0.35);
-  overflow: hidden;
-}
-
-.gauge-fill {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  border-radius: 12px;
-  background: linear-gradient(180deg, rgba(14, 116, 144, 0.8) 0%, rgba(59, 130, 246, 0.95) 100%);
-  box-shadow: 0 0 12px rgba(14, 116, 144, 0.35);
-  transition: height 160ms ease;
-}
-
-.gauge-fill.shallow {
-  background: linear-gradient(180deg, rgba(234, 88, 12, 0.85) 0%, rgba(239, 68, 68, 0.9) 100%);
-  box-shadow: 0 0 16px rgba(239, 68, 68, 0.35);
-}
-
-.depth-readout {
+.depth-gauge-container {
   display: flex;
-  align-items: baseline;
-  gap: 6px;
+  flex-direction: row; /* Side by side: Gauge | Number */
+  align-items: center;
+  justify-content: center;
+  gap: 15px;
+  height: 100%;
+  padding: 10px;
+  background-color: $color-bg;
+}
+
+.digital-readout {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: center;
+
+  .value {
+    font-family: 'Courier New', monospace;
+    font-size: 2.8rem; /* Big number */
+    font-weight: 700;
+    color: $color-cyan;
+    line-height: 1;
+    letter-spacing: -2px;
+
+    &.alarm {
+      color: $color-alarm;
+      animation: pulse-danger 1s infinite alternate;
+    }
+  }
+
+  .unit {
+    font-family: 'Roboto', sans-serif;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: $color-muted;
+    margin-top: 5px;
+  }
+}
+
+.gauge-graphic {
+  height: 140px;
+  width: 60px;
+  display: flex;
+  justify-content: center;
+}
+
+.bar-fill {
+  transition: height 0.5s ease-out, fill 0.3s;
+}
+
+@keyframes pulse-danger {
+  from { opacity: 1; text-shadow: 0 0 10px rgba(255,61,0,0.5); }
+  to { opacity: 0.7; text-shadow: 0 0 20px rgba(255,61,0,0.9); }
 }
 
 .depth-readout .value {

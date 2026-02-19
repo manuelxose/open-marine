@@ -5,18 +5,20 @@ import { combineLatest, map, startWith, timer } from 'rxjs';
 import { PATHS } from '@omi/marine-data-contract';
 import { DatapointStoreService } from '../../../state/datapoints/datapoint-store.service';
 import { InstrumentCardComponent, DataQuality } from '../../components/instrument-card/instrument-card.component';
-import { formatAngleDegrees, formatSpeed } from '../../../core/formatting/formatters';
 
 interface WindView {
-  awa: string;
+  awa: number;
   aws: string;
-  awaDeg: number | null;
-  twa: string;
+  twa: number;
   tws: string;
-  twaDeg: number | null;
   quality: DataQuality;
   age: number | null;
   source: string;
+  
+  // Rotaciones suavizadas (calculadas en computeds si se quiere lógica compleja, 
+  // pero aquí usaremos rotación directa CSS transition)
+  awaRotation: number;
+  twaRotation: number;
 }
 
 @Component({
@@ -24,57 +26,18 @@ interface WindView {
   standalone: true,
   imports: [CommonModule, InstrumentCardComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
-    <app-instrument-card
-      title="Wind"
-      [value]="'--'"
-      [quality]="view().quality"
-      [ageSeconds]="view().age"
-      [source]="view().source"
-    >
-      <div class="wind-rose">
-        <div class="rose-ring"></div>
-        <div class="rose-label north">N</div>
-        <div class="rose-label east">E</div>
-        <div class="rose-label south">S</div>
-        <div class="rose-label west">W</div>
-
-        <div
-          class="needle apparent"
-          [style.transform]="view().awaDeg === null ? 'rotate(0deg)' : 'rotate(' + view().awaDeg + 'deg)'"
-        ></div>
-        <div
-          class="needle true"
-          [style.transform]="view().twaDeg === null ? 'rotate(0deg)' : 'rotate(' + view().twaDeg + 'deg)'"
-        ></div>
-        <div class="rose-center"></div>
-      </div>
-
-      <div class="wind-readouts">
-        <div class="readout">
-          <span class="label">AWA</span>
-          <span class="value">{{ view().awa }}</span>
-        </div>
-        <div class="readout">
-          <span class="label">AWS</span>
-          <span class="value">{{ view().aws }}</span>
-        </div>
-        <div class="readout">
-          <span class="label">TWA</span>
-          <span class="value">{{ view().twa }}</span>
-        </div>
-        <div class="readout">
-          <span class="label">TWS</span>
-          <span class="value">{{ view().tws }}</span>
-        </div>
-      </div>
-    </app-instrument-card>
-  `,
-  styleUrls: ['./wind-widget.component.scss'],
+  templateUrl: './wind-widget.component.html',  
+  styleUrls: ['./wind-widget.component.scss']
 })
 export class WindWidgetComponent {
   private store = inject(DatapointStoreService);
-  private ticker$ = timer(0, 500);
+  private ticker$ = timer(0, 200);
+
+  // Ticks estáticos
+  ticks = Array.from({ length: 36 }, (_, i) => {
+    const angle = i * 10;
+    return { angle, major: angle % 30 === 0 };
+  });
 
   private awa$ = this.store.observe<number>(PATHS.environment.wind.angleApparent);
   private aws$ = this.store.observe<number>(PATHS.environment.wind.speedApparent);
@@ -86,59 +49,50 @@ export class WindWidgetComponent {
     this.aws$.pipe(startWith(undefined)),
     this.twa$.pipe(startWith(undefined)),
     this.tws$.pipe(startWith(undefined)),
-    this.ticker$,
+    this.ticker$
   ]).pipe(
     map(([awa, aws, twa, tws]) => {
-      const source = awa?.source || aws?.source || twa?.source || tws?.source || '';
-      const mostRecent = [awa, aws, twa, tws]
-        .filter(Boolean)
-        .map((p) => p!.timestamp)
-        .sort((a, b) => b - a)[0];
-
-      let quality: DataQuality = 'bad';
-      let age: number | null = null;
-      if (mostRecent) {
-        age = (Date.now() - mostRecent) / 1000;
-        quality = age <= 2 ? 'good' : age <= 5 ? 'warn' : 'bad';
-      }
-
-      const awaFormatted = formatAngleDegrees(awa?.value);
-      const awsFormatted = formatSpeed(aws?.value, 'kn');
-      const twaFormatted = formatAngleDegrees(twa?.value);
-      const twsFormatted = formatSpeed(tws?.value, 'kn');
+      // Prioridad de timestamp para calidad
+      const lastUpdate = Math.max(awa?.timestamp || 0, aws?.timestamp || 0);
+      const quality: DataQuality = (Date.now() - lastUpdate) < 5000 ? 'good' : 'warn';
+      
+      const awsKn = (aws?.value ?? 0) * 1.94384;
+      const twsKn = (tws?.value ?? 0) * 1.94384;
+      
+      const awaDeg = awa ? this.radToDeg(awa.value) : 0;
+      const twaDeg = twa ? this.radToDeg(twa.value) : 0;
 
       return {
-        awa: `${awaFormatted.value}${awaFormatted.unit}`,
-        aws: `${awsFormatted.value} ${awsFormatted.unit}`,
-        awaDeg: awa?.value !== undefined ? this.toDegrees(awa.value) : null,
-        twa: `${twaFormatted.value}${twaFormatted.unit}`,
-        tws: `${twsFormatted.value} ${twsFormatted.unit}`,
-        twaDeg: twa?.value !== undefined ? this.toDegrees(twa.value) : null,
+        awa: awaDeg,
+        aws: awsKn.toFixed(1),
+        twa: twaDeg,
+        tws: twsKn.toFixed(1),
         quality,
-        age,
-        source,
+        age: (Date.now() - lastUpdate) / 1000,
+        source: awa?.source || '',
+        
+        // Usamos la lógica de rotación más simple aquí, 
+        // asumiendo que CSS transition handlea el giro suave en la mayoría de casos
+        // Para "shortest path" perfecto se necesita el acumulador (ver widgets anteriores),
+        // pero para simplificar este ejemplo usaremos el valor directo.
+        awaRotation: awaDeg,
+        twaRotation: twaDeg
       } as WindView;
     })
   );
 
-  view = toSignal(this.vm$, {
-    initialValue: {
-      awa: '--',
-      aws: '--',
-      awaDeg: null,
-      twa: '--',
-      tws: '--',
-      twaDeg: null,
-      quality: 'bad',
-      age: null,
-      source: '',
-    },
+  view = toSignal(this.vm$, { 
+    initialValue: { 
+      awa: 0, aws: '--', twa: 0, tws: '--', 
+      quality: 'bad', age: null, source: '',
+      awaRotation: 0, twaRotation: 0 
+    } 
   });
 
-  private toDegrees(radians: number): number {
-    let degrees = (radians * 180) / Math.PI;
-    degrees = degrees % 360;
-    if (degrees < 0) degrees += 360;
-    return degrees;
+  private radToDeg(rad: number): number {
+    let deg = (rad * 180) / Math.PI;
+    deg = deg % 360;
+    if (deg < 0) deg += 360;
+    return deg;
   }
 }

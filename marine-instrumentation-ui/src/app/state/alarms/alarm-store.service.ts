@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { BehaviorSubject, map, Observable } from 'rxjs';
+import { BehaviorSubject, map } from 'rxjs';
 import { Alarm, AlarmSeverity, AlarmState, AlarmType } from './alarm.models';
 
 @Injectable({
