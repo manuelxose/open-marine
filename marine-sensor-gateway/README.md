@@ -1,30 +1,61 @@
-# Marine Sensor Gateway (Stub)
+﻿# Marine Sensor Gateway
 
-This module defines adapter interfaces for real marine sensors and provides a stub gateway shell. The intent is to normalize raw sensor data into the shared contract and publish to Signal K without changing the UI.
+Pasarela para integrar sensores reales y forwarding AIS hacia Signal K.
 
-## Requirements
+Estado: 2026-02-19.
 
-- Node.js 20 LTS
+## Objetivo
 
-## Quickstart
+- Exponer una base tipada para adaptadores de hardware.
+- Ejecutar gateway AIS con `rtl_ais` y reenvio NMEA.
 
-```bash
+## Scripts
+
+```powershell
 npm install
+npm run dev
 npm run build
+npm run lint
+```
+
+## Entrada principal
+
+- `src/cli.ts`: arranca `StubSensorGateway` y `AisGateway`.
+
+## Modos funcionales
+
+- Gateway de sensores (stub): `src/gateway.ts`
+- Gateway AIS real: `src/ais/rtlAisGateway.ts`
+
+## Variables de entorno AIS
+
+- `AIS_RTL_AIS_PATH` (default `rtl_ais.exe`)
+- `AIS_DEVICE_INDEX` (default `1`)
+- `AIS_PPM` (default `-8`)
+- `AIS_GAIN` (default `49`)
+- `AIS_EDGE_TUNING` (default `false`)
+- `AIS_FORWARD_MODE` (`udp` o `tcp`, default `udp`)
+- `AIS_SIGNAL_K_HOST` (default `127.0.0.1`)
+- `AIS_SIGNAL_K_PORT` (default `10110`)
+- `AIS_LOG_NMEA` (default `false`)
+
+Ejemplo PowerShell:
+
+```powershell
+$env:AIS_FORWARD_MODE="udp"
+$env:AIS_SIGNAL_K_HOST="127.0.0.1"
+$env:AIS_SIGNAL_K_PORT="10110"
 npm run dev
 ```
 
-## Adapter interfaces
+## Estado de compilacion actual
 
-- NMEA0183: `Nmea0183Adapter`, `Nmea0183Sentence`.
-- NMEA2000: `Nmea2000Adapter`, `Nmea2000Frame`.
-- Custom serial sensors: `CustomSerialAdapter`, `CustomSerialFrame`.
+Snapshot 2026-02-19:
 
-## Integration expectations
+- `npm run build` en verde.
 
-- Adapters produce raw frames or sentences; the gateway maps them to `DataPoint<T>`.
-- Signal K paths are taken from `@omi/marine-data-contract` to keep downstream consumers stable.
+Ver detalle en `../docs/IMPLEMENTATION_STATUS.md`.
 
-## Status
+## Proximo objetivo tecnico
 
-This is a stub only. Hardware I/O and Signal K publishing will be implemented in a later iteration.
+- Implementar pruebas para el ciclo de vida de `AisGateway` (arranque, reinicio y parada).

@@ -1,0 +1,128 @@
+:host {
+  display: block;
+}
+
+.speedometer {
+  position: relative;
+  background: radial-gradient(
+    circle at 50% 50%,
+    color-mix(in srgb, var(--bg-surface) 96%, var(--primary) 4%) 0%,
+    var(--bg-surface) 55%,
+    color-mix(in srgb, var(--bg-surface-secondary) 85%, var(--bg-surface) 15%) 100%
+  );
+  border-radius: 50%;
+  box-shadow: var(--shadow-sm);
+  border: 2px solid var(--border-default);
+  
+  &__dial {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    border-radius: 50%;
+  }
+
+  &__arc {
+    width: 100%;
+    height: 100%;
+    transform: rotate(0deg); /* align logic */
+    display: block;
+  }
+
+  &__tick {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    width: 0;
+    height: 50%; /* Center to top */
+    transform-origin: bottom center;
+    pointer-events: none;
+
+    .tick-mark {
+        position: absolute;
+        top: 10%; /* Inset from edge */
+        left: -1px; /* Center width */
+        width: 2px;
+        height: 10px;
+        background: var(--text-tertiary);
+    }
+    
+    .tick-label {
+        position: absolute;
+        top: 18%;
+        left: 0;
+        width: 40px;
+        margin-left: -20px;
+        text-align: center;
+        font-size: 0.75rem;
+        color: var(--text-secondary);
+        font-weight: 500;
+    }
+  }
+  
+  &__target {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    width: 0;
+    height: 50%;
+    transform-origin: bottom center;
+    pointer-events: none;
+    z-index: 1;
+
+    .target-triangle {
+        position: absolute;
+        top: 8%; /* Outside ticks */
+        left: -6px;
+        width: 0; 
+        height: 0; 
+        border-left: 6px solid transparent;
+        border-right: 6px solid transparent;
+        border-top: 10px solid var(--accent, #06b6d4);
+        filter: drop-shadow(0 2px 2px rgba(0,0,0,0.2));
+    }
+  }
+
+  &__needle-container {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    width: 0;
+    height: 50%;
+    transform-origin: bottom center;
+    transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+    z-index: 5;
+  }
+
+  &__needle {
+    position: absolute;
+    top: 12%; 
+    left: -2px;
+    width: 4px;
+    height: 40%; /* needle length from center upwards */
+    background: var(--primary, #0ea5e9);
+    border-radius: 2px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  }
+
+  &__readout {
+    position: absolute;
+    bottom: 20%;
+    left: 0;
+    width: 100%;
+    text-align: center;
+    z-index: 6;
+
+    .value {
+        font-size: 2.5rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        line-height: 1;
+        /* Scale font based on size? Rem is fixed. Relative % might be better but harder. */
+    }
+    .unit {
+        font-size: 0.8rem;
+        color: var(--text-secondary);
+        text-transform: uppercase;
+    }
+  }
+}

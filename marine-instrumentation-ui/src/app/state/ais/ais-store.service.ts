@@ -51,21 +51,36 @@ export class AisStoreService {
       // Persist existing data
       latitude: data.latitude ?? existing?.latitude ?? 0,
       longitude: data.longitude ?? existing?.longitude ?? 0,
-      name: data.name ?? existing?.name,
-      callsign: data.callsign ?? existing?.callsign,
-      sog: data.sog ?? existing?.sog,
-      cog: data.cog ?? existing?.cog,
-      heading: data.heading ?? existing?.heading,
-      state: data.state ?? existing?.state,
-      class: data.class ?? existing?.class,
-      destination: data.destination ?? existing?.destination,
-      vesselType: data.vesselType ?? existing?.vesselType,
-      length: data.length ?? existing?.length,
-      beam: data.beam ?? existing?.beam,
-      cpa: existing?.cpa,
-      tcpa: existing?.tcpa,
-      isDangerous: existing?.isDangerous
     };
+
+    const name = data.name ?? existing?.name;
+    if (name !== undefined) updated.name = name;
+    const callsign = data.callsign ?? existing?.callsign;
+    if (callsign !== undefined) updated.callsign = callsign;
+    const sog = data.sog ?? existing?.sog;
+    if (sog !== undefined) updated.sog = sog;
+    const cog = data.cog ?? existing?.cog;
+    if (cog !== undefined) updated.cog = cog;
+    const heading = data.heading ?? existing?.heading;
+    if (heading !== undefined) updated.heading = heading;
+    const state = data.state ?? existing?.state;
+    if (state !== undefined) updated.state = state;
+    const vesselClass = data.class ?? existing?.class;
+    if (vesselClass !== undefined) updated.class = vesselClass;
+    const destination = data.destination ?? existing?.destination;
+    if (destination !== undefined) updated.destination = destination;
+    const vesselType = data.vesselType ?? existing?.vesselType;
+    if (vesselType !== undefined) updated.vesselType = vesselType;
+    const length = data.length ?? existing?.length;
+    if (length !== undefined) updated.length = length;
+    const beam = data.beam ?? existing?.beam;
+    if (beam !== undefined) updated.beam = beam;
+    const cpa = existing?.cpa;
+    if (cpa !== undefined) updated.cpa = cpa;
+    const tcpa = existing?.tcpa;
+    if (tcpa !== undefined) updated.tcpa = tcpa;
+    const isDangerous = existing?.isDangerous;
+    if (isDangerous !== undefined) updated.isDangerous = isDangerous;
 
     // Calculate CPA if we have relevant data
     if ((data.latitude !== undefined && data.longitude !== undefined) || 
@@ -133,8 +148,7 @@ export class AisStoreService {
    * Update CPA calculations for all targets based on Own Ship vector.
    * This should be called periodically or when Own Ship moves.
    */
-  updateRisks(ownShip: { lat: number, lon: number, sog: number, cog: number }): void {
+  updateRisks(_ownShip: { lat: number, lon: number, sog: number, cog: number }): void {
      // Optional implementation for bulk updates
   }
 }
-

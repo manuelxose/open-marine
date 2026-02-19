@@ -1,0 +1,106 @@
+:host {
+  display: block;
+  width: 100%;
+}
+
+.timeline-pattern {
+  padding: 0.75rem;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.timeline-pattern--disabled {
+  opacity: 0.7;
+}
+
+.timeline-pattern__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.timeline-pattern__title {
+  margin: 0;
+  font-size: 0.74rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-secondary);
+}
+
+.timeline-pattern__current {
+  font-size: 0.72rem;
+  font-family: var(--font-mono);
+  color: var(--text-secondary);
+}
+
+.timeline-pattern__track {
+  position: relative;
+  height: 12px;
+  border-radius: 999px;
+  background: var(--bg-surface-secondary);
+  border: 1px solid var(--border-default);
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.timeline-pattern--disabled .timeline-pattern__track {
+  cursor: default;
+}
+
+.timeline-pattern__progress {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--primary) 45%, transparent);
+}
+
+.timeline-pattern__cursor {
+  position: absolute;
+  top: -4px;
+  width: 2px;
+  height: 20px;
+  border-radius: 999px;
+  background: var(--text-primary);
+  transform: translateX(-1px);
+}
+
+.timeline-pattern__event {
+  position: absolute;
+  top: -2px;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  border: 1px solid var(--bg-surface);
+  transform: translateX(-50%);
+}
+
+.timeline-pattern__event--alarm {
+  background: var(--danger);
+}
+
+.timeline-pattern__event--waypoint {
+  background: var(--success);
+}
+
+.timeline-pattern__event--note {
+  background: var(--warn);
+}
+
+.timeline-pattern__labels {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+}
+

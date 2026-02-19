@@ -1,0 +1,68 @@
+:host {
+    display: block;
+}
+
+.waypoint-info {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+}
+
+.header {
+    padding: 0.5rem 0.75rem;
+    border-radius: var(--radius-md);
+    background: var(--bg-surface-secondary);
+    border: 1px solid var(--border-subtle);
+}
+
+.truncate {
+    display: block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+}
+
+.separator {
+    height: 1px;
+    background: color-mix(in srgb, var(--border-default) 70%, transparent);
+    width: 100%;
+}
+
+.info-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+    row-gap: 0.75rem;
+}
+
+.info-cell {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    padding: 0.5rem 0.75rem;
+    border-radius: var(--radius-md);
+    background: var(--bg-surface-secondary);
+    border: 1px solid var(--border-subtle);
+}
+
+.value-unit {
+    display: flex;
+    align-items: baseline;
+    gap: 0.25rem;
+}
+
+.unit {
+    font-size: 0.75em;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+:host-context(.compass-card) .waypoint-info {
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+    border-radius: 0;
+    padding: 0;
+}

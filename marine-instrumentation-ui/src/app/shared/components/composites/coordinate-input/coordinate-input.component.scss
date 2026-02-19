@@ -1,0 +1,138 @@
+@use '../../../styles/tokens' as *;
+
+:host {
+  display: block;
+}
+
+.coordinate-input-container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  width: 100%;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.inputs-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  padding: var(--space-2);
+}
+
+.coordinate-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+
+  .coord-label {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--text-tertiary);
+    width: 2rem;
+    padding-top: 2px;
+  }
+}
+
+.numeric-group {
+  display: flex;
+  flex: 1;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.field {
+  position: relative;
+  display: flex;
+  align-items: center;
+
+  &.deg { flex: 0 0 3.5rem; }
+  &.min { flex: 1; }
+
+  input {
+    width: 100%;
+    background: var(--bg-surface-secondary);
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm);
+    padding: var(--space-1) var(--space-4) var(--space-1) var(--space-1);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.9rem;
+    color: var(--text-primary);
+    text-align: right;
+    outline: none;
+    transition: all 0.2s;
+
+    // Remove spin buttons
+    -moz-appearance: textfield;
+    &::-webkit-outer-spin-button,
+    &::-webkit-inner-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+
+    &:focus {
+      border-color: var(--primary);
+      background: var(--bg-surface);
+      box-shadow: 0 0 0 1px var(--primary);
+    }
+    
+    &:disabled {
+      opacity: 0.7;
+      color: var(--text-disabled);
+    }
+  }
+
+  .unit {
+    position: absolute;
+    right: 6px;
+    color: var(--text-tertiary);
+    font-size: 0.8rem;
+    pointer-events: none;
+  }
+}
+
+.cardinal-toggle {
+  width: 2rem;
+  height: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border-default);
+  background: var(--bg-surface-secondary);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-weight: 600;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover:not(:disabled) {
+    background: var(--border-default);
+    color: var(--text-primary);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+  }
+
+  &:disabled {
+    cursor: default;
+    opacity: 0.5;
+  }
+}
+
+// Night mode support is automatic via vars

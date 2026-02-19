@@ -1,0 +1,121 @@
+:host {
+  display: block;
+  width: 100%;
+}
+
+.alarm-badge {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  position: relative;
+  overflow: visible;
+  padding: 1rem;
+}
+
+.badge-content {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  position: relative;
+}
+
+.icon-wrap {
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-surface-secondary);
+  color: var(--text-secondary);
+  flex-shrink: 0;
+  position: relative;
+
+  .pulse-dot {
+    position: absolute;
+    inset: -4px;
+    border-radius: 999px;
+    background: transparent;
+    border: 2px solid var(--danger, #ef4444);
+    animation: pulse-ring-alarm 1.8s ease-out infinite;
+    pointer-events: none;
+  }
+}
+
+.badge-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+
+  app-text[variant="value"] {
+    font-weight: 700;
+    font-size: 1.5rem;
+    color: var(--text-primary);
+    line-height: 1;
+  }
+}
+
+// Severity States
+.severity-none {
+  border-color: var(--border-default);
+
+  .icon-wrap {
+    background: var(--bg-surface-secondary);
+    color: var(--text-secondary);
+  }
+}
+
+.severity-warning {
+  border-color: var(--warn, #f59e0b);
+  border-width: 2px;
+
+  .icon-wrap {
+    color: var(--warn, #f59e0b);
+    background: color-mix(in srgb, var(--warn, #f59e0b) 15%, var(--bg-surface-secondary));
+  }
+}
+
+.severity-critical {
+  border-color: var(--danger, #ef4444);
+  border-width: 2px;
+
+  .icon-wrap {
+    color: var(--danger, #ef4444);
+    background: color-mix(in srgb, var(--danger, #ef4444) 15%, var(--bg-surface-secondary));
+  }
+}
+
+.severity-emergency {
+  border-color: var(--danger, #ef4444);
+  border-width: 2px;
+  background: color-mix(in srgb, var(--danger, #ef4444) 8%, var(--bg-surface));
+
+  .icon-wrap {
+    color: #fff;
+    background: var(--danger, #ef4444);
+  }
+}
+
+@keyframes pulse-ring-alarm {
+  0% {
+    transform: scale(1);
+    opacity: 0.8;
+  }
+  70% {
+    transform: scale(1.3);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1.3);
+    opacity: 0;
+  }
+}
+
+:host-context(.compass-card) .alarm-badge {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  border-radius: 0;
+  padding: 0;
+}

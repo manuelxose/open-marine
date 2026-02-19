@@ -1,0 +1,30 @@
+<div class="depth-gauge" [ngClass]="state">
+  <div class="depth-gauge__container">
+    <div class="depth-gauge__visual">
+      <!-- Water level abstract visualization (moving wave?) -->
+      <div class="depth-gauge__water-column" [style.height.%]="waterLevelPercent">
+        <svg class="water-wave" viewBox="0 0 100 20" preserveAspectRatio="none">
+           <path d="M0 10 Q 25 20 50 10 T 100 10 V 20 H 0 Z" fill="currentColor" opacity="0.3"></path>
+           <path d="M0 15 Q 25 5 50 15 T 100 15 V 20 H 0 Z" fill="currentColor" opacity="0.5"></path>
+        </svg>
+        <div class="water-fill"></div>
+      </div>
+      
+      <!-- Keel indicator -->
+      <div class="depth-gauge__keel"></div>
+    </div>
+
+    <!-- Digital Readout -->
+    <div class="depth-gauge__readout">
+      <div class="value">{{ depth | number:'1.1-1' }}</div>
+      <div class="unit">{{ unit }}</div>
+    </div>
+
+    <!-- Status Label -->
+    @if (state !== 'normal') {
+      <div class="depth-gauge__status-label">
+        {{ state | titlecase }}
+      </div>
+    }
+  </div>
+</div>

@@ -1,0 +1,50 @@
+<div class="attitude-indicator" [style.width.px]="size" [style.height.px]="size">
+  <div class="attitude-indicator__clip">
+    <!-- Moving Horizon -->
+    <div class="attitude-indicator__horizon" [style.transform]="horizonTransform">
+      <div class="sky"></div>
+      <div class="ground"></div>
+      <div class="horizon-line"></div>
+      
+      <!-- Pitch Ladder -->
+      <div class="pitch-ladder">
+         <!-- +10 -->
+         <div class="rung" style="top: calc(50% - 25px)"></div>
+         <!-- +20 -->
+         <div class="rung" style="top: calc(50% - 50px)"></div>
+         <!-- -10 -->
+         <div class="rung" style="top: calc(50% + 25px)"></div>
+         <!-- -20 -->
+         <div class="rung" style="top: calc(50% + 50px)"></div>
+      </div>
+    </div>
+
+    <!-- Fixed Reticle (Aircraft Reference) -->
+    <div class="attitude-indicator__reticle">
+      <svg viewBox="0 0 100 100">
+        <!-- Center Dot -->
+        <circle cx="50" cy="50" r="2" fill="var(--color-warning-500)" />
+        <!-- Wings -->
+        <path d="M 20 50 L 40 50 M 60 50 L 80 50" stroke="var(--color-warning-500)" stroke-width="3" />
+        <!-- Nose pointer -->
+        <path d="M 50 50 L 50 60" stroke="var(--color-warning-500)" stroke-width="3" />
+      </svg>
+    </div>
+    
+    <!-- Bank Scale (Fixed top) -->
+    <div class="attitude-indicator__bank-scale">
+       <div class="marker center"></div>
+       <div class="marker left-30"></div>
+       <div class="marker right-30"></div>
+    </div>
+    
+    <!-- Roll Pointer (Rotates with horizon or fixed? usually fixed triangle at top, scale rotates? Or scale fixed, pointer rotates?) -->
+    <!-- Usually: Top triangle is fixed. Scale on the moving card rotates. -->
+    <!-- Let's do simple: Fixed scale, moving pointer attached to horizon container? -->
+    <!-- Or simple: Horizon tilts. Fixed triangle at top. -->
+    <div class="attitude-indicator__bank-pointer">
+       <div class="triangle"></div>
+    </div>
+
+  </div>
+</div>

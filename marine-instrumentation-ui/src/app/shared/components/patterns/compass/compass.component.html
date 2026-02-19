@@ -1,0 +1,47 @@
+<div class="compass" [style.width.px]="size" [style.height.px]="size">
+  <!-- Dial Container -->
+  <div class="compass__dial" [style.transform]="'rotate(' + (-heading) + 'deg)'">
+    <!-- North Marker -->
+    <div class="compass__mark compass__mark--north">N</div>
+    <div class="compass__mark compass__mark--east">E</div>
+    <div class="compass__mark compass__mark--south">S</div>
+    <div class="compass__mark compass__mark--west">W</div>
+    
+    <!-- Ticks -->
+    @for (tick of ticks; track tick) {
+      <div class="compass__tick" 
+           [class.compass__tick--major]="tick % 30 === 0"
+           [style.transform]="'rotate(' + tick + 'deg)'">
+      </div>
+    }
+  </div>
+
+  <!-- Vessel Boat Icon (Static in center) -->
+  <div class="compass__vessel">
+    <svg viewBox="0 0 24 24" fill="currentColor" width="100%" height="100%">
+      <path d="M12 2L4.5 20.29L5.21 21L12 18L18.79 21L19.5 20.29L12 2Z" />
+    </svg>
+  </div>
+  
+  <!-- COG Marker (Orange/Bug) -->
+  @if (cog !== undefined && cog !== null) {
+    <div class="compass__indicator compass__indicator--cog"
+         [style.transform]="'rotate(' + (cog - heading) + 'deg)'">
+      <div class="marker"></div>
+    </div>
+  }
+
+  <!-- Bearing Marker (Yellow/Dot) -->
+  @if (bearingTo !== undefined && bearingTo !== null) {
+    <div class="compass__indicator compass__indicator--bearing"
+         [style.transform]="'rotate(' + (bearingTo - heading) + 'deg)'">
+      <div class="dot"></div>
+    </div>
+  }
+
+  <!-- Digital Readout (Optional overlay) -->
+  <div class="compass__readout">
+    <span class="value">{{ heading | number:'1.0-0' }}°</span>
+    <span class="label">HDG</span>
+  </div>
+</div>

@@ -47,11 +47,12 @@ const parseArgs = (args: string[]): CliOptions => {
 
   // Handle positional arguments (fallback)
   // If first arg doesn't start with --, assume: host scenario rate
-  if (args.length > 0 && !args[0].startsWith("--")) {
-    if (args[0]) options.host = args[0];
-    if (args[1]) options.scenario = args[1];
-    if (args[2]) {
-      const parsed = Number(args[2]);
+  const [firstArg, secondArg, thirdArg] = args;
+  if (firstArg && !firstArg.startsWith("--")) {
+    options.host = firstArg;
+    if (secondArg) options.scenario = secondArg;
+    if (thirdArg) {
+      const parsed = Number(thirdArg);
       if (Number.isFinite(parsed) && parsed > 0) options.rate = parsed;
     }
     return options;

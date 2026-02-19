@@ -101,6 +101,6 @@ export class AisTargetListComponent {
   @Output() sortChange = new EventEmitter<string>();
 
   trackByMmsi(index: number, target: AisTarget): string {
-    return target.mmsi;
+    return target.mmsi || String(index);
   }
 }

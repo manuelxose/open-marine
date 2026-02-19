@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
-import { WaypointStoreService, Waypoint } from '../../state/resources/waypoint-store.service';
-import { RouteStoreService, Route } from '../../state/resources/route-store.service';
+import { WaypointStoreService } from '../../state/resources/waypoint-store.service';
+import { RouteStoreService } from '../../state/resources/route-store.service';
 import { TrackStoreService, Track } from '../../state/resources/track-store.service';
 import { WaypointFormValue } from './components/waypoint-form/waypoint-form.component';
 import { GpxParseResult } from './utils/gpx-parser';
@@ -21,12 +21,14 @@ export class ResourcesFacadeService {
 
   // Waypoints
   createWaypoint(formValue: WaypointFormValue) {
-      this.waypointStore.createWaypoint({
+      const payload = {
           name: formValue.name,
-          description: formValue.description,
           position: { latitude: formValue.lat, longitude: formValue.lon },
-          // feature: { properties: { icon: formValue.icon, color: formValue.color } } // Store extended props in feature/properties
-      }).subscribe({
+      } as { name: string; position: { latitude: number; longitude: number }; description?: string };
+      if (formValue.description) {
+          payload.description = formValue.description;
+      }
+      this.waypointStore.createWaypoint(payload).subscribe({
         error: (err) => console.error('Failed to create waypoint', err),
       });
   }
@@ -73,11 +75,14 @@ export class ResourcesFacadeService {
   importGpx(data: GpxParseResult) {
       // Import Waypoints
       for (const wp of data.waypoints) {
-          this.waypointStore.createWaypoint({
+          const payload = {
               name: wp.name || 'Imported Waypoint',
-              description: wp.desc,
-              position: { latitude: wp.lat, longitude: wp.lon }
-          }).subscribe({
+              position: { latitude: wp.lat, longitude: wp.lon },
+          } as { name: string; position: { latitude: number; longitude: number }; description?: string };
+          if (wp.desc) {
+              payload.description = wp.desc;
+          }
+          this.waypointStore.createWaypoint(payload).subscribe({
             error: (err) => console.error('Failed to import waypoint', err),
           });
       }

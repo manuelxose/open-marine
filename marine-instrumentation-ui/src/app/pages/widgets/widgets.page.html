@@ -1,0 +1,128 @@
+<div class="widgets-page">
+  <header class="page-header">
+    <h1>{{ 'widgets.title' | translate }}</h1>
+    <p class="subtitle">{{ 'widgets.subtitle' | translate }}</p>
+  </header>
+
+  <section class="widgets-section">
+    <div class="section-header">
+      <div>
+        <h2>{{ 'widgets.sections.instruments' | translate }}</h2>
+        <p class="section-description">{{ 'widgets.instruments.desc' | translate }}</p>
+      </div>
+      <app-button
+        variant="ghost"
+        size="sm"
+        (action)="resetInstrumentWidgets()"
+      >
+        {{ 'widgets.reset' | translate }}
+      </app-button>
+    </div>
+
+    <div
+      class="widget-list"
+      cdkDropList
+      [cdkDropListData]="instrumentWidgets()"
+      (cdkDropListDropped)="reorderInstrumentWidgets($event)"
+    >
+      <div class="widget-row" *ngFor="let widget of instrumentWidgets(); trackBy: trackByInstrumentId" cdkDrag>
+        <button class="drag-handle" type="button" cdkDragHandle aria-label="Reorder">
+          <app-icon name="menu" size="16"></app-icon>
+        </button>
+        <div class="widget-info">
+          <span class="widget-title">{{ widget.type | titlecase }}</span>
+          <span class="widget-meta">ID: {{ widget.id }}</span>
+        </div>
+        <div class="widget-actions">
+          <label class="toggle">
+            <input type="checkbox" [checked]="widget.visible" (change)="toggleInstrumentVisibility(widget.id)" />
+            <span>{{ widget.visible ? 'On' : 'Off' }}</span>
+          </label>
+          <select class="size-select" [value]="widget.size" (change)="changeInstrumentSize(widget.id, $event)">
+            <option value="sm">SM</option>
+            <option value="md">MD</option>
+            <option value="lg">LG</option>
+          </select>
+        </div>
+        <div
+          class="widget-preview"
+          *ngIf="widget.visible"
+          [class.preview-selected]="isInstrumentSelected(widget.id)"
+          (click)="toggleInstrumentSelection(widget.id)"
+        >
+          <span class="preview-badge">
+            <app-icon name="check" size="14"></app-icon>
+          </span>
+          <ng-container [ngSwitch]="widget.type">
+            <app-compass-widget *ngSwitchCase="'compass'"></app-compass-widget>
+            <app-speedometer-widget *ngSwitchCase="'speed'"></app-speedometer-widget>
+            <app-depth-gauge-widget *ngSwitchCase="'depth'" unit="m"></app-depth-gauge-widget>
+            <app-depth-widget *ngSwitchCase="'depth-sonar'"></app-depth-widget>
+            <app-rudder-widget *ngSwitchCase="'rudder'"></app-rudder-widget>
+            <app-engine-rpm-widget *ngSwitchCase="'engine'"></app-engine-rpm-widget>
+            <app-tank-widget *ngSwitchCase="'tank'"></app-tank-widget>
+            <app-wind-widget *ngSwitchCase="'wind'"></app-wind-widget>
+            <app-battery-widget *ngSwitchCase="'battery'"></app-battery-widget>
+            <app-meteo-widget *ngSwitchCase="'meteo'"></app-meteo-widget>
+            <app-navigation-widget *ngSwitchCase="'gps'"></app-navigation-widget>
+            <app-instrument-card *ngSwitchCase="'clock'" label="UTC" [value]="clockLabel()"></app-instrument-card>
+          </ng-container>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="widgets-section">
+    <div class="section-header">
+      <div>
+        <h2>{{ 'widgets.sections.dashboard' | translate }}</h2>
+        <p class="section-description">{{ 'widgets.dashboard.desc' | translate }}</p>
+      </div>
+      <app-button
+        variant="ghost"
+        size="sm"
+        (action)="resetDashboardWidgets()"
+      >
+        {{ 'widgets.reset' | translate }}
+      </app-button>
+    </div>
+
+    <div
+      class="widget-list"
+      cdkDropList
+      [cdkDropListData]="dashboardWidgets()"
+      (cdkDropListDropped)="reorderDashboardWidgets($event)"
+    >
+      <div class="widget-row" *ngFor="let item of dashboardWidgets(); trackBy: trackByDashboardId" cdkDrag>
+        <button class="drag-handle" type="button" cdkDragHandle aria-label="Reorder">
+          <app-icon name="menu" size="16"></app-icon>
+        </button>
+        <div class="widget-info">
+          <span class="widget-title">{{ (item.definition?.title || '') | translate }}</span>
+          <span class="widget-meta">{{ item.definition?.category | titlecase }}  {{ item.definition?.size }}</span>
+        </div>
+        <div class="widget-actions">
+          <label class="toggle">
+            <input type="checkbox" [checked]="item.config.visible" (change)="toggleDashboardVisibility(item.config.id)" />
+            <span>{{ item.config.visible ? 'On' : 'Off' }}</span>
+          </label>
+        </div>
+        <div
+          class="widget-preview"
+          *ngIf="item.config.visible"
+          [class.preview-selected]="isDashboardSelected(item.config.id)"
+          (click)="toggleDashboardSelection(item.config.id)"
+        >
+          <span class="preview-badge">
+            <app-icon name="check" size="14"></app-icon>
+          </span>
+          <app-instrument-card
+            [label]="(item.definition?.title || '') | translate"
+            [value]="getDashboardPreviewValue(item.definition)"
+            [icon]="dashboardIcon(item.definition)"
+          ></app-instrument-card>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>

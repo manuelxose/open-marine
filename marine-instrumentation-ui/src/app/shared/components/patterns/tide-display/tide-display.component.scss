@@ -1,0 +1,89 @@
+:host {
+  display: block;
+  width: 100%;
+}
+
+.tide-container {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+.tide-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.main-display {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.trend-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--bg-surface-secondary);
+  transition: transform 0.3s ease;
+  
+  &.state-rising {
+      background: color-mix(in srgb, var(--success) 15%, var(--bg-surface-secondary));
+  }
+  
+  &.state-falling {
+      background: color-mix(in srgb, var(--warn) 15%, var(--bg-surface-secondary));
+  }
+}
+
+.value-group {
+    display: flex;
+    align-items: baseline;
+    gap: 0.25rem;
+}
+
+.divider {
+  height: 1px;
+  background-color: color-mix(in srgb, var(--border-default) 70%, transparent);
+  margin: 0.25rem 0;
+}
+
+.events-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.event {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.event-header {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    
+    &.justify-end {
+        justify-content: flex-end;
+    }
+}
+
+.text-right {
+    text-align: right;
+    align-items: flex-end;
+}
+
+:host-context(.compass-card) .tide-container {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  border-radius: 0;
+  padding: 0;
+}

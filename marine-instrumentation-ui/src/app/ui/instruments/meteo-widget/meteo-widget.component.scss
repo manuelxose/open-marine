@@ -1,0 +1,95 @@
+// Glass Bridge Theme - Meteo
+$bg-color: #0b1116;
+$neon-blue: #00e5ff;
+$neon-red: #ff3d00;
+$neon-green: #00e676;
+$text-primary: #ffffff;
+$color-muted: #8b9bb4;
+
+:host {
+  display: block;
+  width: 100%;
+}
+
+.meteo-view {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  height: 100%;
+  padding: 10px;
+}
+
+.main-readout {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  flex: 1;
+  padding-top: 10px;
+  
+  .value {
+    font-family: 'Courier New', monospace;
+    font-size: 3rem;
+    font-weight: 700;
+    color: $text-primary;
+    text-shadow: 0 0 10px rgba($neon-blue, 0.2);
+  }
+
+  .meta {
+    display: flex;
+    flex-direction: column;
+    margin-left: 10px;
+    align-items: center;
+
+    .unit {
+      font-family: 'Roboto', sans-serif;
+      font-size: 0.8rem;
+      letter-spacing: 1px;
+      color: $color-muted;
+      margin-bottom: 4px;
+    }
+
+    .trend-indicator {
+      width: 20px;
+      height: 20px;
+      color: $color-muted;
+      transition: color 0.3s;
+      
+      &.up { color: $neon-blue; filter: drop-shadow(0 0 2px $neon-blue); }
+      &.down { color: $neon-red; filter: drop-shadow(0 0 2px $neon-red); }
+      
+      .arrow-icon {
+        width: 100%;
+        height: 100%;
+      }
+    }
+  }
+}
+
+.sparkline-container {
+  height: 60px;
+  width: 100%;
+  position: relative;
+  background: rgba(255,255,255,0.02);
+  border-radius: 4px;
+  overflow: hidden;
+  border-top: 1px solid rgba(255,255,255,0.05);
+
+  .sparkline-svg {
+    width: 100%;
+    height: 100%;
+    
+    .trend-line {
+      stroke-linejoin: round;
+      stroke-linecap: round;
+    }
+  }
+
+  .graph-label {
+    position: absolute;
+    bottom: 2px;
+    right: 4px;
+    font-size: 0.55rem;
+    color: rgba(255,255,255,0.3);
+    pointer-events: none;
+  }
+}

@@ -61,3 +61,33 @@ export function formatNumber(value: number | null | undefined, fraction = 0): st
   if (value === null || value === undefined || !Number.isFinite(value)) return '--';
   return value.toFixed(fraction);
 }
+
+export function formatDistance(meters: number | null | undefined, unit: 'nm' | 'm' | 'km' = 'nm'): { value: string; unit: string } {
+  if (meters === null || meters === undefined || !Number.isFinite(meters)) return { value: '--', unit };
+
+  let val = meters;
+  if (unit === 'nm') {
+    val = meters / 1852;
+    // Show 2 decimals if < 10, else 1
+    return { value: val.toFixed(val < 10 ? 2 : 1), unit: 'NM' };
+  } else if (unit === 'km') {
+    val = meters / 1000;
+    return { value: val.toFixed(1), unit: 'km' };
+  }
+  
+  return { value: val.toFixed(0), unit: 'm' };
+}
+
+export function formatDuration(seconds: number | null | undefined): string {
+  if (seconds === null || seconds === undefined || !Number.isFinite(seconds)) return '--:--';
+  
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = Math.floor(seconds % 60);
+
+  if (h > 0) {
+    return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+    // or just HH:mm if space is tight, but seconds can be useful
+  }
+  return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+}

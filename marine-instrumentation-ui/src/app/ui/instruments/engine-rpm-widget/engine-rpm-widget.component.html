@@ -1,0 +1,69 @@
+<app-instrument-card
+  title="ENGINE"
+  [quality]="view().quality"
+  [ageSeconds]="view().age"
+  [source]="view().source"
+>
+  <div class="rpm-container">
+    
+    <svg viewBox="0 0 200 200" class="gauge-svg">
+      <defs>
+         <linearGradient id="rpm-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="#00e5ff"/>
+            <stop offset="70%" stop-color="#00e676"/>
+            <stop offset="100%" stop-color="#ff3d00"/>
+         </linearGradient>
+         <filter id="rpm-glow">
+            <feGaussianBlur stdDeviation="2.5" result="coloredBlur"/>
+            <feMerge>
+                <feMergeNode in="coloredBlur"/>
+                <feMergeNode in="SourceGraphic"/>
+            </feMerge>
+         </filter>
+      </defs>
+
+      <!-- Pista Base (Track) -->
+      <!-- Original path rotated by CSS transform or attr transform? attr is safer for SVG -->
+      <path d="M 43.4 156.6 A 80 80 0 1 1 156.6 156.6" 
+            class="scale-track" 
+            transform="rotate(135, 100, 100)" />
+      
+      <!-- Redline Marker (Visual Decorator) -->
+      <circle cx="100" cy="100" r="82" fill="none" class="decor-ring" stroke-width="1" />
+
+      <!-- Escala Dinámica (Arc) -->
+      <path 
+        d="M 43.4 156.6 A 80 80 0 1 1 156.6 156.6" 
+        class="scale-value"
+        transform="rotate(135, 100, 100)"
+        stroke="url(#rpm-grad)"
+        stroke-dasharray="377"
+        [attr.stroke-dashoffset]="getDashOffset(view().rpm)"
+        filter="url(#rpm-glow)"
+      />
+
+      <!-- Marcas (Ticks) -->
+      <g class="ticks">
+         <text x="50" y="155">0</text>
+         <text x="35" y="90">10</text>
+         <text x="100" y="35">20</text>
+         <text x="165" y="90">30</text>
+         <text x="150" y="155" class="redline-text">40</text>
+      </g>
+
+      <!-- Lectura Central -->
+      <g class="readout" transform="translate(100, 130)">
+         <text class="value">{{ view().rpm | number:'1.0-0' }}</text>
+         <text class="unit" y="15">RPM</text>
+      </g>
+
+      <!-- Aguja -->
+      <g class="needle-group" [style.transform]="getNeedleRotation(view().rpm)">
+         <path d="M 100 25 L 95 100 L 105 100 Z" class="needle" />
+         <circle cx="100" cy="100" r="5" class="needle-center" />
+      </g>
+
+    </svg>
+
+  </div>
+</app-instrument-card>

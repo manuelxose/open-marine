@@ -1,0 +1,106 @@
+:host {
+  display: block;
+  width: 100%;
+}
+
+.layer-control-pattern {
+  padding: 0.7rem;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.layer-control-pattern__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.layer-control-pattern__title {
+  margin: 0;
+  font-size: 0.74rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-secondary);
+}
+
+.layer-control-pattern__count {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+}
+
+.layer-control-pattern__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.layer-control-pattern__item {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 0.5rem;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface-secondary);
+  padding: 0.4rem 0.5rem;
+}
+
+.layer-control-pattern__toggle {
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  border: 1px solid var(--border-default);
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.layer-control-pattern__toggle--on {
+  border-color: color-mix(in srgb, var(--success) 40%, var(--border-default));
+  background: color-mix(in srgb, var(--success) 14%, transparent);
+}
+
+.layer-control-pattern__dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: currentColor;
+}
+
+.layer-control-pattern__toggle--on .layer-control-pattern__dot {
+  color: var(--success);
+}
+
+.layer-control-pattern__label {
+  min-width: 0;
+  font-size: 0.84rem;
+  color: var(--text-primary);
+}
+
+.layer-control-pattern__lock {
+  color: var(--warn);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.layer-control-pattern__toggle:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+

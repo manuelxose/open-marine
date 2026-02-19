@@ -3,6 +3,7 @@ export const PATHS = {
   navigation: {
     position: "navigation.position",
     speedOverGround: "navigation.speedOverGround",
+    speedThroughWater: "navigation.speedThroughWater",
     courseOverGroundTrue: "navigation.courseOverGroundTrue",
     headingTrue: "navigation.headingTrue",
     headingMagnetic: "navigation.headingMagnetic",
@@ -11,7 +12,15 @@ export const PATHS = {
   communication: {
     callsignVhf: "communication.callsignVhf",
   },
+  propulsion: {
+    main: {
+      revolutions: "propulsion.main.revolutions",
+      temperature: "propulsion.main.temperature",
+      oilPressure: "propulsion.main.oilPressure",
+    },
+  },
   steering: {
+    rudderAngle: "steering.rudderAngle",
     autopilot: {
       state: "steering.autopilot.state",
       target: {

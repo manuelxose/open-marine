@@ -91,12 +91,14 @@ export class MapLibreEngineService {
         const features = this.map.queryRenderedFeatures(event.point, { layers: [AIS_LAYER_ID] });
         if (features.length > 0) {
             const feature = features[0];
-            this.featureClickHandler({
-                featureId: feature.id as string,
-                properties: feature.properties,
-                layerId: AIS_LAYER_ID
-            });
-            return; // Stop propagation to map click (centering)
+            if (feature) {
+                this.featureClickHandler({
+                    featureId: feature.id as string,
+                    properties: feature.properties,
+                    layerId: AIS_LAYER_ID
+                });
+                return; // Stop propagation to map click (centering)
+            }
         }
     }
 
@@ -388,11 +390,6 @@ export class MapLibreEngineService {
     // createVesselIcon uses (color1, color2) for gradient.
     // We can pass (strokeColor, fillColor) or similar.
     return this.createVesselIcon(strokeColor, fillColor);
-  }
-
-  private updateMapBearing(): void {
-    // Legacy support or alias
-    this.updateCamera();
   }
 
   private updateCamera(): void {
@@ -819,17 +816,6 @@ export class MapLibreEngineService {
     source?.setData(this.lastRoute ?? EMPTY_LINE);
   }
 
-  private applyView(): void {
-    if (!this.map || !this.pendingCenter) {
-      return;
-    }
-    if (this.appliedCenter && this.isSameCenter(this.appliedCenter, this.pendingCenter)) {
-      return;
-    }
-    this.map.jumpTo({ center: this.pendingCenter });
-    this.appliedCenter = [...this.pendingCenter];
-  }
-
   private ensureRangeRingsLayer(): void {
     if (!this.map) {
       return;
@@ -948,7 +934,9 @@ export class MapLibreEngineService {
       );
       coords.push([point.lon, point.lat]);
     }
-    coords.push(coords[0]); // Close the polygon
+    if (coords.length > 0 && coords[0]) {
+      coords.push(coords[0]); // Close the polygon
+    }
 
     return {
       type: 'Feature',

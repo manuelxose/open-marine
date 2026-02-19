@@ -5,10 +5,11 @@ import { AppIconComponent } from '../../../../shared/components/app-icon/app-ico
 import { DragDropModule, CdkDragDrop } from '@angular/cdk/drag-drop';
 import { AppInstrumentCardComponent } from '../../../../shared/components/app-instrument-card/app-instrument-card.component';
 import { CompassWidgetComponent } from '../../../../ui/instruments/compass-widget/compass-widget.component';
-import { SogInstrumentComponent } from '../../../../ui/instruments/sog/sog-instrument.component';
+import { SpeedometerWidgetComponent } from '../../../../ui/instruments/speedometer-widget/speedometer-widget.component';
 import { DepthGaugeWidgetComponent } from '../../../../ui/instruments/depth-gauge-widget/depth-gauge-widget.component';
 import { WindWidgetComponent } from '../../../../ui/instruments/wind-widget/wind-widget.component';
-import { PowerCardComponent } from '../../../../ui/instruments/power-card/power-card.component';
+import { BatteryWidgetComponent } from '../../../../ui/instruments/battery-widget/battery-widget.component';
+import { MeteoWidgetComponent } from '../../../../ui/instruments/meteo-widget/meteo-widget.component';
 import type { InstrumentWidget } from '../../instruments-facade.service';
 
 export interface InstrumentData {
@@ -35,10 +36,11 @@ export interface InstrumentData {
     AppIconComponent,
     AppInstrumentCardComponent,
     CompassWidgetComponent,
-    SogInstrumentComponent,
+    SpeedometerWidgetComponent,
     DepthGaugeWidgetComponent,
     WindWidgetComponent,
-    PowerCardComponent,
+    BatteryWidgetComponent,
+    MeteoWidgetComponent,
   ],
   template: `
     <app-drawer
@@ -59,14 +61,14 @@ export interface InstrumentData {
           </button>
 
           <app-compass-widget *ngIf="widget.type === 'compass'"></app-compass-widget>
-          <app-sog-instrument *ngIf="widget.type === 'speed'"></app-sog-instrument>
+          <app-speedometer-widget *ngIf="widget.type === 'speed'"></app-speedometer-widget>
           <app-depth-gauge-widget
             *ngIf="widget.type === 'depth'"
             [unit]="depthUnit"
-            [shallowThreshold]="shallowThreshold"
           ></app-depth-gauge-widget>
           <app-wind-widget *ngIf="widget.type === 'wind'"></app-wind-widget>
-          <app-power-card *ngIf="widget.type === 'battery'"></app-power-card>
+          <app-battery-widget *ngIf="widget.type === 'battery'"></app-battery-widget>
+          <app-meteo-widget *ngIf="widget.type === 'meteo'"></app-meteo-widget>
 
           <app-instrument-card
             *ngIf="widget.type === 'gps'"
@@ -112,14 +114,14 @@ export class InstrumentsDrawerComponent {
     return new Date().toISOString().slice(11, 19);
   }
 
-  trackById(index: number, widget: InstrumentWidget): string {
+  trackById(_index: number, widget: InstrumentWidget): string {
     return widget.id;
   }
 
   handleReorder(event: CdkDragDrop<InstrumentWidget[]>): void {
-    if (event.previousIndex === event.currentIndex) {
-      return;
-    }
-    this.reorder.emit({ previousIndex: event.previousIndex, currentIndex: event.currentIndex });
+    this.reorder.emit({
+      previousIndex: event.previousIndex,
+      currentIndex: event.currentIndex,
+    });
   }
 }

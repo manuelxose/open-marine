@@ -12,17 +12,15 @@
 .control-group {
   display: flex;
   flex-direction: column;
-  border-radius: 8px;
-  overflow: hidden;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
-  background-color: var(--panel-bg, #2e3440);
-  border: 1px solid var(--border-color, #4c566a);
+  background-color: transparent;
+  border: none;
+  box-shadow: none;
 }
 
 .control-group .control-btn {
   border-radius: 0;
   border: none;
-  border-bottom: 1px solid var(--border-color, #4c566a);
+  border-bottom: 1px solid var(--border-default);
   box-shadow: none;
 }
 
@@ -34,26 +32,24 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 48px;
+  width: 100%; /* Make them full width in the panel */
   height: 48px;
-  border-radius: 8px;
-  background-color: var(--panel-bg, #2e3440);
-  border: 1px solid var(--border-color, #4c566a);
-  color: var(--text-primary, #eceff4);
+  border-radius: var(--radius-md); /* Fallback if not grouped */
+  background-color: transparent;
+  border: 1px solid var(--border-default);
+  color: var(--text-primary);
   cursor: pointer;
-  transition: all 0.2s ease;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+  transition: all var(--duration-fast);
   padding: 0;
+  text-align: left; /* If we add text later */
 }
 
 .control-btn:hover {
-  background: var(--surface-2, #3b4252);
-  transform: translateY(-1px);
+  background: var(--bg-surface-secondary);
 }
 
 .control-btn:active {
-  transform: translateY(1px);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  background: var(--bg-surface-tertiary);
 }
 
 .control-btn svg {
@@ -65,24 +61,21 @@
 
 /* Active State */
 .control-btn.active {
-  background: var(--accent, #88c0d0);
-  color: #2e3440; /* Dark text on accent */
-  border-color: var(--accent, #88c0d0);
-  box-shadow: 0 0 12px color-mix(in srgb, var(--accent, #88c0d0) 40%, transparent);
+  background: var(--primary);
+  color: var(--text-on-primary);
+  border-color: var(--primary);
 }
 
 .control-btn.active:hover {
-  filter: brightness(110%);
+  background: var(--primary-hover);
 }
 
 .range-rings-panel {
-  margin-top: 8px;
+  margin-top: 12px;
   padding: 12px;
-  background: var(--surface-1, #2f3641);
-  border: 1px solid var(--border-color, #4c566a);
-  border-radius: 10px;
-  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.35);
-  color: var(--text-primary, #e5e9f0);
+  background: transparent;
+  border-top: 1px solid var(--border-default);
+  border-radius: 0;
 }
 
 .panel-header {

@@ -1,0 +1,45 @@
+<div class="search-input-container" [class.disabled]="disabled">
+  <div class="input-wrapper">
+    <app-icon name="search" class="search-icon"></app-icon>
+    
+    <input
+      type="text"
+      [placeholder]="placeholder"
+      [disabled]="disabled"
+      [value]="query()"
+      (input)="onInput($event)"
+      (focus)="onFocus()"
+      (blur)="onBlur()"
+      (keydown.enter)="onEnter()"
+      class="search-field"
+    />
+
+    <div class="actions">
+      @if (loading) {
+        <app-spinner size="sm"></app-spinner>
+      } @else if (query()) {
+        <button 
+          class="clear-btn" 
+          (click)="onClear()" 
+          [disabled]="disabled"
+          aria-label="Clear search">
+          <app-icon name="close" size="sm"></app-icon>
+        </button>
+      }
+    </div>
+  </div>
+
+  @if (showSuggestions() && suggestions.length > 0) {
+    <ul class="suggestions-list" role="listbox">
+      @for (suggestion of suggestions; track suggestion) {
+        <li 
+          class="suggestion-item" 
+          role="option" 
+          (click)="selectSuggestion(suggestion)">
+          <app-icon name="search" size="sm" class="suggestion-icon"></app-icon>
+          <span class="suggestion-text">{{ suggestion }}</span>
+        </li>
+      }
+    </ul>
+  }
+</div>

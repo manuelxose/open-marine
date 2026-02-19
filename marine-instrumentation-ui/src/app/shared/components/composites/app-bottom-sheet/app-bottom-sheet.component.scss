@@ -1,0 +1,74 @@
+@use '../../../styles/tokens' as *;
+
+:host {
+  display: contents;
+}
+
+.sheet-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: var(--overlay-backdrop);
+  backdrop-filter: var(--overlay-blur);
+  z-index: var(--z-modal);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  animation: fadeIn 0.3s ease-out;
+}
+
+.sheet-container {
+  background-color: var(--bg-surface);
+  border-top-left-radius: var(--radius-xl);
+  border-top-right-radius: var(--radius-xl);
+  box-shadow: var(--shadow-xl);
+  border: 1px solid var(--border-default);
+  width: 100%;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  padding-bottom: env(safe-area-inset-bottom, 20px);
+}
+
+.drag-handle-bar {
+  display: flex;
+  justify-content: center;
+  padding-top: var(--space-3);
+  padding-bottom: var(--space-2);
+}
+
+.drag-handle {
+  width: 40px;
+  height: 4px;
+  background-color: var(--border-strong);
+  border-radius: 2px;
+}
+
+.sheet-header {
+  padding: 0 var(--space-4) var(--space-2);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border-default);
+  background-color: var(--bg-surface-secondary);
+}
+
+.sheet-content {
+  padding: var(--space-4);
+  overflow-y: auto;
+  min-height: 100px;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}

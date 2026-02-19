@@ -60,6 +60,9 @@ export class RouteService {
       }
       const from = waypoints[index];
       const to = waypoints[index + 1];
+      if (!from || !to) {
+        return null;
+      }
       const nav = bearingDistanceNm({ lat: from.lat, lon: from.lon }, { lat: to.lat, lon: to.lon });
       return {
         from,

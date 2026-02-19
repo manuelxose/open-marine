@@ -236,14 +236,20 @@ export class GpxImportComponent {
     this.error = null;
     
     if (e.dataTransfer?.files?.length) {
-      this.readFile(e.dataTransfer.files[0]);
+      const file = e.dataTransfer.files[0];
+      if (file) {
+        this.readFile(file);
+      }
     }
   }
 
   onFileSelected(e: Event) {
     const input = e.target as HTMLInputElement;
     if (input.files?.length) {
-      this.readFile(input.files[0]);
+      const file = input.files[0];
+      if (file) {
+        this.readFile(file);
+      }
     }
   }
 

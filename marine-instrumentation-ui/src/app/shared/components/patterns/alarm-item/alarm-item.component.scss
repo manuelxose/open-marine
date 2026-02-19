@@ -1,0 +1,112 @@
+:host {
+  display: block;
+  width: 100%;
+}
+
+.alarm-item {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+.alarm-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.alarm-title {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.title-text {
+  min-width: 0;
+}
+
+.alarm-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-surface-secondary);
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.state-pill {
+  padding: 0.25rem 0.6rem;
+  border-radius: 999px;
+  background: var(--bg-surface-secondary);
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 0.7rem;
+  white-space: nowrap;
+}
+
+.alarm-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.alarm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.severity-warning {
+  border-color: var(--warn);
+}
+
+.severity-critical {
+  border-color: var(--danger);
+}
+
+.severity-emergency {
+  border-color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 6%, var(--bg-surface));
+}
+
+.severity-warning .alarm-icon {
+  color: var(--warn);
+  background: color-mix(in srgb, var(--warn) 12%, var(--bg-surface-secondary));
+}
+
+.severity-critical .alarm-icon,
+.severity-emergency .alarm-icon {
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 12%, var(--bg-surface-secondary));
+}
+
+.state-active {
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 12%, var(--bg-surface-secondary));
+}
+
+.state-acknowledged {
+  color: var(--warn);
+  background: color-mix(in srgb, var(--warn) 12%, var(--bg-surface-secondary));
+}
+
+.state-silenced {
+  color: var(--text-secondary);
+  background: color-mix(in srgb, var(--border-default) 30%, var(--bg-surface-secondary));
+}
+
+:host-context(.compass-card) .alarm-item {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  border-radius: 0;
+  padding: 0;
+}

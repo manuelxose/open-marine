@@ -105,8 +105,13 @@
   <div class="main-container">
     <app-top-bar 
       [connected]="(connected$ | async) ?? false"
+      [latency]="(latency$ | async) ?? undefined"
       [isNight]="(theme$ | async) === 'night'"
+      [alarmCount]="(alarmCount$ | async) ?? 0"
+      [criticalCount]="(criticalCount$ | async) ?? 0"
+      [hasUnacknowledged]="(hasUnacknowledged$ | async) ?? false"
       (toggleTheme)="toggleTheme()"
+      (openAlarms)="navigateToAlarms()"
     ></app-top-bar>
     
     <app-alarm-banner></app-alarm-banner>

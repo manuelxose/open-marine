@@ -1,0 +1,73 @@
+<app-instrument-card
+  title="DEPTH"
+  [quality]="view().quality"
+  [ageSeconds]="view().age"
+  [source]="view().source"
+  class="marine-card"
+>
+  <div class="depth-gauge-container">
+    
+    <!-- Digital Readout Top -->
+    <div class="digital-readout">
+      <span class="value" [class.alarm]="view().isShallow">{{ view().depthValue }}</span>
+      <span class="unit">{{ view().depthUnit }}</span>
+    </div>
+
+    <div class="gauge-graphic">
+      <svg viewBox="0 0 60 160" class="gauge-svg">
+        <defs>
+          <linearGradient id="depthFillGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+            <!-- Top is surface (0m) -->
+            <stop offset="0%" stop-color="#00e5ff" stop-opacity="0.8"/>
+            <stop offset="100%" stop-color="#0088cc" stop-opacity="0.9"/>
+          </linearGradient>
+
+          <linearGradient id="depthAlarmGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stop-color="#ff3d00" stop-opacity="0.9"/>
+            <stop offset="100%" stop-color="#bf360c" stop-opacity="0.95"/>
+          </linearGradient>
+
+          <filter id="glowDepth">
+            <feGaussianBlur stdDeviation="2" result="blur"/>
+            <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+          </filter>
+        </defs>
+
+        <!-- Background Track -->
+        <rect x="15" y="10" width="30" height="140" rx="15" ry="15" 
+              fill="#0f1923" stroke="#3a4b5c" stroke-width="1"/>
+
+        <!-- Fill Level -->
+        <!-- Logic: Y moves down as depth increases? Or fill up? 
+             Usually Depth gauge fills from top (surface) down? 
+             Wait, visual metaphor:
+             "Full bar" usually means "Safe depth"? Or "Full water"?
+             Standard simple logic: Just a bar representing % of max range.
+             Let's fill from Bottom up (standard gauge) for readability, 
+             or Top down for "Depth"? 
+             Let's do Top Down (Surface = Top).
+             If 0m depth -> No water -> Empty? 
+             Actually, Depth gauges usually show NUMBER. 
+             If we use a bar, maybe "Water Column". 
+             Let's do Top Down. height = depth / max. 
+        -->
+        <rect x="17" y="12" width="26" 
+              [attr.height]="view().barHeight" 
+              [attr.fill]="view().isShallow ? 'url(#depthAlarmGrad)' : 'url(#depthFillGrad)'"
+              rx="13" ry="13" 
+              class="bar-fill"
+              filter="url(#glowDepth)"
+        />
+
+        <!-- Ticks -->
+        <g class="ticks">
+           <!-- Manual Ticks for 10, 20, 50m relative to max scale -->
+           <line x1="8" y1="12" x2="15" y2="12" stroke="#8b9bb4" stroke-width="1"/>
+           <line x1="8" y1="150" x2="15" y2="150" stroke="#8b9bb4" stroke-width="1"/>
+        </g>
+
+      </svg>
+    </div>
+
+  </div>
+</app-instrument-card>

@@ -1,0 +1,32 @@
+@if (open) {
+  <div class="dialog-backdrop" (click)="onBackdropClick($event)">
+    <div class="dialog-box" role="dialog" aria-modal="true" [attr.aria-label]="title">
+      
+      <div class="dialog-header">
+        @if (iconName) {
+          <app-icon [name]="iconName" size="lg" [style.color]="iconColor" class="dialog-icon"></app-icon>
+        }
+        <app-heading [level]="3">{{ title }}</app-heading>
+      </div>
+
+      <div class="dialog-body">
+        <app-text>{{ message }}</app-text>
+        <ng-content></ng-content>
+      </div>
+
+      <div class="dialog-actions">
+        @if (actions.length > 0) {
+          @for (action of actions; track action.label) {
+            <app-button 
+              [variant]="action.variant || 'secondary'" 
+              (click)="action.handler()">
+              {{ action.label }}
+            </app-button>
+          }
+        } @else {
+          <ng-content select="[actions]"></ng-content>
+        }
+      </div>
+    </div>
+  </div>
+}

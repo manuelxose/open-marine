@@ -1,0 +1,208 @@
+:host {
+  display: block;
+}
+
+.compass {
+  position: relative;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 50% 50%,
+    color-mix(in srgb, var(--bg-surface) 96%, var(--primary) 4%) 0%,
+    var(--bg-surface) 55%,
+    color-mix(in srgb, var(--bg-surface-secondary) 85%, var(--bg-surface) 15%) 100%
+  );
+  border: 2px solid var(--border-default);
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
+  user-select: none;
+  --radius: calc(var(--compass-size, 300px) / 2);
+
+  /* Set dimensions */
+  width: var(--compass-size, 300px);
+  height: var(--compass-size, 300px);
+
+  &__dial {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+    will-change: transform;
+    
+    /* North */
+    .compass__mark--north { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); color: var(--danger, #ef4444); font-weight: 800; font-size: 1.2rem; }
+    .compass__mark--east  { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: var(--text-primary); font-weight: 700; }
+    .compass__mark--south { position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%); color: var(--text-primary); font-weight: 700; }
+    .compass__mark--west  { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-primary); font-weight: 700; }
+  }
+
+  &__tick {
+    position: absolute;
+    left: 50%;
+    top: 0;
+    width: 2px;
+    margin-left: -1px;
+    height: 10px;
+    background: var(--text-disabled);
+    /* Transform-origin is crucial: it should be at centered horizontally, and distant by radius vertically */
+    /* Since the tick is at top, origin needs to be at vertical center (radius) */
+    /* Wait, if tick is at 0,0 (relative to dial), then origin is at 50% 50% of the dial. */
+    /* But we are rotating ticks around the center */
+    /* In HTML: style="transform: rotate(tick deg)" */
+    /* We need to position tick such that it is at 12 o'clock, then rotate it around the center of dial */
+    
+    transform-origin: 50% calc(var(--compass-size, 100%) / 2); 
+    /* This assumes --compass-size is available or we use 50% 50% if the tick was centered? No. */
+    /* Best way:  element is at top:0 left:50%. width:2px height:8px. 
+       transform-origin: 0 calc(dialHeight / 2). 
+    */
+    /* Actually simpler: 
+       top: 0; left: 50%; height: 100%; width: 0; position: absolute;
+       Then inside it render the tick?
+       No, let's keep it simple. Origin at center of dial.
+       Since tick is at top (0), and center is at height/2.
+       So transform-origin: 50% (half width of tick) and (height/2 of container)
+    */
+    /* We can use percentages if container is the dial */
+    transform-origin: 50% 150px; /* Falback if size is 300px. We need dynamic origin */
+  }
+}
+
+/* Let's fix the tick positioning strategy to be size-agnostic */
+/* Better approach: container for each tick that is full size, rotated, and tick inside it at top? */
+/* Or just use JS style binding for origin? No, prefer CSS. */
+/* The tick is a direct child of compass__dial (which is 100% size) */
+.compass__tick {
+    position: absolute;
+    left: 50%;
+    top: 4px;
+    width: 2px;
+    height: 8px;
+    background: var(--text-tertiary);
+    transform-origin: 50% calc(50% - 4px); /* This is wrong */
+    
+    /* Correct way:
+       The tick is at the top edge. The center of rotation is the center of the compass.
+       Vertical distance from tick top to center is Radius.
+       So origin Y should be Radius - top_offset?
+       Wait, transform-origin is relative to the element. 
+       So specific px value is needed OR we make the tick element full height?
+    */
+}
+
+/* REDO styles for robust radial layout */
+.compass {
+  &__dial {
+    /* ... */
+  }
+  
+  &__tick {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    height: 50%; /* Reaches the center */
+    width: 2px;
+    transform-origin: bottom center; /* Rotate around bottom (center of dial) */
+    pointer-events: none;
+    
+    /* But we don't want a line all the way. We use a pseudo element or background */
+    background: transparent;
+
+    &::after {
+      content: '';
+      position: absolute;
+      top: 4px;
+      left: 0;
+      width: 100%;
+      height: 8px;
+      background-color: var(--text-tertiary);
+    }
+
+    &--major::after {
+      height: 12px;
+      width: 3px;
+      margin-left: -0.5px;
+      background-color: var(--text-secondary);
+    }
+  }
+
+  &__vessel {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 24%;
+    height: 36%;
+    transform: translate(-50%, -50%);
+    color: var(--text-primary);
+    z-index: 10;
+    filter: drop-shadow(0 4px 6px rgba(0,0,0,0.3));
+  }
+  
+  &__indicator {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    height: 50%;
+    width: 0;
+    transform-origin: bottom center;
+    pointer-events: none;
+
+    &--cog .marker {
+      position: absolute;
+      top: -6px;
+      left: -8px;
+      width: 0; 
+      height: 0; 
+      border-left: 8px solid transparent;
+      border-right: 8px solid transparent;
+      border-top: 12px solid var(--color-warning-500);
+      z-index: 5;
+    }
+
+    &--bearing .dot {
+      position: absolute;
+      top: 15%;
+      left: -6px;
+      width: 12px;
+      height: 12px;
+      background-color: var(--color-success-500);
+      border: 2px solid var(--surface-card);
+      border-radius: 50%;
+      z-index: 6;
+      box-shadow: 0 0 4px rgba(0,0,0,0.5);
+    }
+  }
+
+  &__readout {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: color-mix(in srgb, var(--bg-surface) 82%, transparent);
+    border: 1px solid var(--border-default);
+    backdrop-filter: blur(6px);
+    padding: 0.25rem 0.5rem;
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow-sm);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    pointer-events: none;
+    z-index: 20;
+
+    .value {
+      font-size: 1.75rem;
+      font-weight: var(--font-weight-bold);
+      color: var(--text-primary);
+      font-variant-numeric: tabular-nums;
+      line-height: 1;
+    }
+    .label {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      font-weight: var(--font-weight-medium);
+      letter-spacing: 0.1em;
+    }
+  }
+}

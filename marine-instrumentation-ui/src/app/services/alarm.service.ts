@@ -274,6 +274,9 @@ export class AlarmService {
     }
 
     const top = sorted[0];
+    if (!top) {
+      return;
+    }
 
     this.stateSubject.next({
       active: true,

@@ -73,8 +73,11 @@ export class DatapointStoreService {
 
   constructor(private historyService: HistoryService) {
     for (const path of Object.keys(this.HISTORY_CONFIG)) {
-      this._history.set(path, new RingBuffer<HistoryPoint>(this.HISTORY_CONFIG[path]));
-      this._historySubjects.set(path, new BehaviorSubject<HistoryPoint[]>([]));
+      const size = this.HISTORY_CONFIG[path];
+      if (size !== undefined) {
+        this._history.set(path, new RingBuffer<HistoryPoint>(size));
+        this._historySubjects.set(path, new BehaviorSubject<HistoryPoint[]>([]));
+      }
     }
   }
 

@@ -80,6 +80,40 @@
   --border-subtle: var(--nord-5);
   --border-default: var(--nord-4);
   --border-strong: var(--nord-3);
+
+  // Derived / Compatibility Tokens
+  --bg-surface-2: var(--bg-surface-secondary);
+  --bg-surface-3: var(--nord-4);
+  --bg-surface-tertiary: var(--nord-4);
+  --border-color: var(--border-default);
+  --bg-hover: color-mix(in srgb, var(--text-primary) 6%, var(--bg-surface-secondary));
+  --color-danger: var(--danger);
+  --color-danger-dim: color-mix(in srgb, var(--danger) 18%, var(--bg-surface-secondary));
+  --color-warning-500: var(--warn);
+  --color-success-500: var(--success);
+  --color-danger-500: var(--danger);
+  --color-danger-500-10: var(--danger-bg);
+  --color-danger-500-rgb: 220, 38, 38;
+  --color-info-500: var(--info);
+  --color-info-500-10: var(--info-bg);
+  --color-info-500-rgb: 129, 161, 193;
+  --color-info-500-30: color-mix(in srgb, var(--info) 30%, transparent);
+  --color-accent-500: var(--accent);
+  --color-primary-500: var(--primary);
+  --surface-card: var(--bg-surface);
+  --surface-ground-rgb: 236, 239, 244;
+  --panel: var(--panel-bg);
+  --panel-bg-hover: var(--bg-hover);
+  --accent-color: var(--accent);
+  --accent-strong: var(--primary-700);
+  --accent-soft: color-mix(in srgb, var(--primary) 12%, var(--bg-surface-secondary));
+  --chip-bg: color-mix(in srgb, var(--bg-surface-secondary) 85%, var(--primary) 15%);
+  --status-online: var(--success);
+  --status-offline: var(--text-tertiary);
+  --info-bg: color-mix(in srgb, var(--info) 12%, var(--bg-surface));
+  --info-text: var(--text-primary);
+  --overlay-backdrop: rgba(46, 52, 64, 0.45);
+  --overlay-blur: blur(4px);
   
   --radius-none: 0;
   --radius-sm: 0.25rem; // 4px
@@ -120,6 +154,13 @@
   
   --layout-gutter: var(--space-4);
   --section-spacing: var(--space-8);
+  
+  // Spacing aliases (legacy)
+  --spacing-xs: var(--space-2);
+  --spacing-sm: var(--space-3);
+  --spacing-md: var(--space-4);
+  --spacing-lg: var(--space-6);
+  --spacing-xl: var(--space-8);
 
   // ---------------------------------------------------------------------------
   // Z-INDEX TOKENS (T.8)
@@ -141,6 +182,7 @@
   --surface-1: var(--bg-surface);
   --surface-2: var(--bg-surface-secondary);
   --surface-3: var(--nord-4);
+  --surface-border: var(--border-default);
   
   --border: var(--border-default);
   --border-strong: var(--border-strong);
@@ -171,6 +213,10 @@
   --success-400: var(--nord-14); // Approximate
   --success-500: var(--success);
   --success-600: var(--success-text);
+  --success-default: var(--success);
+  --warning-default: var(--warn);
+  --danger-default: var(--danger);
+  --primary-default: var(--primary);
   
   --warn-bg: var(--warn-bg);
   --warning-400: var(--nord-13); // Yellowish
@@ -192,6 +238,39 @@
   --panel-bg: var(--bg-surface);
   --panel-border: var(--border-default);
   // End Legacy
+
+  // ---------------------------------------------------------------------------
+  // CHART REBUILD TOKENS
+  // ---------------------------------------------------------------------------
+  
+  // Surfaces & Glassmorphism
+  --chart-overlay-bg: color-mix(in srgb, var(--bg-surface) 85%, transparent);
+  --chart-overlay-border: color-mix(in srgb, var(--border-default) 60%, transparent);
+  --chart-overlay-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+  --chart-overlay-blur: blur(12px);
+
+  // Status Colors
+  --fix-color: var(--success);
+  --stale-color: var(--warn);
+  --nofix-color: var(--danger);
+
+  // Z-Index Layers
+  --z-map: 0;
+  --z-map-controls: 10;
+  --z-chart-hud: 15;
+  --z-chart-panels: 20;
+  --z-chart-drawers: 25;
+  --z-chart-modals: 30;
+  --z-chart-alerts: 40;
+  --z-fullscreen: 100;
+
+  // Spacing
+  --chart-edge-gap: 1rem;
+  --chart-element-gap: 0.75rem;
+
+  // Animation
+  --chart-panel-duration: 250ms;
+  --chart-panel-easing: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 // ---------------------------------------------------------------------------
@@ -227,7 +306,7 @@
   // Text (Night)
   --text-primary: var(--nord-6);
   --text-secondary: var(--nord-4);
-  --text-tertiary: var(--nord-3); // Muted
+  --text-tertiary: color-mix(in srgb, var(--nord-4) 60%, var(--nord-3)); // Muted, but legible
   --text-disabled: var(--nord-2);
   --text-inverse: var(--nord-0);
 
@@ -235,6 +314,7 @@
   --border-subtle: var(--nord-1);
   --border-default: var(--nord-2);
   --border-strong: var(--nord-3);
+  --bg-surface-tertiary: var(--nord-3);
   
   // Shadows (Lighter or invisible in dark mode)
   // In Night Mode, shadows are less useful for depth; borders become more important.
@@ -245,4 +325,13 @@
   --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.6);
   --shadow-2xl: 0 25px 50px -12px rgba(0, 0, 0, 0.8);
   --shadow-inner: inset 0 2px 4px 0 rgba(0, 0, 0, 0.5);
+
+  // Chart Night Mode Overrides
+  --chart-overlay-bg: color-mix(in srgb, var(--nord-1) 90%, transparent);
+  --chart-overlay-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+
+  // Compatibility overrides for night
+  --color-danger-500-rgb: 166, 52, 52;
+  --surface-ground-rgb: 46, 52, 64;
+  --overlay-backdrop: rgba(0, 0, 0, 0.65);
 }

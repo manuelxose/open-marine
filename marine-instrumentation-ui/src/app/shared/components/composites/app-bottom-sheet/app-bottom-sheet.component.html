@@ -1,0 +1,18 @@
+@if (open) {
+  <div class="sheet-backdrop" (click)="onBackdropClick($event)">
+    <div class="sheet-container" role="dialog" aria-modal="true">
+      <div class="drag-handle-bar">
+        <div class="drag-handle"></div>
+      </div>
+      
+      <div class="sheet-header">
+        <app-heading [level]="3">{{ title }}</app-heading>
+        <app-icon-button icon="close" label="Close" size="sm" variant="ghost" (action)="close.emit()"></app-icon-button>
+      </div>
+      
+      <div class="sheet-content">
+        <ng-content></ng-content>
+      </div>
+    </div>
+  </div>
+}

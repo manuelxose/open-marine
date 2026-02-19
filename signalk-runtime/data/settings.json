@@ -1,5 +1,24 @@
 {
-  "pipedProviders": [],
+  "pipedProviders": [
+    {
+      "pipeElements": [
+        {
+          "type": "providers/simple",
+          "options": {
+            "logging": true,
+            "type": "NMEA0183",
+            "subOptions": {
+              "validateChecksum": true,
+              "type": "udp",
+              "port": "10110"
+            }
+          }
+        }
+      ],
+      "id": "signaltcp",
+      "enabled": true
+    }
+  ],
   "interfaces": {},
   "resourcesApi": {
     "defaultProviders": {

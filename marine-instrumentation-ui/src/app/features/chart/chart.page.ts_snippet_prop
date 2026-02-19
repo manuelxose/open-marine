@@ -1,5 +1,0 @@
-﻿
-  private readonly rangeRingsSignal = toSignal(this.facade.rangeRingsUpdate$, {
-    initialValue: { center: null as [number, number] | null, intervals: [] as number[] },
-  });
-

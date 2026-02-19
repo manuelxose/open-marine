@@ -126,26 +126,26 @@ export class WaypointStoreService {
     const longitude = wp.position?.longitude;
     const hasCoords = Number.isFinite(latitude) && Number.isFinite(longitude);
 
-    return {
-      name: wp.name,
-      description: wp.description,
-      ...(hasCoords
-        ? {
-            position: { latitude: latitude as number, longitude: longitude as number },
-            feature: {
-              type: 'Feature',
-              geometry: {
-                type: 'Point',
-                coordinates: [longitude, latitude],
-              },
-              properties: {
-                name: wp.name,
-                description: wp.description,
-              },
-            },
-          }
-        : {}),
-    };
+    const payload: SKWaypoint = {};
+    if (wp.name !== undefined) payload.name = wp.name;
+    if (wp.description !== undefined) payload.description = wp.description;
+
+    if (hasCoords) {
+      payload.position = { latitude: latitude as number, longitude: longitude as number };
+      payload.feature = {
+        type: 'Feature',
+        geometry: {
+          type: 'Point',
+          coordinates: [longitude, latitude],
+        },
+        properties: {
+          name: wp.name,
+          description: wp.description,
+        },
+      };
+    }
+
+    return payload;
   }
 
   private buildWaypointPayloadVariants(wp: Partial<Waypoint>): SKWaypoint[] {
@@ -183,6 +183,9 @@ export class WaypointStoreService {
 
   private attemptCreateWaypoint(payloads: SKWaypoint[], index = 0): Observable<{ id: string }> {
     const payload = payloads[index];
+    if (!payload) {
+      return throwError(() => new Error('No valid waypoint payload'));
+    }
     return this.skResources.createResource<SKWaypoint>('waypoints', payload).pipe(
       catchError((err) => {
         if (this.isBadRequest(err) && index < payloads.length - 1) {
@@ -195,6 +198,9 @@ export class WaypointStoreService {
 
   private attemptSetWaypoint(id: string, payloads: SKWaypoint[], index = 0): Observable<void> {
     const payload = payloads[index];
+    if (!payload) {
+      return throwError(() => new Error('No valid waypoint payload'));
+    }
     return this.skResources.setResource<SKWaypoint>('waypoints', id, payload).pipe(
       catchError((err) => {
         if (this.isBadRequest(err) && index < payloads.length - 1) {
@@ -219,7 +225,11 @@ export class WaypointStoreService {
     if (!feature || typeof feature !== 'object') return null;
     const geometry = (feature as { geometry?: { type?: string; coordinates?: unknown } }).geometry;
     if (!geometry || geometry.type !== 'Point' || !Array.isArray(geometry.coordinates)) return null;
-    const [longitude, latitude] = geometry.coordinates as number[];
+    const coords = geometry.coordinates as number[];
+    if (coords.length < 2) return null;
+    const longitude = coords[0];
+    const latitude = coords[1];
+    if (typeof latitude !== 'number' || typeof longitude !== 'number') return null;
     if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
     return { latitude, longitude };
   }

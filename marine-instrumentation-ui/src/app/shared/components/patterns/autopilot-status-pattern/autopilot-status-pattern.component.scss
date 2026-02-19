@@ -1,0 +1,150 @@
+:host {
+  display: block;
+  width: 100%;
+}
+
+.autopilot-status-pattern {
+  padding: 0.75rem;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.autopilot-status-pattern__header {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  align-items: flex-start;
+}
+
+.autopilot-status-pattern__title-wrap {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  min-width: 0;
+}
+
+.autopilot-status-pattern__icon-wrap {
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  border: 1px solid var(--border-default);
+  background: var(--bg-surface-secondary);
+  color: var(--text-secondary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.autopilot-status-pattern__title-content {
+  min-width: 0;
+}
+
+.autopilot-status-pattern__title {
+  margin: 0;
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--text-secondary);
+}
+
+.autopilot-status-pattern__subtitle {
+  margin: 0.2rem 0 0;
+  font-size: 0.82rem;
+  color: var(--text-primary);
+}
+
+.autopilot-status-pattern__pill {
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid var(--border-default);
+  background: var(--bg-surface-secondary);
+  color: var(--text-secondary);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.autopilot-status-pattern__metrics {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.55rem;
+}
+
+.autopilot-status-pattern__metric {
+  margin: 0;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface-secondary);
+  padding: 0.45rem 0.55rem;
+}
+
+.autopilot-status-pattern__metric-label {
+  margin: 0;
+  font-size: 0.68rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.autopilot-status-pattern__metric-value {
+  margin: 0.2rem 0 0;
+  font-size: 0.92rem;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.autopilot-status-pattern--standby .autopilot-status-pattern__icon-wrap {
+  color: var(--text-secondary);
+}
+
+.autopilot-status-pattern--standby .autopilot-status-pattern__pill {
+  color: var(--text-secondary);
+}
+
+.autopilot-status-pattern--engaged .autopilot-status-pattern__icon-wrap {
+  color: var(--success);
+  border-color: color-mix(in srgb, var(--success) 35%, var(--border-default));
+}
+
+.autopilot-status-pattern--engaged .autopilot-status-pattern__pill {
+  color: var(--success);
+  border-color: color-mix(in srgb, var(--success) 35%, var(--border-default));
+  background: color-mix(in srgb, var(--success) 14%, transparent);
+}
+
+.autopilot-status-pattern--disconnected .autopilot-status-pattern__icon-wrap {
+  color: var(--warn);
+  border-color: color-mix(in srgb, var(--warn) 35%, var(--border-default));
+}
+
+.autopilot-status-pattern--disconnected .autopilot-status-pattern__pill {
+  color: var(--warn);
+  border-color: color-mix(in srgb, var(--warn) 35%, var(--border-default));
+  background: color-mix(in srgb, var(--warn) 14%, transparent);
+}
+
+.autopilot-status-pattern--error .autopilot-status-pattern__icon-wrap {
+  color: var(--danger);
+  border-color: color-mix(in srgb, var(--danger) 35%, var(--border-default));
+}
+
+.autopilot-status-pattern--error .autopilot-status-pattern__pill {
+  color: var(--danger);
+  border-color: color-mix(in srgb, var(--danger) 35%, var(--border-default));
+  background: color-mix(in srgb, var(--danger) 14%, transparent);
+}
+
+@media (max-width: 768px) {
+  .autopilot-status-pattern__metrics {
+    grid-template-columns: 1fr;
+  }
+}
+

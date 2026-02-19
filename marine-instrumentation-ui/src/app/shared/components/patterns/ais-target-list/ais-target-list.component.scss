@@ -1,0 +1,116 @@
+:host {
+  display: block;
+}
+
+// Header row
+.list-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--border-subtle, rgba(255,255,255,0.1));
+}
+
+.header-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  align-items: flex-end;
+  text-align: right;
+}
+
+// List body container
+.list-body {
+  border-radius: var(--radius-md, 8px);
+  overflow: hidden;
+}
+
+// Loading / Empty states
+.list-state {
+  padding: 2rem 1rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  color: var(--text-secondary);
+  min-height: 100px;
+}
+
+.list-state.empty {
+  padding: 1.5rem 1rem;
+  min-height: auto;
+}
+
+// Status dot indicator
+.status-dot {
+  display: inline-block;
+  flex-shrink: 0;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--text-tertiary, #6b7280);
+
+  &.status-safe {
+    background: var(--success, #22c55e);
+  }
+  &.status-warning {
+    background: var(--warn, #f59e0b);
+  }
+  &.status-danger {
+    background: var(--danger, #ef4444);
+    animation: pulse-dot 2s ease-in-out infinite;
+  }
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.7; transform: scale(1.2); }
+}
+
+// Primary content (name + MMSI)
+.primary {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.truncate {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mmsi {
+  color: var(--text-tertiary, #6b7280);
+  font-family: var(--font-mono, monospace);
+  font-size: 0.7rem;
+}
+
+// Secondary content (meta like distance/bearing)
+.secondary {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+}
+
+// Trailing content (CPA/TCPA)
+.trailing {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.125rem;
+  min-width: 80px;
+  text-align: right;
+}
+
+.meta-text {
+  color: var(--text-secondary);
+  font-family: var(--font-mono, monospace);
+  font-size: 0.75rem;
+}

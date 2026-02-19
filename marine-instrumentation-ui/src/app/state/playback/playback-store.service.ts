@@ -27,7 +27,7 @@ export class PlaybackStoreService implements OnDestroy {
   private readonly dataSubject = new BehaviorSubject<PlaybackData>({});
   readonly data$ = this.dataSubject.asObservable();
 
-  private tickSub?: Subscription;
+  private tickSub: Subscription | null = null;
 
   constructor(private historyService: HistoryService) {}
 
@@ -129,7 +129,7 @@ export class PlaybackStoreService implements OnDestroy {
   private stopTick(): void {
     if (this.tickSub) {
       this.tickSub.unsubscribe();
-      this.tickSub = undefined;
+      this.tickSub = null;
     }
   }
 
@@ -147,9 +147,12 @@ export class PlaybackStoreService implements OnDestroy {
     if (!timestamps.length) return [];
     timestamps.sort((a, b) => a - b);
     const events: PlaybackEvent[] = [];
-    let previous = timestamps[0];
+    const first = timestamps[0];
+    if (first === undefined) return [];
+    let previous = first;
     for (let i = 1; i < timestamps.length; i += 1) {
       const current = timestamps[i];
+      if (current === undefined) continue;
       const gap = current - previous;
       if (gap >= minGapMs) {
         const labelMinutes = Math.round(gap / 60000);
@@ -167,9 +170,14 @@ export class PlaybackStoreService implements OnDestroy {
   private findClosestIndex(points: HistoryPoint[], timestamp: number): number {
     let low = 0;
     let high = points.length - 1;
+    
     while (low < high) {
       const mid = Math.floor((low + high) / 2);
-      if (points[mid].timestamp < timestamp) {
+      const midPoint = points[mid];
+      if (!midPoint) {
+        break;
+      }
+      if (midPoint.timestamp < timestamp) {
         low = mid + 1;
       } else {
         high = mid;
@@ -178,6 +186,9 @@ export class PlaybackStoreService implements OnDestroy {
     if (low === 0) return 0;
     const prev = points[low - 1];
     const curr = points[low];
+    if (!prev || !curr) {
+      return Math.max(0, low - 1);
+    }
     return Math.abs(curr.timestamp - timestamp) < Math.abs(prev.timestamp - timestamp)
       ? low
       : low - 1;

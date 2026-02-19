@@ -1,0 +1,109 @@
+:host {
+  display: block;
+}
+
+.attitude-indicator {
+  position: relative;
+  background: radial-gradient(
+    circle at 50% 50%,
+    color-mix(in srgb, var(--bg-surface) 96%, var(--primary) 4%) 0%,
+    var(--bg-surface) 55%,
+    color-mix(in srgb, var(--bg-surface-secondary) 85%, var(--bg-surface) 15%) 100%
+  );
+  border-radius: 50%;
+  border: 2px solid var(--border-default);
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
+
+  &__clip {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    border-radius: 50%;
+    overflow: hidden;
+  }
+
+  &__horizon {
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    /* transform origin centered so rotation happens around the middle of the view */
+    transform-origin: center center;
+    transition: transform 0.1s linear; /* Fast updates for sensors */
+    z-index: 1;
+    
+    display: flex;
+    flex-direction: column;
+
+    .sky {
+        flex: 1;
+        background: linear-gradient(to bottom, #1b6ea8, #55b6e6);
+    }
+
+    .ground {
+        flex: 1;
+        background: linear-gradient(to bottom, #6b4f3b, #3b2a20);
+    }
+    
+    .horizon-line {
+        position: absolute;
+        top: 50%;
+        left: 0;
+        width: 100%;
+        height: 2px;
+        background: color-mix(in srgb, var(--text-primary) 70%, transparent);
+        transform: translateY(-1px);
+    }
+    
+    .pitch-ladder {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        
+        .rung {
+            position: absolute;
+            left: 50%;
+            width: 40px;
+            height: 1px;
+            background: color-mix(in srgb, var(--text-primary) 55%, transparent);
+            transform: translateX(-50%);
+        }
+    }
+  }
+
+  &__reticle {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 10;
+    pointer-events: none;
+  }
+
+  &__bank-scale {
+    position: absolute;
+    top: 10px;
+    left: 0;
+    width: 100%;
+    height: 20px;
+    z-index: 10;
+    
+    .marker {
+        position: absolute;
+        width: 2px;
+        height: 8px;
+        background: color-mix(in srgb, var(--text-primary) 70%, transparent);
+        top: 0;
+    }
+    
+    .center { left: 50%; height: 10px; transform: translateX(-1px); background: var(--warn, #f59e0b); }
+    /* These approximations are for simple fixed scale */
+    .left-30 { left: 35%; transform: rotate(-30deg); } 
+    .right-30 { left: 65%; transform: rotate(30deg); }
+  }
+}

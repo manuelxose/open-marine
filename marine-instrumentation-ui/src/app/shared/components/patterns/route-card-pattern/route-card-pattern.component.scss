@@ -1,0 +1,127 @@
+:host {
+  display: block;
+  width: 100%;
+}
+
+.route-card-pattern {
+  padding: 0.75rem;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  cursor: pointer;
+}
+
+.route-card-pattern--active {
+  border-color: color-mix(in srgb, var(--primary) 45%, var(--border-default));
+}
+
+.route-card-pattern__header {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.route-card-pattern__title-wrap {
+  display: flex;
+  gap: 0.6rem;
+  min-width: 0;
+}
+
+.route-card-pattern__icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  border: 1px solid var(--border-default);
+  background: var(--bg-surface-secondary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--primary);
+  flex-shrink: 0;
+}
+
+.route-card-pattern__title-content {
+  min-width: 0;
+}
+
+.route-card-pattern__title {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.route-card-pattern__subtitle {
+  margin: 0.2rem 0 0;
+  font-size: 0.74rem;
+  color: var(--text-secondary);
+}
+
+.route-card-pattern__pill {
+  height: 24px;
+  padding: 0 0.5rem;
+  border-radius: 999px;
+  border: 1px solid var(--border-default);
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--primary);
+}
+
+.route-card-pattern__metrics {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.45rem;
+}
+
+.route-card-pattern__metric {
+  margin: 0;
+  padding: 0.42rem 0.52rem;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--bg-surface-secondary) 80%, transparent);
+}
+
+.route-card-pattern__metric-label {
+  margin: 0;
+  font-size: 0.68rem;
+  color: var(--text-secondary);
+}
+
+.route-card-pattern__metric-value {
+  margin: 0.16rem 0 0;
+  font-size: 0.84rem;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.route-card-pattern__progress {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--bg-surface-secondary);
+  overflow: hidden;
+}
+
+.route-card-pattern__progress-fill {
+  display: block;
+  height: 100%;
+  background: var(--primary);
+}
+
+.route-card-pattern__actions {
+  display: flex;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 900px) {
+  .route-card-pattern__metrics {
+    grid-template-columns: 1fr;
+  }
+}

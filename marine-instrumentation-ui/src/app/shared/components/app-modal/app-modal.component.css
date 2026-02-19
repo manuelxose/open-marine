@@ -4,8 +4,8 @@
   left: 0;
   width: 100vw;
   height: 100vh;
-  background-color: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(4px);
+  background-color: var(--overlay-backdrop);
+  backdrop-filter: var(--overlay-blur);
   z-index: 5000;
   display: flex;
   align-items: center;
@@ -45,6 +45,7 @@
   justify-content: space-between;
   align-items: center;
   flex-shrink: 0;
+  background-color: var(--bg-surface-secondary);
 }
 
 .modal-header h2 {
@@ -69,7 +70,7 @@
 
 .close-btn:hover {
   color: var(--text-primary);
-  background-color: var(--bg-surface-secondary);
+  background-color: var(--bg-hover);
 }
 
 .modal-body {

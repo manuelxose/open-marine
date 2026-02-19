@@ -45,7 +45,6 @@ import {
   toDegrees,
 } from '../../../state/calculations/navigation';
 import type { CpaLinesFeatureCollection } from '../types/chart-geojson';
-import { LineString } from 'geojson';
 
 const DEFAULT_CENTER: ChartPosition = { lat: 42.2406, lon: -8.7207 };
 const FIX_THRESHOLD_MS = 2000;
@@ -704,6 +703,10 @@ export class ChartFacadeService {
     } else {
       this._baseSource$.next(DEFAULT_BASE_SOURCE);
     }
+  }
+
+  centerOnVessel(): void {
+    this.centerOnBoat();
   }
 
   centerOnBoat(): void {

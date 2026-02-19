@@ -1,16 +1,10 @@
 import { Injectable, Inject, OnDestroy, PLATFORM_ID } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
-import { HttpClient } from '@angular/common/http';
 import { WebSocketSubject, webSocket } from 'rxjs/webSocket';
 import { 
-  Observable, 
-  Subject, 
   BehaviorSubject, 
-  timer, 
   retry, 
   tap, 
-  catchError, 
-  EMPTY, 
   bufferTime, 
   map,
   filter,
@@ -26,8 +20,8 @@ import { NormalizedDataPoint, SignalKHelloMessage, SignalKMessage } from './sign
   providedIn: 'root'
 })
 export class SignalKClientService implements OnDestroy {
-  private socket$?: WebSocketSubject<SignalKMessage>;
-  private connectionSubscription?: Subscription;
+  private socket$: WebSocketSubject<SignalKMessage> | null = null;
+  private connectionSubscription: Subscription | null = null;
   private selfContext: string | null = null;
 
   // Connection State
@@ -37,7 +31,6 @@ export class SignalKClientService implements OnDestroy {
   constructor(
     @Inject(APP_ENVIRONMENT) private env: AppEnvironment,
     @Inject(PLATFORM_ID) private platformId: Object,
-    private http: HttpClient,
     private store: DatapointStoreService,
     private aisStore: AisStoreService
   ) {}
@@ -61,7 +54,7 @@ export class SignalKClientService implements OnDestroy {
         next: () => {
           console.log('Signal K WS Closed');
           this._connected.next(false);
-          this.socket$ = undefined; // Allow reconnect
+          this.socket$ = null; // Allow reconnect
         }
       }
     });
@@ -107,7 +100,9 @@ export class SignalKClientService implements OnDestroy {
     
     // Context formats: "vessels.urn:mrn:imo:mmsi:123456789" or "vessels.123456789"
     const parts = point.context.split(':');
-    let mmsi = parts[parts.length - 1]; // Try last part of colon sep
+    const lastPart = parts[parts.length - 1];
+    if (!lastPart) return;
+    let mmsi = lastPart; // Try last part of colon sep
     
     if (mmsi.startsWith('vessels.')) {
         mmsi = mmsi.replace('vessels.', '');
@@ -154,10 +149,11 @@ export class SignalKClientService implements OnDestroy {
   public disconnect(): void {
     if (this.connectionSubscription) {
       this.connectionSubscription.unsubscribe();
+      this.connectionSubscription = null;
     }
     if (this.socket$) {
       this.socket$.complete();
-      this.socket$ = undefined;
+      this.socket$ = null;
     }
     this._connected.next(false);
   }
