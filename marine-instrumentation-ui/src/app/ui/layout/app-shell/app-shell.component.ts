@@ -60,6 +60,20 @@ export class AppShellComponent {
     this.requestChartReflow();
   }
 
+  handleMainAreaClick(event: MouseEvent): void {
+    if (this.navCollapsed || !this.router.url.startsWith('/chart')) {
+      return;
+    }
+
+    const target = event.target as HTMLElement | null;
+    if (target?.closest('.chart-nav-hamburger')) {
+      return;
+    }
+
+    this.navCollapsed = true;
+    this.requestChartReflow();
+  }
+
   navigateToAlarms(): void {
     this.router.navigate(['/alarms']);
   }

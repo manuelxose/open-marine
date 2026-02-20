@@ -47,25 +47,6 @@
   pointer-events: none;
 }
 
-/* Chart overlay mode: sidenav floats on top of chart */
-.sidenav--chart-overlay {
-  position: fixed;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  z-index: var(--z-30, 30);
-  box-shadow: 4px 0 24px rgba(0, 0, 0, 0.5);
-}
-
-/* Clickable overlay behind sidenav in chart mode (transparent — no gray) */
-.nav-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: var(--z-20, 20);
-  background: transparent;
-  cursor: pointer;
-}
-
 /* Nav items */
 .nav-item {
   position: relative;
@@ -304,3 +285,4 @@
     padding-bottom: 56px;
   }
 }
+
