@@ -1,0 +1,110 @@
+<div class="left-panel" [class.left-panel--closed]="!isOpen">
+  <button class="left-panel__handle" type="button" (click)="toggleOpen.emit()" [attr.aria-expanded]="isOpen" aria-label="Toggle chart side panel">
+    <app-icon [name]="isOpen ? 'chevron-left' : 'chevron-right'" [size]="18" />
+  </button>
+
+  <section class="left-panel__body" *ngIf="isOpen">
+    <header class="left-panel__header">
+      <h2 class="left-panel__title">Chart Panel</h2>
+    </header>
+
+    <nav class="left-panel__tabs" role="tablist" aria-label="Chart side panel tabs">
+      <button
+        type="button"
+        class="left-panel__tab-btn"
+        *ngFor="let tab of tabs"
+        [class.is-active]="activeTab === tab.id"
+        (click)="tabChange.emit(tab.id)"
+        role="tab"
+        [attr.aria-selected]="activeTab === tab.id">
+        <app-icon [name]="tab.icon" [size]="15" />
+        <span>{{ tab.label }}</span>
+      </button>
+    </nav>
+
+    <div class="left-panel__content">
+      <ng-container [ngSwitch]="activeTab">
+        <section class="left-panel__tab-pane" *ngSwitchCase="'layers'">
+          <app-chart-controls
+            *ngIf="controlsVm"
+            [vm]="controlsVm"
+            (toggleTrack)="toggleTrack.emit()"
+            (toggleVector)="toggleVector.emit()"
+            (toggleTrueWind)="toggleTrueWind.emit()"
+            (toggleRangeRings)="toggleRangeRings.emit()"
+            (changeRangeRingIntervals)="changeRangeRingIntervals.emit($event)"
+            (toggleAisTargets)="toggleAisTargets.emit()"
+            (toggleAisLabels)="toggleAisLabels.emit()"
+            (toggleCpaLines)="toggleCpaLines.emit()"
+            (toggleOpenSeaMap)="toggleOpenSeaMap.emit()" />
+        </section>
+
+        <section class="left-panel__tab-pane" *ngSwitchCase="'ais'">
+          <app-ais-target-list
+            [targets]="aisTargets"
+            [selectedMmsi]="selectedAisMmsi"
+            [sortBy]="aisSortBy"
+            (selectTarget)="selectAisTarget.emit($event)"
+            (sortChange)="aisSortByChange.emit($any($event))"
+            (followTarget)="followTarget.emit($event)" />
+        </section>
+
+        <section class="left-panel__tab-pane" *ngSwitchCase="'waypoints'">
+          <app-chart-waypoint-list
+            *ngIf="waypointVm"
+            [vm]="waypointVm"
+            (selectWaypoint)="selectWaypoint.emit($event)"
+            (renameWaypoint)="renameWaypoint.emit($event)"
+            (deleteWaypoint)="deleteWaypoint.emit($event)"
+            (clearActive)="clearActiveWaypoint.emit()" />
+          <button type="button" class="left-panel__export-btn" (click)="exportWaypointsGpx.emit()" title="Export waypoints as GPX">
+            <app-icon name="download" [size]="14" />
+            <span>Export GPX</span>
+          </button>
+        </section>
+
+        <section class="left-panel__tab-pane routes-tab" *ngSwitchCase="'routes'">
+          <ng-container *ngIf="routesVm?.routes?.length; else noRoutes">
+            <article class="route-card" *ngFor="let route of routesVm!.routes; trackBy: trackByRouteId">
+              <header class="route-card__header">
+                <div class="route-card__title-group">
+                  <h3 class="route-card__title">{{ route.name }}</h3>
+                  <span class="route-card__badge" [class.is-active]="route.isActive">
+                    {{ route.isActive ? 'ACTIVE' : 'PLANNED' }}
+                  </span>
+                </div>
+                <div class="route-card__summary">
+                  <span>{{ route.waypointCount }} WP</span>
+                  <span>{{ route.totalDistanceNm | number: '1.1-2' }} NM</span>
+                  <span>{{ route.estimatedDuration }}</span>
+                </div>
+              </header>
+
+              <div class="route-card__legs">
+                <div class="route-leg" *ngFor="let leg of route.legs">
+                  <div class="route-leg__names">{{ leg.from }} -> {{ leg.to }}</div>
+                  <div class="route-leg__meta">
+                    <span>{{ leg.bearingDeg | number: '1.0-0' }}&#176;</span>
+                    <span>{{ leg.distanceNm | number: '1.1-2' }} NM</span>
+                    <span>ETA {{ leg.eta }}</span>
+                  </div>
+                </div>
+              </div>
+            </article>
+          </ng-container>
+
+          <ng-template #noRoutes>
+            <div class="routes-empty">
+              <app-icon name="route" [size]="26" />
+              <p>No route data available.</p>
+            </div>
+          </ng-template>
+          <button type="button" class="left-panel__export-btn" (click)="exportRouteGpx.emit()" title="Export route as GPX">
+            <app-icon name="download" [size]="14" />
+            <span>Export GPX</span>
+          </button>
+        </section>
+      </ng-container>
+    </div>
+  </section>
+</div>

@@ -1,46 +1,43 @@
-<app-instrument-card
-  title="METEO"
-  [quality]="quality()"
-  [ageSeconds]="age()"
-  [source]="source()"
->
+<omi-gb-bezel class="marine-card" label="METEO" [quality]="view().quality">
   <div class="meteo-view">
-    
     <div class="main-readout">
-      <span class="value">{{ pressure() | number:'1.0-0' }}</span>
+      <span class="value gb-display-value gb-display-value--xl">{{ view().pressureDisplay }}</span>
       <div class="meta">
-        <span class="unit">hPa</span>
-        <div class="trend-indicator" [class.up]="trend() > 0" [class.down]="trend() < 0">
+        <span class="unit gb-display-unit" *ngIf="view().pressureDisplay !== '---'">hPa</span>
+        <div class="trend-indicator" *ngIf="!view().isStale" [class.up]="trend() > 0" [class.down]="trend() < 0">
           <svg viewBox="0 0 24 24" class="arrow-icon">
-            <!-- Simple arrow. Rotation handles direction? Or class based paths? -->
-            <path *ngIf="trend() > 0" d="M12 4l-8 8h6v8h4v-8h6z" fill="currentColor"/>
-            <path *ngIf="trend() < 0" d="M12 20l-8-8h6v-8h4v8h6z" fill="currentColor"/>
-            <path *ngIf="trend() === 0" d="M4 11h16v2H4z" fill="currentColor"/> <!-- dash -->
+            <path *ngIf="trend() > 0" d="M12 4l-8 8h6v8h4v-8h6z" fill="currentColor" />
+            <path *ngIf="trend() < 0" d="M12 20l-8-8h6v-8h4v8h6z" fill="currentColor" />
+            <path *ngIf="trend() === 0" d="M4 11h16v2H4z" fill="currentColor" />
           </svg>
         </div>
       </div>
     </div>
 
     <div class="sparkline-container">
-      <svg class="sparkline-svg" viewBox="0 0 100 40" preserveAspectRatio="none">
-         <!-- Gradient Fill -->
-         <defs>
-           <linearGradient id="sparkGradient" x1="0" x2="0" y1="0" y2="1">
-              <stop offset="0%" stop-color="#00e5ff" stop-opacity="0.3"/>
-              <stop offset="100%" stop-color="#00e5ff" stop-opacity="0"/>
-           </linearGradient>
-         </defs>
+      <svg class="sparkline-svg" viewBox="0 0 100 40" preserveAspectRatio="none" role="img" [attr.aria-label]="view().ariaLabel">
+        <defs>
+          <linearGradient id="sparkGradient" x1="0" x2="0" y1="0" y2="1">
+            <stop offset="0%" stop-color="var(--gb-needle-secondary)" stop-opacity="0.3" />
+            <stop offset="100%" stop-color="var(--gb-needle-secondary)" stop-opacity="0" />
+          </linearGradient>
+        </defs>
 
-         <!-- Line + Area -->
-         <path [attr.d]="sparklinePath()"
-               fill="url(#sparkGradient)"
-               stroke="#00e5ff"
-               stroke-width="2"
-               vector-effect="non-scaling-stroke"
-               class="trend-line"/>
+        <path
+          [attr.d]="sparklinePath()"
+          fill="url(#sparkGradient)"
+          stroke="var(--gb-needle-secondary)"
+          stroke-width="2"
+          vector-effect="non-scaling-stroke"
+          class="trend-line"
+        />
       </svg>
       <div class="graph-label">12 HOURS</div>
     </div>
 
+    <div class="meta-row">
+      <span class="gb-instrument-label" *ngIf="view().source">{{ view().source }}</span>
+      <span class="gb-display-unit" *ngIf="view().age !== null">{{ view().age | number:'1.1-1' }}s</span>
+    </div>
   </div>
-</app-instrument-card>
+</omi-gb-bezel>

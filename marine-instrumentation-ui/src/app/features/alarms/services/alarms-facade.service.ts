@@ -109,6 +109,7 @@ export class AlarmsFacadeService implements OnDestroy {
              const activeAlarms = alarms.filter(a => a.state === AlarmState.Active);
              let maxSev: AlarmSeverity | null = null;
              const severityRank: Record<AlarmSeverity, number> = {
+               [AlarmSeverity.Info]: 0,
                [AlarmSeverity.Warning]: 1,
                [AlarmSeverity.Critical]: 2,
                [AlarmSeverity.Emergency]: 3,
@@ -198,8 +199,8 @@ export class AlarmsFacadeService implements OnDestroy {
           return;
         }
 
-        const anchorPosition = anchorAlarm.data?.anchorPosition as { lat: number; lon: number } | undefined;
-        const radius = anchorAlarm.data?.radius as number | undefined;
+        const anchorPosition = anchorAlarm.data?.['anchorPosition'] as { lat: number; lon: number } | undefined;
+        const radius = anchorAlarm.data?.['radius'] as number | undefined;
         if (!anchorPosition || !Number.isFinite(radius)) {
           return;
         }
@@ -210,7 +211,7 @@ export class AlarmsFacadeService implements OnDestroy {
             active: true,
             anchorPosition,
             radius,
-            setAt: anchorAlarm.data?.setAt ?? anchorAlarm.timestamp,
+            setAt: anchorAlarm.data?.['setAt'] ?? anchorAlarm.timestamp,
           })
         );
       })
@@ -223,7 +224,7 @@ export class AlarmsFacadeService implements OnDestroy {
         this.alarmStore.alarms$.pipe(
           map(alarms => alarms.find(a => a.type === 'anchor-watch')),
           // Only proceed if anchor watch is configured (exists and not cleared/inactive)
-          filter(a => !!a && a.state !== AlarmState.Cleared && a.state !== AlarmState.Inactive && !!a.data?.anchorPosition)
+          filter(a => !!a && a.state !== AlarmState.Cleared && a.state !== AlarmState.Inactive && !!a.data?.['anchorPosition'])
         ),
         this.datapointStore.observe<{latitude:number, longitude:number}>(PATHS.navigation.position),
         this.playbackActive$,
@@ -234,8 +235,10 @@ export class AlarmsFacadeService implements OnDestroy {
          if (!anchorAlarm || !positionDp?.value) return;
 
          const currentPos = { lat: positionDp.value.latitude, lon: positionDp.value.longitude };
-         const anchorPos = anchorAlarm.data.anchorPosition;
-         const radius = anchorAlarm.data.radius || 40;
+         const anchorData = anchorAlarm.data;
+         if (!anchorData) return;
+         const anchorPos = anchorData['anchorPosition'] as { lat: number; lon: number };
+         const radius = (anchorData['radius'] as number) || 40;
          
          const distance = haversineDistanceMeters(anchorPos, currentPos);
          

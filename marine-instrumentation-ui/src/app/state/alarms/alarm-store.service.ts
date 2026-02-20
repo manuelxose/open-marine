@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { BehaviorSubject, map } from 'rxjs';
-import { Alarm, AlarmSeverity, AlarmState, AlarmType } from './alarm.models';
+import { Alarm, AlarmCategory, AlarmSeverity, AlarmState, AlarmType, ALARM_TYPE_CATEGORY } from './alarm.models';
 
 @Injectable({
   providedIn: 'root',
@@ -42,28 +42,22 @@ export class AlarmStoreService {
     type: AlarmType, 
     severity: AlarmSeverity, 
     message: string, 
-    data?: any
+    data?: Record<string, unknown>
   ): void {
     const currentMap = this._alarms.value;
     const existing = currentMap.get(id);
 
-    // If already active/ack/silenced, just update timestamp/message if changed?
-    // Usually we don't want to re-trigger audio if it's already acknowledged, unless severity escalates.
+    // If inhibited by user, skip
+    if (existing?.state === AlarmState.Inhibited) return;
     
     if (existing && (existing.state === AlarmState.Active || existing.state === AlarmState.Acknowledged || existing.state === AlarmState.Silenced)) {
-      // Alarm is effectively active.
-      
-      // If severity increases (e.g. Warning -> Critical), reset to Active to re-notify user
       if (this.isSeverityHigher(severity, existing.severity)) {
-         this.updateAlarmState(existing, AlarmState.Active, { severity, message, timestamp: Date.now(), data });
+         this.updateAlarmState(existing, AlarmState.Active, { severity, message, timestamp: Date.now(), ...(data !== undefined ? { data } : {}) });
          return;
       }
       
-      // Otherwise just update data without changing state
-      // We do NOT update timestamp usually to keep original trigger time, unless requested.
-      // Let's just update data/message for now.
       if (existing.message !== message || JSON.stringify(existing.data) !== JSON.stringify(data)) {
-        const updated = { ...existing, message, data };
+        const updated: Alarm = { ...existing, message, ...(data !== undefined ? { data } : {}) };
         const nextMap = new Map(currentMap);
         nextMap.set(id, updated);
         this._alarms.next(nextMap);
@@ -71,14 +65,16 @@ export class AlarmStoreService {
       return;
     }
 
-    // New or previously cleared alarm -> Set to Active
+    const category: AlarmCategory = ALARM_TYPE_CATEGORY[type] ?? 'system';
+
     const newAlarm: Alarm = {
       id,
       type,
+      category,
       severity,
       state: AlarmState.Active,
       message,
-      data,
+      ...(data !== undefined ? { data } : {}),
       timestamp: Date.now()
     };
 
@@ -114,14 +110,57 @@ export class AlarmStoreService {
 
     if (existing.state !== AlarmState.Cleared && existing.state !== AlarmState.Inactive) {
       this.updateAlarmState(existing, AlarmState.Cleared);
-      
-      // Optional: Remove cleared alarms after some time or keep them in history?
-      // For now we keep them as 'Cleared' in the map.
     }
+  }
+
+  resolveAlarm(id: string): void {
+    const currentMap = this._alarms.value;
+    const existing = currentMap.get(id);
+    if (!existing) return;
+
+    if (existing.state === AlarmState.Active || existing.state === AlarmState.Acknowledged || existing.state === AlarmState.Silenced) {
+      this.updateAlarmState(existing, AlarmState.Resolved, { resolvedAt: Date.now() });
+    }
+  }
+
+  inhibitAlarm(id: string): void {
+    const currentMap = this._alarms.value;
+    const existing = currentMap.get(id);
+    if (!existing) return;
+    this.updateAlarmState(existing, AlarmState.Inhibited);
+  }
+
+  acknowledgeAll(): void {
+    const currentMap = this._alarms.value;
+    const nextMap = new Map(currentMap);
+    let changed = false;
+
+    for (const [key, alarm] of nextMap) {
+      if (alarm.state === AlarmState.Active) {
+        nextMap.set(key, { ...alarm, state: AlarmState.Acknowledged, acknowledgedAt: Date.now() });
+        changed = true;
+      }
+    }
+
+    if (changed) this._alarms.next(nextMap);
+  }
+
+  silenceAll(): void {
+    const currentMap = this._alarms.value;
+    const nextMap = new Map(currentMap);
+    let changed = false;
+
+    for (const [key, alarm] of nextMap) {
+      if (alarm.state === AlarmState.Active || alarm.state === AlarmState.Acknowledged) {
+        nextMap.set(key, { ...alarm, state: AlarmState.Silenced });
+        changed = true;
+      }
+    }
+
+    if (changed) this._alarms.next(nextMap);
   }
   
   clearAll(): void {
-     // Provide way to reset store (e.g. at startup)
      this._alarms.next(new Map());
   }
 
@@ -138,7 +177,8 @@ export class AlarmStoreService {
   }
 
   private isSeverityHigher(newSev: AlarmSeverity, oldSev: AlarmSeverity): boolean {
-    const severityScore = {
+    const severityScore: Record<AlarmSeverity, number> = {
+      [AlarmSeverity.Info]: 0,
       [AlarmSeverity.Warning]: 1,
       [AlarmSeverity.Critical]: 2,
       [AlarmSeverity.Emergency]: 3,

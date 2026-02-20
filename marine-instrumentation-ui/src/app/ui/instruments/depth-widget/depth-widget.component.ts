@@ -1,10 +1,11 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { combineLatest, map, scan, startWith, timer, filter } from 'rxjs';
+import { combineLatest, map, scan, startWith, timer } from 'rxjs';
 import { PATHS } from '@omi/marine-data-contract';
 import { DatapointStoreService } from '../../../state/datapoints/datapoint-store.service';
-import { InstrumentCardComponent, DataQuality } from '../../components/instrument-card/instrument-card.component';
+import { GbInstrumentBezelComponent } from '../../../shared/components/gb-instrument-bezel/gb-instrument-bezel.component';
+import { DataQualityService, type DataQuality } from '../../../shared/services/data-quality.service';
 
 interface DepthPoint {
   value: number;
@@ -15,51 +16,46 @@ interface DepthView {
   currentValue: string;
   unit: string;
   quality: DataQuality;
+  isStale: boolean;
   age: number | null;
   source: string;
-  
-  // Gráficos Separados
-  graphFillPath: string;   // El área coloreada (Agua)
-  graphLinePath: string;   // La línea sólida del fondo
-  
-  // Escalas
-  scaleMax: number;        // El tope de la escala (ej. 20m)
-  scaleTicks: number[];    // [5, 10, 15] para dibujar las líneas
-  
-  isShallow: boolean;      // Estado de alarma
+  graphFillPath: string;
+  graphLinePath: string;
+  scaleMax: number;
+  scaleTicks: number[];
+  isShallow: boolean;
+  ariaLabel: string;
 }
 
 @Component({
   selector: 'app-depth-widget',
   standalone: true,
-  imports: [CommonModule, InstrumentCardComponent],
+  imports: [CommonModule, GbInstrumentBezelComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <app-instrument-card
-      title="DEPTH / SONAR"
-      [quality]="view().quality"
-      [ageSeconds]="view().age"
-      [source]="view().source"
-      class="marine-card"
-      [class.alarm-active]="view().isShallow" 
-    >
-      <div class="depth-container">
-        
+    <omi-gb-bezel class="marine-card" label="DEPTH / SONAR" [quality]="view().quality">
+      <div class="depth-container" [class.alarm-active]="view().isShallow">
         <div class="sonar-wrapper">
-          <svg viewBox="0 0 100 100" preserveAspectRatio="none" class="sonar-svg">
+          <svg
+            viewBox="0 0 100 100"
+            preserveAspectRatio="none"
+            class="sonar-svg"
+            role="img"
+            [attr.aria-label]="view().ariaLabel"
+          >
             <defs>
               <linearGradient id="gradWaterNormal" x1="0%" y1="0%" x2="0%" y2="100%">
-                <stop offset="0%" style="stop-color:var(--color-water-top); stop-opacity:0.5" />
-                <stop offset="100%" style="stop-color:var(--color-water-bottom); stop-opacity:0.1" />
+                <stop offset="0%" stop-color="var(--color-water-top)" stop-opacity="0.5" />
+                <stop offset="100%" stop-color="var(--color-water-bottom)" stop-opacity="0.1" />
               </linearGradient>
-              
+
               <linearGradient id="gradWaterAlarm" x1="0%" y1="0%" x2="0%" y2="100%">
-                <stop offset="0%" style="stop-color:var(--color-alarm); stop-opacity:0.6" />
-                <stop offset="100%" style="stop-color:var(--color-alarm-dim); stop-opacity:0.1" />
+                <stop offset="0%" stop-color="var(--color-alarm)" stop-opacity="0.6" />
+                <stop offset="100%" stop-color="var(--color-alarm-dim)" stop-opacity="0.1" />
               </linearGradient>
-              
+
               <pattern id="gridPattern" width="20" height="20" patternUnits="userSpaceOnUse">
-                <path d="M 20 0 L 0 0 0 20" fill="none" stroke="rgba(255,255,255,0.03)" stroke-width="0.5"/>
+                <path d="M 20 0 L 0 0 0 20" fill="none" stroke="color-mix(in srgb, var(--gb-text-value) 8%, transparent)" stroke-width="0.5" />
               </pattern>
             </defs>
 
@@ -67,135 +63,141 @@ interface DepthView {
 
             <g class="grid-group">
               <ng-container *ngFor="let tick of view().scaleTicks">
-                <line x1="0" [attr.y1]="(tick / view().scaleMax) * 100" 
-                      x2="100" [attr.y2]="(tick / view().scaleMax) * 100" 
-                      class="grid-line" />
-                <text x="98" [attr.y]="(tick / view().scaleMax) * 100 - 2" 
-                      class="grid-label" text-anchor="end">
+                <line
+                  x1="0"
+                  [attr.y1]="(tick / view().scaleMax) * 100"
+                  x2="100"
+                  [attr.y2]="(tick / view().scaleMax) * 100"
+                  class="grid-line"
+                />
+                <text x="98" [attr.y]="(tick / view().scaleMax) * 100 - 2" class="grid-label" text-anchor="end">
                   {{ tick }}m
                 </text>
               </ng-container>
             </g>
 
-            <path [attr.d]="view().graphFillPath" 
-                  [attr.fill]="view().isShallow ? 'url(#gradWaterAlarm)' : 'url(#gradWaterNormal)'" 
-                  class="sonar-fill" />
-            
-            <path [attr.d]="view().graphLinePath" 
-                  class="sonar-bottom-line"
-                  [class.alarm-stroke]="view().isShallow" />
+            <path
+              [attr.d]="view().graphFillPath"
+              [attr.fill]="view().isShallow ? 'url(#gradWaterAlarm)' : 'url(#gradWaterNormal)'"
+              class="sonar-fill"
+            />
 
+            <path [attr.d]="view().graphLinePath" class="sonar-bottom-line" [class.alarm-stroke]="view().isShallow" />
             <line x1="0" y1="0" x2="100" y2="0" class="surface-line" />
           </svg>
         </div>
 
         <div class="data-overlay">
           <div class="primary-readout" [class.danger]="view().isShallow">
-            <span class="value">{{ view().currentValue }}</span>
-            <span class="unit">m</span>
+            <span class="value gb-display-value gb-display-value--xl">{{ view().currentValue }}</span>
+            <span class="unit gb-display-unit">{{ view().unit }}</span>
           </div>
-          
+
           <div class="status-badges">
-            <div class="badge scale-badge">
-              RNG: {{ view().scaleMax }}m
-            </div>
-            <div *ngIf="view().isShallow" class="badge alarm-badge">
-              SHALLOW
-            </div>
+            <div class="badge scale-badge gb-display-unit">RNG: {{ view().scaleMax }}m</div>
+            <div *ngIf="view().isShallow" class="badge alarm-badge gb-display-unit">SHALLOW</div>
           </div>
         </div>
 
+        <div class="meta-row">
+          <span class="gb-instrument-label" *ngIf="view().source">{{ view().source }}</span>
+          <span class="gb-display-unit" *ngIf="view().age !== null">{{ view().age | number:'1.1-1' }}s</span>
+        </div>
       </div>
-    </app-instrument-card>
+    </omi-gb-bezel>
   `,
   styleUrls: ['./depth-widget.component.scss'],
 })
 export class DepthWidgetComponent {
-  private store = inject(DatapointStoreService);
-  private ticker$ = timer(0, 200); // 5fps para suavidad en scroll
+  private readonly store = inject(DatapointStoreService);
+  private readonly qualityService = inject(DataQualityService);
+  private readonly ticker$ = timer(0, 500);
 
-  private readonly HISTORY_POINTS = 50; 
-  private readonly SHALLOW_THRESHOLD = 3.0;
-  
-  // Escalas estándar marítimas (evita saltos locos del gráfico)
+  private readonly HISTORY_POINTS = 50;
+  private readonly SHALLOW_THRESHOLD = 3;
   private readonly STANDARD_RANGES = [10, 20, 50, 100, 200, 500, 1000];
 
-  private depth$ = this.store.observe<number>(PATHS.environment.depth.belowTransducer);
+  private readonly depth$ = this.store.observe<number>(PATHS.environment.depth.belowTransducer);
 
-  private history$ = this.depth$.pipe(
-    filter(p => !!p),
+  private readonly history$ = this.depth$.pipe(
     scan((acc, curr) => {
-      const newHist = [...acc, { value: curr.value, timestamp: curr.timestamp }];
-      if (newHist.length > this.HISTORY_POINTS) newHist.shift();
-      return newHist;
-    }, [] as DepthPoint[])
+      if (!curr || typeof curr.value !== 'number') {
+        return acc;
+      }
+      const next = [...acc, { value: curr.value, timestamp: curr.timestamp }];
+      if (next.length > this.HISTORY_POINTS) {
+        next.shift();
+      }
+      return next;
+    }, [] as DepthPoint[]),
   );
 
-  private vm$ = combineLatest([
+  private readonly vm$ = combineLatest([
     this.depth$.pipe(startWith(undefined)),
-    this.history$.pipe(startWith([])),
+    this.history$.pipe(startWith([] as DepthPoint[])),
     this.ticker$,
   ]).pipe(
     map(([current, history]) => {
-      if (!current) return this.getEmptyView();
+      if (!current || typeof current.value !== 'number') {
+        return this.getEmptyView();
+      }
 
-      const now = Date.now();
-      const age = (now - current.timestamp) / 1000;
-      const isShallow = current.value <= this.SHALLOW_THRESHOLD;
-      
-      let quality: DataQuality = age < 2 ? 'good' : age < 5 ? 'warn' : 'bad';
-      if (isShallow) quality = 'warn'; // La alarma visual domina
+      const age = (Date.now() - current.timestamp) / 1000;
 
-      // 1. Auto-Ranging Inteligente
-      // Buscamos el valor más profundo en el historial reciente
-      const maxHistValue = Math.max(...history.map(p => p.value), 0.1);
-      // Seleccionamos la escala estándar inmediata superior (con un margen del 10%)
-      const scaleMax = this.STANDARD_RANGES.find(r => r >= maxHistValue * 1.1) || Math.ceil(maxHistValue);
-      
-      // 2. Generar Ticks (Líneas de grid) - Ej: 25%, 50%, 75%
-      const scaleTicks = [0.25, 0.5, 0.75].map(factor => Math.round(scaleMax * factor));
+      const baseQuality = this.qualityService.getQuality(current.timestamp);
+      const isStale = baseQuality === 'stale' || baseQuality === 'missing';
+      const isShallow = !isStale && current.value <= this.SHALLOW_THRESHOLD;
+      const quality: DataQuality = isShallow && baseQuality === 'good' ? 'warn' : baseQuality;
 
-      // 3. Generar Paths SVG
+      const maxHistValue = Math.max(...history.map((p) => p.value), 0.1);
+      const scaleMax = this.STANDARD_RANGES.find((value) => value >= maxHistValue * 1.1) ?? Math.ceil(maxHistValue);
+      const scaleTicks = [0.25, 0.5, 0.75].map((factor) => Math.round(scaleMax * factor));
+
       const stepX = 100 / (this.HISTORY_POINTS - 1);
-      const scaleYFactor = 100 / scaleMax;
+      const scaleY = 100 / scaleMax;
 
-      // Puntos base "x,y" para la línea de fondo
-      const linePoints = history.map((p, i) => {
-        const x = (i * stepX).toFixed(1);
-        const y = (p.value * scaleYFactor).toFixed(1);
+      const linePoints = history.map((point, index) => {
+        const x = (index * stepX).toFixed(1);
+        const y = (point.value * scaleY).toFixed(1);
         return `${x} ${y}`;
       });
 
-      // Path de línea (solo los puntos del fondo)
       const graphLinePath = linePoints.length ? `M ${linePoints.join(' L ')}` : '';
-
-      // Path de relleno (Línea + cerrar hacia arriba para crear el "agua")
-      // Esto es crucial: Pintamos el AGUA, no la tierra.
-      const graphFillPath = linePoints.length 
-        ? `M ${linePoints.join(' L ')} L 100 0 L 0 0 Z` 
-        : '';
+      const graphFillPath = linePoints.length ? `M ${linePoints.join(' L ')} L 100 0 L 0 0 Z` : '';
 
       return {
-        currentValue: current.value.toFixed(1),
+        currentValue: isStale ? '---' : current.value.toFixed(1),
         unit: 'm',
         quality,
+        isStale,
         age,
-        source: current.source,
+        source: current.source ?? '',
         graphFillPath,
         graphLinePath,
         scaleMax,
         scaleTicks,
-        isShallow
-      } as DepthView;
-    })
+        isShallow,
+        ariaLabel: isStale ? 'Depth sonar. Data stale.' : `Depth sonar ${current.value.toFixed(1)} meters.`,
+      } satisfies DepthView;
+    }),
   );
 
-  view = toSignal(this.vm$, { initialValue: this.getEmptyView() });
+  readonly view = toSignal(this.vm$, { initialValue: this.getEmptyView() });
 
   private getEmptyView(): DepthView {
     return {
-      currentValue: '--.-', unit: 'm', quality: 'bad', age: null, source: '',
-      graphFillPath: '', graphLinePath: '', scaleMax: 10, scaleTicks: [], isShallow: false
+      currentValue: '--.-',
+      unit: 'm',
+      quality: 'missing',
+      isStale: true,
+      age: null,
+      source: '',
+      graphFillPath: '',
+      graphLinePath: '',
+      scaleMax: 10,
+      scaleTicks: [],
+      isShallow: false,
+      ariaLabel: 'Depth sonar. Data unavailable.',
     };
   }
 }

@@ -4,95 +4,111 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { combineLatest, map, startWith, timer } from 'rxjs';
 import { PATHS } from '@omi/marine-data-contract';
 import { DatapointStoreService } from '../../../state/datapoints/datapoint-store.service';
-import { InstrumentCardComponent, DataQuality } from '../../components/instrument-card/instrument-card.component';
+import { GbInstrumentBezelComponent } from '../../../shared/components/gb-instrument-bezel/gb-instrument-bezel.component';
+import { DataQualityService, type DataQuality } from '../../../shared/services/data-quality.service';
+import { initNeedleState, updateNeedleAngle } from '../../../shared/utils/needle-rotation.utils';
 
 interface WindView {
   awa: number;
-  aws: string;
+  awsDisplay: string;
   twa: number;
-  tws: string;
+  twsDisplay: string;
   quality: DataQuality;
+  isStale: boolean;
   age: number | null;
   source: string;
-  
-  // Rotaciones suavizadas (calculadas en computeds si se quiere lógica compleja, 
-  // pero aquí usaremos rotación directa CSS transition)
   awaRotation: number;
   twaRotation: number;
+  ariaLabel: string;
 }
 
 @Component({
   selector: 'app-wind-widget',
   standalone: true,
-  imports: [CommonModule, InstrumentCardComponent],
+  imports: [CommonModule, GbInstrumentBezelComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  templateUrl: './wind-widget.component.html',  
-  styleUrls: ['./wind-widget.component.scss']
+  templateUrl: './wind-widget.component.html',
+  styleUrls: ['./wind-widget.component.scss'],
 })
 export class WindWidgetComponent {
-  private store = inject(DatapointStoreService);
-  private ticker$ = timer(0, 200);
+  private readonly store = inject(DatapointStoreService);
+  private readonly quality = inject(DataQualityService);
+  private readonly ticker$ = timer(0, 500);
+  private awaRotationState = initNeedleState(0);
+  private twaRotationState = initNeedleState(0);
 
-  // Ticks estáticos
-  ticks = Array.from({ length: 36 }, (_, i) => {
+  readonly ticks = Array.from({ length: 36 }, (_, i) => {
     const angle = i * 10;
     return { angle, major: angle % 30 === 0 };
   });
 
-  private awa$ = this.store.observe<number>(PATHS.environment.wind.angleApparent);
-  private aws$ = this.store.observe<number>(PATHS.environment.wind.speedApparent);
-  private twa$ = this.store.observe<number>(PATHS.environment.wind.angleTrueWater);
-  private tws$ = this.store.observe<number>(PATHS.environment.wind.speedTrue);
+  private readonly awa$ = this.store.observe<number>(PATHS.environment.wind.angleApparent).pipe(startWith(undefined));
+  private readonly aws$ = this.store.observe<number>(PATHS.environment.wind.speedApparent).pipe(startWith(undefined));
+  private readonly twa$ = this.store.observe<number>(PATHS.environment.wind.angleTrueWater).pipe(startWith(undefined));
+  private readonly tws$ = this.store.observe<number>(PATHS.environment.wind.speedTrue).pipe(startWith(undefined));
 
-  private vm$ = combineLatest([
-    this.awa$.pipe(startWith(undefined)),
-    this.aws$.pipe(startWith(undefined)),
-    this.twa$.pipe(startWith(undefined)),
-    this.tws$.pipe(startWith(undefined)),
-    this.ticker$
-  ]).pipe(
+  private readonly vm$ = combineLatest([this.awa$, this.aws$, this.twa$, this.tws$, this.ticker$]).pipe(
     map(([awa, aws, twa, tws]) => {
-      // Prioridad de timestamp para calidad
-      const lastUpdate = Math.max(awa?.timestamp || 0, aws?.timestamp || 0);
-      const quality: DataQuality = (Date.now() - lastUpdate) < 5000 ? 'good' : 'warn';
-      
-      const awsKn = (aws?.value ?? 0) * 1.94384;
-      const twsKn = (tws?.value ?? 0) * 1.94384;
-      
-      const awaDeg = awa ? this.radToDeg(awa.value) : 0;
-      const twaDeg = twa ? this.radToDeg(twa.value) : 0;
+      const lastUpdate = Math.max(
+        awa?.timestamp ?? 0,
+        aws?.timestamp ?? 0,
+        twa?.timestamp ?? 0,
+        tws?.timestamp ?? 0,
+      );
+      const hasData = lastUpdate > 0;
+      const age = hasData ? (Date.now() - lastUpdate) / 1000 : null;
+      const quality = this.quality.getQuality(hasData ? lastUpdate : null);
+      const isStale = quality === 'stale' || quality === 'missing';
+
+      const awsKn = aws && typeof aws.value === 'number' ? (aws.value * 1.94384).toFixed(1) : '--';
+      const twsKn = tws && typeof tws.value === 'number' ? (tws.value * 1.94384).toFixed(1) : '--';
+      const awsDisplay = isStale ? '---' : awsKn;
+      const twsDisplay = isStale ? '---' : twsKn;
+      const awaDeg = awa && typeof awa.value === 'number' ? this.radToDeg(awa.value) : 0;
+      const twaDeg = twa && typeof twa.value === 'number' ? this.radToDeg(twa.value) : 0;
+      this.awaRotationState = updateNeedleAngle(this.awaRotationState, awaDeg);
+      this.twaRotationState = updateNeedleAngle(this.twaRotationState, twaDeg);
 
       return {
         awa: awaDeg,
-        aws: awsKn.toFixed(1),
+        awsDisplay,
         twa: twaDeg,
-        tws: twsKn.toFixed(1),
+        twsDisplay,
         quality,
-        age: (Date.now() - lastUpdate) / 1000,
-        source: awa?.source || '',
-        
-        // Usamos la lógica de rotación más simple aquí, 
-        // asumiendo que CSS transition handlea el giro suave en la mayoría de casos
-        // Para "shortest path" perfecto se necesita el acumulador (ver widgets anteriores),
-        // pero para simplificar este ejemplo usaremos el valor directo.
-        awaRotation: awaDeg,
-        twaRotation: twaDeg
-      } as WindView;
-    })
+        isStale,
+        age,
+        source: awa?.source ?? twa?.source ?? '',
+        awaRotation: this.awaRotationState.visualAngle,
+        twaRotation: this.twaRotationState.visualAngle,
+        ariaLabel: isStale
+          ? 'Wind gauge. Data stale.'
+          : `Wind gauge. AWS ${awsDisplay} knots, TWS ${twsDisplay} knots.`,
+      } satisfies WindView;
+    }),
   );
 
-  view = toSignal(this.vm$, { 
-    initialValue: { 
-      awa: 0, aws: '--', twa: 0, tws: '--', 
-      quality: 'bad', age: null, source: '',
-      awaRotation: 0, twaRotation: 0 
-    } 
+  readonly view = toSignal(this.vm$, {
+    initialValue: {
+      awa: 0,
+      awsDisplay: '--',
+      twa: 0,
+      twsDisplay: '--',
+      quality: 'missing',
+      isStale: true,
+      age: null,
+      source: '',
+      awaRotation: 0,
+      twaRotation: 0,
+      ariaLabel: 'Wind gauge. Data unavailable.',
+    } satisfies WindView,
   });
 
   private radToDeg(rad: number): number {
     let deg = (rad * 180) / Math.PI;
-    deg = deg % 360;
-    if (deg < 0) deg += 360;
+    deg %= 360;
+    if (deg < 0) {
+      deg += 360;
+    }
     return deg;
   }
 }

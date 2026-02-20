@@ -5,9 +5,12 @@
   [loading]="vm.isLoading"
   [error]="vm.error"
 >
-  <div class="system-content">
-    <div class="status-line" *ngFor="let line of vm.lines; trackBy: trackByLine">
-      {{ line.labelKey | translate }}: {{ line.value }}
+  <omi-gb-bezel class="panel-bezel" [quality]="panelQuality">
+    <div class="system-content">
+      <div class="status-line gb-display-value gb-display-value--sm" *ngFor="let line of vm.lines; trackBy: trackByLine">
+        {{ line.labelKey | translate }}:
+        <span class="status-value">{{ line.value }}</span>
+      </div>
     </div>
-  </div>
+  </omi-gb-bezel>
 </app-shared-panel-card>

@@ -1,3 +1,5 @@
+/* Chart Waypoint List — inside left panel */
+
 :host {
   display: block;
   pointer-events: auto;
@@ -7,13 +9,8 @@
 .waypoint-panel {
   display: flex;
   flex-direction: column;
-  background: var(--surface-1);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-  width: 280px;
+  width: 100%;
   overflow: hidden;
-  transition: all 0.2s ease;
 }
 
 /* Header */
@@ -21,40 +18,39 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0.75rem 1rem;
+  padding: var(--space-3);
   cursor: pointer;
-  background: var(--surface-1);
   user-select: none;
   border-bottom: 1px solid transparent;
-  transition: border-color 0.2s ease, background 0.2s ease;
+  transition: background var(--duration-fast) var(--ease-out);
 }
 
 .panel-header:hover {
-  background: var(--surface-2);
+  background: color-mix(in srgb, var(--bg-surface-secondary) 50%, transparent);
 }
 
 .panel-title-group {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: var(--space-2);
 }
 
 .panel-title {
-  font-family: 'Space Grotesk', sans-serif;
+  font-family: var(--font-family);
   font-weight: 700;
-  font-size: 0.8rem;
+  font-size: 0.72rem;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--text-2);
+  letter-spacing: 0.08em;
+  color: var(--text-secondary);
 }
 
 .panel-count {
-  background: var(--surface-3);
-  color: var(--text-1);
-  font-size: 0.7rem;
+  background: color-mix(in srgb, var(--bg-surface-secondary) 70%, transparent);
+  color: var(--text-primary);
+  font-size: 0.65rem;
   font-weight: 700;
-  padding: 0.1rem 0.4rem;
-  border-radius: 4px;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
   min-width: 1.25rem;
   text-align: center;
 }
@@ -62,15 +58,18 @@
 .panel-toggle {
   background: transparent;
   border: none;
-  color: var(--text-2);
+  color: var(--text-secondary);
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 0;
   width: 24px;
   height: 24px;
-  border-radius: 4px;
-  transition: transform 0.2s ease, color 0.2s ease;
+  min-height: 24px;
+  min-width: 24px;
+  border-radius: var(--radius-sm);
+  transition: transform var(--duration-fast) var(--ease-out),
+              color var(--duration-fast) var(--ease-out);
 }
 
 .panel-toggle.expanded {
@@ -79,9 +78,8 @@
 
 /* Content Area */
 .panel-content {
-  border-top: 1px solid var(--border);
-  background: var(--surface-2);
-  animation: slideDown 0.2s ease-out;
+  border-top: 1px solid color-mix(in srgb, var(--border-default) 40%, transparent);
+  animation: slideDown var(--duration-fast) var(--ease-out);
 }
 
 @keyframes slideDown {
@@ -90,20 +88,21 @@
 }
 
 .waypoint-list {
-  max-height: 40vh; /* Responsive height limit */
+  max-height: 40vh;
   overflow-y: auto;
-  padding: 0.5rem;
+  padding: var(--space-2);
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: var(--space-2);
 }
 
 .waypoint-list::-webkit-scrollbar {
   width: 4px;
 }
+
 .waypoint-list::-webkit-scrollbar-thumb {
   background: var(--border-strong);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
 }
 
 /* Item Styling */
@@ -111,48 +110,54 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.5rem;
-  padding: 0.5rem;
-  border-radius: 6px;
-  border: 1px solid var(--border);
-  background: var(--surface-1);
-  transition: all 0.2s ease;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  border-radius: var(--radius-md);
+  border: 1px solid color-mix(in srgb, var(--border-default) 40%, transparent);
+  background: transparent;
+  transition: border-color var(--duration-fast) var(--ease-out),
+              background var(--duration-fast) var(--ease-out);
 }
 
 .waypoint-item:hover {
-  border-color: var(--border-strong);
+  border-color: color-mix(in srgb, var(--border-default) 70%, transparent);
+  background: color-mix(in srgb, var(--bg-surface-secondary) 30%, transparent);
 }
 
 .waypoint-item.active {
-  border-color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 8%, var(--surface-1));
+  border-color: color-mix(in srgb, var(--primary) 50%, transparent);
+  background: color-mix(in srgb, var(--primary) 8%, transparent);
 }
 
 .waypoint-main {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: var(--space-3);
   flex: 1;
   min-width: 0;
 }
 
 /* Item Buttons */
-.waypoint-select, .waypoint-delete {
+.waypoint-select,
+.waypoint-delete {
   background: transparent;
   border: none;
   padding: 4px;
-  border-radius: 4px;
-  color: var(--text-3);
+  border-radius: var(--radius-sm);
+  color: var(--text-tertiary);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s ease;
+  min-height: 28px;
+  min-width: 28px;
+  transition: all var(--duration-fast) var(--ease-out);
 }
 
-.waypoint-select:hover, .waypoint-delete:hover {
-  background: var(--surface-3);
-  color: var(--text-1);
+.waypoint-select:hover,
+.waypoint-delete:hover {
+  background: color-mix(in srgb, var(--bg-surface-secondary) 70%, transparent);
+  color: var(--text-primary);
 }
 
 .waypoint-delete:hover {
@@ -161,7 +166,7 @@
 }
 
 .waypoint-select.selected {
-  color: var(--accent);
+  color: var(--primary);
 }
 
 .waypoint-select.selected svg {
@@ -172,7 +177,7 @@
 .waypoint-details {
   display: flex;
   flex-direction: column;
-  gap: 0.1rem;
+  gap: 2px;
   flex: 1;
   min-width: 0;
 }
@@ -180,56 +185,60 @@
 .waypoint-name {
   background: transparent;
   border: 1px solid transparent;
-  color: var(--text-1);
+  color: var(--text-primary);
   font-family: inherit;
   font-weight: 500;
-  font-size: 0.85rem;
-  padding: 0 0.25rem;
-  margin: 0 -0.25rem;
-  border-radius: 2px;
+  font-size: 0.82rem;
+  padding: 2px var(--space-1);
+  margin: 0 calc(-1 * var(--space-1));
+  border-radius: var(--radius-sm);
   width: 100%;
   text-overflow: ellipsis;
+  transition: background var(--duration-fast) var(--ease-out),
+              border-color var(--duration-fast) var(--ease-out);
 }
 
-.waypoint-name:hover, .waypoint-name:focus {
-  background: var(--surface-3);
+.waypoint-name:hover {
+  background: color-mix(in srgb, var(--bg-surface-secondary) 60%, transparent);
 }
 
 .waypoint-name:focus {
   outline: none;
-  border-color: var(--accent);
+  background: color-mix(in srgb, var(--bg-surface-secondary) 60%, transparent);
+  border-color: var(--primary);
 }
 
 .waypoint-coords {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.7rem;
-  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  color: var(--text-tertiary);
+  padding-left: var(--space-1);
 }
 
 /* Footer */
 .panel-footer {
-  padding: 0.75rem;
-  border-top: 1px solid var(--border);
-  background: var(--surface-1);
+  padding: var(--space-3);
+  border-top: 1px solid color-mix(in srgb, var(--border-default) 40%, transparent);
 }
 
 .waypoint-clear {
   width: 100%;
-  padding: 0.5rem;
-  font-size: 0.75rem;
+  padding: var(--space-2);
+  font-size: 0.7rem;
   text-transform: uppercase;
-  font-weight: 600;
-  color: var(--text-2);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--text-secondary);
   background: transparent;
-  border: 1px dashed var(--border-strong);
-  border-radius: 4px;
+  border: 1px dashed color-mix(in srgb, var(--border-default) 60%, transparent);
+  border-radius: var(--radius-md);
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all var(--duration-fast) var(--ease-out);
 }
 
 .waypoint-clear:hover {
-  border-color: var(--text-2);
-  color: var(--text-1);
-  background: var(--surface-2);
+  border-color: var(--text-secondary);
+  color: var(--text-primary);
+  background: color-mix(in srgb, var(--bg-surface-secondary) 50%, transparent);
 }
 

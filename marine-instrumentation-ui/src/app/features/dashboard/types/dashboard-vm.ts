@@ -36,6 +36,7 @@ export interface WindPanelVm {
   title: string;
   metrics: DashboardMetricVm[];
   primarySeries?: HistoryPoint[];
+  updatedAt?: number | null;
   isLoading: boolean;
   error?: string;
 }
@@ -44,6 +45,7 @@ export interface DepthPanelVm {
   title: string;
   metrics: DashboardMetricVm[];
   series?: HistoryPoint[];
+  updatedAt?: number | null;
   isLoading: boolean;
   error?: string;
 }
@@ -52,6 +54,7 @@ export interface PowerPanelVm {
   title: string;
   metrics: DashboardMetricVm[];
   series?: HistoryPoint[];
+  updatedAt?: number | null;
   isLoading: boolean;
   error?: string;
 }

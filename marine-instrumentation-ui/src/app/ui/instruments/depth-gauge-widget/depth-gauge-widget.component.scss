@@ -1,24 +1,22 @@
-// Paleta Glass Bridge
-$color-bg: #0b1116;
-$color-text: #ffffff;
-$color-cyan: #00e5ff;
-$color-alarm: #ff3d00;
-$color-muted: #8b9bb4;
-
 :host {
   display: block;
   width: 100%;
+  height: 100%;
+}
+
+.marine-card {
+  display: block;
+  height: 100%;
 }
 
 .depth-gauge-container {
   display: flex;
-  flex-direction: row; /* Side by side: Gauge | Number */
+  flex-direction: row;
   align-items: center;
   justify-content: center;
   gap: 15px;
   height: 100%;
   padding: 10px;
-  background-color: $color-bg;
 }
 
 .digital-readout {
@@ -28,25 +26,19 @@ $color-muted: #8b9bb4;
   justify-content: center;
 
   .value {
-    font-family: 'Courier New', monospace;
-    font-size: 2.8rem; /* Big number */
-    font-weight: 700;
-    color: $color-cyan;
     line-height: 1;
-    letter-spacing: -2px;
+    letter-spacing: -0.02em;
+    color: var(--gb-needle-secondary);
 
     &.alarm {
-      color: $color-alarm;
-      animation: pulse-danger 1s infinite alternate;
+      color: var(--gb-data-stale);
+      animation: pulse-danger var(--gb-anim-alarm-pulse) infinite alternate;
     }
   }
 
   .unit {
-    font-family: 'Roboto', sans-serif;
-    font-size: 0.9rem;
-    font-weight: 500;
-    color: $color-muted;
     margin-top: 5px;
+    color: var(--gb-text-unit);
   }
 }
 
@@ -58,27 +50,26 @@ $color-muted: #8b9bb4;
 }
 
 .bar-fill {
-  transition: height 0.5s ease-out, fill 0.3s;
+  transition:
+    height var(--gb-anim-needle) var(--gb-ease-data),
+    fill 300ms var(--gb-ease-data);
+}
+
+.meta-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 0.25rem;
 }
 
 @keyframes pulse-danger {
-  from { opacity: 1; text-shadow: 0 0 10px rgba(255,61,0,0.5); }
-  to { opacity: 0.7; text-shadow: 0 0 20px rgba(255,61,0,0.9); }
-}
+  from {
+    opacity: 1;
+    text-shadow: 0 0 8px color-mix(in srgb, var(--gb-data-stale) 45%, transparent);
+  }
 
-.depth-readout .value {
-  font-size: 2.2rem;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-}
-
-.depth-readout .unit {
-  font-size: 0.95rem;
-  color: var(--text-muted, #94a3b8);
-}
-
-.depth-threshold {
-  margin-top: 8px;
-  font-size: 0.75rem;
-  color: var(--text-muted, #94a3b8);
+  to {
+    opacity: 0.7;
+    text-shadow: 0 0 18px color-mix(in srgb, var(--gb-data-stale) 85%, transparent);
+  }
 }

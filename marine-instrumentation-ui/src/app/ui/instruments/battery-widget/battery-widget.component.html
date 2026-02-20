@@ -1,65 +1,64 @@
-<app-instrument-card
-  title="BATTERY"
-  [quality]="view().quality"
-  [ageSeconds]="view().age"
-  [source]="view().source"
-  class="marine-card"
->
+<omi-gb-bezel class="marine-card" label="BATTERY" [quality]="view().quality">
   <div class="battery-container">
     <div class="main-gauge">
-      <svg viewBox="0 0 200 200" class="gauge-svg">
+      <svg viewBox="0 0 200 200" class="gauge-svg" role="img" [attr.aria-label]="view().ariaLabel">
         <defs>
           <linearGradient id="battGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-             <stop offset="0%" [attr.stop-color]="view().statusColor" stop-opacity="0.8"/>
-             <stop offset="100%" [attr.stop-color]="view().statusColor" stop-opacity="0.4"/>
+            <stop offset="0%" [attr.stop-color]="view().statusColor" stop-opacity="0.8" />
+            <stop offset="100%" [attr.stop-color]="view().statusColor" stop-opacity="0.4" />
           </linearGradient>
           <filter id="glowBatt">
-             <feGaussianBlur stdDeviation="3" result="blur"/>
-             <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+            <feGaussianBlur stdDeviation="3" result="blur" />
+            <feComposite in="SourceGraphic" in2="blur" operator="over" />
           </filter>
         </defs>
 
-        <!-- Fondo del anillo -->
         <circle cx="100" cy="100" r="85" fill="none" class="track-ring" stroke-width="12" />
-        
-        <!-- Anillo de progreso (SOC) -->
-        <!-- Circumference 2*PI*85 ~= 534 -->
-        <circle cx="100" cy="100" r="85" fill="none" 
-                stroke="url(#battGrad)" 
-                stroke-width="12" 
-                stroke-linecap="round"
-                stroke-dasharray="534"
-                [attr.stroke-dashoffset]="view().dashOffset"
-                transform="rotate(-90 100 100)"
-                class="value-ring"
-                filter="url(#glowBatt)" />
-        
-        <!-- Centro: Voltaje -->
-        <text x="100" y="95" class="value-main" [attr.fill]="view().statusColor">
-          {{ view().voltage }}
-        </text>
+
+        <circle
+          cx="100"
+          cy="100"
+          r="85"
+          fill="none"
+          stroke="url(#battGrad)"
+          stroke-width="12"
+          stroke-linecap="round"
+          stroke-dasharray="534"
+          [attr.stroke-dashoffset]="view().dashOffset"
+          transform="rotate(-90 100 100)"
+          class="value-ring gb-needle-wrapper"
+          [class.gb-needle-wrapper--stale]="view().isStale"
+          filter="url(#glowBatt)"
+        />
+
+        <text x="100" y="95" class="value-main" [attr.fill]="view().statusColor">{{ view().voltage }}</text>
         <text x="100" y="115" class="unit-label">VOLTS</text>
 
-        <!-- Icono de Rayo si carga -->
-        <path *ngIf="view().isCharging" 
-              d="M100 60 L105 50 L95 50 Z" 
-              fill="#00e676" 
-              transform="translate(0, -10)" /> 
-
+        <path
+          *ngIf="view().isCharging && !view().isStale"
+          d="M100 60 L105 50 L95 50 Z"
+          fill="var(--gb-data-good)"
+          transform="translate(0, -10)"
+        />
       </svg>
     </div>
 
     <div class="bottom-stats">
       <div class="stat-item">
-        <span class="label">CURRENT</span>
-        <span class="val" [class.charging]="view().isCharging" [class.discharging]="!view().isCharging">
-           {{ view().current }} A
+        <span class="label gb-instrument-label">CURRENT</span>
+        <span class="val gb-display-value gb-display-value--sm" [class.charging]="view().isCharging" [class.discharging]="!view().isCharging">
+          {{ view().current }}<ng-container *ngIf="view().current !== '---'"> A</ng-container>
         </span>
       </div>
       <div class="stat-item">
-        <span class="label">SOC</span>
-        <span class="val">{{ view().socStr }}%</span>
+        <span class="label gb-instrument-label">SOC</span>
+        <span class="val gb-display-value gb-display-value--sm">{{ view().socStr }}<ng-container *ngIf="view().socStr !== '---'">%</ng-container></span>
       </div>
     </div>
+
+    <div class="meta-row">
+      <span class="gb-instrument-label" *ngIf="view().source">{{ view().source }}</span>
+      <span class="gb-display-unit" *ngIf="view().age !== null">{{ view().age | number:'1.1-1' }}s</span>
+    </div>
   </div>
-</app-instrument-card>
+</omi-gb-bezel>

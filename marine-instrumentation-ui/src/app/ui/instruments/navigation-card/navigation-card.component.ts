@@ -4,7 +4,9 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { combineLatest, map, scan, startWith, timer } from 'rxjs';
 import { PATHS } from '@omi/marine-data-contract';
 import { DatapointStoreService } from '../../../state/datapoints/datapoint-store.service';
-import { InstrumentCardComponent, DataQuality } from '../../components/instrument-card/instrument-card.component';
+import { GbInstrumentBezelComponent } from '../../../shared/components/gb-instrument-bezel/gb-instrument-bezel.component';
+import { DataQualityService, type DataQuality } from '../../../shared/services/data-quality.service';
+import { initNeedleState, updateNeedleAngle } from '../../../shared/utils/needle-rotation.utils';
 
 interface NavView {
   latStr: string;
@@ -12,135 +14,144 @@ interface NavView {
   sog: string;
   cog: string;
   hdg: string;
-  
-  // Gráfico de Deriva (Drift)
-  driftAngle: number; // Diferencia entre HDG y COG
+  driftAngle: number;
+  driftRotation: number;
   hasDrift: boolean;
-  
-  // Gráfico Histórico SOG (Sparkline)
   sogHistoryPath: string;
-  
   quality: DataQuality;
+  isStale: boolean;
   age: number | null;
   source: string;
+  ariaLabel: string;
 }
 
 @Component({
   selector: 'app-navigation-widget',
   standalone: true,
-  imports: [CommonModule, InstrumentCardComponent],
+  imports: [CommonModule, GbInstrumentBezelComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
-    templateUrl: './navigation-card.component.html',
-  styleUrls: ['./navigation-card.component.scss']
+  templateUrl: './navigation-card.component.html',
+  styleUrls: ['./navigation-card.component.scss'],
 })
 export class NavigationWidgetComponent {
-  private store = inject(DatapointStoreService);
-  private ticker$ = timer(0, 1000);
+  private readonly store = inject(DatapointStoreService);
+  private readonly quality = inject(DataQualityService);
+  private readonly ticker$ = timer(0, 1000);
+  private driftRotationState = initNeedleState(0);
 
-  // Paths
-  private pos$ = this.store.observe<{latitude: number, longitude: number}>(PATHS.navigation.position);
-  private sog$ = this.store.observe<number>(PATHS.navigation.speedOverGround);
-  private cog$ = this.store.observe<number>(PATHS.navigation.courseOverGroundTrue);
-  private hdg$ = this.store.observe<number>(PATHS.navigation.headingTrue);
+  private readonly pos$ = this.store
+    .observe<{ latitude: number; longitude: number }>(PATHS.navigation.position)
+    .pipe(startWith(undefined));
+  private readonly sog$ = this.store.observe<number>(PATHS.navigation.speedOverGround).pipe(startWith(undefined));
+  private readonly cog$ = this.store.observe<number>(PATHS.navigation.courseOverGroundTrue).pipe(startWith(undefined));
+  private readonly hdg$ = this.store.observe<number>(PATHS.navigation.headingTrue).pipe(startWith(undefined));
 
-  // Histórico para Sparkline (asumiendo que store tiene método observeHistory o similar, simulamos buffer)
-  // En una app real, usarías this.store.observeHistory(...)
-  // Aquí usamos un scan simple sobre SOG para generar el gráfico
-  private sogHistory$ = this.sog$.pipe(
-    map(v => v?.value ?? 0),
-    scan((acc: number[], curr: number) => {
-       const newArr = [...acc, curr];
-       return newArr.slice(-50); // Últimos 50 puntos
-    }, [] as number[])
+  private readonly sogHistory$ = this.sog$.pipe(
+    map((point) => point?.value ?? 0),
+    scan((acc: number[], current: number) => [...acc, current].slice(-50), [] as number[]),
+    startWith([] as number[]),
   );
 
-  private vm$ = combineLatest([
-    this.pos$.pipe(startWith(undefined)),
-    this.sog$.pipe(startWith(undefined)),
-    this.cog$.pipe(startWith(undefined)),
-    this.hdg$.pipe(startWith(undefined)),
-    this.sogHistory$.pipe(startWith([] as number[])),
-    this.ticker$
+  private readonly vm$ = combineLatest([
+    this.pos$,
+    this.sog$,
+    this.cog$,
+    this.hdg$,
+    this.sogHistory$,
+    this.ticker$,
   ]).pipe(
     map(([pos, sog, cog, hdg, history]) => {
-      
-      const quality: DataQuality = pos ? 'good' : 'bad';
-      const age = pos ? (Date.now() - pos.timestamp) / 1000 : null;
-
-      // 1. Formatear Coordenadas (DM format: 42° 25.534' N)
-      const formatCoord = (val: number, type: 'lat' | 'lon') => {
-        const absVal = Math.abs(val);
-        const deg = Math.floor(absVal);
-        const min = (absVal - deg) * 60;
-        const dir = type === 'lat' 
-           ? (val >= 0 ? 'N' : 'S') 
-           : (val >= 0 ? 'E' : 'W');
-        // Pad start para alineación visual
+      const formatCoord = (value: number, type: 'lat' | 'lon'): string => {
+        const abs = Math.abs(value);
+        const deg = Math.floor(abs);
+        const min = (abs - deg) * 60;
+        const dir = type === 'lat' ? (value >= 0 ? 'N' : 'S') : value >= 0 ? 'E' : 'W';
         const degStr = deg.toString().padStart(type === 'lat' ? 2 : 3, '0');
         const minStr = min.toFixed(3).padStart(6, '0');
-        return `${degStr}° ${minStr}' ${dir}`;
+        return `${degStr}${String.fromCharCode(176)} ${minStr}' ${dir}`;
       };
 
-      const latStr = pos?.value ? formatCoord(pos.value.latitude, 'lat') : '--° --.---';
-      const lonStr = pos?.value ? formatCoord(pos.value.longitude, 'lon') : '--° --.---';
+      const latRaw = pos?.value ? formatCoord(pos.value.latitude, 'lat') : '--' + String.fromCharCode(176) + " --.---";
+      const lonRaw = pos?.value ? formatCoord(pos.value.longitude, 'lon') : '--' + String.fromCharCode(176) + " --.---";
 
-      // 2. Valores Numéricos
       const sogKn = (sog?.value ?? 0) * 1.94384;
-      const cogDeg = cog ? this.radToDeg(cog.value) : 0;
-      const hdgDeg = hdg ? this.radToDeg(hdg.value) : 0;
+      const cogDeg = cog && typeof cog.value === 'number' ? this.radToDeg(cog.value) : 0;
+      const hdgDeg = hdg && typeof hdg.value === 'number' ? this.radToDeg(hdg.value) : 0;
 
-      // 3. Cálculo de Deriva (Drift)
-      // Si el barco apunta al Norte (0) y se mueve al Noreste (45), drift = 45.
-      // Visualmente: Barco fijo arriba. Vector COG rotado (COG - HDG).
       let drift = cogDeg - hdgDeg;
-      if (drift < -180) drift += 360;
-      if (drift > 180) drift -= 360;
-      
-      const hasDrift = Math.abs(drift) > 2; // Mostrar solo si hay deriva significativa
-
-      // 4. Generar Sparkline Path SVG
-      // Mapeamos 50 puntos a 200px ancho x 50px alto (parte baja del scope)
-      // Normalizamos el historial entre min y max para que se vea bien
-      let path = '';
-      if (history.length > 1) {
-         const maxSog = Math.max(...history, 0.1); // Evitar div por 0
-         const stepX = 200 / (history.length - 1);
-         const points = history.map((val, i) => {
-            const x = i * stepX;
-            // Escalar Y: 0 es abajo (120), max es arriba (80 en el SVG coordinate system del scope)
-            // Vamos a usar la parte inferior del SVG para el sparkline
-            const y = 120 - ((val / maxSog) * 40); 
-            return `${x.toFixed(1)},${y.toFixed(1)}`;
-         });
-         path = `M ${points.join(' L ')}`;
-         // Cerrar área para gradiente
-         path += ` L 200,120 L 0,120 Z`;
+      if (drift < -180) {
+        drift += 360;
       }
+      if (drift > 180) {
+        drift -= 360;
+      }
+      const normalizedDrift = ((drift % 360) + 360) % 360;
+      this.driftRotationState = updateNeedleAngle(this.driftRotationState, normalizedDrift);
+
+      const maxSog = Math.max(...history, 0.1);
+      const stepX = history.length > 1 ? 200 / (history.length - 1) : 0;
+      const points = history.map((value, index) => {
+        const x = index * stepX;
+        const y = 120 - (value / maxSog) * 40;
+        return `${x.toFixed(1)},${y.toFixed(1)}`;
+      });
+      const sogHistoryPath = points.length > 1 ? `M ${points.join(' L ')} L 200,120 L 0,120 Z` : '';
+
+      const timestamp = Math.max(pos?.timestamp ?? 0, sog?.timestamp ?? 0, cog?.timestamp ?? 0, hdg?.timestamp ?? 0);
+      const quality = this.quality.getQuality(timestamp || null);
+      const isStale = quality === 'stale' || quality === 'missing';
+      const latStr = isStale ? '---' : latRaw;
+      const lonStr = isStale ? '---' : lonRaw;
+      const sogStr = isStale ? '---' : sogKn.toFixed(1);
+      const cogStr = isStale ? '---' : String(Math.round(cogDeg)).padStart(3, '0');
+      const hdgStr = isStale ? '---' : String(Math.round(hdgDeg)).padStart(3, '0');
 
       return {
-        latStr, lonStr,
-        sog: sogKn.toFixed(1),
-        cog: cogDeg.toFixed(0).padStart(3, '0'),
-        hdg: hdgDeg.toFixed(0).padStart(3, '0'),
+        latStr,
+        lonStr,
+        sog: sogStr,
+        cog: cogStr,
+        hdg: hdgStr,
         driftAngle: drift,
-        hasDrift,
-        sogHistoryPath: path,
+        driftRotation: this.driftRotationState.visualAngle,
+        hasDrift: !isStale && Math.abs(drift) > 2,
+        sogHistoryPath,
         quality,
-        age,
-        source: pos?.source || ''
-      } as NavView;
-    })
+        isStale,
+        age: timestamp > 0 ? (Date.now() - timestamp) / 1000 : null,
+        source: pos?.source ?? sog?.source ?? cog?.source ?? hdg?.source ?? '',
+        ariaLabel: isStale
+          ? 'Navigation vector. Data stale.'
+          : `Navigation vector. SOG ${sogStr} knots, COG ${cogStr} degrees, HDG ${hdgStr} degrees.`,
+      } satisfies NavView;
+    }),
   );
 
-  view = toSignal(this.vm$, {
-    initialValue: { 
-       latStr: '--', lonStr: '--', sog: '--', cog: '--', hdg: '--',
-       driftAngle: 0, hasDrift: false, sogHistoryPath: '',
-       quality: 'bad', age: null, source: '' 
-    }
+  readonly view = toSignal(this.vm$, {
+    initialValue: {
+      latStr: '--',
+      lonStr: '--',
+      sog: '--',
+      cog: '--',
+      hdg: '--',
+      driftAngle: 0,
+      driftRotation: 0,
+      hasDrift: false,
+      sogHistoryPath: '',
+      quality: 'missing',
+      isStale: true,
+      age: null,
+      source: '',
+      ariaLabel: 'Navigation vector. Data unavailable.',
+    } satisfies NavView,
   });
 
   private radToDeg(rad: number): number {
-    return (rad * 180) / Math.PI;
+    let deg = (rad * 180) / Math.PI;
+    deg %= 360;
+    if (deg < 0) {
+      deg += 360;
+    }
+    return deg;
   }
 }

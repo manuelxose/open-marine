@@ -61,6 +61,17 @@ const AIS_ICON_ID = 'chart-ais-icon';
 const AIS_ICON_DANGEROUS_ID = 'chart-ais-icon-dangerous';
 const CPA_LINE_SOURCE_ID = 'chart-cpa-line-source';
 const CPA_LINE_LAYER_ID = 'chart-cpa-line-layer';
+const ANCHOR_SOURCE_ID = 'chart-anchor-source';
+const ANCHOR_CIRCLE_LAYER_ID = 'chart-anchor-circle';
+const ANCHOR_BORDER_LAYER_ID = 'chart-anchor-border';
+const ANCHOR_CENTER_LAYER_ID = 'chart-anchor-center';
+const OPENSEAMAP_SOURCE_ID = 'openseamap-overlay';
+const OPENSEAMAP_LAYER_ID = 'openseamap-overlay-layer';
+const MEASURE_SOURCE_ID = 'chart-measure-source';
+const MEASURE_LINE_LAYER_ID = 'chart-measure-line';
+const MEASURE_POINTS_SOURCE_ID = 'chart-measure-points-source';
+const MEASURE_POINTS_LAYER_ID = 'chart-measure-points';
+const MEASURE_LABEL_LAYER_ID = 'chart-measure-label';
 
 const EMPTY_POINTS: FeatureCollection<Point> = {
   type: 'FeatureCollection',
@@ -128,6 +139,10 @@ export class MapLibreEngineService {
   };
   private lastAisTargets: FeatureCollection<Point> = { type: 'FeatureCollection', features: [] };
   private lastCpaLines: FeatureCollection<LineString> = { type: 'FeatureCollection', features: [] };
+  private showOpenSeaMap = false;
+  private aisTargetsVisible = true;
+  private aisLabelsVisible = true;
+  private cpaLinesVisible = true;
 
   init(containerEl: HTMLElement, initialView: MapLibreInitView): void {
     if (this.map) {
@@ -165,6 +180,11 @@ export class MapLibreEngineService {
     }
     this.mapReady = false;
     this.map.setStyle(chartSourceConfig.style);
+  }
+
+  flyTo(center: [number, number], zoom?: number): void {
+    if (!this.map) return;
+    this.map.flyTo({ center, zoom: zoom ?? this.map.getZoom(), duration: 1200 });
   }
 
   updateVesselPosition(lngLat: [number, number] | null, rotationDeg: number | null, state: 'fix' | 'stale' | 'no-fix' = 'fix'): void {
@@ -260,6 +280,178 @@ export class MapLibreEngineService {
     this.featureClickHandler = handler;
   }
 
+  // ---- Anchor Watch Layer ----
+
+  /**
+   * Update anchor watch circle on the map.
+   * Pass null position to clear.
+   */
+  updateAnchorWatch(
+    position: [number, number] | null,
+    radiusMeters: number,
+    isAlarming: boolean,
+  ): void {
+    if (!this.map || !this.mapReady) return;
+
+    if (!position) {
+      this.clearAnchorWatch();
+      return;
+    }
+
+    this.ensureAnchorLayers();
+
+    const circleGeoJson = this.createCircleMeters(position, radiusMeters);
+    const centerGeoJson: FeatureCollection<Point> = {
+      type: 'FeatureCollection',
+      features: [
+        {
+          type: 'Feature',
+          geometry: { type: 'Point', coordinates: position },
+          properties: {},
+        },
+      ],
+    };
+
+    const fillColor = isAlarming ? '#ff1744' : '#4a90d9';
+    const fillOpacity = isAlarming ? 0.25 : 0.12;
+    const borderColor = isAlarming ? '#ff1744' : '#4a90d9';
+    const borderOpacity = isAlarming ? 0.8 : 0.5;
+
+    // Update sources
+    const circleSource = this.map.getSource(ANCHOR_SOURCE_ID) as maplibregl.GeoJSONSource | undefined;
+    circleSource?.setData(circleGeoJson);
+
+    const centerSource = this.map.getSource(ANCHOR_CENTER_LAYER_ID + '-src') as maplibregl.GeoJSONSource | undefined;
+    centerSource?.setData(centerGeoJson);
+
+    // Update paint properties
+    this.map.setPaintProperty(ANCHOR_CIRCLE_LAYER_ID, 'fill-color', fillColor);
+    this.map.setPaintProperty(ANCHOR_CIRCLE_LAYER_ID, 'fill-opacity', fillOpacity);
+    this.map.setPaintProperty(ANCHOR_BORDER_LAYER_ID, 'line-color', borderColor);
+    this.map.setPaintProperty(ANCHOR_BORDER_LAYER_ID, 'line-opacity', borderOpacity);
+    this.map.setPaintProperty(ANCHOR_CENTER_LAYER_ID, 'circle-color', borderColor);
+  }
+
+  clearAnchorWatch(): void {
+    if (!this.map || !this.mapReady) return;
+
+    const circleSource = this.map.getSource(ANCHOR_SOURCE_ID) as maplibregl.GeoJSONSource | undefined;
+    if (circleSource) {
+      circleSource.setData({ type: 'FeatureCollection', features: [] });
+    }
+
+    const centerSource = this.map.getSource(ANCHOR_CENTER_LAYER_ID + '-src') as maplibregl.GeoJSONSource | undefined;
+    if (centerSource) {
+      centerSource.setData({ type: 'FeatureCollection', features: [] } as FeatureCollection<Point>);
+    }
+  }
+
+  setOpenSeaMapVisible(visible: boolean): void {
+    this.showOpenSeaMap = visible;
+    if (!this.map || !this.mapReady) return;
+    this.applyOpenSeaMapOverlay();
+  }
+
+  updateMeasurement(
+    pointA: [number, number] | null,
+    pointB: [number, number] | null,
+    bearingDeg: number | null,
+    distanceNm: number | null,
+  ): void {
+    if (!this.map || !this.mapReady) return;
+    this.ensureMeasurementLayers();
+    this.applyMeasurement(pointA, pointB, bearingDeg, distanceNm);
+  }
+
+  clearMeasurement(): void {
+    if (!this.map || !this.mapReady) return;
+    this.applyMeasurement(null, null, null, null);
+  }
+
+  private ensureAnchorLayers(): void {
+    if (!this.map) return;
+
+    // Circle fill source + layer
+    if (!this.map.getSource(ANCHOR_SOURCE_ID)) {
+      this.map.addSource(ANCHOR_SOURCE_ID, {
+        type: 'geojson',
+        data: { type: 'FeatureCollection', features: [] },
+      });
+    }
+    if (!this.map.getLayer(ANCHOR_CIRCLE_LAYER_ID)) {
+      this.map.addLayer({
+        id: ANCHOR_CIRCLE_LAYER_ID,
+        type: 'fill',
+        source: ANCHOR_SOURCE_ID,
+        paint: {
+          'fill-color': '#4a90d9',
+          'fill-opacity': 0.12,
+        },
+      });
+    }
+    if (!this.map.getLayer(ANCHOR_BORDER_LAYER_ID)) {
+      this.map.addLayer({
+        id: ANCHOR_BORDER_LAYER_ID,
+        type: 'line',
+        source: ANCHOR_SOURCE_ID,
+        paint: {
+          'line-color': '#4a90d9',
+          'line-width': 2,
+          'line-opacity': 0.5,
+          'line-dasharray': [4, 4],
+        },
+      });
+    }
+
+    // Anchor center point source + layer
+    const centerSourceId = ANCHOR_CENTER_LAYER_ID + '-src';
+    if (!this.map.getSource(centerSourceId)) {
+      this.map.addSource(centerSourceId, {
+        type: 'geojson',
+        data: { type: 'FeatureCollection', features: [] } as FeatureCollection<Point>,
+      });
+    }
+    if (!this.map.getLayer(ANCHOR_CENTER_LAYER_ID)) {
+      this.map.addLayer({
+        id: ANCHOR_CENTER_LAYER_ID,
+        type: 'circle',
+        source: centerSourceId,
+        paint: {
+          'circle-radius': 6,
+          'circle-color': '#4a90d9',
+          'circle-stroke-color': '#ffffff',
+          'circle-stroke-width': 2,
+        },
+      });
+    }
+  }
+
+  private createCircleMeters(center: [number, number], radiusMeters: number, points = 64): any {
+    const coords: Position[] = [];
+    for (let i = 0; i < points; i++) {
+      const bearing = (i / points) * 360;
+      const point = projectDestination(
+        { lat: center[1], lon: center[0] },
+        bearing,
+        radiusMeters,
+      );
+      coords.push([point.lon, point.lat]);
+    }
+    if (coords.length > 0 && coords[0]) {
+      coords.push(coords[0]); // Close polygon
+    }
+    return {
+      type: 'FeatureCollection',
+      features: [
+        {
+          type: 'Feature',
+          geometry: { type: 'Polygon', coordinates: [coords] },
+          properties: {},
+        },
+      ],
+    };
+  }
+
 
   destroy(): void {
     if (this.map) {
@@ -298,6 +490,43 @@ export class MapLibreEngineService {
     this.lastCpaLines = geojson;
     if (this.mapReady) {
       this.applyCpaLines();
+    }
+  }
+
+  setAisTargetsVisible(visible: boolean): void {
+    this.aisTargetsVisible = visible;
+    if (!this.map || !this.mapReady) return;
+    const layer = this.map.getLayer(AIS_LAYER_ID);
+    if (layer) {
+      this.map.setLayoutProperty(AIS_LAYER_ID, 'visibility', visible ? 'visible' : 'none');
+    }
+  }
+
+  setAisLabelsVisible(visible: boolean): void {
+    this.aisLabelsVisible = visible;
+    if (!this.map || !this.mapReady) return;
+    const layer = this.map.getLayer(AIS_LAYER_ID);
+    if (layer) {
+      if (visible) {
+        this.map.setLayoutProperty(AIS_LAYER_ID, 'text-field', ['get', 'name']);
+        this.map.setLayoutProperty(AIS_LAYER_ID, 'text-offset', [0, 1.8]);
+        this.map.setLayoutProperty(AIS_LAYER_ID, 'text-size', 11);
+        this.map.setLayoutProperty(AIS_LAYER_ID, 'text-optional', true);
+        this.map.setPaintProperty(AIS_LAYER_ID, 'text-color', '#e2e8f0');
+        this.map.setPaintProperty(AIS_LAYER_ID, 'text-halo-color', '#0f172a');
+        this.map.setPaintProperty(AIS_LAYER_ID, 'text-halo-width', 1);
+      } else {
+        this.map.setLayoutProperty(AIS_LAYER_ID, 'text-field', '');
+      }
+    }
+  }
+
+  setCpaLinesVisible(visible: boolean): void {
+    this.cpaLinesVisible = visible;
+    if (!this.map || !this.mapReady) return;
+    const layer = this.map.getLayer(CPA_LINE_LAYER_ID);
+    if (layer) {
+      this.map.setLayoutProperty(CPA_LINE_LAYER_ID, 'visibility', visible ? 'visible' : 'none');
     }
   }
 
@@ -434,6 +663,7 @@ export class MapLibreEngineService {
   }
 
   private onStyleReady(): void {
+    this.applyOpenSeaMapOverlay();
     this.ensureVesselLayer();
     this.ensureTrackLayer();
     this.ensureVectorLayer();
@@ -458,6 +688,153 @@ export class MapLibreEngineService {
     this.updateCamera();
 
     this.mapReady = true;
+
+    // Re-apply visibility state after style swap
+    this.setAisTargetsVisible(this.aisTargetsVisible);
+    this.setAisLabelsVisible(this.aisLabelsVisible);
+    this.setCpaLinesVisible(this.cpaLinesVisible);
+  }
+
+  private applyOpenSeaMapOverlay(): void {
+    if (!this.map) return;
+
+    if (this.showOpenSeaMap) {
+      if (!this.map.getSource(OPENSEAMAP_SOURCE_ID)) {
+        this.map.addSource(OPENSEAMAP_SOURCE_ID, {
+          type: 'raster',
+          tiles: ['https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png'],
+          tileSize: 256,
+          attribution: '&copy; <a href="https://www.openseamap.org">OpenSeaMap</a> contributors',
+        });
+      }
+      if (!this.map.getLayer(OPENSEAMAP_LAYER_ID)) {
+        // Insert as first overlay, before all GeoJSON layers
+        this.map.addLayer({
+          id: OPENSEAMAP_LAYER_ID,
+          type: 'raster',
+          source: OPENSEAMAP_SOURCE_ID,
+          paint: { 'raster-opacity': 0.85 },
+        });
+      }
+    } else {
+      if (this.map.getLayer(OPENSEAMAP_LAYER_ID)) {
+        this.map.removeLayer(OPENSEAMAP_LAYER_ID);
+      }
+      if (this.map.getSource(OPENSEAMAP_SOURCE_ID)) {
+        this.map.removeSource(OPENSEAMAP_SOURCE_ID);
+      }
+    }
+  }
+
+  private ensureMeasurementLayers(): void {
+    if (!this.map) return;
+
+    // Line source
+    if (!this.map.getSource(MEASURE_SOURCE_ID)) {
+      this.map.addSource(MEASURE_SOURCE_ID, {
+        type: 'geojson',
+        data: EMPTY_LINE,
+      });
+    }
+    // Line layer — dashed orange
+    if (!this.map.getLayer(MEASURE_LINE_LAYER_ID)) {
+      this.map.addLayer({
+        id: MEASURE_LINE_LAYER_ID,
+        type: 'line',
+        source: MEASURE_SOURCE_ID,
+        paint: {
+          'line-color': '#f59e0b',
+          'line-width': 2.5,
+          'line-dasharray': [4, 3],
+        },
+        layout: {
+          'line-cap': 'round',
+          'line-join': 'round',
+        },
+      });
+    }
+    // Label layer — text along line midpoint
+    if (!this.map.getLayer(MEASURE_LABEL_LAYER_ID)) {
+      this.map.addLayer({
+        id: MEASURE_LABEL_LAYER_ID,
+        type: 'symbol',
+        source: MEASURE_SOURCE_ID,
+        layout: {
+          'symbol-placement': 'line-center',
+          'text-field': ['get', 'label'],
+          'text-size': 13,
+          'text-font': ['Open Sans Regular'],
+          'text-offset': [0, -1],
+          'text-allow-overlap': true,
+        },
+        paint: {
+          'text-color': '#f59e0b',
+          'text-halo-color': 'rgba(0,0,0,0.8)',
+          'text-halo-width': 2,
+        },
+      });
+    }
+
+    // Points source
+    if (!this.map.getSource(MEASURE_POINTS_SOURCE_ID)) {
+      this.map.addSource(MEASURE_POINTS_SOURCE_ID, {
+        type: 'geojson',
+        data: EMPTY_POINTS,
+      });
+    }
+    // Points layer — circle markers
+    if (!this.map.getLayer(MEASURE_POINTS_LAYER_ID)) {
+      this.map.addLayer({
+        id: MEASURE_POINTS_LAYER_ID,
+        type: 'circle',
+        source: MEASURE_POINTS_SOURCE_ID,
+        paint: {
+          'circle-radius': 5,
+          'circle-color': '#f59e0b',
+          'circle-stroke-color': '#000',
+          'circle-stroke-width': 1.5,
+        },
+      });
+    }
+  }
+
+  private applyMeasurement(
+    pointA: [number, number] | null,
+    pointB: [number, number] | null,
+    bearingDeg: number | null,
+    distanceNm: number | null,
+  ): void {
+    if (!this.map) return;
+
+    // Build points
+    const pointFeatures: Array<GeoJSON.Feature<GeoJSON.Point>> = [];
+    if (pointA) {
+      pointFeatures.push({ type: 'Feature', geometry: { type: 'Point', coordinates: pointA }, properties: {} });
+    }
+    if (pointB) {
+      pointFeatures.push({ type: 'Feature', geometry: { type: 'Point', coordinates: pointB }, properties: {} });
+    }
+
+    const pointsSource = this.map.getSource(MEASURE_POINTS_SOURCE_ID) as maplibregl.GeoJSONSource | undefined;
+    if (pointsSource) {
+      pointsSource.setData({ type: 'FeatureCollection', features: pointFeatures });
+    }
+
+    // Build line
+    const lineFeatures: Array<GeoJSON.Feature<GeoJSON.LineString>> = [];
+    if (pointA && pointB) {
+      const label = `${bearingDeg !== null ? bearingDeg.toFixed(0) : '--'}° · ${distanceNm !== null ? distanceNm.toFixed(2) : '--'} NM`;
+      lineFeatures.push({
+        type: 'Feature',
+        geometry: { type: 'LineString', coordinates: [pointA, pointB] },
+        properties: { label },
+      });
+    }
+
+    const lineSource = this.map.getSource(MEASURE_SOURCE_ID) as maplibregl.GeoJSONSource | undefined;
+    if (lineSource) {
+      lineSource.setData({ type: 'FeatureCollection', features: lineFeatures });
+    }
   }
 
   private ensureVesselLayer(): void {

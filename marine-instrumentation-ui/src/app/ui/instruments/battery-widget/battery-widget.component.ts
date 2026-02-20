@@ -4,7 +4,8 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { combineLatest, map, startWith, timer } from 'rxjs';
 import { PATHS } from '@omi/marine-data-contract';
 import { DatapointStoreService } from '../../../state/datapoints/datapoint-store.service';
-import { InstrumentCardComponent, DataQuality } from '../../components/instrument-card/instrument-card.component';
+import { GbInstrumentBezelComponent } from '../../../shared/components/gb-instrument-bezel/gb-instrument-bezel.component';
+import { DataQualityService, type DataQuality } from '../../../shared/services/data-quality.service';
 
 interface BatteryView {
   voltage: string;
@@ -12,88 +13,104 @@ interface BatteryView {
   soc: number;
   socStr: string;
   quality: DataQuality;
+  isStale: boolean;
   source: string;
   age: number | null;
   isCharging: boolean;
   statusColor: string;
   dashOffset: number;
   isLowBattery: boolean;
+  ariaLabel: string;
 }
 
 @Component({
   selector: 'app-battery-widget',
   standalone: true,
-  imports: [CommonModule, InstrumentCardComponent],
+  imports: [CommonModule, GbInstrumentBezelComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './battery-widget.component.html',
-  styleUrls: ['./battery-widget.component.scss']
+  styleUrls: ['./battery-widget.component.scss'],
 })
 export class BatteryWidgetComponent {
-  private store = inject(DatapointStoreService);
-  private ticker$ = timer(0, 5000); 
+  private readonly store = inject(DatapointStoreService);
+  private readonly quality = inject(DataQualityService);
+  private readonly ticker$ = timer(0, 1000);
 
-  private voltage$ = this.store.observe<number>(PATHS.electrical.batteries.house.voltage);
-  private current$ = this.store.observe<number>(PATHS.electrical.batteries.house.current);
-  private soc$ = this.store.observe<number>('electrical.batteries.house.capacity.stateOfCharge'); 
+  private readonly voltage$ = this.store.observe<number>(PATHS.electrical.batteries.house.voltage).pipe(startWith(undefined));
+  private readonly current$ = this.store.observe<number>(PATHS.electrical.batteries.house.current).pipe(startWith(undefined));
+  private readonly soc$ = this.store.observe<number>('electrical.batteries.house.capacity.stateOfCharge').pipe(startWith(undefined));
 
-  private vm$ = combineLatest([
-    this.voltage$.pipe(startWith(undefined)),
-    this.current$.pipe(startWith(undefined)),
-    this.soc$.pipe(startWith(undefined)),
-    this.ticker$
-  ]).pipe(
+  private readonly vm$ = combineLatest([this.voltage$, this.current$, this.soc$, this.ticker$]).pipe(
     map(([voltData, currData, socData]) => {
-      
-      const v = voltData?.value ?? 0;
-      const a = currData?.value ?? 0;
-      
+      const volts = voltData?.value ?? 0;
+      const amps = currData?.value ?? 0;
+
       let socPct = 0;
       if (socData && typeof socData.value === 'number') {
         socPct = socData.value * 100;
       } else {
-        socPct = Math.max(0, Math.min(100, ((v - 11.5) / (13.6 - 11.5)) * 100));
+        socPct = Math.max(0, Math.min(100, ((volts - 11.5) / (13.6 - 11.5)) * 100));
       }
-      
-      const isCharging = a > 0.1; 
-      const isLow = socPct < 20 || v < 11.5;
 
-      // Colores Neon
-      let statusColor = '#00e676'; // Green
-      if (socPct < 50) statusColor = '#ffea00'; // Yellow
-      if (socPct < 20) statusColor = '#ff3d00'; // Red
-      if (v <= 11.0) statusColor = '#ff3d00';
+      const isCharging = amps > 0.1;
+      const isLowBattery = socPct < 20 || volts < 11.5;
 
-      // SVG Dash Offset
-      // C = 534 (2 * PI * 85). Offset = C * (1 - pct)
       const maxDash = 534;
-      const dashOffset = maxDash * (1 - (socPct / 100));
+      const dashOffset = maxDash * (1 - socPct / 100);
 
-      const now = Date.now();
-      const lastUpdate = Math.max(voltData?.timestamp || 0, currData?.timestamp || 0);
-      const age = (now - lastUpdate) / 1000;
-      const quality: DataQuality = age < 5 ? 'good' : 'warn';
+      const lastUpdate = Math.max(voltData?.timestamp ?? 0, currData?.timestamp ?? 0, socData?.timestamp ?? 0);
+      const quality = this.quality.getQuality(lastUpdate || null);
+      const isStale = quality === 'stale' || quality === 'missing';
+      const voltage = isStale ? '---' : volts.toFixed(2);
+      const current = isStale ? '---' : Math.abs(amps).toFixed(1);
+      const socStr = isStale ? '---' : socPct.toFixed(0);
+
+      let statusColor = 'var(--gb-data-good)';
+      if (socPct < 50) {
+        statusColor = 'var(--gb-data-warn)';
+      }
+      if (socPct < 20 || volts <= 11) {
+        statusColor = 'var(--gb-data-stale)';
+      }
+      if (isStale) {
+        statusColor = 'var(--gb-data-stale)';
+      }
 
       return {
-        voltage: v.toFixed(2),
-        current: Math.abs(a).toFixed(1), // Mostramos magnitud, el signo lo indica el icono
+        voltage,
+        current,
         soc: socPct,
-        socStr: socPct.toFixed(0),
+        socStr,
         quality,
-        source: voltData?.source || 'sim',
-        age,
-        isCharging,
+        isStale,
+        source: voltData?.source ?? currData?.source ?? socData?.source ?? '',
+        age: lastUpdate > 0 ? (Date.now() - lastUpdate) / 1000 : null,
+        isCharging: isStale ? false : isCharging,
         statusColor,
         dashOffset,
-        isLowBattery: isLow
-      } as BatteryView;
-    })
+        isLowBattery: isStale ? false : isLowBattery,
+        ariaLabel: isStale
+          ? 'Battery gauge. Data stale.'
+          : `Battery gauge ${voltage} volts, state of charge ${socStr} percent.`,
+      } satisfies BatteryView;
+    }),
   );
 
-  view = toSignal(this.vm$, {
-    initialValue: { 
-      voltage: '0.00', current: '0.0', soc: 0, socStr: '0', 
-      quality: 'bad' as DataQuality, source: '', age: null, 
-      isCharging: false, statusColor: '#8b9bb4', dashOffset: 534, isLowBattery: false 
-    }
+  readonly view = toSignal(this.vm$, {
+    initialValue: {
+      voltage: '0.00',
+      current: '0.0',
+      soc: 0,
+      socStr: '0',
+      quality: 'missing',
+      isStale: true,
+      source: '',
+      age: null,
+      isCharging: false,
+      statusColor: 'var(--gb-text-unit)',
+      dashOffset: 534,
+      isLowBattery: false,
+      ariaLabel: 'Battery gauge. Data unavailable.',
+    } satisfies BatteryView,
   });
 }

@@ -1,3 +1,5 @@
+/* Chart Controls — Layer toggles inside left panel */
+
 :host {
   display: block;
 }
@@ -5,7 +7,8 @@
 .chart-controls {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--space-3);
+  padding: var(--space-3);
   pointer-events: auto;
 }
 
@@ -20,7 +23,7 @@
 .control-group .control-btn {
   border-radius: 0;
   border: none;
-  border-bottom: 1px solid var(--border-default);
+  border-bottom: 1px solid color-mix(in srgb, var(--border-default) 40%, transparent);
   box-shadow: none;
 }
 
@@ -32,49 +35,51 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 100%; /* Make them full width in the panel */
-  height: 48px;
-  border-radius: var(--radius-md); /* Fallback if not grouped */
+  width: 100%;
+  height: 44px;
+  border-radius: var(--radius-md);
   background-color: transparent;
-  border: 1px solid var(--border-default);
-  color: var(--text-primary);
+  border: 1px solid color-mix(in srgb, var(--border-default) 50%, transparent);
+  color: var(--text-secondary);
   cursor: pointer;
-  transition: all var(--duration-fast);
+  transition: all var(--duration-fast) var(--ease-out);
   padding: 0;
-  text-align: left; /* If we add text later */
 }
 
 .control-btn:hover {
-  background: var(--bg-surface-secondary);
+  background: color-mix(in srgb, var(--bg-surface-secondary) 65%, transparent);
+  color: var(--text-primary);
 }
 
 .control-btn:active {
-  background: var(--bg-surface-tertiary);
+  background: color-mix(in srgb, var(--bg-surface-secondary) 90%, transparent);
+  transform: scale(0.96);
 }
 
 .control-btn svg {
-  width: 24px;
-  height: 24px;
+  width: 22px;
+  height: 22px;
   fill: none;
   stroke: currentColor;
 }
 
-/* Active State */
+/* Active State — subtle highlight, not full-fill primary */
 .control-btn.active {
-  background: var(--primary);
-  color: var(--text-on-primary);
-  border-color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 15%, transparent);
+  color: var(--primary);
+  border-color: color-mix(in srgb, var(--primary) 35%, transparent);
 }
 
 .control-btn.active:hover {
-  background: var(--primary-hover);
+  background: color-mix(in srgb, var(--primary) 25%, transparent);
 }
 
+/* Range Rings Panel */
 .range-rings-panel {
-  margin-top: 12px;
-  padding: 12px;
+  margin-top: var(--space-2);
+  padding: var(--space-3);
   background: transparent;
-  border-top: 1px solid var(--border-default);
+  border-top: 1px solid color-mix(in srgb, var(--border-default) 45%, transparent);
   border-radius: 0;
 }
 
@@ -82,80 +87,131 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
-  margin-bottom: 10px;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
 }
 
 .panel-title {
   font-weight: 700;
-  font-size: 0.9rem;
-  letter-spacing: -0.01em;
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-primary);
 }
 
 .preset-chips {
   display: flex;
-  gap: 6px;
+  gap: var(--space-1);
 }
 
 .chip {
-  border: 1px solid var(--border-color, #4c566a);
-  background: var(--surface-2, #3b4252);
-  color: inherit;
-  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--border-default) 60%, transparent);
+  background: color-mix(in srgb, var(--bg-surface-secondary) 50%, transparent);
+  color: var(--text-secondary);
+  border-radius: var(--radius-full);
   padding: 4px 10px;
-  font-size: 0.75rem;
+  font-size: 0.68rem;
+  font-weight: 600;
   cursor: pointer;
-  transition: background 0.15s ease, transform 0.1s ease;
+  transition: background var(--duration-fast) var(--ease-out),
+              color var(--duration-fast) var(--ease-out);
 }
 
 .chip:hover {
-  background: var(--surface-3, #4c566a);
-  transform: translateY(-1px);
+  background: color-mix(in srgb, var(--bg-surface-secondary) 80%, transparent);
+  color: var(--text-primary);
 }
 
 .input-label {
   display: block;
-  font-size: 0.8rem;
-  color: var(--text-2, #cfd8e3);
-  margin-bottom: 4px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: var(--space-1);
 }
 
 .input-row {
   display: flex;
-  gap: 8px;
+  gap: var(--space-2);
   align-items: stretch;
 }
 
 .input-row input {
   flex: 1;
-  padding: 8px 10px;
-  border-radius: 8px;
-  border: 1px solid var(--border-color, #4c566a);
-  background: var(--surface-0, #1f242d);
-  color: var(--text-primary, #e5e9f0);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  border: 1px solid color-mix(in srgb, var(--border-default) 60%, transparent);
+  background: color-mix(in srgb, var(--bg-surface) 60%, transparent);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  transition: border-color var(--duration-fast) var(--ease-out);
+}
+
+.input-row input:focus {
+  outline: none;
+  border-color: var(--primary);
 }
 
 .apply-btn {
-  padding: 0 12px;
-  border-radius: 8px;
-  border: 1px solid var(--accent, #88c0d0);
-  background: var(--accent, #88c0d0);
-  color: #1b1f27;
-  font-weight: 600;
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--primary);
+  background: color-mix(in srgb, var(--primary) 15%, transparent);
+  color: var(--primary);
+  font-weight: 700;
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
   cursor: pointer;
-  transition: filter 0.15s ease, transform 0.1s ease;
+  transition: background var(--duration-fast) var(--ease-out);
 }
 
 .apply-btn:hover {
-  filter: brightness(1.05);
+  background: color-mix(in srgb, var(--primary) 25%, transparent);
 }
 
 .hint {
-  margin-top: 6px;
-  font-size: 0.75rem;
-  color: var(--text-3, #9aa4b5);
+  margin-top: var(--space-1);
+  font-size: 0.68rem;
+  color: var(--text-tertiary);
 }
 
 .hint.error {
-  color: var(--danger, #ef4444);
+  color: var(--danger);
+}
+
+/* Section divider for grouped controls */
+.control-group--section {
+  margin-top: var(--space-2);
+  padding-top: var(--space-2);
+  border-top: 1px solid color-mix(in srgb, var(--border-default) 35%, transparent);
+}
+
+.section-label {
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  padding: 0 0 var(--space-1) 0;
+}
+
+/* Labeled control buttons (icon + text) */
+.control-btn__label {
+  margin-left: var(--space-2);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.control-btn:has(.control-btn__label) {
+  justify-content: flex-start;
+  padding: 0 var(--space-3);
+  gap: var(--space-2);
+}
+
+.control-btn:has(.control-btn__label) svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
 }

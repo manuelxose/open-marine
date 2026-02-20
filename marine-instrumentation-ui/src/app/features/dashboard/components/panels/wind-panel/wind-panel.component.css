@@ -1,7 +1,13 @@
+.panel-bezel {
+  display: block;
+  height: 100%;
+}
+
 .wind-content {
   display: flex;
   flex-direction: column;
   height: 100%;
+  width: 100%;
 }
 
 .metrics-list {
@@ -15,7 +21,7 @@
   justify-content: space-between;
   align-items: flex-end;
   padding-bottom: 0.5rem;
-  border-bottom: 1px dashed var(--panel-border);
+  border-bottom: 1px dashed var(--gb-border-panel);
 }
 
 .metric-row:last-child {
@@ -29,11 +35,7 @@
 }
 
 .metric-label {
-  font-size: 0.75rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: var(--text-muted);
+  color: var(--gb-text-muted);
   margin-bottom: 0.25rem;
 }
 
@@ -44,16 +46,16 @@
 }
 
 .value {
-  font-family: 'Share Tech Mono', monospace;
-  font-size: 2.5rem;
+  font-size: 2rem;
   font-weight: 500;
-  color: var(--text-primary);
+  color: var(--gb-text-value);
   line-height: 0.9;
+  font-variant-numeric: tabular-nums;
 }
 
 /* Emphasize AWS */
 .metric-row:first-child .value {
-  font-size: 4rem;
+  font-size: 3rem;
   letter-spacing: -0.04em;
 }
 
@@ -62,14 +64,12 @@
 }
 
 .unit {
-  font-size: 1rem;
-  font-weight: 500;
-  color: var(--text-muted);
+  color: var(--gb-text-unit);
 }
 
 .metric-trend {
   margin-bottom: 6px;
-  opacity: 0.5;
+  opacity: 0.6;
 }
 
 /* Compact Overrides */

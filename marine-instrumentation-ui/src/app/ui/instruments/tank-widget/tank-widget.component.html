@@ -1,53 +1,55 @@
-<div class="tanks-grid">
-  <div class="tank-card neon-border" *ngFor="let tank of view().tanks">
-      <div class="tank-title">{{ tank.label }}</div>
-      
+<omi-gb-bezel class="tank-widget" label="TANKS" [quality]="view().quality">
+  <div class="tanks-grid">
+    <div class="tank-card" *ngFor="let tank of view().tanks">
+      <div class="tank-title gb-instrument-label">{{ tank.label }}</div>
+
       <div class="visual-area">
-        <svg viewBox="0 0 60 180" class="tank-svg">
-           <defs>
-              <filter [id]="'glow-' + tank.id">
-                 <feGaussianBlur stdDeviation="2" result="blur"/>
-                 <feComposite in="SourceGraphic" in2="blur" operator="over"/>
-              </filter>
-              <linearGradient id="glass-fx" x1="0" y1="0" x2="1" y2="0">
-                 <stop offset="0" stop-color="rgba(255,255,255,0.1)"/>
-                 <stop offset="0.5" stop-color="rgba(255,255,255,0)"/>
-                 <stop offset="1" stop-color="rgba(255,255,255,0.1)"/>
-              </linearGradient>
-           </defs>
+        <svg viewBox="0 0 60 180" class="tank-svg" role="img" [attr.aria-label]="getTankAriaLabel(tank)">
+          <defs>
+            <filter [id]="'glow-' + tank.id">
+              <feGaussianBlur stdDeviation="2" result="blur" />
+              <feComposite in="SourceGraphic" in2="blur" operator="over" />
+            </filter>
+            <linearGradient id="glass-fx" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0" stop-color="var(--gb-text-value)" stop-opacity="0.1" />
+              <stop offset="0.5" stop-color="var(--gb-text-value)" stop-opacity="0" />
+              <stop offset="1" stop-color="var(--gb-text-value)" stop-opacity="0.1" />
+            </linearGradient>
+          </defs>
 
-           <!-- Tube Background -->
-           <rect x="10" y="10" width="40" height="160" rx="20" class="tube-bg" />
+          <rect x="10" y="10" width="40" height="160" rx="20" class="tube-bg" />
 
-           <!-- Fluid Level -->
-           <!-- fill based on class color in SCSS -->
-           <rect x="12" 
-                 [attr.y]="getLiquidY(tank.level)" 
-                 width="36" 
-                 [attr.height]="getLiquidHeight(tank.level)" 
-                 rx="18"
-                 [class]="'fluid-rect ' + tank.class"
-                 [attr.filter]="'url(#glow-' + tank.id + ')'"
-           />
-           
-           <!-- Glass Reflection -->
-           <rect x="10" y="10" width="40" height="160" rx="20" fill="url(#glass-fx)" style="pointer-events: none;" />
+          <rect
+            x="12"
+            [attr.y]="getLiquidY(tank.level)"
+            width="36"
+            [attr.height]="getLiquidHeight(tank.level)"
+            rx="18"
+            [ngClass]="['fluid-rect', 'gb-needle-wrapper', tank.class, (tank.quality === 'stale' || tank.quality === 'missing') ? 'gb-needle-wrapper--stale' : '']"
+            [attr.filter]="'url(#glow-' + tank.id + ')'"
+          />
 
-           <!-- Ticks -->
-           <line x1="8" y1="50" x2="15" y2="50" class="tick"/>
-           <line x1="8" y1="90" x2="20" y2="90" class="tick major"/>
-           <line x1="8" y1="130" x2="15" y2="130" class="tick"/>
+          <rect x="10" y="10" width="40" height="160" rx="20" fill="url(#glass-fx)" class="glass-overlay" />
 
+          <line x1="8" y1="50" x2="15" y2="50" class="tick" />
+          <line x1="8" y1="90" x2="20" y2="90" class="tick major" />
+          <line x1="8" y1="130" x2="15" y2="130" class="tick" />
         </svg>
 
         <div class="tank-readout">
-           <span class="value">{{ tank.level * 100 | number:'1.0-0' }}</span>
-           <span class="unit">%</span>
+          <span class="value gb-display-value gb-display-value--sm">{{ tank.levelDisplay }}</span>
+          <span class="unit gb-display-unit" *ngIf="tank.levelDisplay !== '---'">%</span>
         </div>
       </div>
 
-      <div class="status-indicator" [class.alert]="tank.isAlert">
-        {{ tank.isAlert ? 'ALERT' : 'OK' }}
+      <div class="status-indicator gb-display-unit" [class.alert]="tank.isAlert || tank.quality === 'stale' || tank.quality === 'missing'">
+        {{ tank.quality === 'stale' || tank.quality === 'missing' ? 'STALE' : (tank.isAlert ? 'ALERT' : 'OK') }}
       </div>
+    </div>
   </div>
-</div>
+
+  <div class="meta-row">
+    <span class="gb-instrument-label" *ngIf="view().source">{{ view().source }}</span>
+    <span class="gb-display-unit" *ngIf="view().age !== null">{{ view().age | number:'1.1-1' }}s</span>
+  </div>
+</omi-gb-bezel>

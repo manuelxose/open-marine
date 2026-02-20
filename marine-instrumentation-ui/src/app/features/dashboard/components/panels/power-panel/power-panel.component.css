@@ -1,7 +1,13 @@
+.panel-bezel {
+  display: block;
+  height: 100%;
+}
+
 .power-content {
   display: flex;
   flex-direction: column;
   height: 100%;
+  width: 100%;
 }
 
 .metrics-list {
@@ -16,7 +22,7 @@
   justify-content: space-between;
   align-items: center; /* Center vertically for sparklines */
   padding: 1rem 0;
-  border-bottom: 1px dashed var(--panel-border);
+  border-bottom: 1px dashed var(--gb-border-panel);
   flex: 1;
 }
 
@@ -31,11 +37,7 @@
 }
 
 .metric-label {
-  font-size: 0.75rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: var(--text-muted);
+  color: var(--gb-text-muted);
 }
 
 .metric-value-group {
@@ -45,17 +47,15 @@
 }
 
 .value {
-  font-family: 'Share Tech Mono', monospace;
   font-size: 2rem;
   font-weight: 500;
-  color: var(--text-primary);
+  color: var(--gb-text-value);
   line-height: 1;
+  font-variant-numeric: tabular-nums;
 }
 
 .unit {
-  font-size: 0.9rem;
-  font-weight: 500;
-  color: var(--text-muted);
+  color: var(--gb-text-unit);
 }
 
 .metric-trend {

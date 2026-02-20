@@ -1,83 +1,83 @@
-   <app-instrument-card
-      title="SPEED (SOG)"
-      [quality]="view().quality"
-      [ageSeconds]="view().age"
-      [source]="view().source"
-      class="marine-card"
-    >
-      <div class="speed-container">
-        
-        <svg viewBox="0 0 200 120" class="gauge-svg">
-          <defs>
-            <linearGradient id="gradSpeed" x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stop-color="var(--color-cyan-dim)" />
-              <stop offset="100%" stop-color="var(--color-cyan)" />
-            </linearGradient>
+<omi-gb-bezel class="marine-card" label="SPEED (SOG)" [quality]="view().quality">
+  <div class="speed-container">
+    <svg viewBox="0 0 200 120" class="gauge-svg" role="img" [attr.aria-label]="view().ariaLabel">
+      <defs>
+        <linearGradient id="gradSpeed" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stop-color="color-mix(in srgb, var(--gb-needle-secondary) 55%, var(--gb-bg-bezel))" />
+          <stop offset="100%" stop-color="var(--gb-needle-secondary)" />
+        </linearGradient>
 
-            <filter id="glowCyan">
-              <feGaussianBlur stdDeviation="2" result="blur"/>
-              <feComposite in="SourceGraphic" in2="blur" operator="over"/>
-            </filter>
-            
-            <filter id="glowOrange">
-              <feGaussianBlur stdDeviation="1.5" result="blur"/>
-              <feComposite in="SourceGraphic" in2="blur" operator="over"/>
-            </filter>
-          </defs>
+        <filter id="glowCyan">
+          <feGaussianBlur stdDeviation="2" result="blur" />
+          <feComposite in="SourceGraphic" in2="blur" operator="over" />
+        </filter>
+      </defs>
 
-          <path d="M 20 100 A 80 80 0 0 1 180 100" 
-                fill="none" stroke="#1a2634" stroke-width="12" stroke-linecap="round"/>
+      <path d="M 20 100 A 80 80 0 0 1 180 100" fill="none" stroke="var(--gb-bg-bezel)" stroke-width="12" stroke-linecap="round" />
 
-          <path d="M 20 100 A 80 80 0 0 1 180 100" 
-                fill="none" 
-                stroke="url(#gradSpeed)" 
-                stroke-width="12" 
-                stroke-linecap="round"
-                [attr.stroke-dasharray]="view().sogArcDash"
-                class="progress-arc" />
+      <path
+        d="M 20 100 A 80 80 0 0 1 180 100"
+        fill="none"
+        stroke="url(#gradSpeed)"
+        stroke-width="12"
+        stroke-linecap="round"
+        [attr.stroke-dasharray]="view().sogArcDash"
+        class="progress-arc"
+      />
 
-          <g class="ticks-group">
-            <g *ngFor="let tick of ticks">
-               <line [attr.x1]="tick.x1" [attr.y1]="tick.y1"
-                     [attr.x2]="tick.x2" [attr.y2]="tick.y2"
-                     [class.major]="tick.isMajor"
-                     class="tick-mark" />
-               
-               <text *ngIf="tick.isMajor" 
-                     [attr.x]="tick.tx" [attr.y]="tick.ty"
-                     class="tick-label">
-                 {{ tick.value }}
-               </text>
-            </g>
-          </g>
+      <g class="ticks-group">
+        <g *ngFor="let tick of ticks">
+          <line
+            [attr.x1]="tick.x1"
+            [attr.y1]="tick.y1"
+            [attr.x2]="tick.x2"
+            [attr.y2]="tick.y2"
+            [class.major]="tick.isMajor"
+            class="tick-mark"
+          />
 
-          <g [style.transform]="'rotate(' + view().stwRotation + 'deg)'" class="needle-group stw">
-             <line x1="100" y1="100" x2="25" y2="100" class="needle-line" />
-             <circle cx="25" cy="100" r="3" class="needle-tip" />
-          </g>
+          <text *ngIf="tick.isMajor" [attr.x]="tick.tx" [attr.y]="tick.ty" class="tick-label">
+            {{ tick.value }}
+          </text>
+        </g>
+      </g>
 
-          <g [style.transform]="'rotate(' + view().sogRotation + 'deg)'" class="needle-group sog">
-             <line x1="100" y1="100" x2="20" y2="100" class="needle-line" />
-             <circle cx="20" cy="100" r="4" class="needle-tip" />
-          </g>
+      <g
+        [style.transform]="'rotate(' + view().stwRotation + 'deg)'"
+        class="gb-needle-wrapper needle-group stw"
+        [class.gb-needle-wrapper--stale]="view().isStale"
+      >
+        <line x1="100" y1="100" x2="25" y2="100" class="needle-line" />
+        <circle cx="25" cy="100" r="3" class="needle-tip" />
+      </g>
 
-          <circle cx="100" cy="100" r="6" fill="#0b1116" stroke="#8b9bb4" stroke-width="2"/>
+      <g
+        [style.transform]="'rotate(' + view().sogRotation + 'deg)'"
+        class="gb-needle-wrapper needle-group sog"
+        [class.gb-needle-wrapper--stale]="view().isStale"
+      >
+        <line x1="100" y1="100" x2="20" y2="100" class="needle-line" filter="url(#glowCyan)" />
+        <circle cx="20" cy="100" r="4" class="needle-tip" />
+      </g>
 
-        </svg>
+      <circle cx="100" cy="100" r="6" fill="var(--gb-bg-bezel)" stroke="var(--gb-text-unit)" stroke-width="2" />
+    </svg>
 
-        <div class="readouts">
-          
-          <div class="readout stw">
-            <span class="label">STW</span>
-            <span class="value">{{ view().stwStr }}</span>
-          </div>
-
-          <div class="readout sog">
-             <span class="value">{{ view().sogStr }}</span>
-             <span class="unit">kn</span>
-          </div>
-
-        </div>
-
+    <div class="readouts">
+      <div class="readout stw">
+        <span class="label gb-instrument-label">STW</span>
+        <span class="value gb-display-value gb-display-value--sm">{{ view().stwStr }}</span>
       </div>
-    </app-instrument-card>
+
+      <div class="readout sog">
+        <span class="value gb-display-value gb-display-value--xl">{{ view().sogStr }}</span>
+        <span class="unit gb-display-unit" *ngIf="view().sogStr !== '---'">kn</span>
+      </div>
+    </div>
+
+    <div class="meta-row">
+      <span class="gb-instrument-label" *ngIf="view().source">{{ view().source }}</span>
+      <span class="gb-display-unit" *ngIf="view().age !== null">{{ view().age | number:'1.1-1' }}s</span>
+    </div>
+  </div>
+</omi-gb-bezel>

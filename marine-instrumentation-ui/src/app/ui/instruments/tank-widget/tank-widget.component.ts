@@ -1,9 +1,10 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { combineLatest, map, startWith } from 'rxjs';
+import { combineLatest, map, startWith, timer } from 'rxjs';
+import { GbInstrumentBezelComponent } from '../../../shared/components/gb-instrument-bezel/gb-instrument-bezel.component';
+import { DataQualityService, type DataQuality } from '../../../shared/services/data-quality.service';
 import { DatapointStoreService } from '../../../state/datapoints/datapoint-store.service';
-
 
 interface TankConfig {
   id: string;
@@ -16,69 +17,113 @@ interface TankConfig {
 
 const TANKS_CONFIG: TankConfig[] = [
   { id: 'fuel', label: 'FUEL', path: 'tanks.fuel.0.level', class: 'fuel', warnLow: 0.15 },
-  { id: 'water', label: 'WATER', path: 'tanks.water.0.level', class: 'water', warnLow: 0.10 },
-  { id: 'waste', label: 'WASTE', path: 'tanks.waste.0.level', class: 'waste', warnHigh: 0.80 },
-  { id: 'gray', label: 'GRAY', path: 'tanks.gray.0.level', class: 'gray', warnHigh: 0.80 },
+  { id: 'water', label: 'WATER', path: 'tanks.water.0.level', class: 'water', warnLow: 0.1 },
+  { id: 'waste', label: 'WASTE', path: 'tanks.waste.0.level', class: 'waste', warnHigh: 0.8 },
+  { id: 'gray', label: 'GRAY', path: 'tanks.gray.0.level', class: 'gray', warnHigh: 0.8 },
 ];
 
 interface TankState {
   id: string;
   label: string;
-  level: number; // 0..1
+  level: number;
+  levelDisplay: string;
   class: string;
   isAlert: boolean;
+  quality: DataQuality;
+  timestamp: number;
+  source: string;
+}
+
+interface TanksView {
+  tanks: TankState[];
+  quality: DataQuality;
+  age: number | null;
+  source: string;
 }
 
 @Component({
   selector: 'app-tank-widget',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, GbInstrumentBezelComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './tank-widget.component.html',
-  styleUrls: ['./tank-widget.component.scss']
+  styleUrls: ['./tank-widget.component.scss'],
 })
 export class TankWidgetComponent {
-  private store = inject(DatapointStoreService);
+  private readonly store = inject(DatapointStoreService);
+  private readonly qualityService = inject(DataQualityService);
+  private readonly ticker$ = timer(0, 1000);
 
-  private tanks$ = combineLatest(
-    TANKS_CONFIG.map(config => 
+  private readonly tanks$ = combineLatest(
+    TANKS_CONFIG.map((config) =>
       this.store.observe<number>(config.path).pipe(
         startWith(undefined),
-        map(point => {
-          const val = typeof point?.value === 'number' ? point.value : 0;
-          
-          let alert = false;
-          if (config.warnLow !== undefined && val < config.warnLow) alert = true;
-          if (config.warnHigh !== undefined && val > config.warnHigh) alert = true;
+        map((point) => {
+          const quality = this.qualityService.getQuality(point?.timestamp ?? null);
+          const isUnavailable = quality === 'stale' || quality === 'missing';
+          const level = typeof point?.value === 'number' ? point.value : 0;
+          const isAlert =
+            !isUnavailable &&
+            ((config.warnLow !== undefined && level < config.warnLow) ||
+              (config.warnHigh !== undefined && level > config.warnHigh));
 
           return {
             id: config.id,
             label: config.label,
-            level: val,
+            level,
+            levelDisplay: isUnavailable ? '---' : (level * 100).toFixed(0),
             class: config.class,
-            isAlert: alert
-          } as TankState;
-        })
-      )
-    )
+            isAlert,
+            quality,
+            timestamp: point?.timestamp ?? 0,
+            source: point?.source ?? '',
+          } satisfies TankState;
+        }),
+      ),
+    ),
   );
 
-  view = toSignal(
-    this.tanks$.pipe(map(tanks => ({ tanks }))),
-    { initialValue: { tanks: [] as TankState[] } }
+  readonly view = toSignal(
+    combineLatest([this.tanks$, this.ticker$]).pipe(
+      map(([tanks]) => {
+        const latestTimestamp = Math.max(...tanks.map((tank) => tank.timestamp), 0);
+        const primarySource = tanks.find((tank) => tank.source)?.source ?? '';
+
+        return {
+          tanks,
+          quality: this.qualityService.getQuality(latestTimestamp || null),
+          age: latestTimestamp > 0 ? (Date.now() - latestTimestamp) / 1000 : null,
+          source: primarySource,
+        } satisfies TanksView;
+      }),
+    ),
+    {
+      initialValue: {
+        tanks: [] as TankState[],
+        quality: 'missing',
+        age: null,
+        source: '',
+      } satisfies TanksView,
+    },
   );
 
   getLiquidY(level: number): number {
-    // SVG: y=10 (top) to y=170 (bottom). Height 160.
-    // Fill 100%: y=10. Fill 0%: y=170.
-    const maxH = 160;
+    const maxHeight = 160;
     const clamped = Math.max(0, Math.min(1, level));
-    return 10 + maxH * (1 - clamped);
+    return 10 + maxHeight * (1 - clamped);
   }
 
   getLiquidHeight(level: number): number {
-    const maxH = 160;
+    const maxHeight = 160;
     const clamped = Math.max(0, Math.min(1, level));
-    return maxH * clamped;
+    return maxHeight * clamped;
+  }
+
+  getTankAriaLabel(tank: TankState): string {
+    const isUnavailable = tank.quality === 'stale' || tank.quality === 'missing';
+    if (isUnavailable) {
+      return `${tank.label} tank. Data stale.`;
+    }
+    return `${tank.label} tank ${tank.levelDisplay} percent.`;
   }
 }
