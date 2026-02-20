@@ -7,7 +7,7 @@
   padding: 0.75rem;
   border: 1px solid var(--border-default);
   border-radius: var(--radius-lg);
-  background: var(--bg-surface);
+  background: var(--gb-bg-panel);
   box-shadow: var(--shadow-sm);
   display: flex;
   flex-direction: column;
@@ -15,7 +15,7 @@
 }
 
 .heading-control-pattern--adjusting {
-  border-color: color-mix(in srgb, var(--primary) 35%, var(--border-default));
+  border-color: color-mix(in srgb, var(--gb-needle-secondary) 35%, var(--border-default));
 }
 
 .heading-control-pattern__header {
@@ -37,7 +37,7 @@
   border-radius: 999px;
   border: 1px solid var(--border-default);
   background: var(--bg-surface-secondary);
-  color: var(--primary);
+  color: var(--gb-needle-secondary);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -54,13 +54,13 @@
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--text-secondary);
+  color: var(--gb-text-muted);
 }
 
 .heading-control-pattern__subtitle {
   margin: 0.2rem 0 0;
   font-size: 0.82rem;
-  color: var(--text-primary);
+  color: var(--gb-text-value);
   font-family: var(--font-mono);
 }
 
@@ -82,7 +82,7 @@
 .heading-control-pattern__reading-label {
   margin: 0;
   font-size: 0.68rem;
-  color: var(--text-secondary);
+  color: var(--gb-text-muted);
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
@@ -92,7 +92,7 @@
   font-size: 1.02rem;
   font-family: var(--font-mono);
   font-weight: 700;
-  color: var(--text-primary);
+  color: var(--gb-text-value);
 }
 
 .heading-control-pattern__controls {
@@ -112,7 +112,7 @@
   border-radius: var(--radius-sm);
   border: 1px solid var(--border-default);
   background: var(--bg-surface-secondary);
-  color: var(--text-primary);
+  color: var(--gb-text-value);
   font-family: var(--font-mono);
   font-size: 0.82rem;
   font-weight: 700;
@@ -122,11 +122,11 @@
 }
 
 .heading-control-pattern__btn:hover:not(:disabled) {
-  border-color: color-mix(in srgb, var(--primary) 35%, var(--border-default));
+  border-color: color-mix(in srgb, var(--gb-needle-secondary) 35%, var(--border-default));
 }
 
 .heading-control-pattern__btn:active:not(:disabled) {
-  background: color-mix(in srgb, var(--primary) 14%, transparent);
+  background: color-mix(in srgb, var(--gb-needle-secondary) 14%, transparent);
 }
 
 .heading-control-pattern__btn:disabled {

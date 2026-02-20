@@ -7,7 +7,7 @@
   padding: 0.75rem;
   border: 1px solid var(--border-default);
   border-radius: var(--radius-lg);
-  background: var(--bg-surface);
+  background: var(--gb-bg-panel);
   box-shadow: var(--shadow-sm);
   display: flex;
   flex-direction: column;
@@ -15,7 +15,7 @@
 }
 
 .playback-bar-pattern--active {
-  border-color: color-mix(in srgb, var(--primary) 40%, var(--border-default));
+  border-color: color-mix(in srgb, var(--gb-needle-secondary) 40%, var(--border-default));
 }
 
 .playback-bar-pattern__header {
@@ -31,12 +31,12 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: var(--text-secondary);
+  color: var(--gb-text-muted);
 }
 
 .playback-bar-pattern__status {
   font-size: 0.72rem;
   font-family: var(--font-mono);
-  color: var(--text-secondary);
+  color: var(--gb-text-muted);
 }
 

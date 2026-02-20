@@ -146,7 +146,7 @@ import { PATHS } from '@omi/marine-data-contract';
         flex-direction: column;
         gap: 1rem;
         padding: 1.25rem;
-        background: var(--surface-1);
+        background: var(--gb-bg-bezel);
         border-radius: 12px;
         height: 100%;
         transition: filter 0.3s;
@@ -168,9 +168,9 @@ import { PATHS } from '@omi/marine-data-contract';
         align-items: center;
         gap: 0.75rem;
         padding: 0.6rem 1rem;
-        background: var(--surface-2);
+        background: var(--gb-bg-panel);
         border-radius: 8px;
-        border-left: 4px solid var(--text-tertiary);
+        border-left: 4px solid var(--gb-text-muted);
         flex: 1;
     }
     .ap-status.engaged {
@@ -178,22 +178,22 @@ import { PATHS } from '@omi/marine-data-contract';
         background: rgba(46, 194, 92, 0.08);
     }
     .status-text { display: flex; flex-direction: column; }
-    .status-text .label { font-size: 0.65rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.1em; }
-    .status-text .value { font-weight: bold; font-size: 1.1rem; color: var(--text-primary); }
+    .status-text .label { font-size: 0.65rem; color: var(--gb-text-muted); text-transform: uppercase; letter-spacing: 0.1em; }
+    .status-text .value { font-weight: bold; font-size: 1.1rem; color: var(--gb-text-value); }
 
     .engage-btn {
         padding: 0.6rem 1.25rem;
-        border: 2px solid var(--text-tertiary);
+        border: 2px solid var(--gb-text-muted);
         border-radius: 8px;
         background: transparent;
-        color: var(--text-primary);
+        color: var(--gb-text-value);
         font-weight: 700;
         font-size: 0.85rem;
         cursor: pointer;
         transition: all 0.2s;
         white-space: nowrap;
     }
-    .engage-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .engage-btn:hover { border-color: var(--gb-needle-secondary); color: var(--gb-needle-secondary); }
     .engage-btn--engaged {
         border-color: var(--status-offline, #f06352);
         color: var(--status-offline, #f06352);
@@ -207,7 +207,7 @@ import { PATHS } from '@omi/marine-data-contract';
     }
     .ap-display__label {
         font-size: 0.65rem;
-        color: var(--text-secondary);
+        color: var(--gb-text-muted);
         text-transform: uppercase;
         letter-spacing: 0.1em;
         display: block;
@@ -227,7 +227,7 @@ import { PATHS } from '@omi/marine-data-contract';
     }
     .ap-display__unit {
         font-size: 0.85rem;
-        color: var(--text-secondary);
+        color: var(--gb-text-muted);
     }
 
     /* Dodge buttons */
@@ -237,9 +237,9 @@ import { PATHS } from '@omi/marine-data-contract';
         gap: 0.35rem;
     }
     .dodge-btn {
-        background: var(--surface-2);
+        background: var(--gb-bg-panel);
         border: 1px solid var(--border);
-        color: var(--text-primary);
+        color: var(--gb-text-value);
         font-family: var(--font-mono, monospace);
         font-weight: 700;
         font-size: 0.8rem;
@@ -263,14 +263,14 @@ import { PATHS } from '@omi/marine-data-contract';
         display: grid;
         grid-template-columns: repeat(3, 1fr);
         gap: 0.35rem;
-        background: var(--surface-2);
+        background: var(--gb-bg-panel);
         padding: 0.25rem;
         border-radius: 8px;
     }
     .mode-btn {
         background: transparent;
         border: none;
-        color: var(--text-secondary);
+        color: var(--gb-text-muted);
         padding: 0.65rem 0.5rem;
         border-radius: 6px;
         font-weight: 600;
@@ -280,7 +280,7 @@ import { PATHS } from '@omi/marine-data-contract';
     }
     .mode-btn:hover {
         background: rgba(255, 255, 255, 0.05);
-        color: var(--text-primary);
+        color: var(--gb-text-value);
     }
     .mode-btn.active {
         background: var(--accent, #5ba4cf);
@@ -294,12 +294,12 @@ import { PATHS } from '@omi/marine-data-contract';
         align-items: center;
         gap: 0.75rem;
         padding: 0.5rem 1rem;
-        background: var(--surface-2);
+        background: var(--gb-bg-panel);
         border-radius: 8px;
     }
     .rudder-label {
         font-size: 0.65rem;
-        color: var(--text-secondary);
+        color: var(--gb-text-muted);
         text-transform: uppercase;
         letter-spacing: 0.08em;
         flex-shrink: 0;
@@ -317,7 +317,7 @@ import { PATHS } from '@omi/marine-data-contract';
         top: -3px;
         width: 2px;
         height: 10px;
-        background: var(--text-secondary);
+        background: var(--gb-text-muted);
         transform: translateX(-50%);
     }
     .rudder-indicator {

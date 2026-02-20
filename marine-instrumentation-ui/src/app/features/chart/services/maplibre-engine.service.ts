@@ -92,6 +92,7 @@ export class MapLibreEngineService {
   private pendingCenter: [number, number] | null = null;
   private appliedCenter: [number, number] | null = null;
   private orientation: MapOrientation = 'north-up';
+  private resizeObserver: ResizeObserver | null = null;
 
   private readonly handleMapClick = (event: maplibregl.MapMouseEvent): void => {
     if (!this.clickHandler) {
@@ -168,9 +169,19 @@ export class MapLibreEngineService {
 
     this.map.addControl(new maplibregl.AttributionControl({ compact: true }), 'bottom-right');
 
-    this.map.on('load', () => this.onStyleReady());
+    this.map.on('load', () => {
+      this.onStyleReady();
+      // Ensure map fills container after CSS transitions complete
+      setTimeout(() => this.map?.resize(), 400);
+    });
     this.map.on('style.load', () => this.onStyleReady());
     this.map.on('click', this.handleMapClick);
+
+    // Watch for container size changes (grid transitions, sidenav toggle)
+    this.resizeObserver = new ResizeObserver(() => {
+      this.map?.resize();
+    });
+    this.resizeObserver.observe(containerEl);
   }
 
   setBaseSource(chartSourceConfig: ChartSourceConfig): void {
@@ -454,6 +465,10 @@ export class MapLibreEngineService {
 
 
   destroy(): void {
+    if (this.resizeObserver) {
+      this.resizeObserver.disconnect();
+      this.resizeObserver = null;
+    }
     if (this.map) {
       this.map.off('click', this.handleMapClick);
       this.map.remove();
@@ -463,6 +478,11 @@ export class MapLibreEngineService {
     this.clickHandler = null;
     this.pendingCenter = null;
     this.appliedCenter = null;
+  }
+
+  /** Force the map to recalculate its container dimensions. */
+  resize(): void {
+    this.map?.resize();
   }
 
   setOrientation(orientation: MapOrientation): void {

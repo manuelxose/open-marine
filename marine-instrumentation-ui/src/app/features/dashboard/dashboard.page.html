@@ -1,5 +1,35 @@
 <ng-container *ngIf="{ compact: isCompact$ | async, layout: layout$ | async } as view">
-  <div class="dashboard" [class.compact]="view.compact">
+  <div class="dashboard">
+    <div class="dashboard-header">
+      <h1>Dashboard</h1>
+      <div class="dashboard-actions">
+        <button
+          class="density-toggle"
+          type="button"
+          (click)="toggleDensity()"
+          [title]="view.compact ? 'Switch to Comfortable' : 'Switch to Compact'"
+          [attr.aria-label]="view.compact ? 'Switch to Comfortable' : 'Switch to Compact'"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
+               fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="7" height="7" *ngIf="!view.compact"></rect>
+            <rect x="14" y="3" width="7" height="7" *ngIf="!view.compact"></rect>
+            <rect x="3" y="14" width="7" height="7" *ngIf="!view.compact"></rect>
+            <rect x="14" y="14" width="7" height="7" *ngIf="!view.compact"></rect>
+            <rect x="3" y="3" width="4" height="4" *ngIf="view.compact"></rect>
+            <rect x="10" y="3" width="4" height="4" *ngIf="view.compact"></rect>
+            <rect x="17" y="3" width="4" height="4" *ngIf="view.compact"></rect>
+            <rect x="3" y="10" width="4" height="4" *ngIf="view.compact"></rect>
+            <rect x="10" y="10" width="4" height="4" *ngIf="view.compact"></rect>
+            <rect x="17" y="10" width="4" height="4" *ngIf="view.compact"></rect>
+            <rect x="3" y="17" width="4" height="4" *ngIf="view.compact"></rect>
+            <rect x="10" y="17" width="4" height="4" *ngIf="view.compact"></rect>
+            <rect x="17" y="17" width="4" height="4" *ngIf="view.compact"></rect>
+          </svg>
+        </button>
+      </div>
+    </div>
+
     <ng-container *ngIf="criticalVm$ | async as criticalVm">
       <app-dashboard-critical-strip class="critical-strip" [vm]="criticalVm"></app-dashboard-critical-strip>
     </ng-container>
@@ -59,36 +89,5 @@
         </ng-container>
       </ng-container>
     </div>
-
-    <button
-      class="density-toggle"
-      type="button"
-      (click)="toggleDensity()"
-      [title]="view.compact ? 'Switch to Comfortable' : 'Switch to Compact'"
-    >
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        width="18"
-        height="18"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
-      >
-        <rect x="3" y="3" width="7" height="7" *ngIf="!view.compact"></rect>
-        <rect x="14" y="3" width="7" height="7" *ngIf="!view.compact"></rect>
-        <rect x="3" y="14" width="7" height="7" *ngIf="!view.compact"></rect>
-        <rect x="14" y="14" width="7" height="7" *ngIf="!view.compact"></rect>
-        <rect x="3" y="3" width="4" height="4" *ngIf="view.compact"></rect>
-        <rect x="10" y="3" width="4" height="4" *ngIf="view.compact"></rect>
-        <rect x="17" y="3" width="4" height="4" *ngIf="view.compact"></rect>
-        <rect x="3" y="10" width="4" height="4" *ngIf="view.compact"></rect>
-        <rect x="10" y="10" width="4" height="4" *ngIf="view.compact"></rect>
-        <rect x="17" y="10" width="4" height="4" *ngIf="view.compact"></rect>
-        <rect x="3" y="17" width="4" height="4" *ngIf="view.compact"></rect>
-        <rect x="10" y="17" width="4" height="4" *ngIf="view.compact"></rect>
-        <rect x="17" y="17" width="4" height="4" *ngIf="view.compact"></rect>
-      </svg>
-    </button>
   </div>
 </ng-container>

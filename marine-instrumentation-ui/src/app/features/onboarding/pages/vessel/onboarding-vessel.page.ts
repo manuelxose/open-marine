@@ -108,14 +108,14 @@ import { AppStateService } from '../../../../state/app/app-state.service';
       justify-content: center;
       height: 100%;
       padding: var(--space-4);
-      background: var(--bg-base);
+      background: var(--gb-bg-canvas);
     }
 
     .onboarding-card {
       width: 100%;
       max-width: 480px;
       padding: var(--space-8);
-      background: var(--bg-surface);
+      background: var(--gb-bg-panel);
       border: 1px solid var(--border-default);
       border-radius: var(--radius-xl, 12px);
     }
@@ -124,22 +124,22 @@ import { AppStateService } from '../../../../state/app/app-state.service';
       display: inline-block;
       margin-bottom: var(--space-4);
       font-size: 0.8125rem;
-      color: var(--text-secondary);
+      color: var(--gb-text-muted);
       text-decoration: none;
     }
-    .back-link:hover { color: var(--text-primary); }
+    .back-link:hover { color: var(--gb-text-value); }
 
     .onboarding-title {
       margin: 0 0 var(--space-1) 0;
       font-size: 1.25rem;
       font-weight: 700;
-      color: var(--text-primary);
+      color: var(--gb-text-value);
     }
 
     .onboarding-subtitle {
       margin: 0 0 var(--space-6) 0;
       font-size: 0.75rem;
-      color: var(--text-secondary);
+      color: var(--gb-text-muted);
       text-transform: uppercase;
       letter-spacing: 0.08em;
     }
@@ -161,12 +161,12 @@ import { AppStateService } from '../../../../state/app/app-state.service';
       margin-bottom: var(--space-1);
       font-size: 0.8125rem;
       font-weight: 600;
-      color: var(--text-secondary);
+      color: var(--gb-text-muted);
     }
 
     .optional {
       font-weight: 400;
-      color: var(--text-muted, var(--text-secondary));
+      color: var(--text-muted, var(--gb-text-muted));
       opacity: 0.7;
     }
 
@@ -176,8 +176,8 @@ import { AppStateService } from '../../../../state/app/app-state.service';
       height: 44px;
       padding: 0 var(--space-3);
       font-size: 0.875rem;
-      color: var(--text-primary);
-      background: var(--bg-base);
+      color: var(--gb-text-value);
+      background: var(--gb-bg-canvas);
       border: 1px solid var(--border-default);
       border-radius: var(--radius-md, 8px);
       outline: none;
@@ -203,8 +203,8 @@ import { AppStateService } from '../../../../state/app/app-state.service';
       height: 44px;
       font-size: 0.875rem;
       font-weight: 500;
-      color: var(--text-secondary);
-      background: var(--bg-base);
+      color: var(--gb-text-muted);
+      background: var(--gb-bg-canvas);
       border: 1px solid var(--border-default);
       border-radius: var(--radius-md, 8px);
       cursor: pointer;

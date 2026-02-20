@@ -7,7 +7,7 @@
   padding: 0.85rem;
   border: 1px solid var(--border-default);
   border-radius: var(--radius-lg);
-  background: var(--bg-surface);
+  background: var(--gb-bg-panel);
   box-shadow: var(--shadow-sm);
   display: flex;
   flex-direction: column;
@@ -26,14 +26,14 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: var(--text-secondary);
+  color: var(--gb-text-muted);
 }
 
 .settings-panel-widget__empty {
   min-height: 120px;
   border: 1px dashed var(--border-default);
   border-radius: var(--radius-md);
-  color: var(--text-secondary);
+  color: var(--gb-text-muted);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -68,13 +68,13 @@
   margin: 0;
   font-size: 0.8rem;
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--gb-text-value);
 }
 
 .settings-panel-widget__description {
   margin: 0.2rem 0 0;
   font-size: 0.72rem;
-  color: var(--text-secondary);
+  color: var(--gb-text-muted);
 }
 
 .settings-panel-widget__control {
@@ -87,7 +87,7 @@
   align-items: center;
   gap: 0.35rem;
   font-size: 0.76rem;
-  color: var(--text-secondary);
+  color: var(--gb-text-muted);
 }
 
 .settings-panel-widget__select,
@@ -95,8 +95,8 @@
   min-height: 34px;
   border-radius: var(--radius-sm);
   border: 1px solid var(--border-default);
-  background: var(--bg-surface);
-  color: var(--text-primary);
+  background: var(--gb-bg-panel);
+  color: var(--gb-text-value);
   padding: 0 0.45rem;
   font-family: var(--font-mono);
 }

@@ -147,7 +147,7 @@ import { CommonModule } from '@angular/common';
         font-family: var(--font-mono);
         font-size: 1.05rem;
         font-weight: 700;
-        color: var(--text-primary);
+        color: var(--gb-text-value);
         line-height: 1;
         letter-spacing: -0.03em;
       }
@@ -169,7 +169,7 @@ import { CommonModule } from '@angular/common';
 
       &__bar-fill {
         height: 100%;
-        background: var(--primary);
+        background: var(--gb-needle-secondary);
         border-radius: 1px;
         transition: width 0.8s var(--ease-out);
         
@@ -184,7 +184,7 @@ import { CommonModule } from '@angular/common';
         .compass-letter {
           font-size: 0.45rem;
           font-weight: 700;
-          color: var(--primary);
+          color: var(--gb-needle-secondary);
           letter-spacing: 0.05em;
         }
       }
@@ -203,7 +203,7 @@ import { CommonModule } from '@angular/common';
       transition: all var(--duration-fast) var(--ease-out);
       
       &:hover {
-        background: var(--primary);
+        background: var(--gb-needle-secondary);
         color: white;
         .expand-handle__dots span { background: white; }
       }

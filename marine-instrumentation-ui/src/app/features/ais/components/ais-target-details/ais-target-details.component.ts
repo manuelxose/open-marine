@@ -157,7 +157,7 @@ import { LonFormatPipe } from '../../../../shared/pipes/lon-format.pipe';
       margin: 0;
       font-size: 0.92rem;
       font-weight: 700;
-      color: var(--text-primary);
+      color: var(--gb-text-value);
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -165,7 +165,7 @@ import { LonFormatPipe } from '../../../../shared/pipes/lon-format.pipe';
 
     .mmsi {
       font-size: 0.72rem;
-      color: var(--text-muted, var(--text-secondary));
+      color: var(--text-muted, var(--gb-text-muted));
       font-family: var(--font-mono);
     }
 
@@ -204,7 +204,7 @@ import { LonFormatPipe } from '../../../../shared/pipes/lon-format.pipe';
       text-transform: uppercase;
       letter-spacing: 0.06em;
       font-weight: 700;
-      color: var(--text-muted, var(--text-tertiary));
+      color: var(--text-muted, var(--gb-text-muted));
       margin: 0 0 var(--space-2, 0.5rem) 0;
       border-bottom: 1px solid color-mix(in srgb, var(--border-default, #ffffff) 30%, transparent);
       padding-bottom: 0.25rem;
@@ -231,12 +231,12 @@ import { LonFormatPipe } from '../../../../shared/pipes/lon-format.pipe';
       font-size: 0.62rem;
       text-transform: uppercase;
       letter-spacing: 0.04em;
-      color: var(--text-muted, var(--text-secondary));
+      color: var(--text-muted, var(--gb-text-muted));
     }
 
     .value {
       font-size: 0.82rem;
-      color: var(--text-primary);
+      color: var(--gb-text-value);
       font-weight: 600;
     }
     
@@ -255,7 +255,7 @@ import { LonFormatPipe } from '../../../../shared/pipes/lon-format.pipe';
     
     .last-seen {
         font-size: 0.68rem;
-        color: var(--text-muted, var(--text-tertiary));
+        color: var(--text-muted, var(--gb-text-muted));
     }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush

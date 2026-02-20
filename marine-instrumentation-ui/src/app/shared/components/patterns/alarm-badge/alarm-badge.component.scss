@@ -4,7 +4,7 @@
 }
 
 .alarm-badge {
-  background: var(--bg-surface);
+  background: var(--gb-bg-panel);
   border: 1px solid var(--border-default);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
@@ -28,7 +28,7 @@
   align-items: center;
   justify-content: center;
   background: var(--bg-surface-secondary);
-  color: var(--text-secondary);
+  color: var(--gb-text-muted);
   flex-shrink: 0;
   position: relative;
 
@@ -51,7 +51,7 @@
   app-text[variant="value"] {
     font-weight: 700;
     font-size: 1.5rem;
-    color: var(--text-primary);
+    color: var(--gb-text-value);
     line-height: 1;
   }
 }
@@ -62,7 +62,7 @@
 
   .icon-wrap {
     background: var(--bg-surface-secondary);
-    color: var(--text-secondary);
+    color: var(--gb-text-muted);
   }
 }
 
@@ -89,7 +89,7 @@
 .severity-emergency {
   border-color: var(--danger, #ef4444);
   border-width: 2px;
-  background: color-mix(in srgb, var(--danger, #ef4444) 8%, var(--bg-surface));
+  background: color-mix(in srgb, var(--danger, #ef4444) 8%, var(--gb-bg-panel));
 
   .icon-wrap {
     color: #fff;

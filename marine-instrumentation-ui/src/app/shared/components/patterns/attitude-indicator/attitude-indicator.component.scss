@@ -6,9 +6,9 @@
   position: relative;
   background: radial-gradient(
     circle at 50% 50%,
-    color-mix(in srgb, var(--bg-surface) 96%, var(--primary) 4%) 0%,
-    var(--bg-surface) 55%,
-    color-mix(in srgb, var(--bg-surface-secondary) 85%, var(--bg-surface) 15%) 100%
+    color-mix(in srgb, var(--gb-bg-panel) 96%, var(--gb-needle-secondary) 4%) 0%,
+    var(--gb-bg-panel) 55%,
+    color-mix(in srgb, var(--bg-surface-secondary) 85%, var(--gb-bg-panel) 15%) 100%
   );
   border-radius: 50%;
   border: 2px solid var(--border-default);
@@ -53,7 +53,7 @@
         left: 0;
         width: 100%;
         height: 2px;
-        background: color-mix(in srgb, var(--text-primary) 70%, transparent);
+        background: color-mix(in srgb, var(--gb-text-value) 70%, transparent);
         transform: translateY(-1px);
     }
     
@@ -69,7 +69,7 @@
             left: 50%;
             width: 40px;
             height: 1px;
-            background: color-mix(in srgb, var(--text-primary) 55%, transparent);
+            background: color-mix(in srgb, var(--gb-text-value) 55%, transparent);
             transform: translateX(-50%);
         }
     }
@@ -97,7 +97,7 @@
         position: absolute;
         width: 2px;
         height: 8px;
-        background: color-mix(in srgb, var(--text-primary) 70%, transparent);
+        background: color-mix(in srgb, var(--gb-text-value) 70%, transparent);
         top: 0;
     }
     

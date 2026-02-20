@@ -38,7 +38,7 @@
   font-size: 0.78rem;
   font-weight: 700;
   letter-spacing: 0.08em;
-  color: var(--text-primary);
+  color: var(--gb-text-value);
   text-transform: uppercase;
 }
 
@@ -71,12 +71,12 @@
 
   &:hover {
     background: color-mix(in srgb, var(--bg-surface-secondary) 65%, transparent);
-    color: var(--text-primary);
+    color: var(--gb-text-value);
   }
 
   &.is-active {
-    background: color-mix(in srgb, var(--primary) 14%, transparent);
-    color: var(--primary);
+    background: color-mix(in srgb, var(--gb-needle-secondary) 14%, transparent);
+    color: var(--gb-needle-secondary);
   }
 }
 
@@ -119,7 +119,7 @@
 .route-card__title {
   margin: 0;
   font-size: 0.84rem;
-  color: var(--text-primary);
+  color: var(--gb-text-value);
 }
 
 .route-card__badge {
@@ -156,7 +156,7 @@
 
 .route-leg__names {
   font-size: 0.72rem;
-  color: var(--text-primary);
+  color: var(--gb-text-value);
 }
 
 .route-leg__meta {
@@ -212,7 +212,7 @@
   padding: 6px 12px;
   font-size: 0.75rem;
   font-weight: 500;
-  color: var(--text-secondary);
+  color: var(--gb-text-muted);
   background: transparent;
   border: 1px solid var(--chart-overlay-border);
   border-radius: 6px;
@@ -220,7 +220,7 @@
   transition: color 0.15s, border-color 0.15s;
 
   &:hover {
-    color: var(--text-primary);
-    border-color: var(--text-primary);
+    color: var(--gb-text-value);
+    border-color: var(--gb-text-value);
   }
 }

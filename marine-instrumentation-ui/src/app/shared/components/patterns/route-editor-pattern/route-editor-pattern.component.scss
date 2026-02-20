@@ -7,7 +7,7 @@
   padding: 0.75rem;
   border: 1px solid var(--border-default);
   border-radius: var(--radius-lg);
-  background: var(--bg-surface);
+  background: var(--gb-bg-panel);
   box-shadow: var(--shadow-sm);
   display: flex;
   flex-direction: column;
@@ -31,7 +31,7 @@
 
 .route-editor-pattern__label {
   font-size: 0.72rem;
-  color: var(--text-secondary);
+  color: var(--gb-text-muted);
 }
 
 .route-editor-pattern__name-input {
@@ -39,7 +39,7 @@
   border: 1px solid var(--border-default);
   border-radius: var(--radius-sm);
   background: var(--bg-surface-secondary);
-  color: var(--text-primary);
+  color: var(--gb-text-value);
   padding: 0.45rem 0.55rem;
   font-family: var(--font-mono);
 }
@@ -51,7 +51,7 @@
   font-size: 0.68rem;
   font-weight: 700;
   letter-spacing: 0.04em;
-  color: var(--text-secondary);
+  color: var(--gb-text-muted);
 }
 
 .route-editor-pattern__list {
@@ -75,8 +75,8 @@
   width: 26px;
   height: 26px;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--primary) 15%, transparent);
-  color: var(--primary);
+  background: color-mix(in srgb, var(--gb-needle-secondary) 15%, transparent);
+  color: var(--gb-needle-secondary);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -90,14 +90,14 @@
 
 .route-editor-pattern__name {
   margin: 0;
-  color: var(--text-primary);
+  color: var(--gb-text-value);
   font-size: 0.88rem;
   font-weight: 700;
 }
 
 .route-editor-pattern__leg {
   margin: 0.2rem 0 0;
-  color: var(--text-secondary);
+  color: var(--gb-text-muted);
   font-size: 0.74rem;
   font-family: var(--font-mono);
 }
@@ -112,8 +112,8 @@
   height: 32px;
   border-radius: var(--radius-sm);
   border: 1px solid var(--border-default);
-  background: var(--bg-surface);
-  color: var(--text-secondary);
+  background: var(--gb-bg-panel);
+  color: var(--gb-text-muted);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -133,7 +133,7 @@
   align-items: center;
   justify-content: center;
   gap: 0.4rem;
-  color: var(--text-secondary);
+  color: var(--gb-text-muted);
 }
 
 .route-editor-pattern__actions {

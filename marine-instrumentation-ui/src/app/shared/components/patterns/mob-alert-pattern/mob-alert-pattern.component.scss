@@ -7,7 +7,7 @@
   padding: 0.9rem;
   border: 1px solid var(--border-default);
   border-radius: var(--radius-lg);
-  background: var(--bg-surface);
+  background: var(--gb-bg-panel);
   box-shadow: var(--shadow-sm);
   display: flex;
   flex-direction: column;
@@ -16,7 +16,7 @@
 
 .mob-alert-pattern--active {
   border-color: color-mix(in srgb, var(--danger) 55%, var(--border-default));
-  background: color-mix(in srgb, var(--danger) 8%, var(--bg-surface));
+  background: color-mix(in srgb, var(--danger) 8%, var(--gb-bg-panel));
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--danger) 30%, transparent);
 }
 
@@ -67,12 +67,12 @@
   font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: var(--text-secondary);
+  color: var(--gb-text-muted);
 }
 
 .mob-alert-pattern__subtitle {
   margin: 0.2rem 0 0;
-  color: var(--text-primary);
+  color: var(--gb-text-value);
   font-size: 0.98rem;
   font-weight: 600;
   line-height: 1.2;
@@ -88,14 +88,14 @@
 
 .mob-alert-pattern__elapsed-label {
   font-size: 0.72rem;
-  color: var(--text-secondary);
+  color: var(--gb-text-muted);
 }
 
 .mob-alert-pattern__elapsed-value {
   font-family: var(--font-mono);
   font-size: 1rem;
   font-weight: 700;
-  color: var(--text-primary);
+  color: var(--gb-text-value);
   line-height: 1;
 }
 
@@ -118,7 +118,7 @@
   font-size: 0.66rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: var(--text-secondary);
+  color: var(--gb-text-muted);
 }
 
 .mob-alert-pattern__metric-value {
@@ -126,7 +126,7 @@
   font-family: var(--font-mono);
   font-size: 0.92rem;
   font-weight: 700;
-  color: var(--text-primary);
+  color: var(--gb-text-value);
   line-height: 1.2;
   overflow-wrap: anywhere;
 }

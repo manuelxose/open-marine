@@ -85,7 +85,7 @@ import { DiagnosticsFacadeService } from './diagnostics-facade.service';
 
     .search-input:focus {
       outline: none;
-      border-color: var(--accent);
+      border-color: var(--gb-needle-secondary);
     }
 
     .stats {

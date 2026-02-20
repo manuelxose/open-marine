@@ -78,6 +78,19 @@
   --gb-alarm-warning-border: #ffea00;
   --gb-alarm-info-bg: rgba(74, 144, 217, 0.12);
   --gb-alarm-info-border: #4a90d9;
+
+  // --- CHART OVERLAY (overrides legacy _tokens) ---
+  --chart-overlay-bg: rgba(11, 17, 22, 0.92);
+  --chart-overlay-border: rgba(82, 102, 122, 0.35);
+  --chart-overlay-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  --chart-overlay-blur: blur(12px);
+  --bg-app: #030507;
+  --text-muted: #687d97;
+  --border-default: rgba(82, 102, 122, 0.35);
+  --stale-color: #ff1744;
+  --success: #00e676;
+  --warn: #ffea00;
+  --danger: #ff1744;
 }
 
 // ----------------------------------------------------------------------------
@@ -140,4 +153,17 @@
   --gb-alarm-warning-border: #c97b00;
   --gb-alarm-info-bg: rgba(2, 132, 199, 0.08);
   --gb-alarm-info-border: #0369a1;
+
+  // --- CHART OVERLAY (overrides legacy _tokens) ---
+  --chart-overlay-bg: rgba(245, 248, 250, 0.96);
+  --chart-overlay-border: rgba(161, 179, 194, 0.6);
+  --chart-overlay-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+  --chart-overlay-blur: blur(12px);
+  --bg-app: #e2e8ec;
+  --text-muted: #4a5b6c;
+  --border-default: rgba(161, 179, 194, 0.6);
+  --stale-color: #c0392b;
+  --success: #00a659;
+  --warn: #c97b00;
+  --danger: #c0392b;
 }

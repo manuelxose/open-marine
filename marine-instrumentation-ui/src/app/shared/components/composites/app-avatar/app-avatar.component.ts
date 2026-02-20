@@ -74,7 +74,7 @@ export type AvatarStatus = 'online' | 'offline' | 'busy' | 'away';
       
       &-icon {
         background-color: var(--surface-secondary);
-        color: var(--text-tertiary);
+        color: var(--gb-text-muted);
         padding: 20%;
         
         svg {

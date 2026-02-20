@@ -4,7 +4,7 @@
 }
 
 .cpa-indicator {
-  background: var(--bg-surface);
+  background: var(--gb-bg-panel);
   border: 1px solid var(--border-default);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
@@ -31,7 +31,7 @@
   padding: 0.35rem 0.75rem;
   border-radius: 999px;
   background: var(--bg-surface-secondary);
-  color: var(--text-secondary);
+  color: var(--gb-text-muted);
   text-transform: uppercase;
   letter-spacing: 0.08em;
   font-size: 0.65rem;
@@ -75,7 +75,7 @@
   app-text[variant="value"] {
     font-weight: 700;
     font-size: 1.25rem;
-    color: var(--text-primary);
+    color: var(--gb-text-value);
   }
 }
 

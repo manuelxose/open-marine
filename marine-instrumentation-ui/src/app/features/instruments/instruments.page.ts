@@ -2,9 +2,14 @@ import { Component, ChangeDetectionStrategy, inject, signal, computed } from '@a
 import { CommonModule } from '@angular/common';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { TranslatePipe } from '../../shared/pipes/translate.pipe';
-import { SpeedometerWidgetComponent } from '../../ui/instruments/speedometer-widget/speedometer-widget.component';
-import { CompassWidgetComponent } from '../../ui/instruments/compass-widget/compass-widget.component';
-import { DepthGaugeWidgetComponent } from '../../ui/instruments/depth-gauge-widget/depth-gauge-widget.component';
+import { InstrumentWidgetComponent } from './components/instrument-widget/instrument-widget.component';
+import {
+  INSTRUMENT_CATEGORIES,
+  INSTRUMENT_CATALOG,
+  getInstrumentsByCategory,
+  type InstrumentCategoryId,
+  type InstrumentDefinition,
+} from './data/instrument-catalog';
 import { AisTargetListComponent } from '../ais/components/ais-target-list/ais-target-list.component';
 import { AisStoreService } from '../../state/ais/ais-store.service';
 import { DatapointStoreService } from '../../state/datapoints/datapoint-store.service';
@@ -14,33 +19,60 @@ import { PATHS } from '@omi/marine-data-contract';
   selector: 'app-instruments-page',
   standalone: true,
   imports: [
-    CommonModule, 
-    TranslatePipe, 
-    SpeedometerWidgetComponent, 
-    CompassWidgetComponent, 
-    DepthGaugeWidgetComponent,
-    AisTargetListComponent
+    CommonModule,
+    TranslatePipe,
+    InstrumentWidgetComponent,
+    AisTargetListComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="instruments-page">
-      <div class="page-header">
-        <h1>{{ 'instruments.page.title' | translate }}</h1>
-        <p class="subtitle">{{ 'instruments.page.subtitle' | translate }}</p>
+      <!-- Toolbar -->
+      <div class="instruments-toolbar">
+        <h1 class="instruments-toolbar__title">{{ 'instruments.page.title' | translate }}</h1>
+        <div class="instruments-toolbar__tabs" role="tablist">
+          <button
+            class="instruments-toolbar__tab"
+            [class.active]="activeCategory() === 'all'"
+            (click)="activeCategory.set('all')"
+            role="tab"
+            [attr.aria-selected]="activeCategory() === 'all'"
+          >All ({{ allCount }})</button>
+          @for (cat of categories; track cat.id) {
+            <button
+              class="instruments-toolbar__tab"
+              [class.active]="activeCategory() === cat.id"
+              (click)="activeCategory.set(cat.id)"
+              role="tab"
+              [attr.aria-selected]="activeCategory() === cat.id"
+            >{{ cat.label }} ({{ getCategoryCount(cat.id) }})</button>
+          }
+        </div>
       </div>
 
-      <div class="instruments-grid">
-        <app-speedometer-widget></app-speedometer-widget>
-        <app-compass-widget></app-compass-widget>
-        <app-depth-gauge-widget></app-depth-gauge-widget>
-      </div>
-      
-      <div class="ais-section">
-        <app-ais-target-list
-          [targets]="sortedTargets()"
-          [sortBy]="sortBy()"
-          (sortChange)="handleSortChange($event)"
-        ></app-ais-target-list>
+      <!-- Scrollable content -->
+      <div class="instruments-content">
+        <!-- Instruments grid -->
+        <div class="instruments-grid">
+          @for (inst of filteredInstruments(); track inst.id) {
+            <omi-instrument-widget
+              [config]="inst"
+              [compact]="false"
+            />
+          }
+        </div>
+
+        <!-- AIS section -->
+        <div class="instruments-section">
+          <div class="instruments-section__title">AIS Targets</div>
+          <div class="ais-panel">
+            <app-ais-target-list
+              [targets]="sortedTargets()"
+              [sortBy]="sortBy()"
+              (sortChange)="handleSortChange($event)"
+            ></app-ais-target-list>
+          </div>
+        </div>
       </div>
     </div>
   `,
@@ -48,54 +80,131 @@ import { PATHS } from '@omi/marine-data-contract';
     :host {
       display: block;
       height: 100%;
-      overflow-y: auto;
-      background: var(--bg);
+      overflow: hidden;
     }
-    
+
+    /* ── Page shell ───────────────────────────────── */
     .instruments-page {
-      padding: 1.5rem;
-      max-width: 1200px;
-      margin: 0 auto;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      background: var(--gb-bg-canvas);
     }
 
-    .page-header {
-      margin-bottom: 2rem;
+    /* ── Toolbar ──────────────────────────────────── */
+    .instruments-toolbar {
+      display: flex;
+      align-items: center;
+      padding: var(--space-3, 12px) var(--space-5, 24px);
+      border-bottom: 1px solid var(--gb-border-panel);
+      background: var(--gb-bg-bezel);
+      flex-shrink: 0;
+      gap: var(--space-3, 12px);
     }
 
-    h1 {
-      font-size: 1.75rem;
+    .instruments-toolbar__title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 1rem;
       font-weight: 700;
-      color: var(--text-1);
-      margin-bottom: 0.25rem;
+      color: var(--gb-text-value);
+      margin: 0;
+      white-space: nowrap;
     }
 
-    .subtitle {
-      color: var(--text-2);
-      font-size: 0.95rem;
+    .instruments-toolbar__tabs {
+      display: flex;
+      gap: 2px;
+      overflow-x: auto;
+      padding: 3px;
+      background: var(--gb-bg-panel);
+      border: 1px solid var(--gb-border-panel);
+      border-radius: 10px;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
     }
 
+    .instruments-toolbar__tabs::-webkit-scrollbar { display: none; }
+
+    .instruments-toolbar__tab {
+      background: transparent;
+      border: none;
+      color: var(--gb-text-muted);
+      padding: 6px 12px;
+      border-radius: 7px;
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 600;
+      font-size: 0.7rem;
+      cursor: pointer;
+      transition: all 150ms ease;
+      white-space: nowrap;
+      min-height: 32px;
+    }
+
+    .instruments-toolbar__tab:hover {
+      background: var(--gb-bg-glass-active, rgba(255,255,255,0.04));
+      color: var(--gb-text-value);
+    }
+
+    .instruments-toolbar__tab.active {
+      background: rgba(74, 144, 217, 0.15);
+      color: #4a90d9;
+    }
+
+    /* ── Scrollable content ───────────────────────── */
+    .instruments-content {
+      flex: 1;
+      overflow-y: auto;
+      overflow-x: hidden;
+    }
+
+    /* ── Instruments grid ─────────────────────────── */
     .instruments-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-      gap: 1.5rem;
-      margin-bottom: 3rem;
+      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      gap: var(--space-3, 12px);
+      padding: var(--space-4, 16px) var(--space-5, 24px);
     }
 
-    .ais-section {
-      background: var(--surface-1);
-      border-radius: 16px;
-      border: 1px solid var(--border);
-      padding: 1.5rem;
-      box-shadow: var(--shadow);
+    /* ── Section ──────────────────────────────────── */
+    .instruments-section {
+      margin-bottom: var(--space-5, 24px);
+      padding: 0 var(--space-5, 24px);
     }
 
-    @media (max-width: 768px) {
+    .instruments-section__title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 0.65rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.2em;
+      color: var(--gb-text-muted);
+      padding: var(--space-3, 12px) 0 var(--space-2, 8px);
+      border-bottom: 1px solid var(--gb-border-panel);
+      margin-bottom: var(--space-3, 12px);
+    }
+
+    /* ── AIS panel ────────────────────────────────── */
+    .ais-panel {
+      background: var(--gb-bg-panel);
+      border-radius: 14px;
+      border: 1px solid var(--gb-border-panel);
+      padding: var(--space-4, 16px);
+    }
+
+    @media (max-width: 640px) {
       .instruments-grid {
-        grid-template-columns: 1fr;
+        grid-template-columns: repeat(2, 1fr);
+        padding: var(--space-3, 12px);
       }
-      
-      .instruments-page {
-        padding: 1rem;
+
+      .instruments-toolbar {
+        flex-wrap: wrap;
+        padding: var(--space-2, 8px) var(--space-3, 12px);
+      }
+
+      .instruments-section {
+        padding: 0 var(--space-3, 12px);
       }
     }
   `],
@@ -103,29 +212,39 @@ import { PATHS } from '@omi/marine-data-contract';
 export class InstrumentsPage {
   private readonly aisStore = inject(AisStoreService);
   private readonly store = inject(DatapointStoreService);
-  
-  // Use public signal from store directly (it is a Signal<Map<string, AisTarget>>)
+
+  readonly categories = INSTRUMENT_CATEGORIES;
+  readonly allCount = INSTRUMENT_CATALOG.length;
+  readonly activeCategory = signal<InstrumentCategoryId | 'all'>('all');
+
+  readonly filteredInstruments = computed<InstrumentDefinition[]>(() => {
+    const cat = this.activeCategory();
+    if (cat === 'all') return INSTRUMENT_CATALOG;
+    return getInstrumentsByCategory(cat);
+  });
+
+  getCategoryCount(id: InstrumentCategoryId): number {
+    return getInstrumentsByCategory(id).length;
+  }
+
+  // ── AIS section (kept from original) ──────────────────────────────
   readonly targetsMap = this.aisStore.targets;
-  
+
   readonly position = toSignal(
     this.store.observe<{ latitude: number; longitude: number }>(PATHS.navigation.position),
-    { initialValue: null }
+    { initialValue: null },
   );
-  
+
   readonly sortBy = signal<'range' | 'cpa' | 'tcpa'>('range');
 
   readonly sortedTargets = computed(() => {
-    // Convert Map values to Array
     const list = Array.from(this.targetsMap().values());
     this.sortBy();
     this.position();
-
-    // Just return list for now to satisfy compliation, elaborate sort logic not needed for this fix phase
     return list;
   });
 
-  handleSortChange(sort: any): void {
-    // Cast to expected type since event emitter might be loosely typed in template binding
+  handleSortChange(sort: unknown): void {
     this.sortBy.set(sort as 'range' | 'cpa' | 'tcpa');
   }
 }

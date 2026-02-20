@@ -49,19 +49,19 @@ import { DistancePipe } from '../../../../shared/pipes/distance.pipe';
       align-items: center;
       padding: 0.75rem;
       gap: 0.75rem;
-      background: var(--surface-1);
-      border-bottom: 1px solid var(--border-color);
+      background: var(--gb-bg-bezel);
+      border-bottom: 1px solid var(--gb-border-panel);
       cursor: pointer;
       transition: background-color 0.2s;
     }
 
     .ais-item:hover {
-      background: var(--surface-2);
+      background: var(--gb-bg-panel);
     }
 
     .ais-item.selected {
       background: var(--surface-active);
-      border-left: 3px solid var(--primary);
+      border-left: 3px solid var(--gb-needle-secondary);
     }
     
     .ais-item.dangerous {
@@ -107,7 +107,7 @@ import { DistancePipe } from '../../../../shared/pipes/distance.pipe';
     .ais-details {
       display: flex;
       font-size: 0.8rem;
-      color: var(--text-secondary);
+      color: var(--gb-text-muted);
       gap: 0.75rem;
     }
 
@@ -116,12 +116,12 @@ import { DistancePipe } from '../../../../shared/pipes/distance.pipe';
       flex-direction: column;
       align-items: flex-end;
       font-size: 0.75rem;
-      color: var(--text-tertiary);
+      color: var(--gb-text-muted);
       gap: 0.25rem;
     }
     
     .text-danger { color: var(--danger); }
-    .text-primary { color: var(--text-primary); }
+    .text-primary { color: var(--gb-text-value); }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })

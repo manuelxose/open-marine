@@ -20,14 +20,14 @@
 .label {
   font-size: 0.875rem;
   font-weight: 500;
-  color: var(--text-secondary);
+  color: var(--gb-text-muted);
 }
 
 .inputs-stack {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
-  background: var(--bg-surface);
+  background: var(--gb-bg-panel);
   border: 1px solid var(--border-default);
   border-radius: var(--radius-md);
   padding: var(--space-2);
@@ -41,7 +41,7 @@
   .coord-label {
     font-size: 0.75rem;
     font-weight: 700;
-    color: var(--text-tertiary);
+    color: var(--gb-text-muted);
     width: 2rem;
     padding-top: 2px;
   }
@@ -70,7 +70,7 @@
     padding: var(--space-1) var(--space-4) var(--space-1) var(--space-1);
     font-family: 'JetBrains Mono', monospace;
     font-size: 0.9rem;
-    color: var(--text-primary);
+    color: var(--gb-text-value);
     text-align: right;
     outline: none;
     transition: all 0.2s;
@@ -84,9 +84,9 @@
     }
 
     &:focus {
-      border-color: var(--primary);
-      background: var(--bg-surface);
-      box-shadow: 0 0 0 1px var(--primary);
+      border-color: var(--gb-needle-secondary);
+      background: var(--gb-bg-panel);
+      box-shadow: 0 0 0 1px var(--gb-needle-secondary);
     }
     
     &:disabled {
@@ -98,7 +98,7 @@
   .unit {
     position: absolute;
     right: 6px;
-    color: var(--text-tertiary);
+    color: var(--gb-text-muted);
     font-size: 0.8rem;
     pointer-events: none;
   }
@@ -113,7 +113,7 @@
   border: 1px solid var(--border-default);
   background: var(--bg-surface-secondary);
   border-radius: var(--radius-sm);
-  color: var(--text-secondary);
+  color: var(--gb-text-muted);
   font-weight: 600;
   font-size: 0.875rem;
   cursor: pointer;
@@ -121,11 +121,11 @@
 
   &:hover:not(:disabled) {
     background: var(--border-default);
-    color: var(--text-primary);
+    color: var(--gb-text-value);
   }
 
   &:focus-visible {
-    outline: 2px solid var(--primary);
+    outline: 2px solid var(--gb-needle-secondary);
     outline-offset: 2px;
   }
 

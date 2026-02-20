@@ -1,3 +1,7 @@
+/* ============================================================================
+   WIDGETS PAGE — Glass Bridge Theme
+   ============================================================================ */
+
 :host {
   display: block;
   height: 100%;
@@ -5,37 +9,37 @@
 }
 
 .widgets-page {
-  padding: 1.5rem;
+  padding: var(--space-4);
   height: 100%;
   overflow-y: auto;
-  background: var(--bg);
+  background: var(--gb-bg-canvas);
 }
 
 .page-header {
   max-width: 960px;
-  margin: 0 auto 2rem;
+  margin: 0 auto var(--space-6);
 }
 
 h1 {
-  font-size: 1.75rem;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 1.5rem;
   font-weight: 700;
   margin-bottom: 0.25rem;
-  color: var(--text-1);
+  color: var(--gb-text-value);
 }
 
 .subtitle {
-  color: var(--text-2);
-  font-size: 0.9rem;
+  color: var(--gb-text-muted);
+  font-size: 0.85rem;
 }
 
 .widgets-section {
   max-width: 960px;
-  margin: 0 auto 2rem;
-  background: var(--surface-1);
-  border: 1px solid var(--border);
-  border-radius: 16px;
-  padding: 1.5rem;
-  box-shadow: var(--shadow);
+  margin: 0 auto var(--space-5);
+  background: var(--gb-bg-panel);
+  border: 1px solid var(--gb-border-panel);
+  border-radius: 14px;
+  padding: var(--space-4);
 }
 
 .section-header {
@@ -43,26 +47,28 @@ h1 {
   justify-content: space-between;
   align-items: flex-start;
   gap: 1rem;
-  margin-bottom: 1rem;
+  margin-bottom: var(--space-3);
 }
 
 h2 {
-  font-size: 0.95rem;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 0.75rem;
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--text-2);
-  margin-bottom: 0.35rem;
+  letter-spacing: 0.12em;
+  color: var(--gb-text-muted);
+  margin-bottom: 0.25rem;
 }
 
 .section-description {
-  color: var(--text-3);
-  font-size: 0.85rem;
+  color: var(--gb-text-stale);
+  font-size: 0.8rem;
 }
 
 .widget-list {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 0.5rem;
 }
 
 .widget-row {
@@ -70,41 +76,56 @@ h2 {
   grid-template-columns: auto 1fr auto;
   grid-template-rows: auto auto;
   align-items: center;
-  gap: 1rem;
-  padding: 0.75rem 1rem;
-  border-radius: 12px;
-  border: 1px solid var(--border);
-  background: var(--surface-2);
+  gap: 0.75rem;
+  padding: 0.625rem 0.875rem;
+  border-radius: 10px;
+  border: 1px solid var(--gb-border-panel);
+  background: var(--gb-bg-glass);
+  transition: background 150ms ease;
+}
+
+.widget-row:hover {
+  background: var(--gb-bg-glass-active);
 }
 
 .drag-handle {
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
-  border: 1px solid var(--border);
-  background: var(--surface-1);
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid var(--gb-border-panel);
+  background: transparent;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   cursor: grab;
-  color: var(--text-2);
+  color: var(--gb-text-stale);
+  padding: 0;
+  transition: color 150ms ease;
+}
+
+.drag-handle:hover {
+  color: var(--gb-text-muted);
 }
 
 .widget-info {
   display: flex;
   flex-direction: column;
-  gap: 0.2rem;
+  gap: 0.15rem;
   min-width: 0;
 }
 
 .widget-title {
+  font-family: 'Space Grotesk', sans-serif;
   font-weight: 600;
-  color: var(--text-1);
+  font-size: 0.875rem;
+  color: var(--gb-text-value);
 }
 
 .widget-meta {
-  font-size: 0.75rem;
-  color: var(--text-3);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.65rem;
+  color: var(--gb-text-stale);
+  letter-spacing: 0.04em;
 }
 
 .widget-actions {
@@ -113,36 +134,110 @@ h2 {
   gap: 0.75rem;
 }
 
+/* ---- Custom toggle switch ---- */
+.toggle {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--gb-text-muted);
+  cursor: pointer;
+}
+
+.toggle input {
+  position: absolute;
+  width: 0;
+  height: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.toggle input + span {
+  position: relative;
+  display: inline-block;
+  width: 36px;
+  height: 20px;
+  background: var(--gb-border-panel);
+  border-radius: 10px;
+  transition: background 200ms ease;
+}
+
+.toggle input + span::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  background: var(--gb-text-muted);
+  border-radius: 50%;
+  transition: transform 200ms ease, background 200ms ease;
+}
+
+.toggle input:checked + span {
+  background: rgba(var(--gb-data-good-rgb), 0.35);
+}
+
+.toggle input:checked + span::after {
+  transform: translateX(16px);
+  background: var(--gb-data-good);
+}
+
+/* ---- Size select ---- */
+.size-select {
+  background: var(--gb-bg-glass);
+  border: 1px solid var(--gb-border-panel);
+  color: var(--gb-text-value);
+  padding: 0.3rem 0.45rem;
+  border-radius: 6px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: border-color 150ms ease;
+}
+
+.size-select:hover {
+  border-color: var(--gb-border-active);
+}
+
+/* ---- Widget preview ---- */
 .widget-preview {
   grid-column: 1 / -1;
   padding: 0.5rem;
-  border-radius: 12px;
-  background: var(--surface-1);
-  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--gb-bg-glass);
+  border: 1px solid var(--gb-border-panel);
   position: relative;
   cursor: pointer;
   display: flex;
   justify-content: center;
+  transition: border-color 200ms ease;
 }
 
 .preview-selected {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 1px rgba(129, 161, 193, 0.45);
+  border-color: var(--gb-border-active);
+  box-shadow: var(--gb-shadow-active);
 }
 
 .preview-badge {
   position: absolute;
-  top: 8px;
-  right: 8px;
+  top: 6px;
+  right: 6px;
   display: inline-flex;
   align-items: center;
-  gap: 0.35rem;
-  font-size: 0.7rem;
-  font-weight: 600;
-  padding: 0.25rem 0.45rem;
+  gap: 0.25rem;
+  font-size: 0.6rem;
+  font-weight: 700;
+  padding: 0.2rem 0.4rem;
   border-radius: 999px;
-  background: rgba(94, 129, 172, 0.2);
-  color: var(--text-2);
+  background: rgba(74, 144, 217, 0.2);
+  color: var(--gb-text-unit);
   opacity: 0;
   transition: opacity 120ms ease;
   pointer-events: none;
@@ -153,39 +248,25 @@ h2 {
   opacity: 1;
 }
 
-.toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.8rem;
-  color: var(--text-2);
-  cursor: pointer;
+/* ---- CDK Drag styles ---- */
+.cdk-drag-preview {
+  border-radius: 10px;
+  background: var(--gb-bg-panel);
+  border: 1px solid var(--gb-border-active);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
 }
 
-.toggle input {
-  width: 18px;
-  height: 18px;
-  cursor: pointer;
-}
-
-.size-select {
-  background: var(--surface-1);
-  border: 1px solid var(--border);
-  color: var(--text-1);
-  padding: 0.35rem 0.5rem;
-  border-radius: 8px;
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  cursor: pointer;
+.cdk-drag-placeholder {
+  opacity: 0.3;
 }
 
 @media (max-width: 720px) {
   .widgets-page {
-    padding: 1rem;
+    padding: var(--space-3);
   }
 
   .widgets-section {
-    padding: 1rem;
+    padding: var(--space-3);
   }
 
   .section-header {
@@ -195,12 +276,11 @@ h2 {
 
   .widget-row {
     grid-template-columns: auto 1fr;
-    grid-template-rows: auto auto;
   }
 
   .widget-actions {
     grid-column: 1 / -1;
     justify-content: flex-start;
-    padding-left: 3.5rem; /* Align with content after handling */
+    padding-left: 2.75rem;
   }
 }

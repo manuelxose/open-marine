@@ -12,6 +12,7 @@ Fecha de corte: 2026-02-20.
 - `✅` Build de `marine-data-simulator` en verde.
 - `✅` Build de `marine-sensor-gateway` en verde.
 - `✅` DOC_3 Commercial App Restructuring — Fases A, B, C, D, E, F, G, H, I implementadas.
+- `✅` DOC_4 UX/UI Commercial Final — Secciones S1–S10 implementadas (Glass Bridge Design System).
 
 ## 2. Estado por paquete
 
@@ -112,6 +113,13 @@ Estado:
 
 - `✅` La guia de estilos se considera completada en codigo.
 - `✅` El simbolo oficial de completado es `✅`.
+- `✅` Hamburger menu integrado en TopBar (chart mode) — eliminado boton flotante que solapaba iconos.
+- `✅` Widgets page (`/widgets`) migrada a tokens `--gb-*` con toggle switches custom (sin checkbox nativo).
+- `✅` Styleguide page (`/styleguide`) migrada a tokens `--gb-*` consistente con Glass Bridge.
+- `✅` AppButtonComponent migrado a tokens `--gb-*` (glass morphism, marine-pro look).
+- `✅` MapLibreEngineService: ResizeObserver + post-load resize() para evitar mapa gris tras transiciones de grid.
+- `✅` app-shell: CSS flex para routed components (`flex: 1; min-height: 0`) — fix de layout para instruments y demas paginas.
+- `✅` mock-server.js: escenarios ciclicos de alarma (shallow water 1.5-3m, low battery 10.8-11.3V, GPS lost 35s).
 
 Regla de prevencion incorporada:
 
@@ -185,6 +193,7 @@ Referencia: `docs/DOC_3_COMMERCIAL_APP_RESTRUCTURING.md`.
 - `✅` data-settings — Reset onboarding, clear tile cache, clear all prefs.
 - `✅` experiments-settings — Night mode beta, advanced instruments toggle.
 - `✅` Settings page restructured with sidebar navigation and component delegation.
+- `✅` Dashboard widget visibility integrated with DashboardLayoutService.
 
 ### Fase I — PWA & Deployment
 
@@ -199,6 +208,7 @@ Referencia: `docs/DOC_3_COMMERCIAL_APP_RESTRUCTURING.md`.
 - `✅` PATHS extended with 50+ Signal K paths (depth, wind, environment, electrical, propulsion, tanks, navigation, performance).
 - `✅` Instrument catalog — features/instruments/data/instrument-catalog.ts (50 instruments, 7 categories).
 - `✅` InstrumentWidgetComponent — features/instruments/components/instrument-widget/ (digital, analog-circular, analog-linear, wind-rose display types, quality indicator, stale detection).
+- `✅` Instruments page restructured — category tabs (All / Navigation / Wind / Depth / Environment / Electrical / Engine / Performance) + dynamic grid rendering all 50 instruments via InstrumentWidgetComponent + AIS target list preserved.
 
 ### Fase F — Performance Sailing
 

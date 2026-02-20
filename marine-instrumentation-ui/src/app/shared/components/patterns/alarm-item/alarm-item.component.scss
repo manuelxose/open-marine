@@ -4,7 +4,7 @@
 }
 
 .alarm-item {
-  background: var(--bg-surface);
+  background: var(--gb-bg-panel);
   border: 1px solid var(--border-default);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
@@ -36,7 +36,7 @@
   align-items: center;
   justify-content: center;
   background: var(--bg-surface-secondary);
-  color: var(--text-secondary);
+  color: var(--gb-text-muted);
   flex-shrink: 0;
 }
 
@@ -44,7 +44,7 @@
   padding: 0.25rem 0.6rem;
   border-radius: 999px;
   background: var(--bg-surface-secondary);
-  color: var(--text-secondary);
+  color: var(--gb-text-muted);
   text-transform: uppercase;
   letter-spacing: 0.06em;
   font-size: 0.7rem;
@@ -74,7 +74,7 @@
 
 .severity-emergency {
   border-color: var(--danger);
-  background: color-mix(in srgb, var(--danger) 6%, var(--bg-surface));
+  background: color-mix(in srgb, var(--danger) 6%, var(--gb-bg-panel));
 }
 
 .severity-warning .alarm-icon {
@@ -99,7 +99,7 @@
 }
 
 .state-silenced {
-  color: var(--text-secondary);
+  color: var(--gb-text-muted);
   background: color-mix(in srgb, var(--border-default) 30%, var(--bg-surface-secondary));
 }
 

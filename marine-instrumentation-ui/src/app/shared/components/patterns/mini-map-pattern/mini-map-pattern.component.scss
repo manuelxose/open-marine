@@ -7,7 +7,7 @@
   padding: 0.75rem;
   border: 1px solid var(--border-default);
   border-radius: var(--radius-lg);
-  background: var(--bg-surface);
+  background: var(--gb-bg-panel);
   box-shadow: var(--shadow-sm);
   display: flex;
   flex-direction: column;
@@ -27,12 +27,12 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: var(--text-secondary);
+  color: var(--gb-text-muted);
 }
 
 .mini-map-pattern__zoom {
   font-size: 0.72rem;
-  color: var(--text-secondary);
+  color: var(--gb-text-muted);
   font-family: var(--font-mono);
 }
 
@@ -44,7 +44,7 @@
   background:
     radial-gradient(circle at 20% 25%, rgba(77, 163, 255, 0.1) 0 20%, transparent 45%),
     radial-gradient(circle at 80% 75%, rgba(0, 176, 116, 0.1) 0 18%, transparent 40%),
-    linear-gradient(180deg, color-mix(in srgb, var(--bg-surface-secondary) 90%, transparent), var(--bg-surface));
+    linear-gradient(180deg, color-mix(in srgb, var(--bg-surface-secondary) 90%, transparent), var(--gb-bg-panel));
   overflow: hidden;
 }
 
@@ -88,17 +88,17 @@
 .mini-map-pattern__center {
   left: 50%;
   top: 50%;
-  color: var(--text-secondary);
+  color: var(--gb-text-muted);
   border: 1px solid var(--border-default);
-  background: color-mix(in srgb, var(--bg-surface) 70%, transparent);
+  background: color-mix(in srgb, var(--gb-bg-panel) 70%, transparent);
 }
 
 .mini-map-pattern__vessel {
   left: 50%;
   top: 50%;
-  color: var(--primary);
-  border: 1px solid color-mix(in srgb, var(--primary) 35%, var(--border-default));
-  background: color-mix(in srgb, var(--primary) 12%, transparent);
+  color: var(--gb-needle-secondary);
+  border: 1px solid color-mix(in srgb, var(--gb-needle-secondary) 35%, var(--border-default));
+  background: color-mix(in srgb, var(--gb-needle-secondary) 12%, transparent);
 }
 
 .mini-map-pattern__meta {
@@ -121,14 +121,14 @@
   font-size: 0.66rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: var(--text-secondary);
+  color: var(--gb-text-muted);
 }
 
 .mini-map-pattern__meta-value {
   margin: 0.2rem 0 0;
   font-size: 0.76rem;
   font-family: var(--font-mono);
-  color: var(--text-primary);
+  color: var(--gb-text-value);
 }
 
 @media (max-width: 768px) {

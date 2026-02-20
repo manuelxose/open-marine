@@ -6,9 +6,9 @@
   position: relative;
   background: radial-gradient(
     circle at 50% 50%,
-    color-mix(in srgb, var(--bg-surface) 96%, var(--primary) 4%) 0%,
-    var(--bg-surface) 55%,
-    color-mix(in srgb, var(--bg-surface-secondary) 85%, var(--bg-surface) 15%) 100%
+    color-mix(in srgb, var(--gb-bg-panel) 96%, var(--gb-needle-secondary) 4%) 0%,
+    var(--gb-bg-panel) 55%,
+    color-mix(in srgb, var(--bg-surface-secondary) 85%, var(--gb-bg-panel) 15%) 100%
   );
   border-radius: 50%;
   box-shadow: var(--shadow-sm);
@@ -43,7 +43,7 @@
         left: -1px; /* Center width */
         width: 2px;
         height: 10px;
-        background: var(--text-tertiary);
+        background: var(--gb-text-muted);
     }
     
     .tick-label {
@@ -54,7 +54,7 @@
         margin-left: -20px;
         text-align: center;
         font-size: 0.75rem;
-        color: var(--text-secondary);
+        color: var(--gb-text-muted);
         font-weight: 500;
     }
   }
@@ -115,13 +115,13 @@
     .value {
         font-size: 2.5rem;
         font-weight: 700;
-        color: var(--text-primary);
+        color: var(--gb-text-value);
         line-height: 1;
         /* Scale font based on size? Rem is fixed. Relative % might be better but harder. */
     }
     .unit {
         font-size: 0.8rem;
-        color: var(--text-secondary);
+        color: var(--gb-text-muted);
         text-transform: uppercase;
     }
   }

@@ -168,7 +168,7 @@ import { ChartHudVm } from '../../types/chart-vm';
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 0.1em;
-      color: var(--text-secondary);
+      color: var(--gb-text-muted);
     }
     
     .status-age {
@@ -210,7 +210,7 @@ import { ChartHudVm } from '../../types/chart-vm';
         font-family: var(--font-mono);
         font-size: 0.85rem;
         font-weight: 600;
-        color: var(--text-primary);
+        color: var(--gb-text-value);
         letter-spacing: -0.02em;
         white-space: nowrap;
       }
@@ -255,7 +255,7 @@ import { ChartHudVm } from '../../types/chart-vm';
         font-family: var(--font-mono);
         font-size: 0.8rem;
         font-weight: 700;
-        color: var(--text-primary);
+        color: var(--gb-text-value);
         line-height: 1;
       }
       
@@ -274,15 +274,15 @@ import { ChartHudVm } from '../../types/chart-vm';
       width: 100%;
       padding: var(--space-2) var(--space-3);
       
-      background: color-mix(in srgb, var(--primary) 8%, transparent);
+      background: color-mix(in srgb, var(--gb-needle-secondary) 8%, transparent);
       border: none;
-      border-top: 1px solid color-mix(in srgb, var(--primary) 20%, transparent);
-      color: var(--primary);
+      border-top: 1px solid color-mix(in srgb, var(--gb-needle-secondary) 20%, transparent);
+      color: var(--gb-needle-secondary);
       cursor: pointer;
       transition: all var(--duration-fast) var(--ease-out);
       
       &:hover {
-        background: color-mix(in srgb, var(--primary) 16%, transparent);
+        background: color-mix(in srgb, var(--gb-needle-secondary) 16%, transparent);
       }
       
       &:active {

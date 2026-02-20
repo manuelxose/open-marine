@@ -7,7 +7,7 @@
   padding: 0.7rem;
   border: 1px solid var(--border-default);
   border-radius: var(--radius-lg);
-  background: var(--bg-surface);
+  background: var(--gb-bg-panel);
   box-shadow: var(--shadow-sm);
   display: flex;
   flex-direction: column;
@@ -27,13 +27,13 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: var(--text-secondary);
+  color: var(--gb-text-muted);
 }
 
 .map-controls-pattern__zoom {
   font-size: 0.72rem;
   font-family: var(--font-mono);
-  color: var(--text-secondary);
+  color: var(--gb-text-muted);
 }
 
 .map-controls-pattern__grid {
@@ -47,7 +47,7 @@
   border-radius: var(--radius-sm);
   border: 1px solid var(--border-default);
   background: var(--bg-surface-secondary);
-  color: var(--text-secondary);
+  color: var(--gb-text-muted);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -56,18 +56,18 @@
 }
 
 .map-controls-pattern__btn:hover:not(:disabled) {
-  border-color: color-mix(in srgb, var(--primary) 35%, var(--border-default));
-  color: var(--text-primary);
+  border-color: color-mix(in srgb, var(--gb-needle-secondary) 35%, var(--border-default));
+  color: var(--gb-text-value);
 }
 
 .map-controls-pattern__btn:active:not(:disabled) {
-  background: color-mix(in srgb, var(--primary) 12%, transparent);
+  background: color-mix(in srgb, var(--gb-needle-secondary) 12%, transparent);
 }
 
 .map-controls-pattern__btn--active {
-  border-color: color-mix(in srgb, var(--primary) 45%, var(--border-default));
-  background: color-mix(in srgb, var(--primary) 14%, transparent);
-  color: var(--primary);
+  border-color: color-mix(in srgb, var(--gb-needle-secondary) 45%, var(--border-default));
+  background: color-mix(in srgb, var(--gb-needle-secondary) 14%, transparent);
+  color: var(--gb-needle-secondary);
 }
 
 .map-controls-pattern__btn:disabled {

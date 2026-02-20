@@ -7,7 +7,7 @@
   padding: 0.75rem;
   border: 1px solid var(--border-default);
   border-radius: var(--radius-lg);
-  background: var(--bg-surface);
+  background: var(--gb-bg-panel);
   box-shadow: var(--shadow-sm);
   display: flex;
   flex-direction: column;
@@ -26,7 +26,7 @@
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--text-secondary);
+  color: var(--gb-text-muted);
 }
 
 .autopilot-mode-selector-pattern__options {
@@ -40,7 +40,7 @@
   border: 1px solid var(--border-default);
   border-radius: var(--radius-sm);
   background: var(--bg-surface-secondary);
-  color: var(--text-secondary);
+  color: var(--gb-text-muted);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -53,14 +53,14 @@
 }
 
 .autopilot-mode-selector-pattern__option:hover:not(:disabled) {
-  border-color: color-mix(in srgb, var(--primary) 35%, var(--border-default));
-  color: var(--text-primary);
+  border-color: color-mix(in srgb, var(--gb-needle-secondary) 35%, var(--border-default));
+  color: var(--gb-text-value);
 }
 
 .autopilot-mode-selector-pattern__option--active {
-  color: var(--primary);
-  border-color: color-mix(in srgb, var(--primary) 45%, var(--border-default));
-  background: color-mix(in srgb, var(--primary) 12%, transparent);
+  color: var(--gb-needle-secondary);
+  border-color: color-mix(in srgb, var(--gb-needle-secondary) 45%, var(--border-default));
+  background: color-mix(in srgb, var(--gb-needle-secondary) 12%, transparent);
 }
 
 .autopilot-mode-selector-pattern__option:disabled {

@@ -8,147 +8,161 @@ import { AlarmSeverity, AlarmState } from '../../state/alarms/alarm.models';
 import { map } from 'rxjs';
 import { AlarmSettingsService, AlarmSettings } from '../../state/alarms/alarm-settings.service';
 import { AnchorWatchComponent } from './components/anchor-watch/anchor-watch.component';
-import { AppButtonComponent } from '../../shared/components/app-button/app-button.component';
 import { AppModalComponent } from '../../shared/components/app-modal/app-modal.component';
 
 @Component({
   selector: 'app-alarms-page',
   standalone: true,
-  imports: [CommonModule, FormsModule, TranslatePipe, AnchorWatchComponent, AppButtonComponent, AppModalComponent],
+  imports: [CommonModule, FormsModule, TranslatePipe, AnchorWatchComponent, AppModalComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="alarms-page">
-      <div class="page-header">
-        <div>
-          <h1>{{ 'alarms.page.title' | translate }}</h1>
-          <p class="subtitle" [class.has-alarm]="vm()?.hasActiveAlarm">
-            {{ (vm()?.hasActiveAlarm ? 'alarms.page.active' : 'alarms.page.no_active') | translate }}
-          </p>
-        </div>
-        <div class="header-actions">
-          <app-button variant="secondary" [iconLeft]="'settings'" (click)="showSettings = true">
-            Configurar
-          </app-button>
-        </div>
+      <!-- Toolbar -->
+      <div class="alarms-toolbar">
+        <h1>{{ 'alarms.page.title' | translate }}</h1>
+        <span class="toolbar-spacer"></span>
+        <span class="alarms-toolbar__status" [class.active]="vm()?.hasActiveAlarm">
+          {{ vm()?.hasActiveAlarm ? vm()!.alarms.length + ' active' : 'All clear' }}
+        </span>
+        <button class="alarms-toolbar__btn" (click)="showSettings = true">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+          </svg>
+          Config
+        </button>
       </div>
 
+      <!-- Alarm list -->
       @if (vm()?.hasActiveAlarm) {
-        <div class="active-alarms-list">
+        <div class="alarms-list">
           @for (alarm of vm()!.alarms; track alarm.id) {
-            <div class="alarm-card" [class]="alarm.severityClass">
-              <div class="alarm-icon">
-                <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
-                  <line x1="12" y1="9" x2="12" y2="13"></line>
-                  <line x1="12" y1="17" x2="12.01" y2="17"></line>
-                </svg>
-              </div>
-              <div class="alarm-content">
-                <div class="alarm-severity">{{ alarm.severity | uppercase }}</div>
-                <div class="alarm-message">{{ alarm.message }}</div>
-                @if (alarm.acknowledged) {
-                  <div class="alarm-ack-badge">Acknowledged</div>
+            <div class="alarm-row" [attr.data-severity]="alarm.severity"
+                 [attr.data-state]="alarm.acknowledged ? 'acknowledged' : 'active'">
+              <div class="alarm-row__severity-icon">
+                @if (alarm.severity === 'critical' || alarm.severity === 'emergency') {
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                    <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+                  </svg>
+                } @else {
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+                  </svg>
                 }
               </div>
-              @if (!alarm.acknowledged) {
-                <button class="ack-button" (click)="onAcknowledge(alarm.id)">
-                  Acknowledge
-                </button>
-              }
+              <div class="alarm-row__body">
+                <div class="alarm-name">{{ alarm.message }}</div>
+                <div class="alarm-meta">
+                  {{ alarm.severity | uppercase }}
+                  @if (alarm.acknowledged) { · Acknowledged }
+                </div>
+              </div>
+              <div class="alarm-row__actions">
+                @if (!alarm.acknowledged) {
+                  <button class="alarm-row__ack-btn" (click)="onAcknowledge(alarm.id)">ACK</button>
+                }
+              </div>
             </div>
           }
         </div>
       } @else {
-        <div class="empty-state">
-          <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-            <polyline points="22 4 12 14.01 9 11.01"></polyline>
+        <div class="alarms-empty">
+          <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
           </svg>
           <h3>All Clear</h3>
-          <p>No active alarms or warnings at this time</p>
+          <p>No active alarms or warnings</p>
         </div>
       }
 
+      <!-- Settings modal -->
       <app-modal
         [isOpen]="showSettings"
-        title="Configuracion de alarmas"
+        title="Alarm Configuration"
         size="lg"
         [showFooter]="false"
         (close)="showSettings = false"
       >
-        <div class="settings-header">
-          <h2>CONFIGURACION DE ALARMAS</h2>
-          <p>Ajusta umbrales y sensibilidad de las alertas activas.</p>
-        </div>
+        <div class="settings-section-title">ALARM THRESHOLDS</div>
         <div class="settings-grid">
-          <div class="settings-card">
-            <h3>Shallow Water</h3>
+          <div class="settings-group">
+            <div class="settings-group__title">Shallow Water</div>
             <div class="settings-row">
-              <label>Threshold (m)</label>
-              <input
-                type="number"
-                min="0.5"
-                max="50"
-                step="0.1"
-                [ngModel]="settings().shallowDepthThreshold"
-                (ngModelChange)="updateSetting('shallowDepthThreshold', $event, 0.5, 50, 1)"
-              />
+              <div>
+                <div class="settings-row__label">Threshold</div>
+                <div class="settings-row__desc">Alarm below this depth (m)</div>
+              </div>
+              <div class="settings-row__control">
+                <input
+                  type="number" min="0.5" max="50" step="0.1"
+                  [ngModel]="settings().shallowDepthThreshold"
+                  (ngModelChange)="updateSetting('shallowDepthThreshold', $event, 0.5, 50, 1)"
+                />
+              </div>
             </div>
           </div>
 
-          <div class="settings-card">
-            <h3>Battery Low</h3>
+          <div class="settings-group">
+            <div class="settings-group__title">Battery Low</div>
             <div class="settings-row">
-              <label>Threshold (V)</label>
-              <input
-                type="number"
-                min="9"
-                max="14"
-                step="0.1"
-                [ngModel]="settings().lowBatteryThreshold"
-                (ngModelChange)="updateSetting('lowBatteryThreshold', $event, 9, 14, 1)"
-              />
+              <div>
+                <div class="settings-row__label">Threshold</div>
+                <div class="settings-row__desc">Alarm below this voltage (V)</div>
+              </div>
+              <div class="settings-row__control">
+                <input
+                  type="number" min="9" max="14" step="0.1"
+                  [ngModel]="settings().lowBatteryThreshold"
+                  (ngModelChange)="updateSetting('lowBatteryThreshold', $event, 9, 14, 1)"
+                />
+              </div>
             </div>
           </div>
 
-          <div class="settings-card">
-            <h3>CPA Warning</h3>
+          <div class="settings-group">
+            <div class="settings-group__title">CPA Warning</div>
             <div class="settings-row">
-              <label>Distance (NM)</label>
-              <input
-                type="number"
-                min="0.1"
-                max="5"
-                step="0.1"
-                [ngModel]="settings().cpaThresholdNm"
-                (ngModelChange)="updateSetting('cpaThresholdNm', $event, 0.1, 5, 2)"
-              />
+              <div>
+                <div class="settings-row__label">Distance (NM)</div>
+                <div class="settings-row__desc">Closest point of approach</div>
+              </div>
+              <div class="settings-row__control">
+                <input
+                  type="number" min="0.1" max="5" step="0.1"
+                  [ngModel]="settings().cpaThresholdNm"
+                  (ngModelChange)="updateSetting('cpaThresholdNm', $event, 0.1, 5, 2)"
+                />
+              </div>
             </div>
             <div class="settings-row">
-              <label>TCPA (min)</label>
-              <input
-                type="number"
-                min="1"
-                max="60"
-                step="1"
-                [ngModel]="settings().cpaTcpaMinutes"
-                (ngModelChange)="updateSetting('cpaTcpaMinutes', $event, 1, 60, 0)"
-              />
+              <div>
+                <div class="settings-row__label">TCPA (min)</div>
+                <div class="settings-row__desc">Time to closest point of approach</div>
+              </div>
+              <div class="settings-row__control">
+                <input
+                  type="number" min="1" max="60" step="1"
+                  [ngModel]="settings().cpaTcpaMinutes"
+                  (ngModelChange)="updateSetting('cpaTcpaMinutes', $event, 1, 60, 0)"
+                />
+              </div>
             </div>
           </div>
 
-          <div class="settings-card">
-            <h3>GPS Lost</h3>
+          <div class="settings-group">
+            <div class="settings-group__title">GPS Lost</div>
             <div class="settings-row">
-              <label>Timeout (s)</label>
-              <input
-                type="number"
-                min="5"
-                max="180"
-                step="1"
-                [ngModel]="settings().gpsLostSeconds"
-                (ngModelChange)="updateSetting('gpsLostSeconds', $event, 5, 180, 0)"
-              />
+              <div>
+                <div class="settings-row__label">Timeout (s)</div>
+                <div class="settings-row__desc">No GPS fix for this long</div>
+              </div>
+              <div class="settings-row__control">
+                <input
+                  type="number" min="5" max="180" step="1"
+                  [ngModel]="settings().gpsLostSeconds"
+                  (ngModelChange)="updateSetting('gpsLostSeconds', $event, 5, 180, 0)"
+                />
+              </div>
             </div>
           </div>
 
@@ -164,226 +178,309 @@ import { AppModalComponent } from '../../shared/components/app-modal/app-modal.c
       min-height: 0;
     }
 
+    /* ── Page shell ───────────────────────────────── */
     .alarms-page {
-      padding: 1.5rem;
       height: 100%;
       display: flex;
       flex-direction: column;
-      gap: 1.5rem;
-      overflow-y: auto;
-      min-height: 0;
+      overflow: hidden;
+      background: var(--gb-bg-canvas);
     }
 
-    .page-header {
-      flex-shrink: 0;
+    /* ── Toolbar ──────────────────────────────────── */
+    .alarms-toolbar {
       display: flex;
       align-items: center;
-      justify-content: space-between;
-      gap: 1rem;
+      gap: var(--space-3, 12px);
+      padding: var(--space-3, 12px) var(--space-5, 24px);
+      border-bottom: 1px solid var(--gb-border-panel);
+      background: var(--gb-bg-bezel);
+      flex-shrink: 0;
     }
 
-    h1 {
-      font-size: 1.75rem;
+    .alarms-toolbar h1 {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 1rem;
       font-weight: 700;
-      color: var(--fg);
-      margin-bottom: 0.25rem;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--gb-text-muted);
+      margin: 0;
     }
 
-    .subtitle {
-      color: var(--success);
-      font-size: 0.875rem;
+    .toolbar-spacer { flex: 1; }
+
+    .alarms-toolbar__status {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 0.7rem;
       font-weight: 600;
-    }
-
-    .subtitle.has-alarm {
-      color: var(--danger);
-    }
-
-    .header-actions {
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-    }
-
-    .alarm-card {
-      background: var(--card-bg);
-      border: 2px solid var(--card-border);
-      border-radius: var(--radius);
-      padding: 1.5rem;
-      display: flex;
-      align-items: center;
-      gap: 1.5rem;
-      margin-bottom: 0.75rem;
-    }
-
-    .alarm-card.alarm-warning {
-      border-color: var(--warn);
-      background: rgba(245, 158, 11, 0.1);
-    }
-
-    .alarm-card.alarm-critical {
-      border-color: var(--danger);
-      background: rgba(239, 68, 68, 0.1);
-    }
-
-    .alarm-icon {
-      flex-shrink: 0;
-    }
-
-    .alarm-warning .alarm-icon {
-      color: var(--warn);
-    }
-
-    .alarm-critical .alarm-icon {
-      color: var(--danger);
-    }
-
-    .alarm-content {
-      flex: 1;
-    }
-
-    .alarm-severity {
-      font-size: 0.75rem;
-      font-weight: 700;
-      letter-spacing: 0.05em;
-      margin-bottom: 0.25rem;
-    }
-
-    .alarm-warning .alarm-severity {
-      color: var(--warn);
-    }
-
-    .alarm-critical .alarm-severity {
-      color: var(--danger);
-    }
-
-    .alarm-message {
-      font-size: 1.25rem;
-      font-weight: 600;
-      color: var(--fg);
-    }
-
-    .alarm-ack-badge {
-      display: inline-block;
-      margin-top: 0.5rem;
-      padding: 0.25rem 0.5rem;
-      background: var(--muted);
-      color: white;
-      border-radius: 4px;
-      font-size: 0.75rem;
-      font-weight: 600;
-    }
-
-    .ack-button {
-      flex-shrink: 0;
-      padding: 0.75rem 1.5rem;
-      background: var(--accent);
-      color: white;
-      border: none;
+      color: var(--gb-text-muted);
+      padding: 4px 10px;
       border-radius: 8px;
+      background: var(--gb-bg-panel);
+    }
+
+    .alarms-toolbar__status.active {
+      color: var(--gb-alarm-critical-border);
+      background: var(--gb-alarm-critical-bg);
+    }
+
+    .alarms-toolbar__btn {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 14px;
+      border: 1px solid var(--gb-border-panel);
+      border-radius: 10px;
+      background: var(--gb-bg-panel);
+      color: var(--gb-text-muted);
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 0.7rem;
       font-weight: 600;
       cursor: pointer;
-      transition: background 0.2s;
+      transition: all 150ms ease;
     }
 
-    .ack-button:hover {
-      background: color-mix(in srgb, var(--accent), black 10%);
+    .alarms-toolbar__btn:hover {
+      background: var(--gb-bg-glass-active, rgba(255,255,255,0.04));
+      color: var(--gb-text-value);
     }
 
-    .empty-state {
+    .alarms-toolbar__btn svg {
+      width: 16px;
+      height: 16px;
+    }
+
+    /* ── Alarm list ───────────────────────────────── */
+    .alarms-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: var(--space-3, 12px) var(--space-5, 24px);
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-2, 8px);
+    }
+
+    /* ── Alarm row ────────────────────────────────── */
+    .alarm-row {
+      display: flex;
+      align-items: center;
+      gap: var(--space-3, 12px);
+      padding: var(--space-3, 12px) var(--space-4, 16px);
+      border-radius: 12px;
+      border: 1px solid;
+      transition: border-color 300ms ease, background 300ms ease;
+    }
+
+    .alarm-row[data-severity="emergency"] {
+      background: var(--gb-alarm-emergency-bg);
+      border-color: var(--gb-alarm-emergency-border);
+      animation: gb-alarm-beat 0.8s ease-in-out infinite;
+    }
+
+    .alarm-row[data-severity="critical"] {
+      background: var(--gb-alarm-critical-bg);
+      border-color: var(--gb-alarm-critical-border);
+    }
+
+    .alarm-row[data-severity="warning"] {
+      background: var(--gb-alarm-warning-bg);
+      border-color: var(--gb-alarm-warning-border);
+    }
+
+    .alarm-row[data-state="resolved"] {
+      opacity: 0.5;
+      animation: none;
+    }
+
+    @keyframes gb-alarm-beat {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.01); }
+    }
+
+    /* ── Severity icon ────────────────────────────── */
+    .alarm-row__severity-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .alarm-row[data-severity="emergency"] .alarm-row__severity-icon,
+    .alarm-row[data-severity="critical"] .alarm-row__severity-icon {
+      color: var(--gb-alarm-critical-border);
+    }
+
+    .alarm-row[data-severity="warning"] .alarm-row__severity-icon {
+      color: var(--gb-alarm-warning-border);
+    }
+
+    /* ── Body ─────────────────────────────────────── */
+    .alarm-row__body {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .alarm-name {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: var(--gb-text-value);
+    }
+
+    .alarm-meta {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 0.65rem;
+      color: var(--gb-text-muted);
+      margin-top: 4px;
+    }
+
+    /* ── Actions ──────────────────────────────────── */
+    .alarm-row__actions {
+      display: flex;
+      gap: var(--space-2, 8px);
+      flex-shrink: 0;
+    }
+
+    .alarm-row__ack-btn {
+      padding: 6px 16px;
+      border: 1px solid var(--gb-border-panel);
+      border-radius: 8px;
+      background: var(--gb-bg-panel);
+      color: var(--gb-text-value);
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      cursor: pointer;
+      transition: all 150ms ease;
+    }
+
+    .alarm-row__ack-btn:hover {
+      background: var(--gb-bg-glass-active, rgba(255,255,255,0.06));
+    }
+
+    /* ── Empty state ──────────────────────────────── */
+    .alarms-empty {
       flex: 1;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      gap: 1rem;
+      gap: var(--space-3, 12px);
     }
 
-    .empty-state svg {
-      color: var(--success);
-      opacity: 0.7;
+    .alarms-empty svg {
+      color: var(--gb-text-muted);
+      opacity: 0.5;
     }
 
-    .empty-state h3 {
-      font-size: 1.25rem;
-      font-weight: 600;
-      color: var(--fg);
-      margin: 0;
-    }
-
-    .empty-state p {
-      color: var(--muted);
-      margin: 0;
-    }
-
-    .settings-header h2 {
-      margin: 0;
-      font-size: 0.9rem;
+    .alarms-empty h3 {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 1.125rem;
       font-weight: 700;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      color: var(--muted);
+      color: var(--gb-text-value);
+      margin: 0;
     }
 
-    .settings-header p {
-      margin: 0.35rem 0 0;
-      font-size: 0.85rem;
-      color: var(--muted);
+    .alarms-empty p {
+      font-size: 0.8rem;
+      color: var(--gb-text-muted);
+      margin: 0;
+    }
+
+    /* ── Settings (inside modal) ──────────────────── */
+    .settings-section-title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 0.65rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.18em;
+      color: var(--gb-text-muted);
+      margin-bottom: var(--space-4, 16px);
     }
 
     .settings-grid {
       display: grid;
-      gap: 1rem;
+      gap: var(--space-4, 16px);
       grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
       align-items: start;
     }
 
-    .settings-card {
-      background: var(--surface-1);
-      border: 1px solid var(--card-border);
-      border-radius: var(--radius);
-      padding: 1rem;
-      display: flex;
-      flex-direction: column;
-      gap: 0.85rem;
-      box-shadow: var(--shadow);
+    .settings-group {
+      background: var(--gb-bg-panel);
+      border: 1px solid var(--gb-border-panel);
+      border-radius: 14px;
+      overflow: hidden;
     }
 
-    .settings-card h3 {
-      margin: 0;
-      font-size: 0.85rem;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      color: var(--text-2, var(--muted));
+    .settings-group__title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 0.65rem;
       font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.18em;
+      color: var(--gb-text-muted);
+      padding: var(--space-3, 12px) var(--space-4, 16px);
+      border-bottom: 1px solid var(--gb-border-panel);
+      background: var(--gb-bg-bezel);
     }
 
     .settings-row {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 0.75rem;
+      padding: var(--space-3, 12px) var(--space-4, 16px);
+      gap: var(--space-4, 16px);
+      border-bottom: 1px solid var(--gb-border-panel);
     }
 
-    .settings-row label {
-      font-size: 0.8rem;
-      color: var(--text-1, var(--fg));
+    .settings-row:last-child { border-bottom: none; }
+
+    .settings-row__label {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: var(--gb-text-value);
     }
 
-    .settings-row input {
-      width: 120px;
-      background: var(--surface-2);
-      border: 1px solid var(--card-border);
+    .settings-row__desc {
+      font-size: 0.75rem;
+      color: var(--gb-text-muted);
+      margin-top: 2px;
+    }
+
+    .settings-row__control {
+      flex-shrink: 0;
+    }
+
+    .settings-row__control input {
+      width: 100px;
+      background: var(--gb-bg-bezel);
+      border: 1px solid var(--gb-border-panel);
       border-radius: 8px;
-      padding: 0.4rem 0.5rem;
-      color: var(--text-1, var(--fg));
-      font-family: var(--font-mono);
-      font-size: 0.85rem;
+      padding: 6px 8px;
+      color: var(--gb-text-value);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.8rem;
       text-align: right;
     }
 
     .settings-anchor {
-      width: 100%;
+      grid-column: 1 / -1;
+    }
+
+    @media (max-width: 640px) {
+      .alarms-toolbar {
+        padding: var(--space-2, 8px) var(--space-3, 12px);
+        flex-wrap: wrap;
+      }
+      .alarms-list {
+        padding: var(--space-2, 8px) var(--space-3, 12px);
+      }
     }
   `],
 })

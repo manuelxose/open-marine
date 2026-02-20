@@ -20,47 +20,31 @@ type DataQuality = 'good' | 'stale' | 'missing';
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div
-      class="instrument-widget"
-      [class.instrument-widget--compact]="compact"
+      class="instrument-tile"
+      [class.instrument-tile--compact]="compact"
+      [class.instrument-tile--wide]="config.displayType === 'analog-linear'"
+      [class.instrument-tile--stale]="quality === 'stale'"
       [attr.data-quality]="quality"
     >
-      <div class="instrument-widget__header">
-        <span class="instrument-widget__label">{{ config.label }}</span>
-        <span class="instrument-widget__quality-dot" [attr.data-quality]="quality"></span>
+      <span class="instrument-tile__label">{{ config.label }}</span>
+
+      <div class="instrument-tile__gauge">
+        <!-- Linear bar for analog-linear -->
+        <div
+          class="instrument-tile__bar-track"
+          *ngIf="config.displayType === 'analog-linear' && config.minValue != null && config.maxValue != null"
+        >
+          <div
+            class="instrument-tile__bar-fill"
+            [style.width.%]="barPercent"
+            [attr.data-level]="barLevel"
+          ></div>
+        </div>
       </div>
 
-      <div class="instrument-widget__body">
-        <!-- Digital display (default) -->
-        <ng-container *ngIf="config.displayType === 'digital' || config.displayType === 'analog-linear'">
-          <div class="instrument-widget__digital">
-            <span class="instrument-widget__value gb-display-value" [class.gb-display-value--xl]="!compact">
-              {{ displayValue }}
-            </span>
-            <span class="instrument-widget__unit gb-display-unit">{{ config.unit }}</span>
-          </div>
-
-          <!-- Linear bar for analog-linear -->
-          <div
-            class="instrument-widget__bar-track"
-            *ngIf="config.displayType === 'analog-linear' && config.minValue != null && config.maxValue != null"
-          >
-            <div
-              class="instrument-widget__bar-fill"
-              [style.width.%]="barPercent"
-              [attr.data-level]="barLevel"
-            ></div>
-          </div>
-        </ng-container>
-
-        <!-- Circular display -->
-        <ng-container *ngIf="config.displayType === 'analog-circular' || config.displayType === 'wind-rose'">
-          <div class="instrument-widget__circular">
-            <span class="instrument-widget__value gb-display-value" [class.gb-display-value--xl]="!compact">
-              {{ displayValue }}
-            </span>
-            <span class="instrument-widget__unit gb-display-unit">{{ config.unit }}</span>
-          </div>
-        </ng-container>
+      <div class="instrument-tile__value-group">
+        <span class="instrument-tile__value">{{ displayValue }}</span>
+        <span class="instrument-tile__unit">{{ config.unit }}</span>
       </div>
     </div>
   `,
@@ -70,113 +54,134 @@ type DataQuality = 'good' | 'stale' | 'missing';
         display: block;
       }
 
-      .instrument-widget {
-        background: var(--surface-1);
-        border: 1px solid var(--border);
-        border-radius: 12px;
-        padding: 1rem;
+      /* ── Tile frame ─────────────────────────────── */
+      .instrument-tile {
+        background: var(--gb-bg-panel);
+        border: 1px solid var(--gb-border-panel);
+        border-radius: 14px;
+        padding: var(--space-3, 12px);
         display: flex;
         flex-direction: column;
-        gap: 0.5rem;
-        transition: border-color 0.2s;
-      }
-
-      .instrument-widget:hover {
-        border-color: var(--accent, var(--border));
-      }
-
-      .instrument-widget--compact {
-        padding: 0.5rem;
-        gap: 0.25rem;
-      }
-
-      .instrument-widget__header {
-        display: flex;
         align-items: center;
-        justify-content: space-between;
-        gap: 0.5rem;
+        gap: var(--space-2, 8px);
+        position: relative;
+        box-shadow: var(--gb-shadow-instrument, none);
+        aspect-ratio: 1;
+        transition: border-color 200ms ease;
       }
 
-      .instrument-widget__label {
-        font-size: 0.7rem;
+      .instrument-tile:hover {
+        border-color: var(--gb-accent, var(--gb-border-panel));
+      }
+
+      .instrument-tile--wide {
+        aspect-ratio: 2/1;
+        grid-column: span 2;
+      }
+
+      .instrument-tile--compact {
+        padding: var(--space-2, 8px);
+        gap: var(--space-1, 4px);
+      }
+
+      .instrument-tile--stale {
+        border-color: rgba(var(--gb-data-stale-rgb, 243,177,63), 0.3);
+      }
+
+      .instrument-tile--stale .instrument-tile__value {
+        color: var(--gb-text-stale, var(--gb-text-muted));
+      }
+
+      /* ── Label ──────────────────────────────────── */
+      .instrument-tile__label {
+        font-family: 'Space Grotesk', sans-serif;
+        font-size: 0.55rem;
         font-weight: 700;
         text-transform: uppercase;
-        letter-spacing: 0.08em;
-        color: var(--text-2);
+        letter-spacing: 0.15em;
+        color: var(--gb-text-muted);
+        align-self: flex-start;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
+        max-width: 100%;
       }
 
-      .instrument-widget__quality-dot {
-        width: 6px;
-        height: 6px;
-        border-radius: 50%;
-        flex-shrink: 0;
-      }
-
-      .instrument-widget__quality-dot[data-quality='good'] {
-        background: var(--status-online, #2ec25c);
-      }
-      .instrument-widget__quality-dot[data-quality='stale'] {
-        background: #f3b13f;
-      }
-      .instrument-widget__quality-dot[data-quality='missing'] {
-        background: var(--text-2);
-        opacity: 0.3;
-      }
-
-      .instrument-widget__body {
+      /* ── Gauge area ─────────────────────────────── */
+      .instrument-tile__gauge {
+        flex: 1;
         display: flex;
-        flex-direction: column;
-        gap: 0.5rem;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
       }
 
-      .instrument-widget__digital,
-      .instrument-widget__circular {
+      /* ── Value group ────────────────────────────── */
+      .instrument-tile__value-group {
         display: flex;
         align-items: baseline;
-        gap: 0.35rem;
+        gap: 4px;
+        align-self: flex-end;
       }
 
-      .instrument-widget__value {
+      .instrument-tile__value {
+        font-family: 'JetBrains Mono', monospace;
         font-variant-numeric: tabular-nums;
-        min-width: 0;
+        font-size: 1.5rem;
+        font-weight: 400;
+        color: var(--gb-text-value);
+        line-height: 1;
       }
 
-      .instrument-widget__unit {
-        font-size: 0.7rem;
-        color: var(--text-2);
+      .instrument-tile__unit {
+        font-family: 'Space Grotesk', sans-serif;
+        font-size: 0.6rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: var(--gb-text-unit);
       }
 
-      .instrument-widget__bar-track {
+      /* ── Bar gauge ──────────────────────────────── */
+      .instrument-tile__bar-track {
         height: 4px;
-        background: var(--surface-2);
+        background: var(--gb-bg-bezel, rgba(255,255,255,0.06));
         border-radius: 2px;
         overflow: hidden;
+        width: 100%;
       }
 
-      .instrument-widget__bar-fill {
+      .instrument-tile__bar-fill {
         height: 100%;
         border-radius: 2px;
-        transition: width 0.3s ease;
-        background: var(--accent, #5ba4cf);
+        transition: width 300ms ease;
+        background: var(--gb-accent, #4a90d9);
       }
 
-      .instrument-widget__bar-fill[data-level='warn'] {
-        background: #f3b13f;
+      .instrument-tile__bar-fill[data-level='warn'] {
+        background: var(--gb-data-warn, #f3b13f);
       }
 
-      .instrument-widget__bar-fill[data-level='danger'] {
-        background: var(--status-offline, #f06352);
+      .instrument-tile__bar-fill[data-level='danger'] {
+        background: var(--gb-data-danger, #f06352);
       }
 
-      [data-quality='stale'] .instrument-widget__value {
+      /* ── Quality states ─────────────────────────── */
+      [data-quality='stale'] .instrument-tile__value {
         opacity: 0.5;
       }
 
-      [data-quality='missing'] .instrument-widget__value {
+      [data-quality='missing'] .instrument-tile__value {
         opacity: 0.3;
+      }
+
+      /* ── Compact overrides ──────────────────────── */
+      .instrument-tile--compact .instrument-tile__value {
+        font-size: 1rem;
+      }
+
+      .instrument-tile--compact .instrument-tile__label {
+        font-size: 0.5rem;
       }
     `,
   ],

@@ -4,12 +4,12 @@
 }
 
 .chart-hud-pattern {
-  --hud-accent: var(--text-secondary);
+  --hud-accent: var(--gb-text-muted);
   padding: 0.75rem;
   border: 1px solid var(--border-default);
   border-left: 3px solid var(--hud-accent);
   border-radius: var(--radius-lg);
-  background: var(--bg-surface);
+  background: var(--gb-bg-panel);
   box-shadow: var(--shadow-sm);
   display: flex;
   flex-direction: column;
@@ -64,7 +64,7 @@
 
 .chart-hud-pattern__age {
   font-size: 0.7rem;
-  color: var(--text-secondary);
+  color: var(--gb-text-muted);
   font-family: var(--font-mono);
 }
 
@@ -88,14 +88,14 @@
   font-size: 0.66rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: var(--text-secondary);
+  color: var(--gb-text-muted);
 }
 
 .chart-hud-pattern__coord-value {
   margin: 0.2rem 0 0;
   font-size: 0.8rem;
   font-family: var(--font-mono);
-  color: var(--text-primary);
+  color: var(--gb-text-value);
 }
 
 .chart-hud-pattern__data {
@@ -118,7 +118,7 @@
 
 .chart-hud-pattern__item-label {
   font-size: 0.64rem;
-  color: var(--text-secondary);
+  color: var(--gb-text-muted);
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
@@ -127,7 +127,7 @@
   margin: 0;
   font-size: 0.75rem;
   font-family: var(--font-mono);
-  color: var(--text-primary);
+  color: var(--gb-text-value);
   font-weight: 700;
 }
 

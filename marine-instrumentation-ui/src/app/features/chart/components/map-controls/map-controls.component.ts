@@ -148,20 +148,20 @@ import { AppIconComponent } from '../../../../shared/components/app-icon/app-ico
       height: 38px;
       background: transparent;
       border: none;
-      color: var(--text-secondary);
+      color: var(--gb-text-muted);
       cursor: pointer;
       transition: all var(--duration-fast) var(--ease-out);
 
       &:hover {
         background: color-mix(in srgb, var(--bg-surface-secondary) 70%, transparent);
-        color: var(--text-primary);
+        color: var(--gb-text-value);
       }
 
       &:active { transform: scale(0.9); }
 
       &.active {
-        background: color-mix(in srgb, var(--primary) 15%, transparent);
-        color: var(--primary);
+        background: color-mix(in srgb, var(--gb-needle-secondary) 15%, transparent);
+        color: var(--gb-needle-secondary);
 
         &::after {
           content: '';
@@ -170,12 +170,12 @@ import { AppIconComponent } from '../../../../shared/components/app-icon/app-ico
           top: 25%;
           bottom: 25%;
           width: 2px;
-          background: var(--primary);
+          background: var(--gb-needle-secondary);
           border-radius: 0 1px 1px 0;
         }
 
         &:hover {
-          background: color-mix(in srgb, var(--primary) 25%, transparent);
+          background: color-mix(in srgb, var(--gb-needle-secondary) 25%, transparent);
         }
       }
 

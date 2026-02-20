@@ -9,9 +9,9 @@
   align-items: center;
   background: radial-gradient(
     circle at 50% 50%,
-    color-mix(in srgb, var(--bg-surface) 96%, var(--primary) 4%) 0%,
-    var(--bg-surface) 60%,
-    color-mix(in srgb, var(--bg-surface-secondary) 85%, var(--bg-surface) 15%) 100%
+    color-mix(in srgb, var(--gb-bg-panel) 96%, var(--gb-needle-secondary) 4%) 0%,
+    var(--gb-bg-panel) 60%,
+    color-mix(in srgb, var(--bg-surface-secondary) 85%, var(--gb-bg-panel) 15%) 100%
   );
   border-radius: 50%;
   border: 2px solid var(--border-default);
@@ -30,7 +30,7 @@
   position: relative;
   z-index: 2;
   text-align: center;
-  background: color-mix(in srgb, var(--bg-surface) 82%, transparent);
+  background: color-mix(in srgb, var(--gb-bg-panel) 82%, transparent);
   border: 1px solid var(--border-default);
   border-radius: var(--radius-sm);
   padding: 0.35rem 0.5rem;
@@ -40,7 +40,7 @@
 .label {
     position: absolute;
     font-size: 0.75rem;
-    color: var(--text-secondary);
+    color: var(--gb-text-muted);
 }
 
 .label.min {

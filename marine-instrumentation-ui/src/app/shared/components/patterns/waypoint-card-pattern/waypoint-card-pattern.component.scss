@@ -7,7 +7,7 @@
   padding: 0.75rem;
   border: 1px solid var(--border-default);
   border-radius: var(--radius-lg);
-  background: var(--bg-surface);
+  background: var(--gb-bg-panel);
   box-shadow: var(--shadow-sm);
   display: flex;
   flex-direction: column;
@@ -16,8 +16,8 @@
 }
 
 .wp-card-pattern--active {
-  border-color: color-mix(in srgb, var(--primary) 45%, var(--border-default));
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--primary) 25%, transparent);
+  border-color: color-mix(in srgb, var(--gb-needle-secondary) 45%, var(--border-default));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--gb-needle-secondary) 25%, transparent);
 }
 
 .wp-card-pattern--editing {
@@ -47,7 +47,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: var(--primary);
+  color: var(--gb-needle-secondary);
   flex-shrink: 0;
 }
 
@@ -59,13 +59,13 @@
   margin: 0;
   font-size: 0.95rem;
   font-weight: 700;
-  color: var(--text-primary);
+  color: var(--gb-text-value);
 }
 
 .wp-card-pattern__subtitle {
   margin: 0.2rem 0 0;
   font-size: 0.75rem;
-  color: var(--text-secondary);
+  color: var(--gb-text-muted);
 }
 
 .wp-card-pattern__pill {
@@ -75,14 +75,14 @@
   font-size: 0.68rem;
   font-weight: 700;
   letter-spacing: 0.04em;
-  color: var(--primary);
-  background: color-mix(in srgb, var(--primary) 10%, transparent);
+  color: var(--gb-needle-secondary);
+  background: color-mix(in srgb, var(--gb-needle-secondary) 10%, transparent);
 }
 
 .wp-card-pattern__description {
   margin: 0;
   font-size: 0.84rem;
-  color: var(--text-secondary);
+  color: var(--gb-text-muted);
 }
 
 .wp-card-pattern__coords {
@@ -104,7 +104,7 @@
   font-size: 0.68rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: var(--text-secondary);
+  color: var(--gb-text-muted);
 }
 
 .wp-card-pattern__coord-value {
@@ -112,7 +112,7 @@
   font-size: 0.8rem;
   font-family: var(--font-mono);
   font-weight: 700;
-  color: var(--text-primary);
+  color: var(--gb-text-value);
   overflow-wrap: anywhere;
 }
 

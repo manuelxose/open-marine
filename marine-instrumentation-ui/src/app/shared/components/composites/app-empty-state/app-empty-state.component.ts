@@ -34,7 +34,7 @@ import { AppButtonComponent } from '../../app-button/app-button.component';
       justify-content: center;
       text-align: center;
       padding: var(--spacing-xl, 32px);
-      color: var(--text-secondary);
+      color: var(--gb-text-muted);
       height: 100%;
       min-height: 200px;
       background-color: transparent;
@@ -42,7 +42,7 @@ import { AppButtonComponent } from '../../app-button/app-button.component';
       &-icon {
         font-size: 3rem; // 48px
         margin-bottom: var(--spacing-lg, 24px);
-        color: var(--text-tertiary);
+        color: var(--gb-text-muted);
         opacity: 0.5;
         
         ::ng-deep svg {
@@ -54,13 +54,13 @@ import { AppButtonComponent } from '../../app-button/app-button.component';
       &-title {
         font-size: var(--text-lg, 1.125rem);
         font-weight: 600;
-        color: var(--text-primary);
+        color: var(--gb-text-value);
         margin: 0 0 var(--spacing-sm, 8px) 0;
       }
 
       &-description {
         font-size: var(--text-base, 1rem);
-        color: var(--text-secondary);
+        color: var(--gb-text-muted);
         margin: 0 0 var(--spacing-lg, 24px) 0;
         max-width: 400px;
       }

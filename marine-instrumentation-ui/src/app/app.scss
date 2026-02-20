@@ -4,7 +4,7 @@
   flex-direction: column;
   gap: 24px;
   padding: 24px;
-  color: var(--text-primary);
+  color: var(--gb-text-value);
 }
 
 .status-bar {
@@ -58,7 +58,7 @@
 .alarm-message {
   font-size: 1rem;
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--gb-text-value);
 }
 
 .alarm-actions {
@@ -75,7 +75,7 @@
 .alarm-button {
   border: 1px solid var(--alarm-color);
   background: color-mix(in srgb, var(--alarm-color) 20%, transparent);
-  color: var(--text-primary);
+  color: var(--gb-text-value);
   padding: 6px 12px;
   border-radius: 999px;
   font-weight: 600;
@@ -98,7 +98,7 @@
   width: 48px;
   height: 48px;
   border-radius: 14px;
-  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-strong) 100%);
+  background: linear-gradient(135deg, var(--gb-needle-secondary) 0%, var(--accent-strong) 100%);
   color: #fff;
   display: grid;
   place-items: center;
@@ -145,7 +145,7 @@
 .clock {
   font-family: "Share Tech Mono", monospace;
   font-size: 1rem;
-  color: var(--text-primary);
+  color: var(--gb-text-value);
   padding: 4px 10px;
   border-radius: 999px;
   background: var(--chip-bg);
@@ -154,7 +154,7 @@
 .theme-toggle {
   border: none;
   background: var(--accent-soft);
-  color: var(--text-primary);
+  color: var(--gb-text-value);
   padding: 8px 14px;
   border-radius: 999px;
   font-weight: 600;
@@ -324,7 +324,7 @@
 
 .diagnostics-cell {
   font-size: 0.85rem;
-  color: var(--text-primary);
+  color: var(--gb-text-value);
 }
 
 .diagnostics-path {
@@ -392,7 +392,7 @@
   bottom: 50%;
   width: 3px;
   height: 70px;
-  background: var(--accent);
+  background: var(--gb-needle-secondary);
   transform-origin: bottom center;
   border-radius: 999px;
   box-shadow: 0 0 10px rgba(14, 124, 123, 0.5);
@@ -412,7 +412,7 @@
 .wind-angle {
   font-family: "Share Tech Mono", monospace;
   font-size: 1.4rem;
-  color: var(--text-primary);
+  color: var(--gb-text-value);
 }
 
 .wind-stats {
@@ -448,7 +448,7 @@
   position: absolute;
   inset: 0 auto 0 0;
   height: 100%;
-  background: var(--accent);
+  background: var(--gb-needle-secondary);
 }
 
 .wind-bar-labels {
@@ -482,7 +482,7 @@
   font-family: "Share Tech Mono", monospace;
   font-size: 2.6rem;
   font-weight: 600;
-  color: var(--text-primary);
+  color: var(--gb-text-value);
   display: flex;
   align-items: flex-end;
   gap: 12px;
@@ -517,7 +517,7 @@
 .metric {
   font-family: "Share Tech Mono", monospace;
   font-size: 1.6rem;
-  color: var(--text-primary);
+  color: var(--gb-text-value);
 }
 
 .unit {

@@ -1,0 +1,197 @@
+{
+  "configVersion": 1,
+  "timestamp": 1771611714863,
+  "index": "/index.html",
+  "assetGroups": [
+    {
+      "name": "app",
+      "installMode": "prefetch",
+      "updateMode": "prefetch",
+      "cacheQueryOptions": {
+        "ignoreVary": true
+      },
+      "urls": [
+        "/chunk-224KP37M.js",
+        "/chunk-3HLEAFFT.js",
+        "/chunk-62D2QY2C.js",
+        "/chunk-7L4EOTHW.js",
+        "/chunk-A6R7SMKF.js",
+        "/chunk-BO7IAN5G.js",
+        "/chunk-BSBJ7OV2.js",
+        "/chunk-CELKLN6V.js",
+        "/chunk-CQSNF5Q6.js",
+        "/chunk-CXUFKEQG.js",
+        "/chunk-D7R3XLTY.js",
+        "/chunk-DBTYSLP3.js",
+        "/chunk-DIB5ZIRE.js",
+        "/chunk-EQDQRRRY.js",
+        "/chunk-G3XQQWW7.js",
+        "/chunk-G4R5IVW6.js",
+        "/chunk-GIJA7IEW.js",
+        "/chunk-GIRLNUDQ.js",
+        "/chunk-GWXASOFN.js",
+        "/chunk-GZAK5XFJ.js",
+        "/chunk-IOWFGKQA.js",
+        "/chunk-KRD4IU53.js",
+        "/chunk-KTL5QLJ5.js",
+        "/chunk-LJAWI7AV.js",
+        "/chunk-LX3RFNK4.js",
+        "/chunk-M73UJ2M4.js",
+        "/chunk-MNG7ZBL7.js",
+        "/chunk-MQVH6ZV5.js",
+        "/chunk-NV5BHWM3.js",
+        "/chunk-OQXPB4TC.js",
+        "/chunk-OR3LRC23.js",
+        "/chunk-PADMRKVE.js",
+        "/chunk-PJWZNAYG.js",
+        "/chunk-PMNZ64AV.js",
+        "/chunk-SCS6UKUS.js",
+        "/chunk-SEMXIH2J.js",
+        "/chunk-SHKPLDSV.js",
+        "/chunk-SKEZN2XQ.js",
+        "/chunk-TY3Z7VN7.js",
+        "/chunk-UF5JRFSN.js",
+        "/chunk-UQKADMW7.js",
+        "/chunk-V42CKKVT.js",
+        "/chunk-V4EMFQCR.js",
+        "/chunk-VVZI2LIH.js",
+        "/chunk-WFTZEEYA.js",
+        "/chunk-WXA46ZAL.js",
+        "/chunk-Y6HMWGD7.js",
+        "/chunk-ZM7VQPQC.js",
+        "/chunk-ZNRZW4BI.js",
+        "/favicon.ico",
+        "/index.html",
+        "/main-MR2HFXL6.js",
+        "/manifest.webmanifest",
+        "/polyfills-6ISPNSXF.js",
+        "/styles-FUK5GDMF.css"
+      ],
+      "patterns": []
+    },
+    {
+      "name": "assets",
+      "installMode": "lazy",
+      "updateMode": "prefetch",
+      "cacheQueryOptions": {
+        "ignoreVary": true
+      },
+      "urls": [
+        "/assets/icons/sprite.svg",
+        "/assets/sounds/alarm-critical.wav",
+        "/assets/sounds/alarm-mob.wav",
+        "/assets/sounds/alarm-warning.wav"
+      ],
+      "patterns": []
+    }
+  ],
+  "dataGroups": [
+    {
+      "name": "map-tiles-osm",
+      "patterns": [
+        "https:\\/\\/tile\\.openstreetmap\\.org\\/.*"
+      ],
+      "strategy": "freshness",
+      "maxSize": 500,
+      "maxAge": 604800000,
+      "timeoutMs": 5000,
+      "cacheQueryOptions": {
+        "ignoreVary": true
+      },
+      "version": 1
+    },
+    {
+      "name": "map-tiles-openseamap",
+      "patterns": [
+        "https:\\/\\/tiles\\.openseamap\\.org\\/.*"
+      ],
+      "strategy": "performance",
+      "maxSize": 200,
+      "maxAge": 2592000000,
+      "cacheQueryOptions": {
+        "ignoreVary": true
+      },
+      "version": 1
+    }
+  ],
+  "hashTable": {
+    "/assets/icons/sprite.svg": "3ba7180899a2762406811e56571e3090c4f1ec35",
+    "/assets/sounds/alarm-critical.wav": "aeaed8ab8c7bd8300890e362775657611adccc15",
+    "/assets/sounds/alarm-mob.wav": "ff2a67afce7a87f8ef25151258e13fca11f92a7e",
+    "/assets/sounds/alarm-warning.wav": "ceb6b95239fb4f41b650d49f7504ac63c99a35d4",
+    "/chunk-224KP37M.js": "45fb6e0a8450ebf79fdf940092f59875c957b282",
+    "/chunk-3HLEAFFT.js": "c21393ab9baeb1827d707d5f07b8de9da08f108c",
+    "/chunk-62D2QY2C.js": "25e881ba6555d470c1c759be6d7e2164afd1e048",
+    "/chunk-7L4EOTHW.js": "c7e3a4de7e8ae3712d35b0baa557d84d2130fff1",
+    "/chunk-A6R7SMKF.js": "b68a2a5abf3be14adf1ec3b6f3a7497aca058ced",
+    "/chunk-BO7IAN5G.js": "f7b969f6e8c30d626219d9449c27fecf3857b459",
+    "/chunk-BSBJ7OV2.js": "32a07b1f178b04f51cd1146bdacd4b1f3d66cf8b",
+    "/chunk-CELKLN6V.js": "6c05dd2d3afb174b65d2769ee71e46735d9a1e82",
+    "/chunk-CQSNF5Q6.js": "bb5f871441ae485a9fa53f5c30ef99a3cc1cd409",
+    "/chunk-CXUFKEQG.js": "8c14b19828d014babc028a70491be8c0054afaa9",
+    "/chunk-D7R3XLTY.js": "ca68261bf4bae4e58fc5d847dbc3a53a32369606",
+    "/chunk-DBTYSLP3.js": "c33203dac934dbff1f899e3af2c4b818402bd9a9",
+    "/chunk-DIB5ZIRE.js": "b07c58232fa6bdc2995ddd30145f3e9ae0f49e95",
+    "/chunk-EQDQRRRY.js": "c40057a332d0341d595cc1d005fc2ab4f2573957",
+    "/chunk-G3XQQWW7.js": "f65871c89b5b2885b19f83f81a7e85546006d62a",
+    "/chunk-G4R5IVW6.js": "35142fcbb9529d9b5893633acaf9e8c780e7bb2d",
+    "/chunk-GIJA7IEW.js": "17a2e140c366407c1c6d1f9247a26f7cebb41b4d",
+    "/chunk-GIRLNUDQ.js": "6bd54aa3e8e9408b0d09b78d1a13e9a8ebedb50f",
+    "/chunk-GWXASOFN.js": "da39a3ee5e6b4b0d3255bfef95601890afd80709",
+    "/chunk-GZAK5XFJ.js": "af8ac42c91c0a93a887b762da0f15c5100a3b74a",
+    "/chunk-IOWFGKQA.js": "d8633279914b7452b939bcbd3cc6356ac49d1656",
+    "/chunk-KRD4IU53.js": "942d582ed8b98c93b4cece36927410cd4433e83e",
+    "/chunk-KTL5QLJ5.js": "1f7b298ab879d4a48970807eff47a46a1a494d33",
+    "/chunk-LJAWI7AV.js": "56464b46dd0d758eb67ac1f47232c8ec76a0fb04",
+    "/chunk-LX3RFNK4.js": "55c15fdb815392caf1df6ab92aa8af760d8abc4c",
+    "/chunk-M73UJ2M4.js": "872a4dc9483729be504bddcac3685e500f51067b",
+    "/chunk-MNG7ZBL7.js": "3416bcd79a1cc4b5599cd8c41bf925702f1fbc59",
+    "/chunk-MQVH6ZV5.js": "84ff0f140c44cd989e5cb9f803b70c76980df887",
+    "/chunk-NV5BHWM3.js": "39e0c0ea45b8dadfdf93ac802e987fbfde984977",
+    "/chunk-OQXPB4TC.js": "1fb91ce1f00ed649e452692fd43b86d13eed6981",
+    "/chunk-OR3LRC23.js": "b71cb0d86d94674cd0a763f0cb944c956233f57f",
+    "/chunk-PADMRKVE.js": "86920df0d1441f3a9e6c1676d63e1ea02f4ff5cd",
+    "/chunk-PJWZNAYG.js": "93d5d2610641aa212a185de5c7f23cce4d1bde91",
+    "/chunk-PMNZ64AV.js": "4047241d02984a97c4dea848f24825729616b806",
+    "/chunk-SCS6UKUS.js": "ea6026eea61a19282c3ad054c8647a1c2eab41a4",
+    "/chunk-SEMXIH2J.js": "79d04b5379727ff0d2239d2a05c2a510bd493239",
+    "/chunk-SHKPLDSV.js": "82cf3a2f2b830530e91db2961987895aa95c6ca2",
+    "/chunk-SKEZN2XQ.js": "b0cc8fe3c4baef36d0616795cd7cf9a2d3531ac0",
+    "/chunk-TY3Z7VN7.js": "89d58269b202cdf840f85e684d00e0e9a90163e1",
+    "/chunk-UF5JRFSN.js": "581d86c036f37eed88681c765bb50c2d6686a937",
+    "/chunk-UQKADMW7.js": "33cd88919495d1fb3e9b3c90b62579a599980aa0",
+    "/chunk-V42CKKVT.js": "732f1d3c85ac84c3f71fdd26b1017027353fcb20",
+    "/chunk-V4EMFQCR.js": "04308ec2570a07854c4b5fba1b342cd3bcd40721",
+    "/chunk-VVZI2LIH.js": "7067ed4ef7b448419e81888cc584159502ab7652",
+    "/chunk-WFTZEEYA.js": "2a3009d493cf48f9d69738225551a66b48506e67",
+    "/chunk-WXA46ZAL.js": "85779165d63e34c3e93db45277a06a99b04d9bf0",
+    "/chunk-Y6HMWGD7.js": "45b211ff356acd6a25a1724d0e2ce2fed7378a77",
+    "/chunk-ZM7VQPQC.js": "67a715faf8ea736631621496b275a7b8b2bdfbe5",
+    "/chunk-ZNRZW4BI.js": "c664e42977a24f07d079612c0006827d543bff5c",
+    "/favicon.ico": "9c39f434fe1261f68c5e3eefdf734630d99c5670",
+    "/index.html": "5c0dcd8d1fe5b7ad1c7e4b8ba9ea067332617eca",
+    "/main-MR2HFXL6.js": "761ec44cc2907c70852dee0903d048e21a0623df",
+    "/manifest.webmanifest": "186e6de3a93424d996b3a2b73b1f7beeef6deba2",
+    "/polyfills-6ISPNSXF.js": "b15ba4d1036f2db285649ff775f184bcdcd0b08a",
+    "/styles-FUK5GDMF.css": "2f458fb5cb99abdb8fafad88f18196e4b6c22545"
+  },
+  "navigationUrls": [
+    {
+      "positive": true,
+      "regex": "^\\/.*$"
+    },
+    {
+      "positive": false,
+      "regex": "^\\/(?:.+\\/)?[^/]*\\.[^/]*$"
+    },
+    {
+      "positive": false,
+      "regex": "^\\/(?:.+\\/)?[^/]*__[^/]*$"
+    },
+    {
+      "positive": false,
+      "regex": "^\\/(?:.+\\/)?[^/]*__[^/]*\\/.*$"
+    }
+  ],
+  "navigationRequestStrategy": "performance"
+}

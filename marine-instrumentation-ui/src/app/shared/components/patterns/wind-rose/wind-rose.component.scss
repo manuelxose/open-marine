@@ -6,9 +6,9 @@
   position: relative;
   background: radial-gradient(
     circle at 50% 50%,
-    color-mix(in srgb, var(--bg-surface) 96%, var(--primary) 4%) 0%,
-    var(--bg-surface) 55%,
-    color-mix(in srgb, var(--bg-surface-secondary) 85%, var(--bg-surface) 15%) 100%
+    color-mix(in srgb, var(--gb-bg-panel) 96%, var(--gb-needle-secondary) 4%) 0%,
+    var(--gb-bg-panel) 55%,
+    color-mix(in srgb, var(--bg-surface-secondary) 85%, var(--gb-bg-panel) 15%) 100%
   );
   border-radius: 50%;
   border: 2px solid var(--border-default);
@@ -50,7 +50,7 @@
     width: 15%;
     height: 30%;
     transform: translate(-50%, -50%);
-    color: var(--text-tertiary);
+    color: var(--gb-text-muted);
     z-index: 1;
     opacity: 0.6;
   }
@@ -73,14 +73,14 @@
         left: -1px;
         width: 1px;
         height: 6px;
-        background: var(--text-tertiary);
+        background: var(--gb-text-muted);
     }
 
     &--major::after {
         width: 2px;
         height: 10px;
         left: -1px;
-        background: var(--text-secondary);
+        background: var(--gb-text-muted);
     }
   }
 
@@ -90,7 +90,7 @@
     left: 50%;
     transform: translateX(-50%);
     font-size: 0.75rem;
-    color: var(--text-secondary);
+    color: var(--gb-text-muted);
     font-weight: 600;
   }
 
@@ -137,7 +137,7 @@
           left: -4px;
           border-left: 4px solid transparent;
           border-right: 4px solid transparent;
-          border-top: 8px solid var(--bg-surface);
+          border-top: 8px solid var(--gb-bg-panel);
       }
     }
   }
@@ -145,7 +145,7 @@
   &__data {
     position: absolute;
     padding: 0.25rem 0.5rem;
-    background: color-mix(in srgb, var(--bg-surface) 82%, transparent);
+    background: color-mix(in srgb, var(--gb-bg-panel) 82%, transparent);
     border: 1px solid var(--border-default);
     backdrop-filter: blur(6px);
     border-radius: var(--radius-sm);
@@ -157,18 +157,18 @@
 
     .label {
         font-size: 0.65rem;
-        color: var(--text-secondary);
+        color: var(--gb-text-muted);
         font-weight: 700;
     }
     .value {
         font-size: 1.25rem;
         font-weight: 700;
-        color: var(--text-primary);
+        color: var(--gb-text-value);
         line-height: 1;
     }
     .unit {
         font-size: 0.65rem;
-        color: var(--text-tertiary);
+        color: var(--gb-text-muted);
     }
 
     &--app {

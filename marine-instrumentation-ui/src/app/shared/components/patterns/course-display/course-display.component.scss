@@ -3,7 +3,7 @@
 }
 
 .course-display {
-  background: var(--bg-surface);
+  background: var(--gb-bg-panel);
   border: 1px solid var(--border-default);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
@@ -48,7 +48,7 @@
 
 .unit {
   font-size: 0.6em;
-  color: var(--text-secondary);
+  color: var(--gb-text-muted);
   margin-left: 2px;
   vertical-align: super;
 }

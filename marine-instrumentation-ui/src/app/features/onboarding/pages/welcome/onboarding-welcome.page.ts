@@ -62,7 +62,7 @@ import { RouterLink } from '@angular/router';
       justify-content: center;
       height: 100%;
       padding: var(--space-4);
-      background: var(--bg-base);
+      background: var(--gb-bg-canvas);
     }
 
     .onboarding-card {
@@ -70,7 +70,7 @@ import { RouterLink } from '@angular/router';
       max-width: 480px;
       padding: var(--space-8);
       text-align: center;
-      background: var(--bg-surface);
+      background: var(--gb-bg-panel);
       border: 1px solid var(--border-default);
       border-radius: var(--radius-xl, 12px);
     }
@@ -84,14 +84,14 @@ import { RouterLink } from '@angular/router';
       margin: 0 0 var(--space-1) 0;
       font-size: 1.5rem;
       font-weight: 700;
-      color: var(--text-primary);
+      color: var(--gb-text-value);
       letter-spacing: -0.02em;
     }
 
     .onboarding-subtitle {
       margin: 0 0 var(--space-4) 0;
       font-size: 0.875rem;
-      color: var(--text-secondary);
+      color: var(--gb-text-muted);
       text-transform: uppercase;
       letter-spacing: 0.1em;
     }
@@ -100,7 +100,7 @@ import { RouterLink } from '@angular/router';
       margin: 0 0 var(--space-6) 0;
       font-size: 0.9375rem;
       line-height: 1.6;
-      color: var(--text-secondary);
+      color: var(--gb-text-muted);
     }
 
     .onboarding-features {
@@ -117,8 +117,8 @@ import { RouterLink } from '@angular/router';
       gap: var(--space-1);
       padding: var(--space-1) var(--space-3);
       font-size: 0.8125rem;
-      color: var(--text-secondary);
-      background: var(--bg-elevated, var(--bg-surface));
+      color: var(--gb-text-muted);
+      background: var(--bg-elevated, var(--gb-bg-panel));
       border: 1px solid var(--border-default);
       border-radius: var(--radius-full, 999px);
     }

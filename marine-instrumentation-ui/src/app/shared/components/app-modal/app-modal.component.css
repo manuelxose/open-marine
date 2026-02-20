@@ -14,7 +14,7 @@
 }
 
 .modal-content {
-  background-color: var(--bg-surface);
+  background-color: var(--gb-bg-panel);
   border: 1px solid var(--border-default);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-xl);
@@ -22,7 +22,7 @@
   flex-direction: column;
   max-height: 90vh;
   width: 100%;
-  color: var(--text-primary);
+  color: var(--gb-text-value);
   position: relative;
   outline: none;
 }
@@ -58,7 +58,7 @@
 .close-btn {
   background: transparent;
   border: none;
-  color: var(--text-secondary);
+  color: var(--gb-text-muted);
   cursor: pointer;
   padding: 4px;
   border-radius: var(--radius-sm);
@@ -69,7 +69,7 @@
 }
 
 .close-btn:hover {
-  color: var(--text-primary);
+  color: var(--gb-text-value);
   background-color: var(--bg-hover);
 }
 

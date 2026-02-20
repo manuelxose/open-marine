@@ -189,12 +189,12 @@ type Tab = 'waypoints' | 'routes' | 'tracks';
         padding: 0.75rem 1.5rem;
         font-size: 1rem;
         cursor: pointer;
-        color: var(--text-secondary);
+        color: var(--gb-text-muted);
         border-bottom: 2px solid transparent;
     }
     .tab-btn.active {
-        color: var(--primary);
-        border-bottom-color: var(--primary);
+        color: var(--gb-needle-secondary);
+        border-bottom-color: var(--gb-needle-secondary);
         font-weight: 500;
     }
 
@@ -210,7 +210,7 @@ type Tab = 'waypoints' | 'routes' | 'tracks';
     }
     
     .form-container {
-        background: var(--surface-1);
+        background: var(--gb-bg-bezel);
         padding: 1.5rem;
         border-radius: 8px;
         border: 1px solid var(--border);
@@ -219,7 +219,7 @@ type Tab = 'waypoints' | 'routes' | 'tracks';
     .empty-state {
         text-align: center;
         padding: 4rem;
-        color: var(--text-tertiary);
+        color: var(--gb-text-muted);
     }
     .track-controls {
         display: flex;
@@ -229,14 +229,14 @@ type Tab = 'waypoints' | 'routes' | 'tracks';
         padding: 1rem;
         border: 1px solid var(--border);
         border-radius: 8px;
-        background: var(--surface-1);
+        background: var(--gb-bg-bezel);
         margin-bottom: 1.5rem;
     }
     .track-status {
         display: flex;
         align-items: center;
         gap: 0.5rem;
-        color: var(--text-secondary);
+        color: var(--gb-text-muted);
         font-size: 0.9rem;
     }
     .status-dot {
@@ -261,7 +261,7 @@ type Tab = 'waypoints' | 'routes' | 'tracks';
         padding: 1rem;
         border-radius: 8px;
         border: 1px solid var(--border);
-        background: var(--surface-1);
+        background: var(--gb-bg-bezel);
         margin-bottom: 1.5rem;
     }
     .track-save-actions {
@@ -275,12 +275,12 @@ type Tab = 'waypoints' | 'routes' | 'tracks';
         padding: 0.65rem 0.75rem;
         border-radius: 6px;
         border: 1px solid var(--border);
-        background: var(--surface-2);
-        color: var(--text-primary);
+        background: var(--gb-bg-panel);
+        color: var(--gb-text-value);
     }
     .track-points {
         font-size: 0.9rem;
-        color: var(--text-secondary);
+        color: var(--gb-text-muted);
     }
     .track-list {
         display: flex;
@@ -294,7 +294,7 @@ type Tab = 'waypoints' | 'routes' | 'tracks';
         gap: 1rem;
         padding: 0.75rem 1rem;
         border-radius: 8px;
-        background: var(--surface-2);
+        background: var(--gb-bg-panel);
         border: 1px solid var(--border);
     }
     .track-info {
@@ -304,11 +304,11 @@ type Tab = 'waypoints' | 'routes' | 'tracks';
     }
     .track-name {
         font-weight: 600;
-        color: var(--text-primary);
+        color: var(--gb-text-value);
     }
     .track-meta {
         font-size: 0.8rem;
-        color: var(--text-secondary);
+        color: var(--gb-text-muted);
     }
   `]
 })

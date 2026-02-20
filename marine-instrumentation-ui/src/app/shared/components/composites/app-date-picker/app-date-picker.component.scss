@@ -18,7 +18,7 @@
 .label {
   font-size: 0.875rem;
   font-weight: 500;
-  color: var(--text-secondary);
+  color: var(--gb-text-muted);
 }
 
 .input-wrapper {
@@ -27,20 +27,20 @@
   align-items: center;
   width: 100%;
   height: var(--space-10); // 40px
-  background-color: var(--bg-surface);
+  background-color: var(--gb-bg-panel);
   border: 1px solid var(--border-default);
   border-radius: var(--radius-md);
   transition: all 0.2s ease;
   padding: 0 var(--space-3);
   
   &:focus-within {
-    border-color: var(--primary);
+    border-color: var(--gb-needle-secondary);
     box-shadow: 0 0 0 2px var(--primary-400); 
   }
 }
 
 .input-icon {
-  color: var(--text-tertiary);
+  color: var(--gb-text-muted);
   margin-right: var(--space-2);
   pointer-events: none;
 }
@@ -53,7 +53,7 @@
   height: 100%;
   font-family: inherit;
   font-size: 0.95rem;
-  color: var(--text-primary);
+  color: var(--gb-text-value);
   outline: none;
   padding: 0;
   

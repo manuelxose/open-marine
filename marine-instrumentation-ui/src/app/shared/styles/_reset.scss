@@ -13,7 +13,7 @@ body {
   margin: 0;
   font-variant-numeric: tabular-nums;
   background-color: var(--bg-app);
-  color: var(--text-primary);
+  color: var(--gb-text-value);
   transition: background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1), color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   overflow: hidden; /* App-like feel */
   -webkit-font-smoothing: antialiased;
@@ -34,5 +34,5 @@ body {
   border: 2px solid var(--bg-app);
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--text-tertiary);
+  background: var(--gb-text-muted);
 }

@@ -2537,51 +2537,58 @@ interface Vessel {{ '{' }}
       display: block;
       height: 100vh;
       overflow-y: auto;
+      background: var(--gb-bg-canvas);
     }
     .styleguide-container {
       padding: 2rem;
       max-width: 1200px;
       margin: 0 auto;
-      color: var(--text-primary);
+      color: var(--gb-text-value);
     }
     section { margin-bottom: 3rem; }
-    h2 { border-bottom: 1px solid var(--border); padding-bottom: 0.5rem; margin-bottom: 1.5rem; }
+    h2 {
+      font-family: 'Space Grotesk', sans-serif;
+      border-bottom: 1px solid var(--gb-border-panel);
+      padding-bottom: 0.5rem;
+      margin-bottom: 1.5rem;
+      color: var(--gb-text-value);
+    }
     .grid { display: flex; flex-wrap: wrap; gap: 1rem; align-items: center; }
     .grid.col { flex-direction: column; align-items: stretch; max-width: 400px; }
 
     .style-section {
       padding: 1.5rem;
-      background: var(--bg-surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-lg);
-      box-shadow: var(--shadow-sm);
+      background: var(--gb-bg-panel);
+      border: 1px solid var(--gb-border-panel);
+      border-radius: 14px;
     }
     .style-section h2 { margin-top: 0; }
     .section-header { display: flex; flex-direction: column; gap: 0.35rem; margin-bottom: 1rem; }
-    .section-subtitle { margin: 0; color: var(--text-secondary); font-size: var(--text-sm); }
+    .section-subtitle { margin: 0; color: var(--gb-text-muted); font-size: 0.8rem; }
     .demo-row { display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center; }
     .demo-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; align-items: start; }
     .demo-card {
       padding: 1rem;
-      background: var(--bg-surface-secondary);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-md);
+      background: var(--gb-bg-glass);
+      border: 1px solid var(--gb-border-panel);
+      border-radius: 10px;
     }
-    .demo-card h3 { margin-top: 0; }
+    .demo-card h3 { margin-top: 0; color: var(--gb-text-value); }
     .demo-stack { display: flex; flex-direction: column; gap: 0.75rem; }
     .context-demo {
-      background: linear-gradient(135deg, rgba(0, 0, 0, 0.03), rgba(0, 0, 0, 0));
+      background: var(--gb-bg-glass);
       min-height: 120px;
       display: flex;
       align-items: center;
       justify-content: center;
       text-align: center;
+      border-radius: 10px;
     }
     .compass-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1rem; }
     .compass-card {
-      background: var(--bg-surface-secondary);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-md);
+      background: var(--gb-bg-glass);
+      border: 1px solid var(--gb-border-panel);
+      border-radius: 10px;
     }
     
     .icon-box { 
@@ -2590,23 +2597,23 @@ interface Vessel {{ '{' }}
       align-items: center; 
       gap: 0.5rem; 
       padding: 1rem; 
-      background: var(--bg-surface); 
+      background: var(--gb-bg-glass); 
       border-radius: 8px; 
       width: 80px; 
       font-size: 0.7rem; 
-      color: var(--text-secondary);
+      color: var(--gb-text-muted);
     }
 
     .color-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 2rem; }
-    .color-swatch-group h3 { margin-bottom: 0.5rem; font-size: 0.9rem; text-transform: uppercase; color: var(--text-tertiary); }
+    .color-swatch-group h3 { margin-bottom: 0.5rem; font-size: 0.9rem; text-transform: uppercase; color: var(--gb-text-stale); }
     .swatch { height: 40px; border-radius: 4px; display: flex; align-items: center; padding: 0 1rem; font-size: 0.8rem; margin-bottom: 0.5rem; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,0.3); }
 
     .mt-4 { margin-top: 1rem; }
-    .spacing-box { background: var(--accent); color: white; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; }
+    .spacing-box { background: var(--gb-needle-secondary); color: white; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; }
     
     .shadow-box { 
-      background: var(--bg-surface); 
-      color: var(--text-primary); 
+      background: var(--gb-bg-panel); 
+      color: var(--gb-text-value); 
       width: 80px; 
       height: 80px; 
       display: flex; 
@@ -2616,19 +2623,20 @@ interface Vessel {{ '{' }}
     }
 
     .border-box {
-       background: var(--bg-surface);
-       border: 2px solid var(--primary);
+       background: var(--gb-bg-panel);
+       border: 2px solid var(--gb-border-active);
        padding: 1rem;
        display: flex;
        align-items: center;
        justify-content: center;
        font-size: 0.8rem;
+       border-radius: 8px;
     }
 
     .anim-box {
       width: 60px;
       height: 60px;
-      background: var(--accent);
+      background: var(--gb-needle-secondary);
       color: white;
       border-radius: 8px;
       display: flex;
@@ -2639,15 +2647,17 @@ interface Vessel {{ '{' }}
 
     .responsive-box {
       padding: 1rem;
-      background: var(--bg-surface-secondary);
-      border: 1px dashed var(--border-strong);
+      background: var(--gb-bg-glass);
+      border: 1px dashed var(--gb-border-panel);
       text-align: center;
+      border-radius: 8px;
+      color: var(--gb-text-muted);
     }
     
     /* Simulate media queries for visual feedback */
-    @media (min-width: 640px) { .responsive-box::after { content: " (min-width: sm)"; font-weight: bold; color: var(--success); } }
-    @media (min-width: 768px) { .responsive-box::after { content: " (min-width: md)"; font-weight: bold; color: var(--warning); } }
-    @media (min-width: 1024px) { .responsive-box::after { content: " (min-width: lg)"; font-weight: bold; color: var(--danger); } }
+    @media (min-width: 640px) { .responsive-box::after { content: " (min-width: sm)"; font-weight: bold; color: var(--gb-data-good); } }
+    @media (min-width: 768px) { .responsive-box::after { content: " (min-width: md)"; font-weight: bold; color: var(--gb-data-warn); } }
+    @media (min-width: 1024px) { .responsive-box::after { content: " (min-width: lg)"; font-weight: bold; color: var(--gb-data-stale); } }
 
     .z-stack { position: relative; height: 100px; }
     .z-layer { 
@@ -2655,11 +2665,11 @@ interface Vessel {{ '{' }}
       width: 60px; height: 60px; 
       display: flex; align-items: center; justify-content: center;
       color: white; border-radius: 8px;
-      box-shadow: var(--shadow-md);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
     }
-    .z-10 { z-index: 10; background: var(--nord-9); top: 0; left: 0; }
-    .z-20 { z-index: 20; background: var(--nord-10); top: 20px; left: 20px; }
-    .z-30 { z-index: 30; background: var(--nord-11); top: 40px; left: 40px; }
+    .z-10 { z-index: 10; background: var(--gb-needle-secondary); top: 0; left: 0; }
+    .z-20 { z-index: 20; background: var(--gb-tick-reference); top: 20px; left: 20px; }
+    .z-30 { z-index: 30; background: var(--gb-needle-primary); top: 40px; left: 40px; }
   `]
 })
 export class StyleguidePage {

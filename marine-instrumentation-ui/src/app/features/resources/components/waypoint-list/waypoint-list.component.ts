@@ -69,7 +69,7 @@ import { Waypoint } from '../../../../state/resources/waypoint-store.service';
     .empty-state {
         padding: 3rem;
         text-align: center;
-        color: var(--text-tertiary);
+        color: var(--gb-text-muted);
         display: flex;
         flex-direction: column;
         align-items: center;
@@ -83,7 +83,7 @@ import { Waypoint } from '../../../../state/resources/waypoint-store.service';
       align-items: center;
       gap: 1rem;
       padding: 0.75rem;
-      background: var(--surface-2);
+      background: var(--gb-bg-panel);
       border-radius: 8px;
       border: 1px solid transparent;
       cursor: pointer;
@@ -93,11 +93,11 @@ import { Waypoint } from '../../../../state/resources/waypoint-store.service';
         background: var(--surface-3);
     }
     .waypoint-item.selected {
-        border-color: var(--primary);
+        border-color: var(--gb-needle-secondary);
         background: var(--surface-3);
     }
     .wp-icon {
-        color: var(--text-secondary);
+        color: var(--gb-text-muted);
         display: flex;
         align-items: center;
     }
@@ -109,12 +109,12 @@ import { Waypoint } from '../../../../state/resources/waypoint-store.service';
     }
     .wp-name {
         font-weight: 600;
-        color: var(--text-primary);
+        color: var(--gb-text-value);
     }
     .wp-coords {
         font-size: 0.75rem;
         font-family: var(--font-mono);
-        color: var(--text-secondary);
+        color: var(--gb-text-muted);
     }
     .wp-actions {
         display: flex;

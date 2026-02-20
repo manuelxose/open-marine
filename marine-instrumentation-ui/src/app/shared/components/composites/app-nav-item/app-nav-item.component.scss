@@ -7,7 +7,7 @@
   height: 44px; /* Touch target min height */
   border-radius: var(--radius-md);
   text-decoration: none;
-  color: var(--text-secondary);
+  color: var(--gb-text-muted);
   font-family: var(--font-body);
   font-size: var(--text-sm);
   background: transparent;
@@ -17,17 +17,17 @@
   box-sizing: border-box;
 
   &:hover:not(.disabled) {
-    background: var(--surface-2);
-    color: var(--text-primary);
+    background: var(--gb-bg-panel);
+    color: var(--gb-text-value);
   }
 
   &.active {
     background: var(--surface-active);
-    color: var(--primary);
+    color: var(--gb-needle-secondary);
     font-weight: var(--font-medium);
 
     .nav-icon {
-      color: var(--primary);
+      color: var(--gb-needle-secondary);
     }
   }
 
@@ -37,7 +37,7 @@
   }
 
   .nav-icon {
-    color: var(--text-tertiary);
+    color: var(--gb-text-muted);
     transition: color 0.2s;
   }
 

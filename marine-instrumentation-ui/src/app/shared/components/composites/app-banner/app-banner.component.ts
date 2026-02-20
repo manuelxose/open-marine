@@ -45,7 +45,7 @@ import { AlertType } from '../app-alert/app-alert.component';
       background-color: var(--banner-bg);
       border: 1px solid var(--banner-border);
       --banner-bg: var(--bg-surface-secondary);
-      --banner-text: var(--text-primary);
+      --banner-text: var(--gb-text-value);
       --banner-border: var(--border-default);
       
       &.info { 

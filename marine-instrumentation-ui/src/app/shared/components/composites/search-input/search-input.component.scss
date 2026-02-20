@@ -16,7 +16,7 @@
   align-items: center;
   width: 100%;
   height: var(--space-12); // Touch target friendly (48px)
-  background-color: var(--bg-surface);
+  background-color: var(--gb-bg-panel);
   border: 1px solid var(--border-default);
   border-radius: var(--radius-full);
   transition: all 0.2s ease;
@@ -24,7 +24,7 @@
   box-shadow: var(--shadow-sm);
 
   &:focus-within {
-    border-color: var(--primary);
+    border-color: var(--gb-needle-secondary);
     box-shadow: 0 0 0 2px var(--primary-400), var(--shadow-md);
   }
 
@@ -37,7 +37,7 @@
 }
 
 .search-icon {
-  color: var(--text-tertiary);
+  color: var(--gb-text-muted);
   margin-right: var(--space-2);
   flex-shrink: 0;
 }
@@ -50,7 +50,7 @@
   height: 100%;
   font-family: inherit;
   font-size: 1rem;
-  color: var(--text-primary);
+  color: var(--gb-text-value);
   outline: none;
   padding: 0; // Reset
 
@@ -79,16 +79,16 @@
   height: 24px;
   padding: 0;
   cursor: pointer;
-  color: var(--text-tertiary);
+  color: var(--gb-text-muted);
   transition: all 0.2s;
 
   &:hover {
     background: var(--border-default);
-    color: var(--text-secondary);
+    color: var(--gb-text-muted);
   }
 
   &:focus-visible {
-    outline: 2px solid var(--primary);
+    outline: 2px solid var(--gb-needle-secondary);
     outline-offset: 2px;
   }
 }
@@ -98,7 +98,7 @@
   top: calc(100% + var(--space-1));
   left: 0;
   right: 0;
-  background-color: var(--bg-surface);
+  background-color: var(--gb-bg-panel);
   border: 1px solid var(--border-default);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-lg);
@@ -115,7 +115,7 @@
   align-items: center;
   padding: var(--space-3) var(--space-4);
   cursor: pointer;
-  color: var(--text-primary);
+  color: var(--gb-text-value);
   transition: background-color 0.15s;
 
   &:hover {
@@ -123,7 +123,7 @@
   }
   
   .suggestion-icon {
-    color: var(--text-tertiary);
+    color: var(--gb-text-muted);
     margin-right: var(--space-3);
     opacity: 0.5;
   }

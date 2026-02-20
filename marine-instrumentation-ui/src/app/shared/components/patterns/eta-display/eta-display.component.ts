@@ -55,7 +55,7 @@ import { formatDuration, formatDistance, formatSpeed } from '../../../../core/fo
     }
 
     .eta-container {
-      background: var(--bg-surface);
+      background: var(--gb-bg-panel);
       border: 1px solid var(--border-default);
       border-radius: var(--radius-lg);
       box-shadow: var(--shadow-sm);
