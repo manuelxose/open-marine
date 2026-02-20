@@ -229,7 +229,7 @@ const INITIAL_PLAYBACK_STATE: PlaybackState = {
     .chart-page {
       --chart-top-bar-height: 48px;
       --chart-alarm-strip-height: 56px;
-      --chart-top-controls-offset: calc(var(--chart-top-bar-height) + var(--chart-alarm-strip-height) + (var(--chart-edge-gap) * 2));
+      --chart-top-controls-offset: calc(var(--chart-top-bar-height) + (var(--chart-edge-gap) * 0.25));
       --chart-left-panel-anchor: 48px;
       --chart-left-panel-width: 340px;
 
@@ -305,6 +305,12 @@ const INITIAL_PLAYBACK_STATE: PlaybackState = {
       animation-delay: 0.2s;
       display: flex;
       flex-direction: column;
+    }
+
+    .chart-zone--left-panel > app-left-panel {
+      display: block;
+      flex: 1 1 auto;
+      min-height: 0;
     }
 
     // BOTTOM RIGHT: Quick Instruments

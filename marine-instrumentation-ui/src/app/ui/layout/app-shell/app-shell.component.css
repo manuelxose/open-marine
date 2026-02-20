@@ -165,28 +165,26 @@
 /* ––––––––– CHART HAMBURGER (floating, chart mode only) ––––––––– */
 .chart-nav-hamburger {
   position: absolute;
-  top: 8px;
-  left: 8px;
+  top: 0;
+  left: var(--space-2, 8px);
   z-index: 15;
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 48px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--gb-bg-panel);
-  border: 1px solid var(--gb-border-panel);
-  border-radius: 10px;
+  background: transparent;
+  border: none;
+  border-radius: 0;
   color: var(--gb-text-muted);
   cursor: pointer;
   padding: 0;
-  backdrop-filter: blur(8px);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
-  transition: all 150ms ease;
+  transition: color 150ms ease, background-color 150ms ease;
 }
 .chart-nav-hamburger:hover {
-  background: var(--gb-bg-glass-active);
+  background: color-mix(in srgb, var(--gb-bg-glass-active) 85%, transparent);
+  border-radius: 8px;
   color: var(--gb-text-value);
-  border-color: var(--gb-border-active);
 }
 
 /* ––––––––– RESPONSIVE ––––––––– */
