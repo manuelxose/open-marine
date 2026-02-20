@@ -1,18 +1,20 @@
 <app-shared-panel-card [title]="vm.title | translate" [loading]="vm.isLoading" [error]="vm.error">
-  <div class="depth-content">
-    <div class="main-metric" *ngFor="let m of vm.metrics; trackBy: trackByMetric">
-      <div class="metric-value-group">
-        <span class="value">{{ m.value }}</span>
-        <span class="unit">{{ m.unit }}</span>
-      </div>
-      <div class="trend-container" *ngIf="vm.series && vm.series.length > 0">
-        <app-shared-sparkline
-          [data]="vm.series"
-          [width]="240"
-          [height]="60"
-          stroke="var(--status-online)"
-        ></app-shared-sparkline>
+  <omi-gb-bezel class="panel-bezel" [quality]="panelQuality">
+    <div class="depth-content">
+      <div class="main-metric" *ngFor="let m of vm.metrics; trackBy: trackByMetric">
+        <div class="metric-value-group">
+          <span class="value gb-display-value gb-display-value--xl">{{ displayValue(m.value) }}</span>
+          <span class="unit gb-display-unit" *ngIf="showUnit(m.value)">{{ m.unit }}</span>
+        </div>
+        <div class="trend-container" *ngIf="vm.series && vm.series.length > 0">
+          <app-shared-sparkline
+            [data]="vm.series"
+            [width]="240"
+            [height]="60"
+            stroke="var(--gb-data-good)"
+          ></app-shared-sparkline>
+        </div>
       </div>
     </div>
-  </div>
+  </omi-gb-bezel>
 </app-shared-panel-card>

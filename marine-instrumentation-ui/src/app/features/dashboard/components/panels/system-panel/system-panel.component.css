@@ -1,30 +1,40 @@
+.panel-bezel {
+  display: block;
+  height: 100%;
+}
+
 .system-content {
   display: flex;
   flex-direction: column;
   gap: 0;
-  background: rgba(0, 0, 0, 0.2);
+  background: color-mix(in srgb, var(--gb-bg-glass) 70%, transparent);
   border-radius: 8px;
   padding: 0.75rem;
-  border: 1px solid var(--panel-border);
+  border: 1px solid var(--gb-border-panel);
   height: 100%;
+  width: 100%;
   overflow-y: auto;
 }
 
 .status-line {
-  font-family: 'Share Tech Mono', monospace;
   font-size: 0.85rem;
-  color: var(--text-muted);
+  color: var(--gb-text-muted);
   line-height: 1.5;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid color-mix(in srgb, var(--gb-border-panel) 50%, transparent);
   padding: 2px 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.status-value {
+  color: var(--gb-text-value);
 }
 
 .status-line:last-child {
   border-bottom: none;
 }
 
-:host-context([theme='light']) .system-content {
-  background: rgba(0, 0, 0, 0.03);
+:host-context([data-theme='day']) .system-content {
+  background: color-mix(in srgb, var(--gb-bg-glass) 85%, transparent);
 }
 
 /* Compact Overrides */

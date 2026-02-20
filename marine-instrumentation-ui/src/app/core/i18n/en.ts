@@ -95,6 +95,10 @@ export const en = {
       center_boat: 'Center on Boat',
       on: 'ON',
       off: 'OFF',
+      ais_targets: 'AIS Targets',
+      ais_labels: 'AIS Labels',
+      cpa_lines: 'CPA Lines',
+      nautical_overlay: 'Nautical Chart',
     },
     hud: {
       sog: 'SOG',

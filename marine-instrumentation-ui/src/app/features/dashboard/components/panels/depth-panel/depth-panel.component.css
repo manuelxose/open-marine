@@ -1,7 +1,13 @@
+.panel-bezel {
+  display: block;
+  height: 100%;
+}
+
 .depth-content {
   display: flex;
   flex-direction: column;
   height: 100%;
+  width: 100%;
 }
 
 .main-metric {
@@ -21,19 +27,17 @@
 }
 
 .value {
-  font-family: 'Share Tech Mono', monospace;
-  font-size: 6rem;
+  font-size: clamp(3.5rem, 10vw, 5.5rem);
   font-weight: 500;
-  color: var(--text-primary);
+  color: var(--gb-text-value);
   line-height: 0.9;
   letter-spacing: -0.05em;
-  text-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  text-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  font-variant-numeric: tabular-nums;
 }
 
 .unit {
-  font-size: 1.5rem;
-  font-weight: 500;
-  color: var(--text-muted);
+  color: var(--gb-text-unit);
   transform: translateY(-1rem);
 }
 

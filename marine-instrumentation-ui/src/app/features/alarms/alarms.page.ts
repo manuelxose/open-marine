@@ -406,7 +406,7 @@ export class AlarmsPage {
             acknowledged: alarm.state !== AlarmState.Active,
             severity,
             message: alarm.message,
-            threshold: alarm.data?.threshold ?? null,
+            threshold: alarm.data?.['threshold'] ?? null,
             severityClass: severity === 'critical' ? 'alarm-critical' : 'alarm-warning',
           };
         });

@@ -1,31 +1,35 @@
-// Typography System
+// ============================================================================
+// TYPOGRAPHY SYSTEM - MARINE GLASS BRIDGE
+// ============================================================================
+
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
 :root {
   // Families
   --font-family: 'Space Grotesk', system-ui, -apple-system, sans-serif;
   --font-mono: 'JetBrains Mono', 'Roboto Mono', monospace;
-  
+
   // Semantic Aliases
   --font-heading: var(--font-family);
   --font-body: var(--font-family);
   --font-technical: var(--font-mono);
-  
+
   // Scale (Mobile First)
-  --text-xs: 0.75rem;     // 12px
-  --text-sm: 0.875rem;    // 14px
-  --text-base: 1rem;      // 16px
-  --text-lg: 1.125rem;    // 18px
-  --text-xl: 1.25rem;     // 20px
-  --text-2xl: 1.5rem;     // 24px
-  --text-3xl: 2rem;       // 32px
-  --text-4xl: 2.5rem;     // 40px
-  
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.25rem;
+  --text-2xl: 1.5rem;
+  --text-3xl: 2rem;
+  --text-4xl: 2.5rem;
+
   // Weights
   --font-light: 300;
   --font-normal: 400;
   --font-medium: 500;
   --font-bold: 700;
-  
+
   // Line Heights
   --leading-none: 1;
   --leading-tight: 1.25;
@@ -39,7 +43,11 @@ body {
   line-height: var(--leading-normal);
 }
 
-h1, h2, h3, h4, h5 {
+h1,
+h2,
+h3,
+h4,
+h5 {
   margin: 0;
   font-family: var(--font-heading);
   font-weight: var(--font-bold);
@@ -48,35 +56,168 @@ h1, h2, h3, h4, h5 {
   line-height: var(--leading-tight);
 }
 
-h1 { font-size: var(--text-4xl); }
-h2 { font-size: var(--text-3xl); }
-h3 { font-size: var(--text-2xl); }
-h4 { font-size: var(--text-xl); }
-h5 { font-size: var(--text-lg); }
+h1 {
+  font-size: var(--text-4xl);
+}
+h2 {
+  font-size: var(--text-3xl);
+}
+h3 {
+  font-size: var(--text-2xl);
+}
+h4 {
+  font-size: var(--text-xl);
+}
+h5 {
+  font-size: var(--text-lg);
+}
 
-small { font-size: var(--text-sm); }
-code { font-family: var(--font-mono); }
+small {
+  font-size: var(--text-sm);
+}
+code {
+  font-family: var(--font-mono);
+}
 
 // Utilities
-.text-xs { font-size: var(--text-xs); }
-.text-sm { font-size: var(--text-sm); }
-.text-base { font-size: var(--text-base); }
-.text-lg { font-size: var(--text-lg); }
-.text-xl { font-size: var(--text-xl); }
-.text-2xl { font-size: var(--text-2xl); }
+.text-xs {
+  font-size: var(--text-xs);
+}
+.text-sm {
+  font-size: var(--text-sm);
+}
+.text-base {
+  font-size: var(--text-base);
+}
+.text-lg {
+  font-size: var(--text-lg);
+}
+.text-xl {
+  font-size: var(--text-xl);
+}
+.text-2xl {
+  font-size: var(--text-2xl);
+}
 
-.font-light { font-weight: var(--font-light); }
-.font-normal { font-weight: var(--font-normal); }
-.font-bold { font-weight: var(--font-bold); }
-.font-mono { font-family: var(--font-mono); }
+.font-light {
+  font-weight: var(--font-light);
+}
+.font-normal {
+  font-weight: var(--font-normal);
+}
+.font-bold {
+  font-weight: var(--font-bold);
+}
+.font-mono {
+  font-family: var(--font-mono);
+}
 
-.uppercase { text-transform: uppercase; letter-spacing: 0.05em; }
-.tracking-wide { letter-spacing: 0.025em; }
+.uppercase {
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.tracking-wide {
+  letter-spacing: 0.025em;
+}
 
-// Instrument/Data specific
+// Instrument/Data specific (legacy compatibility)
 .text-value {
   font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1, 'zero' 1;
   font-weight: var(--font-medium);
   letter-spacing: -0.05em;
   line-height: 1;
+}
+
+// --- DIGITAL DISPLAY (instrument values) ---
+.gb-display-value {
+  font-family: 'JetBrains Mono', 'Courier New', 'Roboto Mono', monospace;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1, 'zero' 1;
+  font-weight: 500;
+  font-size: clamp(1.5rem, 8vw, 3.5rem);
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: var(--gb-text-value);
+  text-rendering: geometricprecision;
+  -webkit-font-smoothing: antialiased;
+}
+
+.gb-display-value--xl {
+  font-size: clamp(2.5rem, 12vw, 5rem);
+}
+
+.gb-display-value--lg {
+  font-size: clamp(1.8rem, 8vw, 3.5rem);
+}
+
+.gb-display-value--md {
+  font-size: clamp(1.2rem, 5vw, 2.2rem);
+}
+
+.gb-display-value--sm {
+  font-size: clamp(0.875rem, 3vw, 1.25rem);
+}
+
+// --- UNIT LABELS ---
+.gb-display-unit {
+  font-family: 'Space Grotesk', system-ui, sans-serif;
+  font-size: clamp(0.6rem, 2.5vw, 0.875rem);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--gb-text-unit);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+// --- CARDINALS ---
+.gb-display-cardinal {
+  font-family: 'Space Grotesk', system-ui, sans-serif;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--gb-text-cardinal);
+  fill: var(--gb-text-cardinal);
+}
+
+// --- INSTRUMENT LABEL ---
+.gb-instrument-label {
+  font-family: 'Space Grotesk', system-ui, sans-serif;
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: var(--gb-text-muted);
+}
+
+// --- SVG TEXT CLASSES ---
+text.gb-svg-value {
+  font-family: 'JetBrains Mono', 'Courier New', monospace;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+  font-weight: 500;
+  fill: var(--gb-text-value);
+  dominant-baseline: middle;
+  text-anchor: middle;
+}
+
+text.gb-svg-unit {
+  font-family: 'Space Grotesk', system-ui, sans-serif;
+  font-weight: 600;
+  fill: var(--gb-text-unit);
+  text-anchor: middle;
+  dominant-baseline: middle;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+text.gb-svg-cardinal {
+  font-family: 'Space Grotesk', system-ui, sans-serif;
+  font-weight: 700;
+  fill: var(--gb-text-cardinal);
+  text-anchor: middle;
+  dominant-baseline: middle;
 }

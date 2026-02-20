@@ -20,7 +20,11 @@ export type IconName =
   | 'plus' | 'minus' | 'chevron-up' | 'chevron-down' | 'chevron-left' | 'chevron-right'
   | 'arrow-up' | 'arrow-down' | 'arrow-left' | 'arrow-right' | 'navigation' | 'crosshair'
   // Theme
-  | 'sun' | 'moon';
+  | 'sun' | 'moon'
+  // Measurement
+  | 'ruler'
+  // Export
+  | 'download';
 
 @Component({
   selector: 'app-icon',

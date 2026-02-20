@@ -1,100 +1,79 @@
-// Paleta Modern Marine (Glass Bridge)
-$color-bg: #0b1116;
-$color-text: #ffffff;
-$color-muted: #8b9bb4;
-
-// Colores de Datos
-$color-water-top: #00e5ff;    // Cyan brillante (Superficie)
-$color-water-bottom: #004d40; // Verde oscuro (Profundidad)
-$color-line: #ffffff;         // Línea de fondo sólida
-
-// Colores de Alarma
-$color-alarm: #ff3d00;        // Rojo intenso
-$color-alarm-dim: #5a0000;
-
 :host {
   display: block;
   width: 100%;
-  
-  // Variables CSS dinámicas para que el SVG las consuma
-  --color-water-top: #{$color-water-top};
-  --color-water-bottom: #{$color-water-bottom};
-  --color-alarm: #{$color-alarm};
-  --color-alarm-dim: #{$color-alarm-dim};
+  height: 100%;
+  --color-water-top: var(--gb-needle-secondary);
+  --color-water-bottom: color-mix(in srgb, var(--gb-data-good) 45%, var(--gb-bg-bezel));
+  --color-alarm: var(--gb-data-stale);
+  --color-alarm-dim: color-mix(in srgb, var(--gb-data-stale) 35%, var(--gb-bg-bezel));
 }
 
-// --- ESTADO DE ALARMA (Contenedor Principal) ---
-:host-context(.alarm-active) {
-  .marine-card {
-    border-color: $color-alarm !important;
-    box-shadow: inset 0 0 20px rgba($color-alarm, 0.2);
-    animation: pulse-border 1s infinite alternate;
-  }
+.marine-card {
+  display: block;
+  height: 100%;
 }
 
 .depth-container {
   position: relative;
   width: 100%;
   height: 220px;
-  background-color: $color-bg;
+  background-color: var(--gb-bg-bezel);
   border-radius: 8px;
   overflow: hidden;
 }
 
-// --- CAPA SVG (Fondo) ---
+.depth-container.alarm-active {
+  box-shadow: inset 0 0 20px rgba(var(--gb-data-stale-rgb), 0.2);
+  animation: pulse-border var(--gb-anim-alarm-pulse) infinite alternate;
+}
+
 .sonar-wrapper {
   position: absolute;
-  top: 0; left: 0;
-  width: 100%;
-  height: 100%;
+  inset: 0;
   z-index: 1;
 
   .sonar-svg {
     width: 100%;
     height: 100%;
 
-    // Grid y Etiquetas
     .grid-line {
-      stroke: rgba($color-line, 0.15);
+      stroke: color-mix(in srgb, var(--gb-text-value) 15%, transparent);
       stroke-width: 1px;
       stroke-dasharray: 4 2;
     }
 
     .grid-label {
-      font-family: 'Roboto', sans-serif;
+      font-family: 'Space Grotesk', system-ui, sans-serif;
       font-size: 9px;
-      fill: rgba($color-line, 0.5);
+      fill: color-mix(in srgb, var(--gb-text-value) 55%, transparent);
       font-weight: 500;
     }
 
     .surface-line {
-      stroke: rgba($color-water-top, 0.8);
+      stroke: color-mix(in srgb, var(--gb-needle-secondary) 80%, transparent);
       stroke-width: 2px;
     }
 
-    // Gráfico de Agua (Relleno)
-    .sonar-fill {
-      transition: d 200ms linear; // Transición suave del path
+    .sonar-fill,
+    .sonar-bottom-line {
+      transition: d var(--gb-anim-needle) linear;
     }
 
-    // Gráfico de Fondo (Línea)
     .sonar-bottom-line {
       fill: none;
-      stroke: $color-line;
+      stroke: var(--gb-text-value);
       stroke-width: 2.5px;
       stroke-linecap: round;
       stroke-linejoin: round;
-      transition: d 200ms linear;
-      filter: drop-shadow(0 4px 6px rgba(0,0,0,0.8)); // Sombra de profundidad
+      filter: drop-shadow(0 4px 6px color-mix(in srgb, var(--gb-bg-canvas) 80%, transparent));
 
       &.alarm-stroke {
-        stroke: $color-alarm; // La línea se vuelve roja en alarma
+        stroke: var(--gb-data-stale);
       }
     }
   }
 }
 
-// --- CAPA DATOS (Overlay) ---
 .data-overlay {
   position: relative;
   z-index: 2;
@@ -104,42 +83,37 @@ $color-alarm-dim: #5a0000;
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  pointer-events: none; // Permite ver el gráfico detrás
+  pointer-events: none;
 }
 
 .primary-readout {
   text-align: center;
   margin-bottom: 0.5rem;
-  
+
   .value {
     display: block;
-    font-family: 'Courier New', monospace;
-    font-size: 5rem;
-    font-weight: 700;
     line-height: 0.9;
-    color: $color-text;
-    letter-spacing: -3px;
-    text-shadow: 0 4px 10px rgba(0,0,0,0.5);
-    transition: color 0.3s ease;
+    letter-spacing: -0.02em;
+    color: var(--gb-text-value);
+    text-shadow: 0 4px 10px color-mix(in srgb, var(--gb-bg-canvas) 70%, transparent);
+    transition: color var(--gb-anim-theme) var(--gb-ease-data);
   }
 
   .unit {
-    font-size: 1rem;
-    font-weight: 600;
-    color: $color-water-top;
-    text-transform: uppercase;
-    letter-spacing: 2px;
-    opacity: 0.8;
+    color: var(--gb-needle-secondary);
+    opacity: 0.85;
   }
 
-  // Cambio de color en alarma
   &.danger {
     .value {
-      color: $color-alarm;
-      text-shadow: 0 0 20px rgba($color-alarm, 0.6);
-      animation: pulse-text 1s infinite;
+      color: var(--gb-data-stale);
+      text-shadow: 0 0 20px rgba(var(--gb-data-stale-rgb), 0.6);
+      animation: pulse-text var(--gb-anim-alarm-pulse) infinite;
     }
-    .unit { color: rgba($color-alarm, 0.8); }
+
+    .unit {
+      color: color-mix(in srgb, var(--gb-data-stale) 80%, transparent);
+    }
   }
 }
 
@@ -147,42 +121,69 @@ $color-alarm-dim: #5a0000;
   display: flex;
   gap: 8px;
   margin-top: 10px;
-  
+
   .badge {
     padding: 3px 8px;
     border-radius: 4px;
-    font-size: 0.7rem;
-    font-weight: 700;
-    backdrop-filter: blur(4px);
-    box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    box-shadow: 0 2px 4px color-mix(in srgb, var(--gb-bg-canvas) 55%, transparent);
   }
 
   .scale-badge {
-    background: rgba(255, 255, 255, 0.05);
-    color: $color-muted;
-    border: 1px solid rgba(255,255,255,0.1);
+    background: color-mix(in srgb, var(--gb-bg-glass) 85%, transparent);
+    color: var(--gb-text-unit);
+    border: 1px solid color-mix(in srgb, var(--gb-border-panel) 55%, transparent);
   }
 
   .alarm-badge {
-    background: rgba($color-alarm, 0.9);
-    color: #fff;
-    border: 1px solid $color-alarm;
-    animation: flash-badge 1s infinite;
+    background: rgba(var(--gb-data-stale-rgb), 0.9);
+    color: var(--gb-text-value);
+    border: 1px solid var(--gb-data-stale);
+    animation: flash-badge var(--gb-anim-alarm-pulse) infinite;
   }
 }
 
-// --- ANIMACIONES ---
+.meta-row {
+  position: absolute;
+  bottom: 6px;
+  left: 0;
+  right: 0;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-inline: 0.5rem;
+}
+
 @keyframes pulse-border {
-  from { border-color: $color-alarm; }
-  to { border-color: transparent; }
+  from {
+    outline: 1px solid rgba(var(--gb-data-stale-rgb), 0.55);
+  }
+
+  to {
+    outline: 1px solid rgba(var(--gb-data-stale-rgb), 0);
+  }
 }
 
 @keyframes pulse-text {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.8; transform: scale(0.98); }
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 0.8;
+    transform: scale(0.98);
+  }
 }
 
 @keyframes flash-badge {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.6;
+  }
 }

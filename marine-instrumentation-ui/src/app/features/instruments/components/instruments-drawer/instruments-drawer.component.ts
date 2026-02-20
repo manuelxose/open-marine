@@ -70,6 +70,28 @@ export interface InstrumentData {
           <app-battery-widget *ngIf="widget.type === 'battery'"></app-battery-widget>
           <app-meteo-widget *ngIf="widget.type === 'meteo'"></app-meteo-widget>
 
+          <!-- Placeholder cards for instrument types without dedicated widgets -->
+          <app-instrument-card
+            *ngIf="widget.type === 'depth-sonar'"
+            label="SONAR"
+            value="--"
+          ></app-instrument-card>
+          <app-instrument-card
+            *ngIf="widget.type === 'rudder'"
+            label="RUDDER"
+            value="--"
+          ></app-instrument-card>
+          <app-instrument-card
+            *ngIf="widget.type === 'engine'"
+            label="ENGINE"
+            value="--"
+          ></app-instrument-card>
+          <app-instrument-card
+            *ngIf="widget.type === 'tank'"
+            label="TANK"
+            value="--"
+          ></app-instrument-card>
+
           <app-instrument-card
             *ngIf="widget.type === 'gps'"
             label="GPS"

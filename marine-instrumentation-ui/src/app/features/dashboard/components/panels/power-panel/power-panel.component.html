@@ -1,18 +1,20 @@
 <app-shared-panel-card [title]="vm.title | translate" [loading]="vm.isLoading" [error]="vm.error">
-  <div class="power-content">
-    <div class="metrics-list">
-      <div class="metric-row" *ngFor="let m of vm.metrics; trackBy: trackByMetric">
-        <div class="metric-info">
-          <span class="metric-label">{{ m.label | translate }}</span>
-          <div class="metric-value-group">
-            <span class="value">{{ m.value }}</span>
-            <span class="unit">{{ m.unit }}</span>
+  <omi-gb-bezel class="panel-bezel" [quality]="panelQuality">
+    <div class="power-content">
+      <div class="metrics-list">
+        <div class="metric-row" *ngFor="let m of vm.metrics; trackBy: trackByMetric">
+          <div class="metric-info">
+            <span class="metric-label gb-instrument-label">{{ m.label | translate }}</span>
+            <div class="metric-value-group">
+              <span class="value gb-display-value gb-display-value--md">{{ displayValue(m.value) }}</span>
+              <span class="unit gb-display-unit" *ngIf="showUnit(m.value)">{{ m.unit }}</span>
+            </div>
           </div>
-        </div>
-        <div class="metric-trend" *ngIf="m.series && m.series.length > 0">
-          <app-shared-sparkline [data]="m.series" [width]="80" [height]="24"></app-shared-sparkline>
+          <div class="metric-trend" *ngIf="m.series && m.series.length > 0">
+            <app-shared-sparkline [data]="m.series" [width]="80" [height]="24"></app-shared-sparkline>
+          </div>
         </div>
       </div>
     </div>
-  </div>
+  </omi-gb-bezel>
 </app-shared-panel-card>

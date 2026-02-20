@@ -1,16 +1,12 @@
-// Paleta Glass Bridge
-$color-bg: #0b1116;
-$color-cyan: #00e5ff;
-$color-cyan-dim: #008c9e;
-$color-orange: #ff9100;
-$color-text: #ffffff;
-$color-muted: #8b9bb4;
-
 :host {
   display: block;
   width: 100%;
-  --color-cyan: #{$color-cyan};
-  --color-cyan-dim: #{$color-cyan-dim};
+  height: 100%;
+}
+
+.marine-card {
+  display: block;
+  height: 100%;
 }
 
 .speed-container {
@@ -20,123 +16,120 @@ $color-muted: #8b9bb4;
   align-items: center;
   justify-content: space-between;
   height: 100%;
-  padding-bottom: 10px;
+  width: 100%;
+  padding-bottom: 0.5rem;
 }
 
-/* --- SVG GAUGE --- */
 .gauge-svg {
   width: 100%;
   max-width: 260px;
   overflow: visible;
 
-  /* Ticks */
   .tick-mark {
-    stroke: $color-muted;
+    stroke: var(--gb-tick-minor);
     stroke-linecap: round;
-    &.major { stroke-width: 2px; opacity: 0.8; }
-    stroke-width: 1px; opacity: 0.4;
+    stroke-width: 1px;
+    opacity: 0.45;
+
+    &.major {
+      stroke: var(--gb-tick-major);
+      stroke-width: 2px;
+      opacity: 0.85;
+    }
   }
 
   .tick-label {
-    font-family: 'Roboto', sans-serif;
+    font-family: 'Space Grotesk', system-ui, sans-serif;
     font-size: 10px;
     font-weight: 700;
-    fill: $color-muted;
+    fill: var(--gb-text-unit);
     text-anchor: middle;
     dominant-baseline: middle;
   }
 
-  /* Arco de Progreso */
   .progress-arc {
-    transition: stroke-dasharray 300ms cubic-bezier(0.2, 0.8, 0.2, 1);
-    filter: drop-shadow(0 0 4px rgba($color-cyan, 0.4));
+    transition: stroke-dasharray var(--gb-anim-needle) var(--gb-ease-data);
+    filter: drop-shadow(0 0 4px color-mix(in srgb, var(--gb-needle-secondary) 40%, transparent));
   }
 
-  /* --- AGUJAS --- */
   .needle-group {
     transform-origin: 100px 100px;
-    transition: transform 500ms cubic-bezier(0.2, 0.8, 0.2, 1);
+    transition: transform var(--gb-anim-needle) var(--gb-ease-mechanical);
 
     &.stw {
-      /* Estilo Fantasma para STW */
       .needle-line {
-        stroke: $color-orange;
+        stroke: var(--gb-needle-primary);
         stroke-width: 2px;
-        stroke-dasharray: 4 2; /* Línea punteada */
+        stroke-dasharray: 4 2;
         opacity: 0.8;
       }
+
       .needle-tip {
-        fill: $color-bg; /* Hueco */
-        stroke: $color-orange;
+        fill: var(--gb-bg-bezel);
+        stroke: var(--gb-needle-primary);
         stroke-width: 2px;
       }
     }
 
     &.sog {
-      /* Estilo Sólido Brilante para SOG */
-      filter: url(#glowCyan);
       .needle-line {
-        stroke: $color-cyan;
+        stroke: var(--gb-needle-secondary);
         stroke-width: 4px;
         stroke-linecap: round;
       }
+
       .needle-tip {
-        fill: $color-text;
-        stroke: none;
+        fill: var(--gb-text-value);
       }
     }
   }
 }
 
-/* --- READOUTS (Datos Numéricos) --- */
 .readouts {
   width: 100%;
   display: flex;
   justify-content: space-between;
   align-items: flex-end;
   padding: 0 10px;
-  margin-top: -30px; /* Subir para solapar un poco con el arco */
+  margin-top: -30px;
   z-index: 2;
 
-  /* Caja STW (Izquierda) */
   .readout.stw {
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-    
+
     .label {
-      font-size: 0.6rem;
-      font-weight: 800;
-      color: $color-orange;
-      letter-spacing: 1px;
+      color: var(--gb-needle-primary);
     }
+
     .value {
-      font-family: 'Courier New', monospace;
-      font-size: 1.1rem;
-      font-weight: 700;
-      color: rgba($color-text, 0.8);
+      color: color-mix(in srgb, var(--gb-text-value) 80%, transparent);
+      line-height: 1;
     }
   }
 
-  /* Caja SOG (Centro/Derecha - Grande) */
   .readout.sog {
     display: flex;
     align-items: baseline;
     gap: 4px;
-    
+
     .value {
-      font-family: 'Courier New', monospace;
-      font-size: 3rem;
-      font-weight: 700;
       line-height: 1;
-      color: $color-text;
-      text-shadow: 0 0 15px rgba($color-cyan, 0.5);
+      color: var(--gb-text-value);
+      text-shadow: 0 0 15px color-mix(in srgb, var(--gb-needle-secondary) 45%, transparent);
     }
-    
+
     .unit {
-      font-size: 1rem;
-      color: $color-muted;
-      font-weight: 600;
+      color: var(--gb-text-unit);
     }
   }
+}
+
+.meta-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-inline: 0.35rem;
 }

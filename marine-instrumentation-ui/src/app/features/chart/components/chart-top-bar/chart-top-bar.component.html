@@ -1,0 +1,93 @@
+<nav class="chart-top-bar" role="navigation" aria-label="Navigation data">
+  <div class="top-bar__group top-bar__group--motion">
+    <div class="top-bar__datum">
+      <span class="top-bar__label">SOG</span>
+      <span class="top-bar__value gb-display-value--md" [class.top-bar__value--stale]="isUnavailable(vm.sog.quality)">
+        {{ isUnavailable(vm.sog.quality) || vm.sog.value === null ? '---' : (vm.sog.value | number: '1.1-1') }}
+      </span>
+      <span class="top-bar__unit">KTS</span>
+    </div>
+
+    <div class="top-bar__datum">
+      <span class="top-bar__label">COG</span>
+      <span class="top-bar__value gb-display-value--md" [class.top-bar__value--stale]="isUnavailable(vm.cog.quality)">
+        {{ isUnavailable(vm.cog.quality) ? '---' : vm.cog.formatted }}
+      </span>
+      <span class="top-bar__unit">&#176;</span>
+    </div>
+
+    <div class="top-bar__datum">
+      <span class="top-bar__label">HDG</span>
+      <span class="top-bar__value gb-display-value--md" [class.top-bar__value--stale]="isUnavailable(vm.hdg.quality)">
+        {{ isUnavailable(vm.hdg.quality) ? '---' : vm.hdg.formatted }}
+      </span>
+      <span class="top-bar__unit">&#176; T</span>
+    </div>
+  </div>
+
+  <div class="top-bar__divider" aria-hidden="true"></div>
+
+  <div class="top-bar__group top-bar__group--position">
+    <span class="top-bar__label">POS</span>
+    <div class="top-bar__coords" [class.top-bar__coords--stale]="isUnavailable(vm.position.quality)">
+      <span class="gb-display-value--sm">{{ vm.position.lat }}</span>
+      <span class="gb-display-value--sm">{{ vm.position.lon }}</span>
+    </div>
+  </div>
+
+  <div class="top-bar__divider" aria-hidden="true" *ngIf="vm.activeRoute"></div>
+
+  <div class="top-bar__group top-bar__group--route" *ngIf="vm.activeRoute as route">
+    <span class="top-bar__route-name">{{ route.nextWaypointName }}</span>
+    <div class="top-bar__route-data">
+      <span class="top-bar__datum">
+        <span class="top-bar__label">DTW</span>
+        <span class="gb-display-value--sm">{{ route.dtwNm | number: '1.1-2' }}</span>
+        <span class="top-bar__unit">NM</span>
+      </span>
+      <span class="top-bar__datum">
+        <span class="top-bar__label">BRG</span>
+        <span class="gb-display-value--sm">{{ route.btwDeg | number: '1.0-0' }}&#176;</span>
+      </span>
+      <span class="top-bar__datum">
+        <span class="top-bar__label">XTE</span>
+        <span class="gb-display-value--sm" [class.top-bar__xte--port]="route.xteNm < 0" [class.top-bar__xte--starboard]="route.xteNm > 0">
+          {{ route.xteNm | number: '1.2-2' }}
+        </span>
+        <span class="top-bar__unit">NM</span>
+      </span>
+      <span class="top-bar__datum">
+        <span class="top-bar__label">ETA</span>
+        <span class="gb-display-value--sm">{{ route.eta }}</span>
+      </span>
+      <span class="top-bar__datum">
+        <span class="top-bar__label">TTG</span>
+        <span class="gb-display-value--sm">{{ route.ttg }}</span>
+      </span>
+      <span class="top-bar__datum" *ngIf="route.vmgKnots !== null">
+        <span class="top-bar__label">VMG</span>
+        <span class="gb-display-value--sm" [class.top-bar__vmg--negative]="route.vmgKnots < 0">
+          {{ route.vmgKnots | number: '1.1-1' }}
+        </span>
+        <span class="top-bar__unit">KTS</span>
+      </span>
+    </div>
+  </div>
+
+  <div class="top-bar__spacer"></div>
+
+  <div class="top-bar__group top-bar__group--status">
+    <span class="top-bar__time gb-display-value--sm">{{ vm.utcTime }}</span>
+    <span class="top-bar__time top-bar__time--local gb-display-value--sm">{{ vm.localTime }}</span>
+
+    <div class="top-bar__connection" [title]="vm.signalKConnected ? 'Signal K connected' : 'Signal K offline'" [attr.aria-label]="vm.signalKConnected ? 'Signal K connected' : 'Signal K offline'">
+      <span
+        class="connection-indicator"
+        [class.connection-indicator--online]="vm.signalKQuality === 'online'"
+        [class.connection-indicator--degraded]="vm.signalKQuality === 'degraded'"
+        [class.connection-indicator--offline]="vm.signalKQuality === 'offline'">
+      </span>
+      <span class="top-bar__label">SK</span>
+    </div>
+  </div>
+</nav>

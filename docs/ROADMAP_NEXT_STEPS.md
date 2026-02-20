@@ -2,7 +2,7 @@
 
 Plan de ejecucion pendiente con prioridad tecnica real.
 
-Fecha base: 2026-02-19.
+Fecha base: 2026-02-20.
 
 ## 1. Prioridad global
 
@@ -110,6 +110,21 @@ Estado: `[PENDING]`.
 - Script unico para levantar stack completo en desarrollo.
 - Plantilla de reporte de regresiones visuales para `/styleguide` y `/widgets`.
 - Definir baseline de metricas (build time, bundle size, memoria en chart).
+
+## 7.1 DOC_3 — Commercial App Restructuring (pendiente)
+
+Estado: `[IN_PROGRESS]` — Fases A/B/D/E/H/I parcialmente completadas. Ver `docs/IMPLEMENTATION_STATUS.md` seccion 9.
+
+Trabajo restante por prioridad:
+
+1. **Integrar settings sub-components** en settings page o sub-rutas.
+2. **Fase C — Instrument system**: Registrar 54 instrumentos, crear InstrumentWidgetComponent generico.
+3. **Fase B — Dashboard grid configurable**: DashboardLayout con columnas/filas configurables.
+4. **Fase F — Performance sailing**: Polar diagram, laylines, VMG optimizer.
+5. **Fase G — Autopilot console**: Modos extendidos, dodge buttons, rudder indicator.
+6. **Fase I.2 — IDB storage**: IdbStoreService para posiciones, datapoints, historial de alarmas.
+7. **Fase J — Testing**: Tests unitarios para XTE, CPA, anchor watch, true wind.
+8. **Fase K — User docs**: docs-user/ structure, help overlay in-app.
 
 ## 8. Cierre de cada iteracion
 

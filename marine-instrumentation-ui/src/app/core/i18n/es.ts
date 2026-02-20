@@ -97,6 +97,10 @@ export const es: Translations = {
       center_boat: 'Centrar en Barco',
       on: 'ON',
       off: 'OFF',
+      ais_targets: 'Objetivos AIS',
+      ais_labels: 'Etiquetas AIS',
+      cpa_lines: 'Lineas CPA',
+      nautical_overlay: 'Carta Nautica',
     },
     hud: {
       sog: 'SOG',

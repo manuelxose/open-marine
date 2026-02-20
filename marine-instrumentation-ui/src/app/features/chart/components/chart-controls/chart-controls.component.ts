@@ -19,6 +19,10 @@ export class ChartControlsComponent implements OnChanges {
   @Output() toggleTrueWind = new EventEmitter<void>();
   @Output() toggleRangeRings = new EventEmitter<void>();
   @Output() changeRangeRingIntervals = new EventEmitter<number[]>();
+  @Output() toggleAisTargets = new EventEmitter<void>();
+  @Output() toggleAisLabels = new EventEmitter<void>();
+  @Output() toggleCpaLines = new EventEmitter<void>();
+  @Output() toggleOpenSeaMap = new EventEmitter<void>();
 
   intervalsText = '';
   error: string | null = null;
@@ -39,6 +43,22 @@ export class ChartControlsComponent implements OnChanges {
 
   onToggleRangeRings(): void {
     this.toggleRangeRings.emit();
+  }
+
+  onToggleAisTargets(): void {
+    this.toggleAisTargets.emit();
+  }
+
+  onToggleAisLabels(): void {
+    this.toggleAisLabels.emit();
+  }
+
+  onToggleCpaLines(): void {
+    this.toggleCpaLines.emit();
+  }
+
+  onToggleOpenSeaMap(): void {
+    this.toggleOpenSeaMap.emit();
   }
 
   ngOnChanges(changes: SimpleChanges): void {

@@ -5,25 +5,27 @@
   [loading]="vm.isLoading"
   [error]="vm.error"
 >
-  <div class="navigation-content">
-    <div class="position-display">
-      <div class="coord">{{ vm.position.lat }}</div>
-      <div class="coord">{{ vm.position.lon }}</div>
-    </div>
+  <omi-gb-bezel class="panel-bezel" [quality]="panelQuality">
+    <div class="navigation-content">
+      <div class="position-display">
+        <div class="coord gb-display-value gb-display-value--sm">{{ vm.position.lat }}</div>
+        <div class="coord gb-display-value gb-display-value--sm">{{ vm.position.lon }}</div>
+      </div>
 
-    <div class="metrics-list">
-      <div class="metric-row" *ngFor="let m of vm.metrics; trackBy: trackByMetric">
-        <div class="metric-info">
-          <span class="metric-label">{{ m.label | translate }}</span>
-          <div class="metric-value-group">
-            <span class="value">{{ m.value }}</span>
-            <span class="unit">{{ m.unit }}</span>
+      <div class="metrics-list">
+        <div class="metric-row" *ngFor="let m of vm.metrics; trackBy: trackByMetric">
+          <div class="metric-info">
+            <span class="metric-label gb-instrument-label">{{ m.label | translate }}</span>
+            <div class="metric-value-group">
+              <span class="value gb-display-value gb-display-value--md">{{ m.value }}</span>
+              <span class="unit gb-display-unit">{{ m.unit }}</span>
+            </div>
           </div>
-        </div>
-        <div class="metric-trend" *ngIf="m.series && m.series.length > 0">
-          <app-shared-sparkline [data]="m.series" [width]="80" [height]="24"></app-shared-sparkline>
+          <div class="metric-trend" *ngIf="m.series && m.series.length > 0">
+            <app-shared-sparkline [data]="m.series" [width]="80" [height]="24"></app-shared-sparkline>
+          </div>
         </div>
       </div>
     </div>
-  </div>
+  </omi-gb-bezel>
 </app-shared-panel-card>

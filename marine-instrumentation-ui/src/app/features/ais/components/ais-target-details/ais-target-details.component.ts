@@ -124,64 +124,68 @@ import { LonFormatPipe } from '../../../../shared/pipes/lon-format.pipe';
   styles: [`
     :host {
       display: block;
-      height: 100%;
-      background: var(--surface-0);
-      border-left: 1px solid var(--border-color);
+      overflow: hidden;
     }
 
     .ais-details-panel {
       display: flex;
       flex-direction: column;
-      height: 100%;
+      max-height: min(80vh, 600px);
     }
 
     .details-header {
-      padding: 1rem;
-      border-bottom: 1px solid var(--border-color);
+      padding: var(--space-3, 0.75rem) var(--space-4, 1rem);
+      border-bottom: 1px solid color-mix(in srgb, var(--border-default, #ffffff) 35%, transparent);
       display: flex;
       justify-content: space-between;
       align-items: flex-start;
-      background: var(--surface-1);
+      background: color-mix(in srgb, var(--bg-surface-secondary, #1a1a2e) 55%, transparent);
+      flex-shrink: 0;
     }
     
     .details-header.dangerous {
-        background: rgba(220, 38, 38, 0.1); /* red-600/10 */
-        border-bottom-color: var(--danger);
+        background: rgba(220, 38, 38, 0.15);
+        border-bottom-color: var(--danger, #ef4444);
     }
 
     .header-main {
       flex: 1;
+      min-width: 0;
     }
 
     h2 {
       margin: 0;
-      font-size: 1.1rem;
+      font-size: 0.92rem;
       font-weight: 700;
       color: var(--text-primary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .mmsi {
-      font-size: 0.85rem;
-      color: var(--text-secondary);
+      font-size: 0.72rem;
+      color: var(--text-muted, var(--text-secondary));
       font-family: var(--font-mono);
     }
 
     .scroll-content {
       flex: 1;
+      min-height: 0;
       overflow-y: auto;
-      padding: 1rem;
+      padding: var(--space-3, 0.75rem) var(--space-4, 1rem);
       display: flex;
       flex-direction: column;
-      gap: 1.5rem;
+      gap: var(--space-4, 1rem);
     }
 
     .alert-box {
         display: flex;
         gap: 1rem;
-        padding: 1rem;
-        background: var(--danger);
+        padding: var(--space-3, 0.75rem);
+        background: var(--danger, #ef4444);
         color: white;
-        border-radius: 6px;
+        border-radius: 8px;
         align-items: center;
     }
     
@@ -192,44 +196,48 @@ import { LonFormatPipe } from '../../../../shared/pipes/lon-format.pipe';
     .alert-info {
         display: flex;
         flex-direction: column;
+        font-size: 0.78rem;
     }
 
     .details-section h3 {
-      font-size: 0.8rem;
+      font-size: 0.68rem;
       text-transform: uppercase;
-      letter-spacing: 1px;
-      color: var(--text-tertiary);
-      margin: 0 0 0.75rem 0;
-      border-bottom: 1px solid var(--border-color);
+      letter-spacing: 0.06em;
+      font-weight: 700;
+      color: var(--text-muted, var(--text-tertiary));
+      margin: 0 0 var(--space-2, 0.5rem) 0;
+      border-bottom: 1px solid color-mix(in srgb, var(--border-default, #ffffff) 30%, transparent);
       padding-bottom: 0.25rem;
     }
 
     .grid-2 {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 1rem;
+      gap: var(--space-3, 0.75rem);
     }
 
     .field {
       display: flex;
       flex-direction: column;
-      gap: 0.25rem;
+      gap: 2px;
     }
     
     .field.full-width {
         grid-column: span 2;
-        margin-top: 0.5rem;
+        margin-top: var(--space-1, 0.25rem);
     }
 
     label {
-      font-size: 0.75rem;
-      color: var(--text-secondary);
+      font-size: 0.62rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--text-muted, var(--text-secondary));
     }
 
     .value {
-      font-size: 0.95rem;
+      font-size: 0.82rem;
       color: var(--text-primary);
-      font-weight: 500;
+      font-weight: 600;
     }
     
     .monospace {
@@ -239,14 +247,15 @@ import { LonFormatPipe } from '../../../../shared/pipes/lon-format.pipe';
 
     .details-footer {
         margin-top: auto;
-        padding-top: 1rem;
-        border-top: 1px solid var(--border-color);
+        padding-top: var(--space-3, 0.75rem);
+        border-top: 1px solid color-mix(in srgb, var(--border-default, #ffffff) 30%, transparent);
         text-align: center;
+        flex-shrink: 0;
     }
     
     .last-seen {
-        font-size: 0.75rem;
-        color: var(--text-tertiary);
+        font-size: 0.68rem;
+        color: var(--text-muted, var(--text-tertiary));
     }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush

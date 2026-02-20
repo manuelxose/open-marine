@@ -1,94 +1,103 @@
-// Glass Bridge Theme - Engine RPM
-$bg-color: #0b1116;
-$neon-blue: #00e5ff;
-$neon-red: #ff3d00;
-$neon-green: #00e676;
-$text-primary: #ffffff;
-$color-muted: #8b9bb4;
-
 :host {
   display: block;
   width: 100%;
+  height: 100%;
+}
+
+.marine-card {
+  display: block;
+  height: 100%;
 }
 
 .rpm-container {
   display: flex;
+  flex-direction: column;
   justify-content: center;
   align-items: center;
-  height: 220px;
-  background-color: $bg-color;
+  height: 100%;
+  width: 100%;
   padding: 10px;
 }
 
 .gauge-svg {
-  width: 100%; // Responsive
+  width: 100%;
   max-width: 180px;
   max-height: 180px;
   overflow: visible;
 
   .scale-track {
     fill: none;
-    stroke: rgba(255, 255, 255, 0.1);
+    stroke: color-mix(in srgb, var(--gb-border-panel) 40%, transparent);
     stroke-width: 16;
     stroke-linecap: round;
   }
-  
+
   .decor-ring {
-    stroke: rgba(255, 255, 255, 0.05);
+    stroke: color-mix(in srgb, var(--gb-border-panel) 28%, transparent);
   }
 
   .scale-value {
     fill: none;
     stroke-width: 16;
     stroke-linecap: round;
-    transition: stroke-dashoffset 0.5s ease-out;
+    transition: stroke-dashoffset var(--gb-anim-needle) var(--gb-ease-data);
   }
 
   .ticks {
     text {
-      font-family: 'Roboto', sans-serif;
+      font-family: 'Space Grotesk', system-ui, sans-serif;
       font-size: 10px;
-      fill: $color-muted;
+      fill: var(--gb-text-unit);
       text-anchor: middle;
       font-weight: 500;
-      
+
       &.redline-text {
-        fill: $neon-red;
+        fill: var(--gb-data-stale);
       }
     }
   }
 
   .readout {
     text-anchor: middle;
-    
+
     .value {
-      font-family: 'Courier New', monospace;
+      font-family: 'JetBrains Mono', 'Courier New', monospace;
       font-weight: 700;
       font-size: 32px;
-      fill: $text-primary;
-      filter: drop-shadow(0 0 5px rgba($neon-blue, 0.4));
+      fill: var(--gb-text-value);
+      filter: drop-shadow(0 0 5px color-mix(in srgb, var(--gb-needle-secondary) 40%, transparent));
+      font-variant-numeric: tabular-nums;
     }
 
     .unit {
-      font-family: 'Roboto', sans-serif;
+      font-family: 'Space Grotesk', system-ui, sans-serif;
       font-size: 10px;
-      fill: $color-muted;
+      fill: var(--gb-text-unit);
       letter-spacing: 1px;
     }
   }
-  
+
   .needle-group {
-    transition: transform 0.5s cubic-bezier(0.4, 0.0, 0.2, 1);
+    transition: transform var(--gb-anim-needle) var(--gb-ease-mechanical);
+    transform-origin: 100px 100px;
   }
 
   .needle {
-    fill: $text-primary;
-    filter: drop-shadow(0 0 2px rgba(0,0,0,0.8));
+    fill: var(--gb-text-value);
+    filter: drop-shadow(0 0 2px color-mix(in srgb, var(--gb-bg-canvas) 80%, transparent));
   }
 
   .needle-center {
-    fill: $bg-color;
-    stroke: $text-primary;
+    fill: var(--gb-bg-bezel);
+    stroke: var(--gb-text-value);
     stroke-width: 2;
   }
+}
+
+.meta-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 0.25rem;
 }

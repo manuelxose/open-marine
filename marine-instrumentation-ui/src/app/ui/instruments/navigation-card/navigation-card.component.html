@@ -1,88 +1,100 @@
-
-    <app-instrument-card
-      title="GPS / VECTOR"
-      [quality]="view().quality"
-      [ageSeconds]="view().age"
-      [source]="view().source"
-      class="marine-card"
-    >
-      <div class="nav-container">
-        
-        <div class="position-display">
-          <div class="coord-row">
-            <span class="label">LAT</span>
-            <span class="value">{{ view().latStr }}</span>
-          </div>
-          <div class="coord-row">
-            <span class="label">LON</span>
-            <span class="value">{{ view().lonStr }}</span>
-          </div>
-        </div>
-
-        <div class="drift-scope">
-           <svg viewBox="0 0 200 120" class="scope-svg">
-              <defs>
-                 <linearGradient id="sogGraphGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-                    <stop offset="0%" stop-color="#00e5ff" stop-opacity="0.2"/>
-                    <stop offset="100%" stop-color="#00e5ff" stop-opacity="0"/>
-                 </linearGradient>
-                 <filter id="glowDrift">
-                    <feGaussianBlur stdDeviation="2" result="blur"/>
-                    <feComposite in="SourceGraphic" in2="blur" operator="over"/>
-                 </filter>
-              </defs>
-
-              <path [attr.d]="view().sogHistoryPath" 
-                    fill="url(#sogGraphGrad)" 
-                    stroke="#00e5ff" 
-                    stroke-width="1" 
-                    stroke-opacity="0.5"
-                    class="history-line" />
-
-              <line x1="100" y1="20" x2="100" y2="100" stroke="#1a2634" stroke-width="1" stroke-dasharray="2 2"/>
-              <circle cx="100" cy="60" r="40" fill="none" stroke="#1a2634" stroke-width="1"/>
-
-              <g transform="translate(100, 60)">
-                 
-                 <g class="boat-ref">
-                    <path d="M0 -30 L5 -10 L0 -5 L-5 -10 Z" fill="#ff9100" />
-                    <line x1="0" y1="-5" x2="0" y2="30" stroke="#ff9100" stroke-width="2" />
-                 </g>
-
-                 <g [style.transform]="'rotate(' + view().driftAngle + 'deg)'" class="vector-cog">
-                    <line x1="0" y1="0" x2="0" y2="-35" 
-                          stroke="#00e5ff" stroke-width="3" stroke-linecap="round"
-                          filter="url(#glowDrift)" />
-                    <circle cx="0" cy="-35" r="3" fill="#00e5ff" />
-                    
-                    <path *ngIf="view().hasDrift" 
-                          d="M0,-20 A20,20 0 0 1 5,-19" 
-                          fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="1" stroke-dasharray="1 1" />
-                 </g>
-
-              </g>
-           </svg>
-
-           <div class="drift-readout" *ngIf="view().hasDrift">
-              <span class="label">DRIFT</span>
-              <span class="val">{{ view().driftAngle | number:'1.0-0' }}°</span>
-           </div>
-        </div>
-
-        <div class="nav-data-grid">
-           <div class="data-cell">
-              <span class="label">SOG</span>
-              <span class="val main">{{ view().sog }}</span><small> kn</small>
-           </div>
-           <div class="data-cell">
-              <span class="label">COG</span>
-              <span class="val">{{ view().cog }}<small>°</small></span>
-           </div>
-           <div class="data-cell">
-              <span class="label">HDG</span>
-              <span class="val">{{ view().hdg }}<small>°</small></span>
-           </div>
-        </div>
-
+<omi-gb-bezel class="marine-card" label="GPS / VECTOR" [quality]="view().quality">
+  <div class="nav-container">
+    <div class="position-display">
+      <div class="coord-row">
+        <span class="label gb-instrument-label">LAT</span>
+        <span class="value gb-display-value gb-display-value--sm">{{ view().latStr }}</span>
       </div>
-    </app-instrument-card>
+      <div class="coord-row">
+        <span class="label gb-instrument-label">LON</span>
+        <span class="value gb-display-value gb-display-value--sm">{{ view().lonStr }}</span>
+      </div>
+    </div>
+
+    <div class="drift-scope">
+      <svg viewBox="0 0 200 120" class="scope-svg" role="img" [attr.aria-label]="view().ariaLabel">
+        <defs>
+          <linearGradient id="sogGraphGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stop-color="var(--gb-needle-secondary)" stop-opacity="0.2" />
+            <stop offset="100%" stop-color="var(--gb-needle-secondary)" stop-opacity="0" />
+          </linearGradient>
+          <filter id="glowDrift">
+            <feGaussianBlur stdDeviation="2" result="blur" />
+            <feComposite in="SourceGraphic" in2="blur" operator="over" />
+          </filter>
+        </defs>
+
+        <path
+          [attr.d]="view().sogHistoryPath"
+          fill="url(#sogGraphGrad)"
+          stroke="var(--gb-needle-secondary)"
+          stroke-width="1"
+          stroke-opacity="0.5"
+          class="history-line"
+        />
+
+        <line x1="100" y1="20" x2="100" y2="100" class="scope-axis" />
+        <circle cx="100" cy="60" r="40" class="scope-ring" />
+
+        <g transform="translate(100, 60)">
+          <g class="boat-ref">
+            <path d="M0 -30 L5 -10 L0 -5 L-5 -10 Z" fill="var(--gb-needle-primary)" />
+            <line x1="0" y1="-5" x2="0" y2="30" stroke="var(--gb-needle-primary)" stroke-width="2" />
+          </g>
+
+          <g
+            [style.transform]="'rotate(' + view().driftRotation + 'deg)'"
+            class="gb-needle-wrapper vector-cog"
+            [class.gb-needle-wrapper--stale]="view().isStale"
+          >
+            <line
+              x1="0"
+              y1="0"
+              x2="0"
+              y2="-35"
+              stroke="var(--gb-needle-secondary)"
+              stroke-width="3"
+              stroke-linecap="round"
+              filter="url(#glowDrift)"
+            />
+            <circle cx="0" cy="-35" r="3" fill="var(--gb-needle-secondary)" />
+
+            <path
+              *ngIf="view().hasDrift"
+              d="M0,-20 A20,20 0 0 1 5,-19"
+              fill="none"
+              stroke="color-mix(in srgb, var(--gb-text-value) 40%, transparent)"
+              stroke-width="1"
+              stroke-dasharray="1 1"
+            />
+          </g>
+        </g>
+      </svg>
+
+      <div class="drift-readout" *ngIf="view().hasDrift && !view().isStale">
+        <span class="label gb-display-unit">DRIFT</span>
+        <span class="val gb-display-value gb-display-value--sm">{{ view().driftAngle | number:'1.0-0' }}&#176;</span>
+      </div>
+    </div>
+
+    <div class="nav-data-grid">
+      <div class="data-cell">
+        <span class="label gb-instrument-label">SOG</span>
+        <span class="val main gb-display-value gb-display-value--md">{{ view().sog }}<small *ngIf="view().sog !== '---'"> kn</small></span>
+      </div>
+      <div class="data-cell">
+        <span class="label gb-instrument-label">COG</span>
+        <span class="val gb-display-value gb-display-value--sm">{{ view().cog }}<small *ngIf="view().cog !== '---'">&#176;</small></span>
+      </div>
+      <div class="data-cell">
+        <span class="label gb-instrument-label">HDG</span>
+        <span class="val gb-display-value gb-display-value--sm">{{ view().hdg }}<small *ngIf="view().hdg !== '---'">&#176;</small></span>
+      </div>
+    </div>
+
+    <div class="meta-row">
+      <span class="gb-instrument-label" *ngIf="view().source">{{ view().source }}</span>
+      <span class="gb-display-unit" *ngIf="view().age !== null">{{ view().age | number:'1.1-1' }}s</span>
+    </div>
+  </div>
+</omi-gb-bezel>

@@ -35,6 +35,17 @@ import { CommonModule } from '@angular/common';
       </div>
       
       <div class="instrument-divider"></div>
+
+      <!-- HDG -->
+      <div class="instrument" [class.stale]="hdgStale">
+        <span class="instrument__label">HDG</span>
+        <div class="instrument__reading">
+          <span class="instrument__value">{{ hdgDisplay }}</span>
+          <span class="instrument__unit">°T</span>
+        </div>
+      </div>
+
+      <div class="instrument-divider"></div>
       
       <!-- Depth -->
       <div class="instrument" [class.stale]="depthStale" [class.warning]="isShallow">
@@ -50,6 +61,20 @@ import { CommonModule } from '@angular/common';
           </div>
         </div>
       </div>
+
+      <div class="instrument-divider"></div>
+
+      <!-- Wind -->
+      <div class="instrument" [class.stale]="windStale">
+        <span class="instrument__label">WIND</span>
+        <div class="instrument__reading">
+          <span class="instrument__value">{{ awsDisplay }}</span>
+          <span class="instrument__unit">kn</span>
+        </div>
+        <div class="instrument__compass-hint">
+          <span class="compass-letter">{{ awaDisplay }}°</span>
+        </div>
+      </div>
       
       <!-- Expand Handle -->
       <button class="expand-handle" (click)="openDrawer.emit()" title="Open Instruments">
@@ -60,25 +85,22 @@ import { CommonModule } from '@angular/common';
     </div>
   `,
   styles: [`
-    :host {
-      display: block;
-    }
+    :host { display: block; }
 
     .quick-instruments {
       display: flex;
       align-items: stretch;
-      
       background: var(--chart-overlay-bg);
       backdrop-filter: var(--chart-overlay-blur);
       border: 1px solid var(--chart-overlay-border);
-      border-radius: var(--radius-xl);
+      border-radius: var(--radius-lg);
       box-shadow: var(--chart-overlay-shadow);
       overflow: hidden;
     }
     
     .instrument-divider {
       width: 1px;
-      background: color-mix(in srgb, var(--border-default) 40%, transparent);
+      background: color-mix(in srgb, var(--border-default) 35%, transparent);
     }
 
     .instrument {
@@ -86,11 +108,10 @@ import { CommonModule } from '@angular/common';
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      padding: var(--space-3) var(--space-4);
-      min-width: 80px;
+      padding: var(--space-2) var(--space-3);
+      min-width: 64px;
       background: transparent;
       transition: all var(--duration-fast) var(--ease-out);
-      position: relative;
       
       &:hover {
         background: color-mix(in srgb, var(--bg-surface-secondary) 40%, transparent);
@@ -98,43 +119,33 @@ import { CommonModule } from '@angular/common';
       
       &.stale {
         opacity: 0.35;
-        
-        .instrument__value {
-          color: var(--text-muted);
-        }
+        .instrument__value { color: var(--text-muted); }
       }
       
       &.warning {
         background: color-mix(in srgb, var(--danger) 8%, transparent);
-        
-        .instrument__value {
-          color: var(--danger);
-        }
-        
-        .instrument__label {
-          color: var(--danger);
-          opacity: 0.7;
-        }
+        .instrument__value { color: var(--danger); }
+        .instrument__label { color: var(--danger); opacity: 0.7; }
       }
       
       &__label {
-        font-size: 0.5rem;
+        font-size: 0.45rem;
         font-weight: 700;
         text-transform: uppercase;
-        letter-spacing: 0.14em;
+        letter-spacing: 0.12em;
         color: var(--text-muted);
-        margin-bottom: 2px;
+        margin-bottom: 1px;
       }
 
       &__reading {
         display: flex;
         align-items: baseline;
-        gap: 3px;
+        gap: 2px;
       }
       
       &__value {
         font-family: var(--font-mono);
-        font-size: 1.2rem;
+        font-size: 1.05rem;
         font-weight: 700;
         color: var(--text-primary);
         line-height: 1;
@@ -142,18 +153,17 @@ import { CommonModule } from '@angular/common';
       }
       
       &__unit {
-        font-size: 0.55rem;
+        font-size: 0.48rem;
         font-weight: 600;
         color: var(--text-muted);
       }
 
-      // Micro progress bar under value
       &__bar {
         width: 100%;
         height: 2px;
         background: color-mix(in srgb, var(--border-default) 30%, transparent);
         border-radius: 1px;
-        margin-top: var(--space-1);
+        margin-top: 2px;
         overflow: hidden;
       }
 
@@ -165,19 +175,14 @@ import { CommonModule } from '@angular/common';
         
         &--depth {
           background: var(--fix-color);
-          
-          &.shallow {
-            background: var(--danger);
-          }
+          &.shallow { background: var(--danger); }
         }
       }
 
-      // Compass hint for COG
       &__compass-hint {
-        margin-top: 2px;
-
+        margin-top: 1px;
         .compass-letter {
-          font-size: 0.5rem;
+          font-size: 0.45rem;
           font-weight: 700;
           color: var(--primary);
           letter-spacing: 0.05em;
@@ -185,15 +190,14 @@ import { CommonModule } from '@angular/common';
       }
     }
     
-    // ── Expand Handle ──
     .expand-handle {
       display: flex;
       align-items: center;
       justify-content: center;
-      width: 28px;
+      width: 24px;
       background: color-mix(in srgb, var(--bg-surface-secondary) 60%, transparent);
       border: none;
-      border-left: 1px solid color-mix(in srgb, var(--border-default) 40%, transparent);
+      border-left: 1px solid color-mix(in srgb, var(--border-default) 35%, transparent);
       color: var(--text-muted);
       cursor: pointer;
       transition: all var(--duration-fast) var(--ease-out);
@@ -201,21 +205,13 @@ import { CommonModule } from '@angular/common';
       &:hover {
         background: var(--primary);
         color: white;
-        
-        .expand-handle__dots span {
-          background: white;
-        }
-      }
-
-      &:active {
-        transform: scaleX(0.92);
+        .expand-handle__dots span { background: white; }
       }
 
       &__dots {
         display: flex;
         flex-direction: column;
         gap: 3px;
-
         span {
           width: 3px;
           height: 3px;
@@ -230,46 +226,33 @@ import { CommonModule } from '@angular/common';
 export class QuickInstrumentsComponent {
   @Input() sog: number | null = null;
   @Input() cog: number | null = null;
+  @Input() hdg: number | null = null;
   @Input() depth: number | null = null;
+  @Input() aws: number | null = null;
+  @Input() awa: number | null = null;
   @Input() speedUnit: 'kn' | 'm/s' | 'km/h' = 'kn';
   @Input() depthUnit: 'm' | 'ft' = 'm';
   @Input() shallowThreshold = 3;
   
   @Output() openDrawer = new EventEmitter<void>();
   
-  get sogDisplay(): string {
-    return this.sog !== null ? this.sog.toFixed(1) : '--';
-  }
-  
-  get cogDisplay(): string {
-    return this.cog !== null ? this.cog.toFixed(0) : '--';
-  }
-  
-  get depthDisplay(): string {
-    return this.depth !== null ? this.depth.toFixed(1) : '--';
-  }
+  get sogDisplay(): string { return this.sog !== null ? this.sog.toFixed(1) : '--'; }
+  get cogDisplay(): string { return this.cog !== null ? this.cog.toFixed(0) : '--'; }
+  get hdgDisplay(): string { return this.hdg !== null ? this.hdg.toFixed(0) : '--'; }
+  get depthDisplay(): string { return this.depth !== null ? this.depth.toFixed(1) : '--'; }
+  get awsDisplay(): string { return this.aws !== null ? this.aws.toFixed(1) : '--'; }
+  get awaDisplay(): string { return this.awa !== null ? Math.abs(this.awa).toFixed(0) : '--'; }
   
   get sogStale(): boolean { return this.sog === null; }
   get cogStale(): boolean { return this.cog === null; }
+  get hdgStale(): boolean { return this.hdg === null; }
   get depthStale(): boolean { return this.depth === null; }
+  get windStale(): boolean { return this.aws === null; }
   
-  get isShallow(): boolean {
-    return this.depth !== null && this.depth < this.shallowThreshold;
-  }
+  get isShallow(): boolean { return this.depth !== null && this.depth < this.shallowThreshold; }
+  get sogPercent(): number { return this.sog === null ? 0 : Math.min((this.sog / 15) * 100, 100); }
+  get depthPercent(): number { return this.depth === null ? 0 : Math.min((this.depth / 50) * 100, 100); }
 
-  /** SOG as percentage (0-100%) - assumes max ~15kn */
-  get sogPercent(): number {
-    if (this.sog === null) return 0;
-    return Math.min((this.sog / 15) * 100, 100);
-  }
-
-  /** Depth as inverted percentage for bar (shallow = larger bar) - max 50m */
-  get depthPercent(): number {
-    if (this.depth === null) return 0;
-    return Math.min((this.depth / 50) * 100, 100);
-  }
-
-  /** Compass cardinal/intercardinal letter from COG */
   get compassLetter(): string {
     if (this.cog === null) return '--';
     const dirs = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];

@@ -9,6 +9,7 @@
         "files": [
           "/favicon.ico",
           "/index.html",
+          "/manifest.webmanifest",
           "/*.css",
           "/*.js"
         ]
@@ -28,14 +29,25 @@
   ],
   "dataGroups": [
     {
-      "name": "osm-tiles",
+      "name": "map-tiles-osm",
       "urls": [
         "https://tile.openstreetmap.org/**"
       ],
       "cacheConfig": {
-        "maxSize": 10000,
+        "maxSize": 500,
         "maxAge": "7d",
         "timeout": "5s",
+        "strategy": "freshness"
+      }
+    },
+    {
+      "name": "map-tiles-openseamap",
+      "urls": [
+        "https://tiles.openseamap.org/**"
+      ],
+      "cacheConfig": {
+        "maxSize": 200,
+        "maxAge": "30d",
         "strategy": "performance"
       }
     }

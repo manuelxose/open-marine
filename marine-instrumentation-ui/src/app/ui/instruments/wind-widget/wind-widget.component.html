@@ -1,85 +1,103 @@
-<app-instrument-card
-      title="WIND (APP / TRUE)"
-      [quality]="view().quality"
-      [ageSeconds]="view().age"
-      [source]="view().source"
-      class="marine-card"
-    >
-      <div class="wind-container">
-        
-        <div class="corner-data top-left app-wind">
-          <span class="label">AWS</span>
-          <span class="value">{{ view().aws }}</span>
-          <span class="unit">kn</span>
-        </div>
+<omi-gb-bezel
+  class="marine-card"
+  label="WIND (APP / TRUE)"
+  [quality]="view().quality"
+>
+  <div class="wind-container">
+    <div class="corner-data top-left app-wind">
+      <span class="label gb-instrument-label">AWS</span>
+      <span class="value gb-display-value gb-display-value--md">{{ view().awsDisplay }}</span>
+      <span class="unit gb-display-unit" *ngIf="view().awsDisplay !== '---'">kn</span>
+    </div>
 
-        <div class="corner-data top-right true-wind">
-          <span class="label">TWS</span>
-          <span class="value">{{ view().tws }}</span>
-          <span class="unit">kn</span>
-        </div>
+    <div class="corner-data top-right true-wind">
+      <span class="label gb-instrument-label">TWS</span>
+      <span class="value gb-display-value gb-display-value--md">{{ view().twsDisplay }}</span>
+      <span class="unit gb-display-unit" *ngIf="view().twsDisplay !== '---'">kn</span>
+    </div>
 
-        <svg viewBox="0 0 240 240" class="wind-svg">
-          <defs>
-            <linearGradient id="bezelGradWind" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stop-color="#3a4b5c"/>
-              <stop offset="100%" stop-color="#182029"/>
-            </linearGradient>
+    <svg viewBox="0 0 240 240" class="wind-svg" role="img" [attr.aria-label]="view().ariaLabel">
+      <defs>
+        <linearGradient id="bezelGradWind" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="var(--gb-border-panel)" />
+          <stop offset="100%" stop-color="var(--gb-bg-bezel)" />
+        </linearGradient>
 
-            <filter id="glowApp" x="-20%" y="-20%" width="140%" height="140%">
-               <feGaussianBlur stdDeviation="2" result="blur"/>
-               <feComposite in="SourceGraphic" in2="blur" operator="over"/>
-            </filter>
-            
-            <filter id="shadowWind">
-               <feDropShadow dx="0" dy="2" stdDeviation="2" flood-opacity="0.5"/>
-            </filter>
-          </defs>
+        <filter id="glowApp" x="-20%" y="-20%" width="140%" height="140%">
+          <feGaussianBlur stdDeviation="2" result="blur" />
+          <feComposite in="SourceGraphic" in2="blur" operator="over" />
+        </filter>
 
-          <circle cx="120" cy="120" r="100" fill="#0b1116" stroke="url(#bezelGradWind)" stroke-width="2"/>
+        <filter id="shadowWind">
+          <feDropShadow dx="0" dy="2" stdDeviation="2" flood-opacity="0.35" />
+        </filter>
+      </defs>
 
-          <path d="M 120,28 A 92,92 0 0,0 40,166" fill="none" stroke="#ff3d00" stroke-width="4" opacity="0.15" stroke-linecap="round"/>
-          <path d="M 120,28 A 92,92 0 0,1 200,166" fill="none" stroke="#00e676" stroke-width="4" opacity="0.15" stroke-linecap="round"/>
+      <circle cx="120" cy="120" r="100" fill="var(--gb-bg-bezel)" stroke="url(#bezelGradWind)" stroke-width="2" />
 
-          <g class="ticks-group">
-            <line *ngFor="let tick of ticks"
-                  [attr.transform]="'rotate(' + tick.angle + ' 120 120)'"
-                  x1="120" y1="20" x2="120" [attr.y2]="tick.major ? 35 : 28"
-                  [class.major]="tick.major"
-                  class="tick-mark" />
-            
-            <g class="labels">
-               <text x="120" y="55" class="angle-label">0</text>
-               <text x="185" y="125" class="angle-label">90</text>
-               <text x="120" y="195" class="angle-label">180</text>
-               <text x="55" y="125" class="angle-label">90</text>
-            </g>
-          </g>
+      <path d="M 120,28 A 92,92 0 0,0 40,166" fill="none" stroke="var(--gb-data-stale)" stroke-width="4" opacity="0.15" stroke-linecap="round" />
+      <path d="M 120,28 A 92,92 0 0,1 200,166" fill="none" stroke="var(--gb-data-good)" stroke-width="4" opacity="0.15" stroke-linecap="round" />
 
-          <g transform="translate(120, 120)">
-             <path d="M0,-45 C18,-25 18,35 0,55 C-18,35 -18,-25 0,-45 Z" fill="#1a2634" stroke="#3a4b5c" stroke-width="1.5"/>
-             <line x1="0" y1="-45" x2="0" y2="55" stroke="#3a4b5c" stroke-width="1" opacity="0.3"/>
-          </g>
+      <g class="ticks-group">
+        <line
+          *ngFor="let tick of ticks"
+          [attr.transform]="'rotate(' + tick.angle + ' 120 120)'"
+          x1="120"
+          y1="20"
+          x2="120"
+          [attr.y2]="tick.major ? 35 : 28"
+          [class.major]="tick.major"
+          class="tick-mark"
+        />
 
-          <g [style.transform]="'rotate(' + view().twaRotation + 'deg)'" class="needle-wrapper true">
-             <path d="M120 25 L132 55 L120 48 L108 55 Z" fill="none" stroke="#ff9100" stroke-width="2" filter="url(#shadowWind)"/>
-             <line x1="120" y1="48" x2="120" y2="120" stroke="#ff9100" stroke-width="2" stroke-dasharray="2 3"/>
-             <circle cx="120" cy="25" r="3" fill="#ff9100"/>
-          </g>
+        <g class="labels">
+          <text x="120" y="55" class="angle-label">0</text>
+          <text x="185" y="125" class="angle-label">90</text>
+          <text x="120" y="195" class="angle-label">180</text>
+          <text x="55" y="125" class="angle-label">90</text>
+        </g>
+      </g>
 
-          <g [style.transform]="'rotate(' + view().awaRotation + 'deg)'" class="needle-wrapper app">
-             <path d="M120 18 L130 60 L120 120 L110 60 Z" fill="#00e5ff" filter="url(#glowApp)" opacity="0.9"/>
-             <path d="M120 18 L130 60 L110 60 Z" fill="#e0f7fa" opacity="0.6"/>
-          </g>
+      <g transform="translate(120, 120)">
+        <path
+          d="M0,-45 C18,-25 18,35 0,55 C-18,35 -18,-25 0,-45 Z"
+          fill="var(--gb-bg-panel)"
+          stroke="var(--gb-border-panel)"
+          stroke-width="1.5"
+        />
+        <line x1="0" y1="-45" x2="0" y2="55" stroke="var(--gb-border-panel)" stroke-width="1" opacity="0.3" />
+      </g>
 
-          <circle cx="120" cy="120" r="6" fill="#0b1116" stroke="#8b9bb4" stroke-width="2"/>
+      <g
+        [style.transform]="'rotate(' + view().twaRotation + 'deg)'"
+        class="gb-needle-wrapper needle-wrapper true"
+        [class.gb-needle-wrapper--stale]="view().isStale"
+      >
+        <path d="M120 25 L132 55 L120 48 L108 55 Z" fill="none" stroke="var(--gb-needle-primary)" stroke-width="2" filter="url(#shadowWind)" />
+        <line x1="120" y1="48" x2="120" y2="120" stroke="var(--gb-needle-primary)" stroke-width="2" stroke-dasharray="2 3" />
+        <circle cx="120" cy="25" r="3" fill="var(--gb-needle-primary)" />
+      </g>
 
-        </svg>
+      <g
+        [style.transform]="'rotate(' + view().awaRotation + 'deg)'"
+        class="gb-needle-wrapper needle-wrapper app"
+        [class.gb-needle-wrapper--stale]="view().isStale"
+      >
+        <path d="M120 18 L130 60 L120 120 L110 60 Z" fill="var(--gb-needle-secondary)" filter="url(#glowApp)" opacity="0.9" />
+        <path d="M120 18 L130 60 L110 60 Z" fill="color-mix(in srgb, var(--gb-needle-secondary) 35%, var(--gb-text-value))" opacity="0.65" />
+      </g>
 
-        <div class="legend">
-           <span class="dot app"></span> APP
-           <span class="dot true"></span> TRUE
-        </div>
+      <circle cx="120" cy="120" r="6" fill="var(--gb-bg-bezel)" stroke="var(--gb-text-unit)" stroke-width="2" />
+    </svg>
 
-      </div>
-    </app-instrument-card>
+    <div class="legend gb-display-unit">
+      <span class="dot app"></span>APP
+      <span class="dot true"></span>TRUE
+    </div>
+
+    <div class="meta-row">
+      <span class="gb-instrument-label" *ngIf="view().source">{{ view().source }}</span>
+      <span class="gb-display-unit" *ngIf="view().age !== null">{{ view().age | number:'1.1-1' }}s</span>
+    </div>
+  </div>
+</omi-gb-bezel>

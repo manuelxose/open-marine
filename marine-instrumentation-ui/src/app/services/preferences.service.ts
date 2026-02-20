@@ -20,10 +20,11 @@ const DEFAULT_PREFERENCES: UserPreferences = {
   speedUnit: 'kn',
   depthUnit: 'm',
   shallowThreshold: 3.0,
-  theme: 'day',
+  theme: 'night',
 };
 
 const STORAGE_KEY = 'omi-preferences';
+const LEGACY_THEME_KEY = 'omi-theme';
 
 @Injectable({
   providedIn: 'root',
@@ -99,6 +100,7 @@ export class PreferencesService {
     }
 
     localStorage.setItem(STORAGE_KEY, JSON.stringify(prefs));
+    localStorage.setItem(LEGACY_THEME_KEY, prefs.theme);
     document.body.classList.toggle('compact-mode', prefs.density === 'compact');
     document.documentElement.setAttribute('data-theme', prefs.theme);
     document.body.setAttribute('data-theme', prefs.theme);

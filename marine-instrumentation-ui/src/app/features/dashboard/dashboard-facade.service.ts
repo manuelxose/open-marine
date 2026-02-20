@@ -294,10 +294,20 @@ export class DashboardFacadeService {
         metric('dashboard.metrics.twa', formatAngleDegrees(coerceNumber(twa?.value))),
       ],
       primarySeries: series,
+      updatedAt: Math.max(
+        aws?.timestamp ?? 0,
+        awa?.timestamp ?? 0,
+        tws?.timestamp ?? 0,
+        twd?.timestamp ?? 0,
+        twa?.timestamp ?? 0,
+      ) || null,
       isLoading,
     }) satisfies WindPanelVm),
-    startWith({ title: 'dashboard.panels.wind', metrics: [], isLoading: true } satisfies WindPanelVm),
-    this.withFallback<WindPanelVm>({ title: 'dashboard.panels.wind', metrics: [], isLoading: false }, 'wind panel'),
+    startWith({ title: 'dashboard.panels.wind', metrics: [], updatedAt: null, isLoading: true } satisfies WindPanelVm),
+    this.withFallback<WindPanelVm>(
+      { title: 'dashboard.panels.wind', metrics: [], updatedAt: null, isLoading: false },
+      'wind panel',
+    ),
     shareReplay({ bufferSize: 1, refCount: true }),
   );
 
@@ -316,10 +326,14 @@ export class DashboardFacadeService {
         },
       ],
       series,
+      updatedAt: depth?.timestamp ?? null,
       isLoading,
     }) satisfies DepthPanelVm),
-    startWith({ title: 'dashboard.panels.depth', metrics: [], isLoading: true } satisfies DepthPanelVm),
-    this.withFallback<DepthPanelVm>({ title: 'dashboard.panels.depth', metrics: [], isLoading: false }, 'depth panel'),
+    startWith({ title: 'dashboard.panels.depth', metrics: [], updatedAt: null, isLoading: true } satisfies DepthPanelVm),
+    this.withFallback<DepthPanelVm>(
+      { title: 'dashboard.panels.depth', metrics: [], updatedAt: null, isLoading: false },
+      'depth panel',
+    ),
     shareReplay({ bufferSize: 1, refCount: true }),
   );
 
@@ -341,11 +355,15 @@ export class DashboardFacadeService {
           metric('dashboard.metrics.power', formatPower(power)),
         ],
         series,
+        updatedAt: Math.max(voltage?.timestamp ?? 0, current?.timestamp ?? 0) || null,
         isLoading,
       } satisfies PowerPanelVm;
     }),
-    startWith({ title: 'dashboard.panels.power', metrics: [], isLoading: true } satisfies PowerPanelVm),
-    this.withFallback<PowerPanelVm>({ title: 'dashboard.panels.power', metrics: [], isLoading: false }, 'power panel'),
+    startWith({ title: 'dashboard.panels.power', metrics: [], updatedAt: null, isLoading: true } satisfies PowerPanelVm),
+    this.withFallback<PowerPanelVm>(
+      { title: 'dashboard.panels.power', metrics: [], updatedAt: null, isLoading: false },
+      'power panel',
+    ),
     shareReplay({ bufferSize: 1, refCount: true }),
   );
 

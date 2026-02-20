@@ -3,6 +3,7 @@ import { toObservable } from '@angular/core/rxjs-interop';
 import { BehaviorSubject, auditTime, combineLatest, firstValueFrom, map, scan, shareReplay, startWith, timer } from 'rxjs';
 import { DatapointStoreService } from '../../../state/datapoints/datapoint-store.service';
 import { AisStoreService } from '../../../state/ais/ais-store.service';
+import { SignalKClientService } from '../../../data-access/signalk/signalk-client.service';
 import type { FeatureCollection, Point } from 'geojson';
 import {
   isPositionValue,
@@ -22,6 +23,8 @@ import type { DataPoint, TrackPoint } from '../../../state/datapoints/datapoint.
 import type {
   ChartCanvasVm,
   ChartControlsVm,
+  ChartRoutesPanelVm,
+  ChartTopBarVm,
   ChartFixState,
   ChartHudRow,
   ChartHudVm,
@@ -35,14 +38,18 @@ import { WaypointService, type Waypoint } from './waypoint.service';
 import { RouteService } from './route.service';
 import type { ChartSourceConfig, MapLibreInitView } from './maplibre-engine.service';
 import type { WaypointFeatureCollection, WaypointFeatureProperties } from '../types/chart-geojson';
+import { DataQualityService } from '../../../shared/services/data-quality.service';
+import { formatCoordinate } from '../../../core/formatting/formatters';
 import {
   bearingDistanceNm,
+  crossTrackErrorNm,
   formatFixed,
   METERS_PER_NM,
   metersPerSecondToKnots,
   normalizeDegrees,
   projectDestination,
   toDegrees,
+  vmgToWaypointKnots,
 } from '../../../state/calculations/navigation';
 import type { CpaLinesFeatureCollection } from '../types/chart-geojson';
 
@@ -51,6 +58,7 @@ const FIX_THRESHOLD_MS = 2000;
 const STALE_THRESHOLD_MS = 5000;
 const VECTOR_TIME_SECONDS = 60;
 const DEFAULT_VECTOR_NM = 0.2;
+const MIN_SPEED_FOR_ETA_KTS = 0.1;
 
 const DEFAULT_BASE_SOURCE: ChartSourceConfig = {
   id: 'osm-raster',
@@ -115,6 +123,18 @@ const EMPTY_HUD_ROWS: ChartHudRow[] = [
   hudRow('chart.hud.wp_dst', '--', 'nm'),
 ];
 
+const EMPTY_TOP_BAR_VM: ChartTopBarVm = {
+  sog: { value: null, formatted: '---', quality: 'missing' },
+  cog: { value: null, formatted: '---', quality: 'missing' },
+  hdg: { value: null, formatted: '---', quality: 'missing' },
+  position: { lat: '--', lon: '--', quality: 'missing' },
+  utcTime: '--:--:-- UTC',
+  localTime: '--:--:--',
+  signalKConnected: false,
+  signalKQuality: 'offline',
+  activeRoute: null,
+};
+
 const coerceNumber = (value: unknown): number | null => {
   return typeof value === 'number' && Number.isFinite(value) ? value : null;
 };
@@ -136,7 +156,9 @@ const fixStateLabel = (state: ChartFixState): string => {
 export class ChartFacadeService {
   private readonly store = inject(DatapointStoreService);
   private readonly aisStore = inject(AisStoreService);
+  private readonly signalKClient = inject(SignalKClientService);
   private readonly settingsService = inject(ChartSettingsService);
+  private readonly qualityService = inject(DataQualityService);
   private readonly waypointService = inject(WaypointService);
   private readonly routeService = inject(RouteService);
   private readonly _orientation$ = new BehaviorSubject<MapOrientation>('north-up');
@@ -279,6 +301,10 @@ export class ChartFacadeService {
   private readonly awa$ = selectAwa(this.store).pipe(shareReplay({ bufferSize: 1, refCount: true }));
   private readonly tws$ = selectTws(this.store).pipe(shareReplay({ bufferSize: 1, refCount: true }));
   private readonly twd$ = selectTwd(this.store).pipe(shareReplay({ bufferSize: 1, refCount: true }));
+  private readonly signalKConnected$ = this.signalKClient.connected$.pipe(
+    startWith(false),
+    shareReplay({ bufferSize: 1, refCount: true }),
+  );
 
   private readonly positionValue$ = this.position$.pipe(
     map((point) => this.extractPosition(point)),
@@ -441,6 +467,82 @@ export class ChartFacadeService {
       rows: EMPTY_HUD_ROWS,
       canToggleAutopilot: true,
     }),
+    shareReplay({ bufferSize: 1, refCount: true }),
+  );
+
+  readonly topBarVm$ = combineLatest({
+    tick: this.tick$,
+    positionPoint: this.position$,
+    position: this.positionValue$,
+    sog: this.sog$,
+    cog: this.cog$,
+    heading: this.heading$,
+    waypoint: this.waypointNav$,
+    activeWaypoint: this.waypointService.activeWaypoint$,
+    activeLeg: this.routeService.activeLeg$,
+    connected: this.signalKConnected$,
+  }).pipe(
+    map(({ positionPoint, position, sog, cog, heading, waypoint, activeWaypoint, activeLeg, connected }) => {
+      const now = new Date();
+      const sogValue = coerceNumber(sog?.value);
+      const cogValue = coerceNumber(cog?.value);
+      const headingValue = coerceNumber(heading?.value);
+      const sogKnots = sogValue !== null ? metersPerSecondToKnots(sogValue) : null;
+      const cogDeg = cogValue !== null ? normalizeDegrees(toDegrees(cogValue)) : null;
+      const headingDeg = headingValue !== null ? normalizeDegrees(toDegrees(headingValue)) : null;
+      const positionQuality = this.qualityService.getQuality(positionPoint?.timestamp ?? null);
+
+      // Compute XTE when we have an active leg and vessel position
+      let xteNm = 0;
+      if (activeLeg && position) {
+        const xte = crossTrackErrorNm(
+          { lat: activeLeg.from.lat, lon: activeLeg.from.lon },
+          { lat: activeLeg.to.lat, lon: activeLeg.to.lon },
+          { lat: position.latitude, lon: position.longitude },
+        );
+        xteNm = xte.xteNm;
+      }
+
+      const activeRoute =
+        activeWaypoint && waypoint
+          ? this.buildTopBarActiveRoute(activeWaypoint.name, waypoint.distanceNm, waypoint.bearingDeg, sogKnots, cogDeg, now, xteNm)
+          : null;
+
+      const signalKQuality: ChartTopBarVm['signalKQuality'] = !connected
+        ? 'offline'
+        : positionQuality === 'stale' || positionQuality === 'missing'
+          ? 'degraded'
+          : 'online';
+
+      return {
+        sog: {
+          value: sogKnots,
+          formatted: formatFixed(sogKnots, 1),
+          quality: this.qualityService.getQuality(sog?.timestamp ?? null),
+        },
+        cog: {
+          value: cogDeg,
+          formatted: formatFixed(cogDeg, 0),
+          quality: this.qualityService.getQuality(cog?.timestamp ?? null),
+        },
+        hdg: {
+          value: headingDeg,
+          formatted: formatFixed(headingDeg, 0),
+          quality: this.qualityService.getQuality(heading?.timestamp ?? null),
+        },
+        position: {
+          lat: formatCoordinate(position?.latitude ?? null, 'lat'),
+          lon: formatCoordinate(position?.longitude ?? null, 'lon'),
+          quality: positionQuality,
+        },
+        utcTime: this.formatUtcClock(now),
+        localTime: this.formatLocalClock(now),
+        signalKConnected: connected,
+        signalKQuality,
+        activeRoute,
+      } satisfies ChartTopBarVm;
+    }),
+    startWith(EMPTY_TOP_BAR_VM),
     shareReplay({ bufferSize: 1, refCount: true }),
   );
 
@@ -616,9 +718,13 @@ export class ChartFacadeService {
       showVector: settings.showVector,
       showTrueWind: settings.showTrueWind,
       showRangeRings: settings.showRangeRings,
+      showOpenSeaMap: settings.showOpenSeaMap,
       rangeRingIntervals: settings.rangeRingIntervals,
       canCenter,
       sourceId: source.id,
+      showAisTargets: settings.showAisTargets,
+      showAisLabels: settings.showAisLabels,
+      showCpaLines: settings.showCpaLines,
     } satisfies ChartControlsVm)),
     shareReplay({ bufferSize: 1, refCount: true }),
   );
@@ -672,6 +778,74 @@ export class ChartFacadeService {
     shareReplay({ bufferSize: 1, refCount: true }),
   );
 
+  readonly routesPanelVm$ = combineLatest({
+    tick: this.tick$,
+    waypoints: this.routeService.orderedWaypoints$,
+    activeId: this.waypointService.activeId$,
+    sog: this.sog$,
+  }).pipe(
+    map(({ waypoints, activeId, sog }) => {
+      if (waypoints.length < 2) {
+        return { routes: [] } satisfies ChartRoutesPanelVm;
+      }
+
+      const sogValue = coerceNumber(sog?.value);
+      const sogKnots = sogValue !== null ? metersPerSecondToKnots(sogValue) : null;
+      let totalDistanceNm = 0;
+      let cumulativeHours = 0;
+      const now = new Date();
+
+      const legs = waypoints.slice(0, -1).map((fromWaypoint, index) => {
+        const toWaypoint = waypoints[index + 1];
+        if (!toWaypoint) {
+          return null;
+        }
+        const nav = bearingDistanceNm(
+          { lat: fromWaypoint.lat, lon: fromWaypoint.lon },
+          { lat: toWaypoint.lat, lon: toWaypoint.lon },
+        );
+        totalDistanceNm += nav.distanceNm;
+
+        const legHours = sogKnots !== null && sogKnots > MIN_SPEED_FOR_ETA_KTS
+          ? nav.distanceNm / sogKnots
+          : null;
+        if (legHours !== null) {
+          cumulativeHours += legHours;
+        }
+
+        const etaDate = legHours !== null
+          ? new Date(now.getTime() + cumulativeHours * 3600_000)
+          : null;
+
+        return {
+          from: fromWaypoint.name,
+          to: toWaypoint.name,
+          bearingDeg: nav.bearingDeg,
+          distanceNm: nav.distanceNm,
+          eta: etaDate ? this.formatUtcClock(etaDate).replace(' UTC', '') : '--',
+        };
+      }).filter((leg): leg is NonNullable<typeof leg> => !!leg);
+
+      const route = {
+        id: 'current-route',
+        name: 'Current route',
+        waypointCount: waypoints.length,
+        totalDistanceNm,
+        isActive: activeId !== null,
+        estimatedDuration: this.formatTtg(
+          sogKnots !== null && sogKnots > MIN_SPEED_FOR_ETA_KTS ? totalDistanceNm / sogKnots : null,
+        ),
+        legs,
+      };
+
+      return {
+        routes: [route],
+      } satisfies ChartRoutesPanelVm;
+    }),
+    startWith({ routes: [] } satisfies ChartRoutesPanelVm),
+    shareReplay({ bufferSize: 1, refCount: true }),
+  );
+
   toggleAutoCenter(): void {
     this.settingsService.toggleAutoCenter();
   }
@@ -691,6 +865,38 @@ export class ChartFacadeService {
   toggleRangeRings(): void {
     this.settingsService.toggleRangeRings();
   }
+
+  toggleOpenSeaMap(): void {
+    this.settingsService.toggleOpenSeaMap();
+  }
+
+  toggleAisTargets(): void {
+    this.settingsService.toggleAisTargets();
+  }
+
+  toggleAisLabels(): void {
+    this.settingsService.toggleAisLabels();
+  }
+
+  toggleCpaLines(): void {
+    this.settingsService.toggleCpaLines();
+  }
+
+  readonly openSeaMapVisible$ = this.settingsService.settings$.pipe(
+    map(s => s.showOpenSeaMap),
+  );
+
+  readonly showAisTargets$ = this.settingsService.settings$.pipe(
+    map(s => s.showAisTargets),
+  );
+
+  readonly showAisLabels$ = this.settingsService.settings$.pipe(
+    map(s => s.showAisLabels),
+  );
+
+  readonly showCpaLines$ = this.settingsService.settings$.pipe(
+    map(s => s.showCpaLines),
+  );
 
   setRangeRingIntervals(intervals: number[]): void {
     this.settingsService.setRangeRingIntervals(intervals);
@@ -737,6 +943,62 @@ export class ChartFacadeService {
 
   clearActiveWaypoint(): void {
     this.waypointService.clearActive();
+  }
+
+  private buildTopBarActiveRoute(
+    waypointName: string,
+    distanceNm: number,
+    bearingDeg: number,
+    sogKnots: number | null,
+    cogDeg: number | null,
+    now: Date,
+    xteNm: number = 0,
+  ): NonNullable<ChartTopBarVm['activeRoute']> {
+    const hoursToGo = sogKnots !== null && sogKnots > MIN_SPEED_FOR_ETA_KTS ? distanceNm / sogKnots : null;
+    const etaDate = hoursToGo !== null ? new Date(now.getTime() + hoursToGo * 3600_000) : null;
+
+    const vmgKnots =
+      sogKnots !== null && cogDeg !== null
+        ? vmgToWaypointKnots(sogKnots, cogDeg, bearingDeg)
+        : null;
+
+    return {
+      name: 'Direct To',
+      nextWaypointName: waypointName,
+      dtwNm: distanceNm,
+      btwDeg: bearingDeg,
+      xteNm,
+      vmgKnots,
+      eta: etaDate ? this.formatUtcClock(etaDate).replace(' UTC', '') : '--',
+      ttg: this.formatTtg(hoursToGo),
+    };
+  }
+
+  private formatUtcClock(date: Date): string {
+    const hours = date.getUTCHours().toString().padStart(2, '0');
+    const minutes = date.getUTCMinutes().toString().padStart(2, '0');
+    const seconds = date.getUTCSeconds().toString().padStart(2, '0');
+    return `${hours}:${minutes}:${seconds} UTC`;
+  }
+
+  private formatLocalClock(date: Date): string {
+    const hours = date.getHours().toString().padStart(2, '0');
+    const minutes = date.getMinutes().toString().padStart(2, '0');
+    const seconds = date.getSeconds().toString().padStart(2, '0');
+    return `${hours}:${minutes}:${seconds}`;
+  }
+
+  private formatTtg(hours: number | null): string {
+    if (hours === null || !Number.isFinite(hours) || hours < 0) {
+      return '--';
+    }
+    const totalMinutes = Math.max(0, Math.round(hours * 60));
+    const ttgHours = Math.floor(totalMinutes / 60);
+    const ttgMinutes = totalMinutes % 60;
+    if (ttgHours === 0) {
+      return `${ttgMinutes}m`;
+    }
+    return `${ttgHours}h ${ttgMinutes.toString().padStart(2, '0')}m`;
   }
 
   private extractPosition(point: DataPoint<PositionValue> | undefined): PositionValue | null {

@@ -1,0 +1,143 @@
+// ============================================================================
+// GLASS BRIDGE THEME SYSTEM
+// Open Marine Instrumentation - Professional Marine UI Standard
+// Compatible: Garmin / Raymarine / Simrad visual language
+// ============================================================================
+//
+// THEME ARCHITECTURE:
+//   [data-theme="night"]  -> Active by default. Maximum night vision retention.
+//   [data-theme="day"]    -> Maximum sunlight contrast. Activated from settings.
+//
+// USAGE:
+//   color: var(--gb-text-value);          -> Primary digital value
+//   background: var(--gb-bg-face);        -> Instrument face background
+//   stroke: var(--gb-tick-major);         -> Primary SVG ticks
+//
+// ABSOLUTE RULE: Never use literal colors in components.
+//                Everything must derive from these variables.
+// ============================================================================
+
+// ----------------------------------------------------------------------------
+// NIGHT MODE - DEFAULT
+// Philosophy: maximum night vision retention.
+//             Safety orange for needles. Near-black background.
+// ----------------------------------------------------------------------------
+[data-theme='night'],
+:root {
+  // --- BACKGROUNDS & SURFACES ---
+  --gb-bg-canvas: #030507;
+  --gb-bg-bezel: #0b1116;
+  --gb-bg-face: radial-gradient(circle at 50% 50%, #182029 0%, #0b1116 100%);
+  --gb-bg-panel: rgba(11, 17, 22, 0.92);
+  --gb-bg-glass: rgba(255, 255, 255, 0.03);
+  --gb-bg-glass-active: rgba(255, 255, 255, 0.06);
+  --gb-border-panel: rgba(82, 102, 122, 0.35);
+  --gb-border-active: rgba(82, 152, 220, 0.6);
+
+  // --- TYPOGRAPHY & DATA ---
+  --gb-text-value: #ffffff;
+  --gb-text-unit: #8ba4bc;
+  --gb-text-muted: #687d97;
+  --gb-text-cardinal: #9bb4cc;
+  --gb-text-stale: #455264;
+
+  // --- SVG GRAPHICAL ELEMENTS ---
+  --gb-tick-major: #52667a;
+  --gb-tick-minor: #2a3744;
+  --gb-tick-reference: #4a90d9;
+  --gb-needle-primary: #ff5722;
+  --gb-needle-secondary: #4a90d9;
+  --gb-needle-pin: #1a2530;
+  --gb-needle-pin-border: #52667a;
+  --gb-arc-normal: rgba(0, 230, 118, 0.25);
+  --gb-arc-warning: rgba(255, 234, 0, 0.25);
+  --gb-arc-danger: rgba(255, 23, 68, 0.25);
+
+  // --- FILTERS & EFFECTS ---
+  --gb-glow-filter: url(#gb-neon-glow);
+  --gb-shadow-instrument: inset 0 2px 8px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(82, 102, 122, 0.2);
+  --gb-shadow-active: 0 0 20px rgba(74, 144, 217, 0.15);
+
+  // --- DATA SEMANTICS (SIGNAL QUALITY) ---
+  --gb-data-good: #00e676;
+  --gb-data-good-rgb: 0, 230, 118;
+  --gb-data-warn: #ffea00;
+  --gb-data-warn-rgb: 255, 234, 0;
+  --gb-data-stale: #ff1744;
+  --gb-data-stale-rgb: 255, 23, 68;
+  --gb-connection-active: #00e676;
+  --gb-connection-lost: #ff1744;
+  --gb-connection-stale: #ffea00;
+
+  // --- ALARMS ---
+  --gb-alarm-emergency-bg: rgba(255, 23, 68, 0.15);
+  --gb-alarm-emergency-border: #ff1744;
+  --gb-alarm-critical-bg: rgba(255, 87, 34, 0.15);
+  --gb-alarm-critical-border: #ff5722;
+  --gb-alarm-warning-bg: rgba(255, 234, 0, 0.12);
+  --gb-alarm-warning-border: #ffea00;
+  --gb-alarm-info-bg: rgba(74, 144, 217, 0.12);
+  --gb-alarm-info-border: #4a90d9;
+}
+
+// ----------------------------------------------------------------------------
+// DAY MODE
+// Philosophy: maximum sunlight contrast. No glow effects.
+//             Matte gray background to reduce screen reflections.
+// ----------------------------------------------------------------------------
+[data-theme='day'] {
+  // --- BACKGROUNDS & SURFACES ---
+  --gb-bg-canvas: #e2e8ec;
+  --gb-bg-bezel: #cfd9e0;
+  --gb-bg-face: radial-gradient(circle at 50% 50%, #ffffff 0%, #eef2f5 100%);
+  --gb-bg-panel: rgba(245, 248, 250, 0.96);
+  --gb-bg-glass: rgba(255, 255, 255, 0.4);
+  --gb-bg-glass-active: rgba(255, 255, 255, 0.7);
+  --gb-border-panel: rgba(161, 179, 194, 0.6);
+  --gb-border-active: rgba(2, 132, 199, 0.7);
+
+  // --- TYPOGRAPHY & DATA ---
+  --gb-text-value: #090e13;
+  --gb-text-unit: #3d5266;
+  --gb-text-muted: #4a5b6c;
+  --gb-text-cardinal: #1a2d3e;
+  --gb-text-stale: #a0b0be;
+
+  // --- SVG GRAPHICAL ELEMENTS ---
+  --gb-tick-major: #182029;
+  --gb-tick-minor: #8b9bb4;
+  --gb-tick-reference: #0369a1;
+  --gb-needle-primary: #d83b01;
+  --gb-needle-secondary: #0369a1;
+  --gb-needle-pin: #e8edf1;
+  --gb-needle-pin-border: #8b9bb4;
+  --gb-arc-normal: rgba(2, 163, 84, 0.2);
+  --gb-arc-warning: rgba(180, 100, 0, 0.2);
+  --gb-arc-danger: rgba(180, 0, 0, 0.2);
+
+  // --- FILTERS & EFFECTS ---
+  --gb-glow-filter: none;
+  --gb-shadow-instrument: inset 0 2px 6px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(161, 179, 194, 0.4);
+  --gb-shadow-active: 0 0 12px rgba(2, 132, 199, 0.2);
+
+  // --- DATA SEMANTICS ---
+  --gb-data-good: #00a659;
+  --gb-data-good-rgb: 0, 166, 89;
+  --gb-data-warn: #c97b00;
+  --gb-data-warn-rgb: 201, 123, 0;
+  --gb-data-stale: #c0392b;
+  --gb-data-stale-rgb: 192, 57, 43;
+  --gb-connection-active: #00a659;
+  --gb-connection-lost: #c0392b;
+  --gb-connection-stale: #c97b00;
+
+  // --- ALARMS ---
+  --gb-alarm-emergency-bg: rgba(192, 57, 43, 0.1);
+  --gb-alarm-emergency-border: #c0392b;
+  --gb-alarm-critical-bg: rgba(180, 60, 0, 0.1);
+  --gb-alarm-critical-border: #d83b01;
+  --gb-alarm-warning-bg: rgba(201, 123, 0, 0.1);
+  --gb-alarm-warning-border: #c97b00;
+  --gb-alarm-info-bg: rgba(2, 132, 199, 0.08);
+  --gb-alarm-info-border: #0369a1;
+}
