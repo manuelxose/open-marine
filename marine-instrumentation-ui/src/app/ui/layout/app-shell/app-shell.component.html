@@ -98,7 +98,10 @@
   </nav>
 
   <!-- Main Content -->
-  <div class="main-container" (click)="handleMainAreaClick($event)">
+  <div
+    class="main-container"
+    [style.--chart-topbar-left-offset]="((isChartRoute$ | async) && navCollapsed) ? '44px' : '0px'"
+    (click)="handleMainAreaClick($event)">
     <app-top-bar *ngIf="!(isChartRoute$ | async)"
       [connected]="(connected$ | async) ?? false"
       [isNight]="(theme$ | async) === 'night'"

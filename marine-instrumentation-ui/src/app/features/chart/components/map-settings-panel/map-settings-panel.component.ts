@@ -301,7 +301,11 @@ const VESSEL_TYPE_KEYS: VesselTypeFilter[] = [
     </div>
   `,
   styles: [`
-    :host { display: block; }
+    :host {
+      display: block;
+      height: 100%;
+      min-height: 0;
+    }
 
     // ═══════════════════════════════════════════════
     // PANEL SHELL
