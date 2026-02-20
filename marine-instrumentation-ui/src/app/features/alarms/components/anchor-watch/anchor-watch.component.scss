@@ -4,7 +4,7 @@
 }
 
 .anchor-watch-card {
-  background: var(--panel-bg, var(--surface-1));
+  background: var(--panel-bg, var(--gb-bg-bezel));
   border: 1px solid var(--panel-border, var(--border));
   border-radius: var(--radius, 12px);
   padding: 16px;
@@ -22,7 +22,7 @@
   h3 {
     margin: 0;
     font-size: 0.9rem;
-    color: var(--text-secondary);
+    color: var(--gb-text-muted);
     font-weight: 700;
     letter-spacing: 0.08em;
     text-transform: uppercase;
@@ -30,8 +30,8 @@
 }
 
 .status-badge {
-  background: var(--surface-2);
-  color: var(--text-secondary);
+  background: var(--gb-bg-panel);
+  color: var(--gb-text-muted);
   padding: 4px 10px;
   border-radius: 999px;
   font-size: 0.65rem;
@@ -66,7 +66,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: color-mix(in srgb, var(--surface-2) 70%, transparent);
+  background: color-mix(in srgb, var(--gb-bg-panel) 70%, transparent);
 
   &.active {
     border-color: color-mix(in srgb, var(--success) 60%, var(--panel-border));
@@ -92,7 +92,7 @@
   gap: 12px;
 
   .metric {
-    background: var(--surface-2);
+    background: var(--gb-bg-panel);
     padding: 12px;
     border-radius: 10px;
     text-align: center;
@@ -100,7 +100,7 @@
 
     label {
       font-size: 0.65rem;
-      color: var(--text-secondary);
+      color: var(--gb-text-muted);
       display: block;
       margin-bottom: 4px;
       letter-spacing: 0.08em;
@@ -111,7 +111,7 @@
       font-size: 1.35rem;
       font-weight: 700;
       font-family: var(--font-technical, monospace);
-      color: var(--text-primary);
+      color: var(--gb-text-value);
     }
   }
 }

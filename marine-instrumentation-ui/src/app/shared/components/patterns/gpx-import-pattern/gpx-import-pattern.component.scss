@@ -7,7 +7,7 @@
   padding: 0.75rem;
   border: 1px solid var(--border-default);
   border-radius: var(--radius-lg);
-  background: var(--bg-surface);
+  background: var(--gb-bg-panel);
   box-shadow: var(--shadow-sm);
   display: flex;
   flex-direction: column;
@@ -26,7 +26,7 @@
   font-weight: 700;
   letter-spacing: 0.09em;
   text-transform: uppercase;
-  color: var(--text-secondary);
+  color: var(--gb-text-muted);
 }
 
 .gpx-import-pattern__state {
@@ -35,7 +35,7 @@
   border: 1px solid var(--border-default);
   font-size: 0.68rem;
   font-weight: 700;
-  color: var(--text-secondary);
+  color: var(--gb-text-muted);
 }
 
 .gpx-import-pattern__dropzone {
@@ -48,14 +48,14 @@
   justify-content: center;
   gap: 0.5rem;
   background: var(--bg-surface-secondary);
-  color: var(--text-secondary);
+  color: var(--gb-text-muted);
   text-align: center;
 }
 
 .gpx-import-pattern__dropzone--dropping {
   border-style: solid;
-  border-color: var(--primary);
-  color: var(--primary);
+  border-color: var(--gb-needle-secondary);
+  color: var(--gb-needle-secondary);
 }
 
 .gpx-import-pattern__drop-text {
@@ -87,7 +87,7 @@
   margin: 0;
   font-size: 0.85rem;
   font-weight: 700;
-  color: var(--text-primary);
+  color: var(--gb-text-value);
 }
 
 .gpx-import-pattern__counts {
@@ -101,14 +101,14 @@
   margin: 0;
   padding: 0.4rem 0.45rem;
   border-radius: var(--radius-sm);
-  background: var(--bg-surface);
+  background: var(--gb-bg-panel);
   border: 1px solid var(--border-default);
 }
 
 .gpx-import-pattern__count dt {
   margin: 0;
   font-size: 0.68rem;
-  color: var(--text-secondary);
+  color: var(--gb-text-muted);
 }
 
 .gpx-import-pattern__count dd {
@@ -116,7 +116,7 @@
   font-size: 0.88rem;
   font-family: var(--font-mono);
   font-weight: 700;
-  color: var(--text-primary);
+  color: var(--gb-text-value);
 }
 
 .gpx-import-pattern__actions {

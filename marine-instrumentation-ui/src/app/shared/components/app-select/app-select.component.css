@@ -15,10 +15,10 @@
   justify-content: space-between;
   width: 100%;
   padding: 0.5rem 0.75rem;
-  background-color: var(--bg-surface);
+  background-color: var(--gb-bg-panel);
   border: 1px solid var(--border-default);
   border-radius: var(--radius-md);
-  color: var(--text-primary);
+  color: var(--gb-text-value);
   font-family: var(--font-binary); /* Using binary/mono for data usually, but body for forms? Let's use body */
   font-family: var(--font-body);
   font-size: var(--text-sm);
@@ -27,7 +27,7 @@
 }
 
 .placeholder-text {
-  color: var(--text-tertiary);
+  color: var(--gb-text-muted);
 }
 
 .truncate {
@@ -39,7 +39,7 @@
 }
 
 .select-icon {
-  color: var(--text-secondary);
+  color: var(--gb-text-muted);
   flex-shrink: 0;
   transition: transform 0.2s ease;
 }
@@ -62,7 +62,7 @@
 .app-select-container:focus-within .select-trigger {
   border-color: var(--primary-500);
   outline: 2px solid transparent; /* Fallback */
-  box-shadow: 0 0 0 2px var(--bg-surface), 0 0 0 4px var(--primary-500);
+  box-shadow: 0 0 0 2px var(--gb-bg-panel), 0 0 0 4px var(--primary-500);
 }
 
 /* Hover */
@@ -91,7 +91,7 @@
 }
 
 .app-select-container.error:focus-within .select-trigger {
-  box-shadow: 0 0 0 2px var(--bg-surface), 0 0 0 4px var(--danger-500);
+  box-shadow: 0 0 0 2px var(--gb-bg-panel), 0 0 0 4px var(--danger-500);
 }
 
 .error-text {

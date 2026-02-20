@@ -41,12 +41,12 @@
   font-size: 0.72rem;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: var(--text-secondary);
+  color: var(--gb-text-muted);
 }
 
 .panel-count {
   background: color-mix(in srgb, var(--bg-surface-secondary) 70%, transparent);
-  color: var(--text-primary);
+  color: var(--gb-text-value);
   font-size: 0.65rem;
   font-weight: 700;
   padding: 2px 6px;
@@ -58,7 +58,7 @@
 .panel-toggle {
   background: transparent;
   border: none;
-  color: var(--text-secondary);
+  color: var(--gb-text-muted);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -125,8 +125,8 @@
 }
 
 .waypoint-item.active {
-  border-color: color-mix(in srgb, var(--primary) 50%, transparent);
-  background: color-mix(in srgb, var(--primary) 8%, transparent);
+  border-color: color-mix(in srgb, var(--gb-needle-secondary) 50%, transparent);
+  background: color-mix(in srgb, var(--gb-needle-secondary) 8%, transparent);
 }
 
 .waypoint-main {
@@ -144,7 +144,7 @@
   border: none;
   padding: 4px;
   border-radius: var(--radius-sm);
-  color: var(--text-tertiary);
+  color: var(--gb-text-muted);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -157,7 +157,7 @@
 .waypoint-select:hover,
 .waypoint-delete:hover {
   background: color-mix(in srgb, var(--bg-surface-secondary) 70%, transparent);
-  color: var(--text-primary);
+  color: var(--gb-text-value);
 }
 
 .waypoint-delete:hover {
@@ -166,7 +166,7 @@
 }
 
 .waypoint-select.selected {
-  color: var(--primary);
+  color: var(--gb-needle-secondary);
 }
 
 .waypoint-select.selected svg {
@@ -185,7 +185,7 @@
 .waypoint-name {
   background: transparent;
   border: 1px solid transparent;
-  color: var(--text-primary);
+  color: var(--gb-text-value);
   font-family: inherit;
   font-weight: 500;
   font-size: 0.82rem;
@@ -205,13 +205,13 @@
 .waypoint-name:focus {
   outline: none;
   background: color-mix(in srgb, var(--bg-surface-secondary) 60%, transparent);
-  border-color: var(--primary);
+  border-color: var(--gb-needle-secondary);
 }
 
 .waypoint-coords {
   font-family: var(--font-mono);
   font-size: 0.68rem;
-  color: var(--text-tertiary);
+  color: var(--gb-text-muted);
   padding-left: var(--space-1);
 }
 
@@ -228,7 +228,7 @@
   text-transform: uppercase;
   font-weight: 700;
   letter-spacing: 0.06em;
-  color: var(--text-secondary);
+  color: var(--gb-text-muted);
   background: transparent;
   border: 1px dashed color-mix(in srgb, var(--border-default) 60%, transparent);
   border-radius: var(--radius-md);
@@ -237,8 +237,8 @@
 }
 
 .waypoint-clear:hover {
-  border-color: var(--text-secondary);
-  color: var(--text-primary);
+  border-color: var(--gb-text-muted);
+  color: var(--gb-text-value);
   background: color-mix(in srgb, var(--bg-surface-secondary) 50%, transparent);
 }
 

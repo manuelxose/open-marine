@@ -21,7 +21,7 @@
 }
 
 .dialog-box {
-  background-color: var(--bg-surface);
+  background-color: var(--gb-bg-panel);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-xl);
   width: 100%;
@@ -31,7 +31,7 @@
   border: 1px solid var(--border-default);
   animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
   overflow: hidden;
-  color: var(--text-primary);
+  color: var(--gb-text-value);
 }
 
 .dialog-header {
@@ -50,7 +50,7 @@
 .dialog-body {
   padding: var(--space-2) var(--space-6) var(--space-6);
   text-align: center;
-  color: var(--text-secondary);
+  color: var(--gb-text-muted);
 }
 
 .dialog-actions {

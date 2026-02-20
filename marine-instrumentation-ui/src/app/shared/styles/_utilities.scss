@@ -2,16 +2,16 @@
 
 // Text Colors
 .text-muted { color: var(--text-muted) !important; }
-.text-primary { color: var(--text-primary) !important; }
-.text-secondary { color: var(--text-secondary) !important; }
-.text-tertiary { color: var(--text-tertiary) !important; }
-.text-accent { color: var(--accent) !important; }
+.text-primary { color: var(--gb-text-value) !important; }
+.text-secondary { color: var(--gb-text-muted) !important; }
+.text-tertiary { color: var(--gb-text-muted) !important; }
+.text-accent { color: var(--gb-needle-secondary) !important; }
 .text-danger { color: var(--danger) !important; }
 .text-warn { color: var(--warn) !important; }
 .text-success { color: var(--success) !important; }
 
 // Backgrounds
-.bg-surface-1 { background-color: var(--bg-surface); }
+.bg-surface-1 { background-color: var(--gb-bg-panel); }
 .bg-surface-2 { background-color: var(--bg-surface-secondary); }
 
 // Layout
@@ -91,4 +91,51 @@ button, a {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+}
+
+// ═══════════════════════════════════════════════════════════
+// DOC_4 — Accessibility (WCAG AA)
+// ═══════════════════════════════════════════════════════════
+
+// Focus-visible indicator for keyboard navigation
+:focus-visible {
+  outline: 2px solid var(--gb-accent, #4a90d9);
+  outline-offset: 2px;
+  border-radius: inherit;
+}
+
+// Remove default focus for mouse users
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+// Critical controls need 48×48px touch targets
+.touch-target-critical {
+  min-height: 48px;
+  min-width: 48px;
+}
+
+// Screen-reader only (visually hidden)
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+// Reduced motion preference
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

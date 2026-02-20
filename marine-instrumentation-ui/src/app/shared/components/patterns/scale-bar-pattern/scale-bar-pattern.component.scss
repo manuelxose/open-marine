@@ -7,7 +7,7 @@
   padding: 0.7rem;
   border: 1px solid var(--border-default);
   border-radius: var(--radius-lg);
-  background: var(--bg-surface);
+  background: var(--gb-bg-panel);
   box-shadow: var(--shadow-sm);
   display: flex;
   flex-direction: column;
@@ -26,7 +26,7 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: var(--text-secondary);
+  color: var(--gb-text-muted);
 }
 
 .scale-bar-pattern__canvas {
@@ -40,7 +40,7 @@
   top: 8px;
   height: 3px;
   border-radius: 999px;
-  background: var(--text-primary);
+  background: var(--gb-text-value);
 }
 
 .scale-bar-pattern__tick {
@@ -49,7 +49,7 @@
   width: 2px;
   height: 13px;
   border-radius: 999px;
-  background: var(--text-primary);
+  background: var(--gb-text-value);
 }
 
 .scale-bar-pattern__tick--start {
@@ -70,6 +70,6 @@
 .scale-bar-pattern__label {
   font-size: 0.72rem;
   font-family: var(--font-mono);
-  color: var(--text-secondary);
+  color: var(--gb-text-muted);
 }
 

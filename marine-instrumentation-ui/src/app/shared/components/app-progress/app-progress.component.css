@@ -75,7 +75,7 @@
   margin-top: 0.25rem;
   font-family: var(--font-technical);
   font-size: var(--text-xs);
-  color: var(--text-secondary);
+  color: var(--gb-text-muted);
   text-align: right;
   font-variant-numeric: tabular-nums;
 }

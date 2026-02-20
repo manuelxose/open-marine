@@ -30,7 +30,7 @@ import { AutopilotConsoleComponent } from './components/autopilot-console/autopi
     .page-header h1 {
         margin: 0;
         font-size: 1.5rem;
-        color: var(--text-primary);
+        color: var(--gb-text-value);
     }
     .page-content {
         flex: 1;

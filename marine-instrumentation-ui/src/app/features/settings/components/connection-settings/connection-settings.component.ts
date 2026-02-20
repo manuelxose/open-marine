@@ -91,9 +91,10 @@ type TestStatus = 'idle' | 'testing' | 'success' | 'error';
   styles: [`
     .settings-section h2 {
       margin: 0 0 var(--space-4) 0;
+      font-family: 'Space Grotesk', sans-serif;
       font-size: 1.125rem;
-      font-weight: 600;
-      color: var(--text-primary);
+      font-weight: 700;
+      color: var(--gb-text-value);
     }
 
     .setting-item {
@@ -102,7 +103,7 @@ type TestStatus = 'idle' | 'testing' | 'success' | 'error';
       justify-content: space-between;
       gap: var(--space-4);
       padding: var(--space-3) 0;
-      border-bottom: 1px solid var(--border-default);
+      border-bottom: 1px solid var(--gb-border-panel);
     }
 
     .setting-info {
@@ -113,22 +114,24 @@ type TestStatus = 'idle' | 'testing' | 'success' | 'error';
     }
 
     .setting-label {
+      font-family: 'Space Grotesk', sans-serif;
       font-size: 0.875rem;
       font-weight: 500;
-      color: var(--text-primary);
+      color: var(--gb-text-value);
     }
 
     .setting-description {
       font-size: 0.75rem;
-      color: var(--text-secondary);
+      color: var(--gb-text-muted);
     }
 
     .setting-description code {
       padding: 1px 4px;
       font-size: 0.7rem;
-      background: var(--bg-elevated, var(--bg-surface));
+      font-family: 'JetBrains Mono', monospace;
+      background: var(--gb-bg-glass, rgba(255,255,255,0.03));
       border-radius: 3px;
-      color: var(--accent, #88c0d0);
+      color: var(--gb-needle-secondary, #4a90d9);
     }
 
     .input-action-group {
@@ -137,38 +140,46 @@ type TestStatus = 'idle' | 'testing' | 'success' | 'error';
     }
 
     .setting-input {
-      height: 36px;
+      height: 34px;
       padding: 0 var(--space-2);
-      font-size: 0.875rem;
-      color: var(--text-primary);
-      background: var(--bg-base);
-      border: 1px solid var(--border-default);
-      border-radius: var(--radius-md, 6px);
+      font-size: 0.85rem;
+      color: var(--gb-text-value);
+      background: var(--gb-bg-bezel);
+      border: 1px solid var(--gb-border-panel);
+      border-radius: 8px;
       outline: none;
-      font-family: monospace;
+      font-family: 'JetBrains Mono', monospace;
+      transition: border-color 150ms ease;
     }
 
     .setting-input--wide { width: 280px; }
 
-    .setting-input:focus { border-color: var(--accent, #88c0d0); }
+    .setting-input:focus { border-color: var(--gb-border-active, rgba(82, 152, 220, 0.6)); }
 
     .action-btn {
-      height: 36px;
+      height: 34px;
       padding: 0 var(--space-3);
-      font-size: 0.8125rem;
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 0.8rem;
       font-weight: 600;
-      color: var(--text-primary);
-      background: var(--bg-elevated, var(--bg-surface));
-      border: 1px solid var(--border-default);
-      border-radius: var(--radius-md, 6px);
+      color: var(--gb-text-value);
+      background: var(--gb-bg-glass, rgba(255,255,255,0.03));
+      border: 1px solid var(--gb-border-panel);
+      border-radius: 8px;
       cursor: pointer;
       white-space: nowrap;
+      transition: all 150ms ease;
     }
 
-    .action-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .action-btn:hover {
+      background: var(--gb-bg-glass-active, rgba(255,255,255,0.06));
+      border-color: var(--gb-border-active, rgba(82, 152, 220, 0.6));
+    }
+
+    .action-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
     .action-btn--secondary {
-      color: var(--text-secondary);
+      color: var(--gb-text-muted);
     }
 
     .connection-status {
@@ -177,9 +188,11 @@ type TestStatus = 'idle' | 'testing' | 'success' | 'error';
       gap: var(--space-2);
       padding: var(--space-2) var(--space-3);
       margin: var(--space-2) 0;
-      font-size: 0.8125rem;
-      border-radius: var(--radius-md, 6px);
-      background: var(--bg-base);
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 0.8rem;
+      border-radius: 8px;
+      background: var(--gb-bg-panel);
+      border: 1px solid var(--gb-border-panel);
     }
 
     .status-dot, .test-dot {
@@ -189,20 +202,22 @@ type TestStatus = 'idle' | 'testing' | 'success' | 'error';
       flex-shrink: 0;
     }
 
-    [data-status='connected'] .status-dot { background: var(--success, #a3be8c); }
-    [data-status='disconnected'] .status-dot { background: var(--warn, #ebcb8b); }
-    [data-status='offline'] .status-dot { background: var(--danger, #bf616a); }
+    [data-status='connected'] .status-dot { background: var(--gb-data-good); }
+    [data-status='disconnected'] .status-dot { background: var(--gb-data-warn); }
+    [data-status='offline'] .status-dot { background: var(--gb-data-stale); }
 
-    .status-text { color: var(--text-secondary); }
+    .status-text { color: var(--gb-text-muted); }
 
     .status-badge {
+      font-family: 'Space Grotesk', sans-serif;
       font-size: 0.75rem;
+      font-weight: 600;
       padding: 2px 8px;
-      border-radius: var(--radius-full, 999px);
+      border-radius: 999px;
     }
     .status-badge--on {
-      color: var(--success, #a3be8c);
-      background: color-mix(in srgb, var(--success, #a3be8c) 15%, transparent);
+      color: var(--gb-data-good);
+      background: rgba(var(--gb-data-good-rgb), 0.15);
     }
 
     .test-result {
@@ -211,19 +226,20 @@ type TestStatus = 'idle' | 'testing' | 'success' | 'error';
       gap: var(--space-2);
       padding: var(--space-2) var(--space-3);
       margin-bottom: var(--space-2);
-      font-size: 0.8125rem;
-      color: var(--text-secondary);
-      border-radius: var(--radius-md, 6px);
-      background: var(--bg-base);
+      font-size: 0.8rem;
+      color: var(--gb-text-muted);
+      border-radius: 8px;
+      background: var(--gb-bg-panel);
+      border: 1px solid var(--gb-border-panel);
     }
 
-    [data-status='testing'] .test-dot { background: var(--warn, #ebcb8b); }
-    [data-status='success'] .test-dot { background: var(--success, #a3be8c); }
-    [data-status='error']   .test-dot { background: var(--danger, #bf616a); }
+    [data-status='testing'] .test-dot { background: var(--gb-data-warn); }
+    [data-status='success'] .test-dot { background: var(--gb-data-good); }
+    [data-status='error']   .test-dot { background: var(--gb-data-stale); }
 
     .settings-divider {
       height: 1px;
-      background: var(--border-default);
+      background: var(--gb-border-panel);
       margin: var(--space-4) 0;
     }
   `],

@@ -54,7 +54,7 @@ export type AlertType = 'info' | 'success' | 'warning' | 'error';
       color: var(--alert-text);
       --alert-bg: var(--bg-surface-secondary);
       --alert-border: var(--border-default);
-      --alert-text: var(--text-primary);
+      --alert-text: var(--gb-text-value);
       --alert-icon: var(--info);
 
       &.info {

@@ -9,9 +9,9 @@
   align-items: center;
   background: radial-gradient(
     circle at 50% 50%,
-    color-mix(in srgb, var(--bg-surface) 96%, var(--primary) 4%) 0%,
-    var(--bg-surface) 60%,
-    color-mix(in srgb, var(--bg-surface-secondary) 85%, var(--bg-surface) 15%) 100%
+    color-mix(in srgb, var(--gb-bg-panel) 96%, var(--gb-needle-secondary) 4%) 0%,
+    var(--gb-bg-panel) 60%,
+    color-mix(in srgb, var(--bg-surface-secondary) 85%, var(--gb-bg-panel) 15%) 100%
   );
   border-radius: 50%;
   border: 2px solid var(--border-default);
@@ -31,7 +31,7 @@
   z-index: 2;
   text-align: center;
   margin-bottom: 20px;
-  background: color-mix(in srgb, var(--bg-surface) 82%, transparent);
+  background: color-mix(in srgb, var(--gb-bg-panel) 82%, transparent);
   border: 1px solid var(--border-default);
   border-radius: var(--radius-sm);
   padding: 0.5rem 0.75rem;
@@ -50,7 +50,7 @@
   text-align: center;
   font-family: var(--font-mono);
   font-size: 0.75rem;
-  color: var(--text-secondary);
+  color: var(--gb-text-muted);
   line-height: 1.2;
 }
 
@@ -58,6 +58,6 @@
     position: absolute;
     top: 15%;
     font-size: 0.7rem;
-    color: var(--text-tertiary);
+    color: var(--gb-text-muted);
     font-weight: bold;
 }

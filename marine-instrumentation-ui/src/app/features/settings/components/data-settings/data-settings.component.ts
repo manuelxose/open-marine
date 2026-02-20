@@ -45,9 +45,10 @@ import { AppStateService } from '../../../../state/app/app-state.service';
   styles: [`
     .settings-section h2 {
       margin: 0 0 var(--space-4) 0;
+      font-family: 'Space Grotesk', sans-serif;
       font-size: 1.125rem;
-      font-weight: 600;
-      color: var(--text-primary);
+      font-weight: 700;
+      color: var(--gb-text-value);
     }
 
     .setting-item {
@@ -56,7 +57,7 @@ import { AppStateService } from '../../../../state/app/app-state.service';
       justify-content: space-between;
       gap: var(--space-4);
       padding: var(--space-3) 0;
-      border-bottom: 1px solid var(--border-default);
+      border-bottom: 1px solid var(--gb-border-panel);
     }
 
     .setting-info {
@@ -67,31 +68,43 @@ import { AppStateService } from '../../../../state/app/app-state.service';
     }
 
     .setting-label {
+      font-family: 'Space Grotesk', sans-serif;
       font-size: 0.875rem;
       font-weight: 500;
-      color: var(--text-primary);
+      color: var(--gb-text-value);
     }
 
     .setting-description {
       font-size: 0.75rem;
-      color: var(--text-secondary);
+      color: var(--gb-text-muted);
     }
 
     .action-btn {
-      height: 36px;
+      height: 34px;
       padding: 0 var(--space-3);
-      font-size: 0.8125rem;
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 0.8rem;
       font-weight: 600;
-      color: var(--text-primary);
-      background: var(--bg-elevated, var(--bg-surface));
-      border: 1px solid var(--border-default);
-      border-radius: var(--radius-md, 6px);
+      color: var(--gb-text-value);
+      background: var(--gb-bg-glass, rgba(255,255,255,0.03));
+      border: 1px solid var(--gb-border-panel);
+      border-radius: 8px;
       cursor: pointer;
+      transition: all 150ms ease;
+    }
+
+    .action-btn:hover {
+      background: var(--gb-bg-glass-active, rgba(255,255,255,0.06));
+      border-color: var(--gb-border-active, rgba(82, 152, 220, 0.6));
     }
 
     .action-btn--danger {
-      color: var(--danger, #bf616a);
-      border-color: var(--danger, #bf616a);
+      color: var(--gb-data-stale, #ff1744);
+      border-color: var(--gb-data-stale, #ff1744);
+    }
+
+    .action-btn--danger:hover {
+      background: rgba(255, 23, 68, 0.1);
     }
   `],
 })

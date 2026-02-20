@@ -7,7 +7,7 @@
   padding: 0.7rem;
   border: 1px solid var(--border-default);
   border-radius: var(--radius-lg);
-  background: var(--bg-surface);
+  background: var(--gb-bg-panel);
   box-shadow: var(--shadow-sm);
   display: flex;
   flex-direction: column;
@@ -27,12 +27,12 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: var(--text-secondary);
+  color: var(--gb-text-muted);
 }
 
 .layer-control-pattern__count {
   font-size: 0.72rem;
-  color: var(--text-secondary);
+  color: var(--gb-text-muted);
   font-family: var(--font-mono);
 }
 
@@ -61,8 +61,8 @@
   height: 30px;
   border-radius: 999px;
   border: 1px solid var(--border-default);
-  background: var(--bg-surface);
-  color: var(--text-secondary);
+  background: var(--gb-bg-panel);
+  color: var(--gb-text-muted);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -89,7 +89,7 @@
 .layer-control-pattern__label {
   min-width: 0;
   font-size: 0.84rem;
-  color: var(--text-primary);
+  color: var(--gb-text-value);
 }
 
 .layer-control-pattern__lock {

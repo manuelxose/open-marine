@@ -41,14 +41,14 @@ export type TrendDirection = 'up' | 'down' | 'flat';
       font-size: var(--text-base, 1rem);
       
       &-leading {
-        color: var(--text-secondary);
+        color: var(--gb-text-muted);
         display: flex;
         align-items: center;
       }
 
       &-label {
         flex: 1;
-        color: var(--text-secondary);
+        color: var(--gb-text-muted);
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -59,13 +59,13 @@ export type TrendDirection = 'up' | 'down' | 'flat';
         align-items: baseline;
         gap: 4px;
         font-weight: 500;
-        color: var(--text-primary);
+        color: var(--gb-text-value);
         font-family: var(--font-mono, monospace);
       }
 
       &-unit {
         font-size: 0.8em;
-        color: var(--text-tertiary);
+        color: var(--gb-text-muted);
       }
 
       &-trend {

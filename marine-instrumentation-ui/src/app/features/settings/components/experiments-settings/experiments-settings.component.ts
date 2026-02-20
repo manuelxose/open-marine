@@ -1,11 +1,13 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { PreferencesService } from '../../../../core/services/preferences.service';
+import { AppToggleComponent } from '../../../../shared/components/app-toggle/app-toggle.component';
 
 @Component({
   selector: 'app-experiments-settings',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, FormsModule, AppToggleComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="settings-section">
@@ -19,13 +21,10 @@ import { PreferencesService } from '../../../../core/services/preferences.servic
           <span class="setting-label">Night Mode Beta</span>
           <span class="setting-description">Enable automatic day/night theme switching based on local time.</span>
         </div>
-        <button
-          (click)="toggleNightMode()"
-          class="toggle-btn"
-          [class.active]="(prefs.prefs$ | async)?.theme === 'night'"
-        >
-          <span class="toggle-slider"></span>
-        </button>
+        <app-toggle
+          [ngModel]="(prefs.prefs$ | async)?.theme === 'night'"
+          (ngModelChange)="toggleNightMode()"
+        ></app-toggle>
       </div>
 
       <div class="setting-item">
@@ -33,28 +32,26 @@ import { PreferencesService } from '../../../../core/services/preferences.servic
           <span class="setting-label">Advanced Instruments</span>
           <span class="setting-description">Show experimental instrument widgets on the dashboard.</span>
         </div>
-        <button
-          (click)="toggleExperimentalInstruments()"
-          class="toggle-btn"
-          [class.active]="experimentalInstruments"
-        >
-          <span class="toggle-slider"></span>
-        </button>
+        <app-toggle
+          [ngModel]="experimentalInstruments"
+          (ngModelChange)="toggleExperimentalInstruments()"
+        ></app-toggle>
       </div>
     </div>
   `,
   styles: [`
     .settings-section h2 {
       margin: 0 0 var(--space-2) 0;
+      font-family: 'Space Grotesk', sans-serif;
       font-size: 1.125rem;
-      font-weight: 600;
-      color: var(--text-primary);
+      font-weight: 700;
+      color: var(--gb-text-value);
     }
 
     .experiments-note {
       margin: 0 0 var(--space-4) 0;
       font-size: 0.75rem;
-      color: var(--text-secondary);
+      color: var(--gb-text-muted);
       font-style: italic;
     }
 
@@ -64,7 +61,7 @@ import { PreferencesService } from '../../../../core/services/preferences.servic
       justify-content: space-between;
       gap: var(--space-4);
       padding: var(--space-3) 0;
-      border-bottom: 1px solid var(--border-default);
+      border-bottom: 1px solid var(--gb-border-panel);
     }
 
     .setting-info {
@@ -75,46 +72,15 @@ import { PreferencesService } from '../../../../core/services/preferences.servic
     }
 
     .setting-label {
+      font-family: 'Space Grotesk', sans-serif;
       font-size: 0.875rem;
       font-weight: 500;
-      color: var(--text-primary);
+      color: var(--gb-text-value);
     }
 
     .setting-description {
       font-size: 0.75rem;
-      color: var(--text-secondary);
-    }
-
-    .toggle-btn {
-      position: relative;
-      width: 44px;
-      height: 24px;
-      background: var(--bg-elevated, var(--bg-surface));
-      border: 1px solid var(--border-default);
-      border-radius: 12px;
-      cursor: pointer;
-      flex-shrink: 0;
-      transition: background 0.2s, border-color 0.2s;
-    }
-
-    .toggle-btn.active {
-      background: var(--accent, #88c0d0);
-      border-color: var(--accent, #88c0d0);
-    }
-
-    .toggle-slider {
-      position: absolute;
-      top: 2px;
-      left: 2px;
-      width: 18px;
-      height: 18px;
-      background: var(--text-primary);
-      border-radius: 50%;
-      transition: transform 0.2s;
-    }
-
-    .toggle-btn.active .toggle-slider {
-      transform: translateX(20px);
+      color: var(--gb-text-muted);
     }
   `],
 })

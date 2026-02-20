@@ -46,7 +46,7 @@ export class AppDialogComponent {
       case 'success': return 'var(--success)';
       case 'warning': return 'var(--warn)';
       case 'danger': return 'var(--danger)';
-      default: return 'var(--text-primary)';
+      default: return 'var(--gb-text-value)';
     }
   }
 

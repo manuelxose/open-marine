@@ -318,7 +318,7 @@ const VESSEL_TYPE_KEYS: VesselTypeFilter[] = [
       border-radius: var(--radius-lg);
       box-shadow: var(--chart-overlay-shadow);
       overflow: hidden;
-      color: var(--text-primary);
+      color: var(--gb-text-value);
     }
 
     .panel-header {
@@ -344,14 +344,14 @@ const VESSEL_TYPE_KEYS: VesselTypeFilter[] = [
       height: 24px;
       background: transparent;
       border: none;
-      color: var(--text-secondary);
+      color: var(--gb-text-muted);
       cursor: pointer;
       border-radius: var(--radius-sm, 4px);
       transition: all var(--duration-fast) var(--ease-out);
 
       &:hover {
         background: color-mix(in srgb, var(--bg-surface-secondary) 70%, transparent);
-        color: var(--text-primary);
+        color: var(--gb-text-value);
       }
     }
 
@@ -359,7 +359,7 @@ const VESSEL_TYPE_KEYS: VesselTypeFilter[] = [
       overflow-y: auto;
       flex: 1;
       scrollbar-width: thin;
-      scrollbar-color: color-mix(in srgb, var(--text-secondary) 30%, transparent) transparent;
+      scrollbar-color: color-mix(in srgb, var(--gb-text-muted) 30%, transparent) transparent;
     }
 
     // ═══════════════════════════════════════════════
@@ -380,7 +380,7 @@ const VESSEL_TYPE_KEYS: VesselTypeFilter[] = [
       padding: var(--space-2) var(--space-3);
       background: transparent;
       border: none;
-      color: var(--text-secondary);
+      color: var(--gb-text-muted);
       font-size: 0.75rem;
       font-weight: 600;
       letter-spacing: 0.04em;
@@ -390,7 +390,7 @@ const VESSEL_TYPE_KEYS: VesselTypeFilter[] = [
 
       &:hover {
         background: color-mix(in srgb, var(--bg-surface-secondary) 40%, transparent);
-        color: var(--text-primary);
+        color: var(--gb-text-value);
       }
 
       > span { flex: 1; text-align: left; }
@@ -402,7 +402,7 @@ const VESSEL_TYPE_KEYS: VesselTypeFilter[] = [
     }
 
     .section--open .section-header {
-      color: var(--text-primary);
+      color: var(--gb-text-value);
 
       > app-icon:last-child { opacity: 0.7; }
     }
@@ -431,7 +431,7 @@ const VESSEL_TYPE_KEYS: VesselTypeFilter[] = [
       display: block;
       font-size: 0.6875rem;
       font-weight: 500;
-      color: var(--text-secondary);
+      color: var(--gb-text-muted);
       margin-bottom: var(--space-1);
       letter-spacing: 0.01em;
     }
@@ -443,7 +443,7 @@ const VESSEL_TYPE_KEYS: VesselTypeFilter[] = [
       margin-bottom: var(--space-2);
 
       &__sep {
-        color: var(--text-secondary);
+        color: var(--gb-text-muted);
         opacity: 0.4;
       }
     }
@@ -451,7 +451,7 @@ const VESSEL_TYPE_KEYS: VesselTypeFilter[] = [
     .link-btn {
       background: none;
       border: none;
-      color: var(--primary);
+      color: var(--gb-needle-secondary);
       font-size: 0.6875rem;
       font-weight: 600;
       cursor: pointer;
@@ -470,7 +470,7 @@ const VESSEL_TYPE_KEYS: VesselTypeFilter[] = [
       padding: 4px 10px;
       font-size: 0.6875rem;
       font-weight: 500;
-      color: var(--text-secondary);
+      color: var(--gb-text-muted);
       background: color-mix(in srgb, var(--bg-surface-secondary) 50%, transparent);
       border: 1px solid color-mix(in srgb, var(--border-default) 40%, transparent);
       border-radius: 100px;
@@ -479,13 +479,13 @@ const VESSEL_TYPE_KEYS: VesselTypeFilter[] = [
 
       &:hover {
         background: color-mix(in srgb, var(--bg-surface-secondary) 80%, transparent);
-        color: var(--text-primary);
+        color: var(--gb-text-value);
       }
 
       &--active {
-        background: color-mix(in srgb, var(--primary) 18%, transparent);
-        border-color: color-mix(in srgb, var(--primary) 40%, transparent);
-        color: var(--primary);
+        background: color-mix(in srgb, var(--gb-needle-secondary) 18%, transparent);
+        border-color: color-mix(in srgb, var(--gb-needle-secondary) 40%, transparent);
+        color: var(--gb-needle-secondary);
         font-weight: 600;
       }
     }
@@ -500,7 +500,7 @@ const VESSEL_TYPE_KEYS: VesselTypeFilter[] = [
       justify-content: space-between;
       padding: 5px 0;
       font-size: 0.75rem;
-      color: var(--text-primary);
+      color: var(--gb-text-value);
 
       > span { flex: 1; }
     }
@@ -518,8 +518,8 @@ const VESSEL_TYPE_KEYS: VesselTypeFilter[] = [
       padding: 0;
 
       &.active {
-        background: color-mix(in srgb, var(--primary) 30%, transparent);
-        border-color: color-mix(in srgb, var(--primary) 50%, transparent);
+        background: color-mix(in srgb, var(--gb-needle-secondary) 30%, transparent);
+        border-color: color-mix(in srgb, var(--gb-needle-secondary) 50%, transparent);
       }
     }
 
@@ -529,13 +529,13 @@ const VESSEL_TYPE_KEYS: VesselTypeFilter[] = [
       left: 2px;
       width: 14px;
       height: 14px;
-      background: var(--text-secondary);
+      background: var(--gb-text-muted);
       border-radius: 50%;
       transition: all var(--duration-fast) var(--ease-out);
 
       .toggle-btn.active & {
         transform: translateX(16px);
-        background: var(--primary);
+        background: var(--gb-needle-secondary);
       }
     }
 
@@ -557,7 +557,7 @@ const VESSEL_TYPE_KEYS: VesselTypeFilter[] = [
       border-radius: var(--radius-sm, 4px);
       cursor: pointer;
       font-size: 0.6875rem;
-      color: var(--text-secondary);
+      color: var(--gb-text-muted);
       transition: all var(--duration-fast) var(--ease-out);
 
       &:hover {
@@ -565,7 +565,7 @@ const VESSEL_TYPE_KEYS: VesselTypeFilter[] = [
       }
 
       &--active {
-        color: var(--text-primary);
+        color: var(--gb-text-value);
       }
 
       &__input {
@@ -583,8 +583,8 @@ const VESSEL_TYPE_KEYS: VesselTypeFilter[] = [
       }
 
       &--active &__indicator {
-        background: var(--primary);
-        border-color: var(--primary);
+        background: var(--gb-needle-secondary);
+        border-color: var(--gb-needle-secondary);
 
         &::after {
           content: '';
@@ -620,7 +620,7 @@ const VESSEL_TYPE_KEYS: VesselTypeFilter[] = [
       padding: 6px 8px;
       font-size: 0.6875rem;
       font-weight: 500;
-      color: var(--text-secondary);
+      color: var(--gb-text-muted);
       background: color-mix(in srgb, var(--bg-surface-secondary) 40%, transparent);
       border: 1px solid color-mix(in srgb, var(--border-default) 30%, transparent);
       border-radius: var(--radius-sm, 4px);
@@ -629,9 +629,9 @@ const VESSEL_TYPE_KEYS: VesselTypeFilter[] = [
       transition: all var(--duration-fast) var(--ease-out);
 
       &:hover {
-        background: color-mix(in srgb, var(--primary) 12%, transparent);
-        border-color: color-mix(in srgb, var(--primary) 30%, transparent);
-        color: var(--primary);
+        background: color-mix(in srgb, var(--gb-needle-secondary) 12%, transparent);
+        border-color: color-mix(in srgb, var(--gb-needle-secondary) 30%, transparent);
+        color: var(--gb-needle-secondary);
       }
 
       &:active {

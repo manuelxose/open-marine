@@ -62,7 +62,7 @@ import { AppBadgeComponent, BadgeVariant } from '../../../../shared/components/a
       &.expanded {
         min-width: 290px;
         box-shadow: var(--chart-overlay-shadow), 
-                    0 0 0 1px color-mix(in srgb, var(--primary) 10%, transparent);
+                    0 0 0 1px color-mix(in srgb, var(--gb-needle-secondary) 10%, transparent);
       }
     }
     
@@ -74,7 +74,7 @@ import { AppBadgeComponent, BadgeVariant } from '../../../../shared/components/a
       padding: var(--space-2);
       background: transparent;
       border: none;
-      color: var(--text-primary);
+      color: var(--gb-text-value);
       cursor: pointer;
       transition: background var(--duration-fast) var(--ease-out);
       
@@ -103,8 +103,8 @@ import { AppBadgeComponent, BadgeVariant } from '../../../../shared/components/a
       flex-shrink: 0;
 
       &.active {
-        background: color-mix(in srgb, var(--primary) 12%, transparent);
-        color: var(--primary);
+        background: color-mix(in srgb, var(--gb-needle-secondary) 12%, transparent);
+        color: var(--gb-needle-secondary);
       }
     }
     
@@ -115,7 +115,7 @@ import { AppBadgeComponent, BadgeVariant } from '../../../../shared/components/a
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 0.06em;
-      color: var(--text-primary);
+      color: var(--gb-text-value);
     }
 
     .panel-count {

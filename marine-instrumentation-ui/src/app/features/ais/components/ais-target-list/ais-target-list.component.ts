@@ -61,7 +61,7 @@ import { FormsModule } from '@angular/forms';
       flex-direction: column;
       height: 100%;
       overflow: hidden;
-      background: var(--surface-0);
+      background: var(--gb-bg-canvas);
     }
 
     .ais-list {
@@ -75,15 +75,17 @@ import { FormsModule } from '@angular/forms';
       justify-content: space-between;
       align-items: center;
       padding: 0.75rem 1rem;
-      border-bottom: 1px solid var(--border-color);
-      background: var(--surface-1);
+      border-bottom: 1px solid var(--gb-border-panel);
+      background: var(--gb-bg-bezel);
     }
 
     .ais-list-header h3 {
       margin: 0;
-      font-size: 0.95rem;
-      font-weight: 600;
-      color: var(--text-primary);
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 0.85rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      color: var(--gb-text-value);
     }
 
     .ais-header-controls {
@@ -94,12 +96,26 @@ import { FormsModule } from '@angular/forms';
 
     .ais-filter-select,
     .ais-sort-select {
-      background: var(--surface-2);
-      border: 1px solid var(--border-color);
-      color: var(--text-secondary);
-      padding: 0.25rem 0.5rem;
-      border-radius: 4px;
-      font-size: 0.8rem;
+      appearance: none;
+      background: var(--gb-bg-bezel);
+      border: 1px solid var(--gb-border-panel);
+      color: var(--gb-text-muted);
+      padding: 5px 28px 5px 10px;
+      border-radius: 8px;
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 0.75rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: border-color 150ms ease;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%236b7a8d' fill='none' stroke-width='1.5'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 8px center;
+    }
+
+    .ais-filter-select:focus,
+    .ais-sort-select:focus {
+      outline: none;
+      border-color: var(--gb-border-active);
     }
 
     .ais-follow-bar {
@@ -107,14 +123,15 @@ import { FormsModule } from '@angular/forms';
       align-items: center;
       justify-content: space-between;
       padding: 0.5rem 1rem;
-      background: color-mix(in srgb, var(--primary) 10%, transparent);
-      border-bottom: 1px solid color-mix(in srgb, var(--primary) 25%, transparent);
+      background: rgba(74, 144, 217, 0.08);
+      border-bottom: 1px solid rgba(74, 144, 217, 0.2);
     }
 
     .ais-follow-label {
+      font-family: 'Space Grotesk', sans-serif;
       font-size: 0.82rem;
       font-weight: 600;
-      color: var(--text-primary);
+      color: var(--gb-text-value);
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
@@ -125,20 +142,21 @@ import { FormsModule } from '@angular/forms';
       align-items: center;
       gap: 4px;
       padding: 4px 10px;
+      font-family: 'Space Grotesk', sans-serif;
       font-size: 0.72rem;
       font-weight: 700;
       letter-spacing: 0.03em;
-      border: 1px solid var(--primary);
-      border-radius: 6px;
-      background: color-mix(in srgb, var(--primary) 15%, transparent);
-      color: var(--primary);
+      border: 1px solid var(--gb-needle-secondary);
+      border-radius: 8px;
+      background: rgba(74, 144, 217, 0.12);
+      color: var(--gb-needle-secondary);
       cursor: pointer;
-      transition: background 0.15s;
+      transition: background 150ms ease;
       flex-shrink: 0;
     }
 
     .ais-follow-btn:hover {
-      background: color-mix(in srgb, var(--primary) 30%, transparent);
+      background: rgba(74, 144, 217, 0.25);
     }
 
     .ais-list-scroll {
@@ -152,7 +170,7 @@ import { FormsModule } from '@angular/forms';
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      color: var(--text-tertiary);
+      color: var(--gb-text-muted);
       gap: 1rem;
     }
   `],

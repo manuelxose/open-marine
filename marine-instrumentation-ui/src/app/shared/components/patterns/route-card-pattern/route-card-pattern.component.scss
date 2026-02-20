@@ -7,7 +7,7 @@
   padding: 0.75rem;
   border: 1px solid var(--border-default);
   border-radius: var(--radius-lg);
-  background: var(--bg-surface);
+  background: var(--gb-bg-panel);
   box-shadow: var(--shadow-sm);
   display: flex;
   flex-direction: column;
@@ -16,7 +16,7 @@
 }
 
 .route-card-pattern--active {
-  border-color: color-mix(in srgb, var(--primary) 45%, var(--border-default));
+  border-color: color-mix(in srgb, var(--gb-needle-secondary) 45%, var(--border-default));
 }
 
 .route-card-pattern__header {
@@ -40,7 +40,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: var(--primary);
+  color: var(--gb-needle-secondary);
   flex-shrink: 0;
 }
 
@@ -52,13 +52,13 @@
   margin: 0;
   font-size: 0.95rem;
   font-weight: 700;
-  color: var(--text-primary);
+  color: var(--gb-text-value);
 }
 
 .route-card-pattern__subtitle {
   margin: 0.2rem 0 0;
   font-size: 0.74rem;
-  color: var(--text-secondary);
+  color: var(--gb-text-muted);
 }
 
 .route-card-pattern__pill {
@@ -70,7 +70,7 @@
   align-items: center;
   font-size: 0.68rem;
   font-weight: 700;
-  color: var(--primary);
+  color: var(--gb-needle-secondary);
 }
 
 .route-card-pattern__metrics {
@@ -90,7 +90,7 @@
 .route-card-pattern__metric-label {
   margin: 0;
   font-size: 0.68rem;
-  color: var(--text-secondary);
+  color: var(--gb-text-muted);
 }
 
 .route-card-pattern__metric-value {
@@ -98,7 +98,7 @@
   font-size: 0.84rem;
   font-family: var(--font-mono);
   font-weight: 700;
-  color: var(--text-primary);
+  color: var(--gb-text-value);
 }
 
 .route-card-pattern__progress {
@@ -111,7 +111,7 @@
 .route-card-pattern__progress-fill {
   display: block;
   height: 100%;
-  background: var(--primary);
+  background: var(--gb-needle-secondary);
 }
 
 .route-card-pattern__actions {

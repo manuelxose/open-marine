@@ -37,16 +37,16 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: var(--text-primary);
+  color: var(--gb-text-value);
 }
 
 .canvas-subtitle {
   font-size: 0.7rem;
   font-weight: 600;
-  color: var(--text-secondary);
+  color: var(--gb-text-muted);
 }
 
 .canvas-hint {
   font-size: 0.65rem;
-  color: var(--text-tertiary);
+  color: var(--gb-text-muted);
 }

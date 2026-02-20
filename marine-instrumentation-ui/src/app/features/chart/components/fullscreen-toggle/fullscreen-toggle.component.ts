@@ -41,7 +41,7 @@ import { AppIconComponent } from '../../../../shared/components/app-icon/app-ico
       border: 1px solid var(--chart-overlay-border);
       border-radius: var(--radius-xl);
       box-shadow: var(--chart-overlay-shadow);
-      color: var(--text-secondary);
+      color: var(--gb-text-muted);
       cursor: pointer;
       transition: all var(--duration-fast) var(--ease-out);
       overflow: hidden;
@@ -51,20 +51,20 @@ import { AppIconComponent } from '../../../../shared/components/app-icon/app-ico
         position: absolute;
         inset: 0;
         border-radius: inherit;
-        background: var(--primary);
+        background: var(--gb-needle-secondary);
         opacity: 0;
         transition: opacity var(--duration-fast) var(--ease-out);
       }
       
       &:hover {
-        border-color: color-mix(in srgb, var(--primary) 40%, var(--chart-overlay-border));
-        box-shadow: var(--chart-overlay-shadow), 0 0 16px -4px color-mix(in srgb, var(--primary) 25%, transparent);
+        border-color: color-mix(in srgb, var(--gb-needle-secondary) 40%, var(--chart-overlay-border));
+        box-shadow: var(--chart-overlay-shadow), 0 0 16px -4px color-mix(in srgb, var(--gb-needle-secondary) 25%, transparent);
 
         &::before {
           opacity: 0.12;
         }
         
-        color: var(--primary);
+        color: var(--gb-needle-secondary);
       }
       
       &:active {
@@ -72,13 +72,13 @@ import { AppIconComponent } from '../../../../shared/components/app-icon/app-ico
       }
       
       &.is-fullscreen {
-        background: color-mix(in srgb, var(--primary) 20%, var(--chart-overlay-bg));
-        border-color: color-mix(in srgb, var(--primary) 50%, var(--chart-overlay-border));
-        color: var(--primary);
-        box-shadow: var(--chart-overlay-shadow), 0 0 20px -4px color-mix(in srgb, var(--primary) 30%, transparent);
+        background: color-mix(in srgb, var(--gb-needle-secondary) 20%, var(--chart-overlay-bg));
+        border-color: color-mix(in srgb, var(--gb-needle-secondary) 50%, var(--chart-overlay-border));
+        color: var(--gb-needle-secondary);
+        box-shadow: var(--chart-overlay-shadow), 0 0 20px -4px color-mix(in srgb, var(--gb-needle-secondary) 30%, transparent);
         
         &:hover {
-          background: color-mix(in srgb, var(--primary) 30%, var(--chart-overlay-bg));
+          background: color-mix(in srgb, var(--gb-needle-secondary) 30%, var(--chart-overlay-bg));
         }
       }
 

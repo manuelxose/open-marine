@@ -107,15 +107,15 @@ import { GpxParser, GpxParseResult } from '../../utils/gpx-parser';
       flex-direction: column;
       align-items: center;
       gap: 1rem;
-      background: var(--surface-2);
+      background: var(--gb-bg-panel);
       transition: all 0.2s;
     }
     .dropzone.dragging {
-      border-color: var(--primary);
+      border-color: var(--gb-needle-secondary);
       background: var(--surface-3);
     }
-    .upload-icon { color: var(--text-tertiary); }
-    .or { font-size: 0.75rem; color: var(--text-tertiary); margin: 0; }
+    .upload-icon { color: var(--gb-text-muted); }
+    .or { font-size: 0.75rem; color: var(--gb-text-muted); margin: 0; }
     
     .error-msg {
         color: var(--error);
@@ -148,21 +148,21 @@ import { GpxParser, GpxParseResult } from '../../utils/gpx-parser';
         gap: 0.75rem;
         padding: 0.75rem 1rem;
         border-radius: 6px;
-        background: var(--surface-2);
+        background: var(--gb-bg-panel);
         border: 1px solid var(--border);
         font-size: 0.9rem;
     }
     .preview-item input {
-        accent-color: var(--primary);
+        accent-color: var(--gb-needle-secondary);
     }
     .preview-label {
         flex: 1;
         font-weight: 600;
-        color: var(--text-primary);
+        color: var(--gb-text-value);
     }
     .preview-count {
         font-size: 0.85rem;
-        color: var(--text-secondary);
+        color: var(--gb-text-muted);
     }
     .preview-item.disabled {
         opacity: 0.5;
@@ -181,7 +181,7 @@ import { GpxParser, GpxParseResult } from '../../utils/gpx-parser';
         display: flex;
         justify-content: space-between;
         font-size: 0.85rem;
-        color: var(--text-secondary);
+        color: var(--gb-text-muted);
         margin-bottom: 0.5rem;
     }
     .progress-bar {
@@ -192,7 +192,7 @@ import { GpxParser, GpxParseResult } from '../../utils/gpx-parser';
     }
     .progress-fill {
         height: 100%;
-        background: var(--primary);
+        background: var(--gb-needle-secondary);
         transition: width 0.2s ease;
     }
     @keyframes fadeIn {

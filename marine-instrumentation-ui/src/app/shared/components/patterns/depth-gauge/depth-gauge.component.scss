@@ -5,8 +5,8 @@
 .depth-gauge {
   background: linear-gradient(
     180deg,
-    var(--bg-surface) 0%,
-    color-mix(in srgb, var(--bg-surface-secondary) 70%, var(--bg-surface) 30%) 100%
+    var(--gb-bg-panel) 0%,
+    color-mix(in srgb, var(--bg-surface-secondary) 70%, var(--gb-bg-panel) 30%) 100%
   );
   border: 1px solid var(--border-default);
   border-radius: var(--radius-md);
@@ -72,7 +72,7 @@
     height: 0;
     border-left: 10px solid transparent;
     border-right: 10px solid transparent;
-    border-top: 20px solid var(--text-tertiary); /* Boat hull/Keel shape pointing down */
+    border-top: 20px solid var(--gb-text-muted); /* Boat hull/Keel shape pointing down */
     z-index: 3;
     opacity: 0.6;
   }
@@ -89,12 +89,12 @@
       font-weight: 700;
       line-height: 1;
       font-variant-numeric: tabular-nums;
-      color: var(--text-primary);
+      color: var(--gb-text-value);
     }
 
     .unit {
       font-size: 1rem;
-      color: var(--text-tertiary);
+      color: var(--gb-text-muted);
       text-transform: uppercase;
       font-weight: 500;
     }
@@ -110,7 +110,7 @@
     padding: 0.125rem 0.5rem;
     border-radius: 999px;
     background: color-mix(in srgb, var(--bg-surface-secondary) 75%, transparent);
-    color: var(--text-secondary);
+    color: var(--gb-text-muted);
     text-transform: uppercase;
     z-index: 5;
   }
@@ -122,15 +122,15 @@
 
   &.shallow {
     border-color: var(--warn, #f59e0b);
-    background-color: color-mix(in srgb, var(--warn, #f59e0b) 8%, var(--bg-surface));
+    background-color: color-mix(in srgb, var(--warn, #f59e0b) 8%, var(--gb-bg-panel));
     .depth-gauge__readout .value { color: var(--warn, #f59e0b); }
     .depth-gauge__water-column { color: var(--warn, #f59e0b); } 
-    .depth-gauge__status-label { background: color-mix(in srgb, var(--warn, #f59e0b) 15%, var(--bg-surface)); color: var(--warn, #f59e0b); }
+    .depth-gauge__status-label { background: color-mix(in srgb, var(--warn, #f59e0b) 15%, var(--gb-bg-panel)); color: var(--warn, #f59e0b); }
   }
 
   &.alarm {
     border-color: var(--danger, #ef4444);
-    background-color: color-mix(in srgb, var(--danger, #ef4444) 8%, var(--bg-surface));
+    background-color: color-mix(in srgb, var(--danger, #ef4444) 8%, var(--gb-bg-panel));
     animation: pulse-border 1s infinite alternate;
 
     .depth-gauge__readout .value { color: var(--danger, #ef4444); }

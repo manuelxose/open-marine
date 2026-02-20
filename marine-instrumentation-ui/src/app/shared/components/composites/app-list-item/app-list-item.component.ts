@@ -54,7 +54,7 @@ import { AppIconComponent, IconName } from '../../app-icon/app-icon.component';
       padding: var(--spacing-sm, 12px) var(--spacing-md, 16px);
       gap: var(--spacing-md, 16px);
       background: transparent;
-      color: var(--text-primary);
+      color: var(--gb-text-value);
       transition: background-color 0.2s;
       min-height: 48px;
       text-decoration: none;
@@ -75,7 +75,7 @@ import { AppIconComponent, IconName } from '../../app-icon/app-icon.component';
         color: var(--primary, #3b82f6);
         
         .list-item-secondary {
-           color: var(--primary-600, var(--primary));
+           color: var(--gb-needle-secondary);
         }
       }
 
@@ -83,7 +83,7 @@ import { AppIconComponent, IconName } from '../../app-icon/app-icon.component';
         display: flex;
         align-items: center;
         justify-content: center;
-        color: var(--text-secondary);
+        color: var(--gb-text-muted);
         min-width: 24px;
         
         &:empty { display: none; }
@@ -107,7 +107,7 @@ import { AppIconComponent, IconName } from '../../app-icon/app-icon.component';
 
       &-secondary {
         font-size: var(--text-sm, 0.875rem);
-        color: var(--text-secondary);
+        color: var(--gb-text-muted);
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -117,7 +117,7 @@ import { AppIconComponent, IconName } from '../../app-icon/app-icon.component';
       &-trailing {
         display: flex;
         align-items: center;
-        color: var(--text-tertiary);
+        color: var(--gb-text-muted);
         gap: 0.5rem;
         
         &:empty { display: none; }

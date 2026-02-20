@@ -2,6 +2,7 @@ import { Component, ChangeDetectionStrategy, inject, signal } from '@angular/cor
 import { CommonModule } from '@angular/common';
 import { AppIconComponent, type IconName } from '../../shared/components/app-icon/app-icon.component';
 import { LayoutService } from '../../core/services/layout.service';
+import { DashboardLayoutService } from '../../features/dashboard/services/dashboard-layout.service';
 import { LanguageService } from '../../core/services/language.service';
 import { TranslatePipe } from '../../shared/pipes/translate.pipe';
 
@@ -52,80 +53,84 @@ interface SectionMeta {
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="settings-page">
-      <div class="page-header">
-        <h1>{{ 'settings.title' | translate }}</h1>
-        <p class="subtitle">{{ 'settings.subtitle' | translate }}</p>
-      </div>
+      <!-- Sidebar -->
+      <nav class="settings-sidebar" role="tablist" aria-label="Settings sections">
+        <div class="settings-sidebar__section-label">Settings</div>
+        @for (section of sections; track section.id) {
+          <button
+            class="settings-nav-item"
+            [class.active]="activeSection() === section.id"
+            (click)="activeSection.set(section.id)"
+            role="tab"
+            [attr.aria-selected]="activeSection() === section.id"
+          >
+            <app-icon [name]="section.icon" size="18"></app-icon>
+            <span>{{ section.label }}</span>
+          </button>
+        }
+      </nav>
 
-      <div class="settings-layout">
-        <!-- Section Navigation -->
-        <nav class="settings-nav" role="tablist" aria-label="Settings sections">
-          @for (section of sections; track section.id) {
-            <button
-              class="nav-item"
-              [class.active]="activeSection() === section.id"
-              (click)="activeSection.set(section.id)"
-              role="tab"
-              [attr.aria-selected]="activeSection() === section.id"
-            >
-              <app-icon [name]="section.icon" size="16"></app-icon>
-              <span>{{ section.label }}</span>
-            </button>
-          }
-        </nav>
-
-        <!-- Section Content -->
-        <div class="settings-content" role="tabpanel">
-          @switch (activeSection()) {
-            @case ('general') {
-              <section class="settings-section">
-                <h2>{{ 'settings.sections.general' | translate }}</h2>
-                <div class="setting-item">
-                  <div class="setting-info">
-                    <span class="setting-label">{{ 'settings.language.label' | translate }}</span>
-                    <span class="setting-description">{{ 'settings.language.description' | translate }}</span>
-                  </div>
+      <!-- Content -->
+      <div class="settings-content" role="tabpanel">
+        @switch (activeSection()) {
+          @case ('general') {
+            <h2>General</h2>
+            <p class="settings-subtitle">{{ 'settings.subtitle' | translate }}</p>
+            <div class="settings-group">
+              <div class="settings-group__title">Language</div>
+              <div class="settings-row">
+                <div>
+                  <div class="settings-row__label">{{ 'settings.language.label' | translate }}</div>
+                  <div class="settings-row__desc">{{ 'settings.language.description' | translate }}</div>
+                </div>
+                <div class="settings-row__control">
                   <select
                     [value]="(lang.lang$ | async)"
                     (change)="onLanguageChange($event)"
-                    class="setting-select"
+                    class="settings-select"
                   >
                     <option value="en">English</option>
                     <option value="es">Español</option>
                   </select>
                 </div>
-              </section>
-            }
-            @case ('vessel') {
-              <app-vessel-settings />
-            }
-            @case ('display') {
-              <app-display-settings />
-            }
-            @case ('units') {
-              <app-units-settings />
-            }
-            @case ('chart') {
-              <app-chart-settings />
-            }
-            @case ('alarms') {
-              <app-alarm-settings />
-            }
-            @case ('connection') {
-              <app-connection-settings />
-            }
-            @case ('dashboard') {
-              <section class="settings-section">
-                <h2>{{ 'settings.sections.dashboard' | translate }}</h2>
-                <div class="widget-list">
-                  <div *ngFor="let def of widgetDefs; trackBy: trackByWidget" class="widget-item">
-                    <div class="widget-info">
-                      <div class="widget-header">
-                        <span class="widget-name">{{ def.title | translate }}</span>
-                        <span class="widget-size">{{ def.size }}</span>
-                      </div>
-                      <span class="widget-description">{{ def.description | translate }}</span>
-                    </div>
+              </div>
+            </div>
+          }
+          @case ('vessel') {
+            <h2>Vessel Profile</h2>
+            <app-vessel-settings />
+          }
+          @case ('display') {
+            <h2>Display</h2>
+            <app-display-settings />
+          }
+          @case ('units') {
+            <h2>Units</h2>
+            <app-units-settings />
+          }
+          @case ('chart') {
+            <h2>Chart</h2>
+            <app-chart-settings />
+          }
+          @case ('alarms') {
+            <h2>Alarms</h2>
+            <app-alarm-settings />
+          }
+          @case ('connection') {
+            <h2>Connection</h2>
+            <app-connection-settings />
+          }
+          @case ('dashboard') {
+            <h2>Dashboard</h2>
+            <div class="settings-group">
+              <div class="settings-group__title">Widget Visibility</div>
+              @for (def of widgetDefs; track def.id) {
+                <div class="settings-row">
+                  <div>
+                    <div class="settings-row__label">{{ def.title | translate }}</div>
+                    <div class="settings-row__desc">{{ def.description | translate }}</div>
+                  </div>
+                  <div class="settings-row__control">
                     <button
                       (click)="toggleWidget(def.id)"
                       class="toggle-btn"
@@ -135,19 +140,21 @@ interface SectionMeta {
                     </button>
                   </div>
                 </div>
-                <button (click)="resetLayout()" class="reset-btn">
-                  {{ 'settings.widgets.reset' | translate }}
-                </button>
-              </section>
-            }
-            @case ('data') {
-              <app-data-settings />
-            }
-            @case ('experiments') {
-              <app-experiments-settings />
-            }
+              }
+            </div>
+            <button (click)="resetLayout()" class="reset-btn">
+              {{ 'settings.widgets.reset' | translate }}
+            </button>
           }
-        </div>
+          @case ('data') {
+            <h2>Data</h2>
+            <app-data-settings />
+          }
+          @case ('experiments') {
+            <h2>Experiments</h2>
+            <app-experiments-settings />
+          }
+        }
       </div>
     </div>
   `,
@@ -156,190 +163,188 @@ interface SectionMeta {
       display: block;
       height: 100%;
       overflow: hidden;
-      --panel-bg: var(--surface-1);
-      --panel-border: var(--border);
-      --text-main: var(--text-1);
-      --text-sec: var(--text-2);
     }
 
+    /* ── Page shell ───────────────────────────────── */
     .settings-page {
-      padding: 1.5rem;
       height: 100%;
-      overflow-y: auto;
-      max-width: 100%;
-      margin: 0 auto;
-      background: var(--bg);
-    }
-
-    .page-header {
-      margin-bottom: 2rem;
-      max-width: 1100px;
-      margin-left: auto;
-      margin-right: auto;
-    }
-
-    h1 {
-      font-size: 1.75rem;
-      font-weight: 700;
-      color: var(--text-main);
-      margin-bottom: 0.25rem;
-    }
-
-    .subtitle {
-      color: var(--text-sec);
-      font-size: 0.875rem;
-    }
-
-    /* Two-column layout: nav + content */
-    .settings-layout {
       display: grid;
-      grid-template-columns: 200px 1fr;
-      gap: 1.5rem;
-      max-width: 1100px;
-      margin: 0 auto;
-      align-items: start;
+      grid-template-columns: 220px 1fr;
+      overflow: hidden;
+      background: var(--gb-bg-canvas);
     }
 
-    /* Section Navigation */
-    .settings-nav {
+    /* ── Sidebar ──────────────────────────────────── */
+    .settings-sidebar {
+      background: var(--gb-bg-bezel);
+      border-right: 1px solid var(--gb-border-panel);
+      overflow-y: auto;
+      padding: var(--space-4, 16px) var(--space-3, 12px);
       display: flex;
       flex-direction: column;
-      gap: 2px;
-      background: var(--panel-bg);
-      border: 1px solid var(--panel-border);
-      border-radius: 12px;
-      padding: 0.5rem;
-      position: sticky;
-      top: 1.5rem;
+      gap: var(--space-1, 4px);
     }
 
-    .nav-item {
+    .settings-sidebar__section-label {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 0.55rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.2em;
+      color: var(--gb-text-muted);
+      padding: var(--space-2, 8px) var(--space-2, 8px) var(--space-1, 4px);
+      margin-top: var(--space-2, 8px);
+    }
+
+    .settings-nav-item {
       display: flex;
       align-items: center;
-      gap: 0.5rem;
-      padding: 0.6rem 0.75rem;
+      gap: var(--space-2, 8px);
+      padding: var(--space-2, 8px) var(--space-3, 12px);
+      border-radius: 10px;
+      cursor: pointer;
+      text-decoration: none;
+      color: var(--gb-text-muted);
+      transition: all 150ms ease;
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 0.8125rem;
+      font-weight: 500;
       border: none;
       background: transparent;
-      color: var(--text-sec);
-      font-size: 0.825rem;
-      font-weight: 500;
-      border-radius: 8px;
-      cursor: pointer;
-      transition: all 0.15s;
       text-align: left;
       white-space: nowrap;
     }
 
-    .nav-item:hover {
-      background: var(--surface-2, rgba(255,255,255,0.04));
-      color: var(--text-main);
+    .settings-nav-item svg,
+    .settings-nav-item app-icon {
+      width: 18px;
+      height: 18px;
+      flex-shrink: 0;
     }
 
-    .nav-item.active {
-      background: var(--accent, #88c0d0);
-      color: white;
-      font-weight: 600;
+    .settings-nav-item:hover {
+      background: var(--gb-bg-glass-active, rgba(255,255,255,0.04));
+      color: var(--gb-text-value);
     }
 
-    /* Section Content */
+    .settings-nav-item.active {
+      background: rgba(74, 144, 217, 0.12);
+      color: #4a90d9;
+    }
+
+    /* ── Content panel ────────────────────────────── */
     .settings-content {
-      min-height: 400px;
+      overflow-y: auto;
+      padding: var(--space-5, 24px);
     }
 
-    .settings-section {
-      background: var(--panel-bg);
-      border: 1px solid var(--panel-border);
-      border-radius: 16px;
-      padding: 1.5rem;
-      box-shadow: var(--shadow);
+    .settings-content h2 {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--gb-text-value);
+      margin: 0 0 var(--space-1, 4px) 0;
     }
 
-    h2 {
-      font-size: 0.85rem;
+    .settings-subtitle {
+      font-size: 0.8125rem;
+      color: var(--gb-text-muted);
+      margin-bottom: var(--space-5, 24px);
+    }
+
+    /* ── Settings group ───────────────────────────── */
+    .settings-group {
+      background: var(--gb-bg-panel);
+      border: 1px solid var(--gb-border-panel);
+      border-radius: 14px;
+      overflow: hidden;
+      margin-bottom: var(--space-4, 16px);
+    }
+
+    .settings-group__title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 0.65rem;
       font-weight: 700;
       text-transform: uppercase;
-      letter-spacing: 0.1em;
-      color: var(--text-sec);
-      margin-bottom: 1.25rem;
-      padding-bottom: 0.75rem;
-      border-bottom: 1px solid var(--panel-border);
+      letter-spacing: 0.18em;
+      color: var(--gb-text-muted);
+      padding: var(--space-3, 12px) var(--space-4, 16px);
+      border-bottom: 1px solid var(--gb-border-panel);
+      background: var(--gb-bg-bezel);
     }
 
-    .setting-item {
+    /* ── Settings row ─────────────────────────────── */
+    .settings-row {
       display: flex;
-      justify-content: space-between;
       align-items: center;
-      padding: 1rem 0;
-      border-bottom: 1px dashed var(--panel-border);
-      gap: 1rem;
+      justify-content: space-between;
+      padding: var(--space-3, 12px) var(--space-4, 16px);
+      gap: var(--space-4, 16px);
+      border-bottom: 1px solid var(--gb-border-panel);
     }
 
-    .setting-item:last-child {
-      border-bottom: none;
-      padding-bottom: 0;
+    .settings-row:last-child { border-bottom: none; }
+
+    .settings-row__label {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: var(--gb-text-value);
     }
 
-    .setting-info {
-      display: flex;
-      flex-direction: column;
-      gap: 0.25rem;
-      flex: 1;
-      min-width: 0;
+    .settings-row__desc {
+      font-size: 0.75rem;
+      color: var(--gb-text-muted);
+      margin-top: 2px;
     }
 
-    .setting-label {
-      font-weight: 600;
-      color: var(--text-main);
-      font-size: 0.95rem;
+    .settings-row__control {
+      flex-shrink: 0;
     }
 
-    .setting-description {
-      font-size: 0.8rem;
-      color: var(--text-sec);
-      line-height: 1.3;
-    }
-
-    .setting-select {
-      background: var(--bg);
-      border: 1px solid var(--panel-border);
-      color: var(--text-main);
-      padding: 0.5rem 2rem 0.5rem 1rem;
+    .settings-select {
+      background: var(--gb-bg-bezel);
+      border: 1px solid var(--gb-border-panel);
+      color: var(--gb-text-value);
+      padding: 6px 28px 6px 12px;
       border-radius: 8px;
-      font-size: 0.9rem;
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 0.8rem;
       min-width: 140px;
       cursor: pointer;
       appearance: none;
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23666' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23666' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
       background-repeat: no-repeat;
-      background-position: right 0.8rem center;
-      transition: border-color 0.2s;
+      background-position: right 8px center;
+      transition: border-color 150ms ease;
     }
 
-    .setting-select:focus, .setting-select:hover {
+    .settings-select:focus,
+    .settings-select:hover {
       outline: none;
-      border-color: var(--accent);
+      border-color: var(--gb-accent, #4a90d9);
     }
 
-    /* Toggle Switch */
+    /* ── Toggle switch ────────────────────────────── */
     .toggle-btn {
       position: relative;
       width: 40px;
       height: 22px;
-      background: var(--surface-2);
-      border: 1px solid var(--panel-border);
+      background: var(--gb-bg-bezel);
+      border: 1px solid var(--gb-border-panel);
       border-radius: 999px;
       cursor: pointer;
-      transition: all 0.2s ease;
+      transition: all 200ms ease;
       flex-shrink: 0;
       padding: 0;
       overflow: hidden;
     }
 
-    .toggle-btn:hover { border-color: var(--text-sec); }
+    .toggle-btn:hover { border-color: var(--gb-text-muted); }
 
     .toggle-btn.active {
-      background: var(--accent);
-      border-color: var(--accent);
+      background: var(--gb-accent, #4a90d9);
+      border-color: var(--gb-accent, #4a90d9);
     }
 
     .toggle-slider {
@@ -348,10 +353,9 @@ interface SectionMeta {
       left: 2px;
       width: 16px;
       height: 16px;
-      background: var(--text-sec);
+      background: var(--gb-text-muted);
       border-radius: 50%;
-      transition: transform 0.2s cubic-bezier(0.4, 0.0, 0.2, 1);
-      box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+      transition: transform 200ms cubic-bezier(0.4, 0, 0.2, 1);
     }
 
     .toggle-btn.active .toggle-slider {
@@ -359,120 +363,54 @@ interface SectionMeta {
       transform: translateX(18px);
     }
 
-    /* Widget List */
-    .widget-list {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-      gap: 1rem;
-    }
-
-    .widget-item {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 1rem;
-      background: var(--bg);
-      border: 1px solid var(--panel-border);
-      border-radius: 12px;
-      transition: border-color 0.2s;
-    }
-
-    .widget-item:hover { border-color: var(--accent); }
-
-    .widget-info {
-      display: flex;
-      flex-direction: column;
-      gap: 0.25rem;
-      flex: 1;
-    }
-
-    .widget-header {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-    }
-
-    .widget-name {
-      font-weight: 600;
-      color: var(--text-main);
-      font-size: 0.95rem;
-    }
-
-    .widget-size {
-      font-size: 0.6rem;
-      padding: 0.15rem 0.4rem;
-      background: var(--panel-border);
-      color: var(--text-sec);
-      border-radius: 4px;
-      font-weight: 700;
-      text-transform: uppercase;
-    }
-
-    .widget-description {
-      font-size: 0.8rem;
-      color: var(--text-sec);
-    }
-
+    /* ── Reset button ─────────────────────────────── */
     .reset-btn {
-      margin-top: 1.5rem;
+      margin-top: var(--space-4, 16px);
       width: 100%;
       background: transparent;
-      border: 1px dashed var(--panel-border);
-      color: var(--text-sec);
-      padding: 0.8rem;
-      border-radius: 8px;
+      border: 1px dashed var(--gb-border-panel);
+      color: var(--gb-text-muted);
+      padding: 10px;
+      border-radius: 10px;
+      font-family: 'Space Grotesk', sans-serif;
       font-weight: 600;
-      font-size: 0.9rem;
+      font-size: 0.8rem;
       cursor: pointer;
-      transition: all 0.2s;
+      transition: all 150ms ease;
     }
 
     .reset-btn:hover {
-      background: rgba(240, 99, 82, 0.05);
-      color: var(--danger, #f06352);
-      border-color: var(--danger, #f06352);
+      background: rgba(240, 99, 82, 0.06);
+      color: #f06352;
+      border-color: #f06352;
     }
 
-    /* Mobile: stack nav horizontally above content */
+    /* ── Mobile: stack sidebar horizontally ────────── */
     @media (max-width: 768px) {
-      .settings-layout {
+      .settings-page {
         grid-template-columns: 1fr;
+        grid-template-rows: auto 1fr;
       }
 
-      .settings-nav {
+      .settings-sidebar {
         flex-direction: row;
         overflow-x: auto;
-        position: static;
-        padding: 0.35rem;
-        gap: 0;
+        border-right: none;
+        border-bottom: 1px solid var(--gb-border-panel);
+        padding: var(--space-2, 8px) var(--space-3, 12px);
+        gap: 2px;
         -webkit-overflow-scrolling: touch;
       }
 
-      .nav-item {
-        font-size: 0.75rem;
-        padding: 0.5rem 0.65rem;
+      .settings-sidebar__section-label { display: none; }
+
+      .settings-nav-item {
+        font-size: 0.7rem;
+        padding: 6px 10px;
       }
 
-      .settings-page {
-        padding: 1rem;
-      }
-
-      .settings-section {
-        padding: 1rem;
-      }
-
-      .setting-item {
-        flex-direction: column;
-        align-items: flex-start;
-      }
-
-      .setting-select {
-        width: 100%;
-        min-width: 0;
-      }
-
-      .widget-list {
-        grid-template-columns: 1fr;
+      .settings-content {
+        padding: var(--space-3, 12px);
       }
     }
   `]
@@ -480,6 +418,7 @@ interface SectionMeta {
 export class SettingsPage {
   readonly lang = inject(LanguageService);
   private readonly layout = inject(LayoutService);
+  private readonly dashLayout = inject(DashboardLayoutService);
 
   readonly activeSection = signal<SettingsSection>('general');
 
@@ -500,16 +439,27 @@ export class SettingsPage {
     return this.layout.getWidgetDefinitions();
   }
 
+  /** Uses DashboardLayoutService to check visibility */
   isWidgetVisible(widgetId: string): boolean {
+    const widget = this.dashLayout.getAllWidgets().find(w => w.id === widgetId);
+    if (widget) return widget.visible;
+    // Fallback to old LayoutService for non-dashboard widgets
     const config = this.layout.getSnapshot().widgets.find(w => w.id === widgetId);
     return config?.visible ?? false;
   }
 
   toggleWidget(widgetId: string) {
-    this.layout.toggleWidget(widgetId);
+    // Try DashboardLayoutService first
+    const dashWidgets = this.dashLayout.getAllWidgets();
+    if (dashWidgets.some(w => w.id === widgetId)) {
+      this.dashLayout.toggleWidget(widgetId);
+    } else {
+      this.layout.toggleWidget(widgetId);
+    }
   }
 
   resetLayout() {
+    this.dashLayout.reset();
     this.layout.reset();
   }
 

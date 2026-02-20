@@ -181,7 +181,7 @@ import { parsePolarCSV } from './utils/polar-parser';
       }
 
       .empty-card {
-        background: var(--surface-1);
+        background: var(--gb-bg-bezel);
         border: 1px dashed var(--border);
         border-radius: 16px;
         padding: 3rem 2rem;
@@ -241,7 +241,7 @@ import { parsePolarCSV } from './utils/polar-parser';
       }
 
       .perf-card {
-        background: var(--surface-1);
+        background: var(--gb-bg-bezel);
         border: 1px solid var(--border);
         border-radius: 16px;
         padding: 1.5rem;
@@ -329,7 +329,7 @@ import { parsePolarCSV } from './utils/polar-parser';
 
       .ratio-bar-track {
         height: 6px;
-        background: var(--surface-2);
+        background: var(--gb-bg-panel);
         border-radius: 3px;
         overflow: hidden;
         margin-bottom: 0.5rem;
@@ -398,7 +398,7 @@ import { parsePolarCSV } from './utils/polar-parser';
       }
 
       .metrics-card {
-        background: var(--surface-1);
+        background: var(--gb-bg-bezel);
         border: 1px solid var(--border);
         border-radius: 16px;
         padding: 1.5rem;

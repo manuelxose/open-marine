@@ -91,8 +91,8 @@ export interface RouteWaypoint {
       flex: 1;
       padding: 0.75rem 0.85rem;
       border: 1px solid var(--border);
-      background: var(--surface-2);
-      color: var(--text-primary);
+      background: var(--gb-bg-panel);
+      color: var(--gb-text-value);
       border-radius: 6px;
       font-size: 1rem;
     }
@@ -101,7 +101,7 @@ export interface RouteWaypoint {
       flex-direction: column;
       gap: 0.25rem;
       font-size: 0.85rem;
-      color: var(--text-secondary);
+      color: var(--gb-text-muted);
       text-align: right;
       min-width: 140px;
     }
@@ -114,14 +114,14 @@ export interface RouteWaypoint {
       border: 1px solid var(--border);
       border-radius: 8px;
       padding: 0.75rem;
-      background: var(--surface-1);
+      background: var(--gb-bg-bezel);
     }
     .waypoint-item {
       display: flex;
       align-items: center;
       gap: 0.75rem;
       padding: 0.6rem 0.75rem;
-      background: var(--surface-2);
+      background: var(--gb-bg-panel);
       border-radius: 6px;
       border: 1px solid transparent;
     }
@@ -136,7 +136,7 @@ export interface RouteWaypoint {
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      color: var(--text-tertiary);
+      color: var(--gb-text-muted);
       cursor: grab;
     }
     .wp-index {
@@ -149,7 +149,7 @@ export interface RouteWaypoint {
       justify-content: center;
       font-size: 0.75rem;
       font-weight: 600;
-      color: var(--text-secondary);
+      color: var(--gb-text-muted);
     }
     .wp-info {
       flex: 1;
@@ -159,17 +159,17 @@ export interface RouteWaypoint {
     }
     .wp-name {
       font-weight: 600;
-      color: var(--text-primary);
+      color: var(--gb-text-value);
     }
     .wp-leg {
       font-size: 0.75rem;
-      color: var(--text-secondary);
+      color: var(--gb-text-muted);
       font-family: var(--font-mono);
     }
     .wp-remove {
       border: none;
       background: none;
-      color: var(--text-secondary);
+      color: var(--gb-text-muted);
       cursor: pointer;
       padding: 0.25rem;
       border-radius: 4px;
@@ -189,7 +189,7 @@ export interface RouteWaypoint {
     .empty-state {
       text-align: center;
       padding: 1.5rem 1rem;
-      color: var(--text-tertiary);
+      color: var(--gb-text-muted);
       border: 1px dashed var(--border);
       border-radius: 6px;
       font-style: italic;

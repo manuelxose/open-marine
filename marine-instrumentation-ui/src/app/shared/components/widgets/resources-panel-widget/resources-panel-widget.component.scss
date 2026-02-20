@@ -7,7 +7,7 @@
   padding: 0.85rem;
   border: 1px solid var(--border-default);
   border-radius: var(--radius-lg);
-  background: var(--bg-surface);
+  background: var(--gb-bg-panel);
   box-shadow: var(--shadow-sm);
   display: flex;
   flex-direction: column;
@@ -27,13 +27,13 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: var(--text-secondary);
+  color: var(--gb-text-muted);
 }
 
 .resources-panel-widget__subtitle {
   margin: 0.2rem 0 0;
   font-size: 0.8rem;
-  color: var(--text-primary);
+  color: var(--gb-text-value);
 }
 
 .resources-panel-widget__content {
@@ -50,7 +50,7 @@
   min-height: 120px;
   border: 1px dashed var(--border-default);
   border-radius: var(--radius-md);
-  color: var(--text-secondary);
+  color: var(--gb-text-muted);
   display: flex;
   align-items: center;
   justify-content: center;

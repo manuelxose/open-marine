@@ -10,7 +10,7 @@
   user-select: none;
   font-family: var(--font-body);
   font-size: var(--text-sm);
-  color: var(--text-primary);
+  color: var(--gb-text-value);
   line-height: 1.5;
 }
 
@@ -35,7 +35,7 @@
   height: 1.25rem;
   border: 2px solid var(--border-default);
   border-radius: 50%;
-  background-color: var(--bg-surface);
+  background-color: var(--gb-bg-panel);
   transition: all 0.2s ease;
 }
 
@@ -64,7 +64,7 @@
 
 /* Focus styles via native input focus-visible */
 .native-radio:focus-visible + .radio-control {
-  box-shadow: 0 0 0 2px var(--bg-surface), 0 0 0 4px var(--primary-500);
+  box-shadow: 0 0 0 2px var(--gb-bg-panel), 0 0 0 4px var(--primary-500);
 }
 
 /* Disabled State */
@@ -79,7 +79,7 @@
 }
 
 .app-radio-container.disabled .radio-control.checked .radio-dot {
-  background-color: var(--text-tertiary);
+  background-color: var(--gb-text-muted);
 }
 
 /* Content sizing */

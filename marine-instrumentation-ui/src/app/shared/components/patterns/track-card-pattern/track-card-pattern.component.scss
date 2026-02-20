@@ -7,7 +7,7 @@
   padding: 0.75rem;
   border: 1px solid var(--border-default);
   border-radius: var(--radius-lg);
-  background: var(--bg-surface);
+  background: var(--gb-bg-panel);
   box-shadow: var(--shadow-sm);
   display: flex;
   flex-direction: column;
@@ -34,7 +34,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: var(--primary);
+  color: var(--gb-needle-secondary);
   flex-shrink: 0;
 }
 
@@ -46,13 +46,13 @@
   margin: 0;
   font-size: 0.95rem;
   font-weight: 700;
-  color: var(--text-primary);
+  color: var(--gb-text-value);
 }
 
 .track-card-pattern__subtitle {
   margin: 0.18rem 0 0;
   font-size: 0.74rem;
-  color: var(--text-secondary);
+  color: var(--gb-text-muted);
 }
 
 .track-card-pattern__metrics {
@@ -72,7 +72,7 @@
 .track-card-pattern__metric-label {
   margin: 0;
   font-size: 0.68rem;
-  color: var(--text-secondary);
+  color: var(--gb-text-muted);
 }
 
 .track-card-pattern__metric-value {
@@ -80,7 +80,7 @@
   font-size: 0.8rem;
   font-family: var(--font-mono);
   font-weight: 700;
-  color: var(--text-primary);
+  color: var(--gb-text-value);
   overflow-wrap: anywhere;
 }
 

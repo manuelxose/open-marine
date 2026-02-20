@@ -1,17 +1,30 @@
-<div class="card" [class.is-loading]="loading" [class.has-error]="!!error">
+<div
+  class="card"
+  [class.is-loading]="loading"
+  [class.has-error]="!!error"
+  [class.quality-stale]="quality === 'stale'"
+  [class.quality-warn]="quality === 'warn'"
+>
   <div class="card-header">
     <div class="title-group">
       <h3 class="title">{{ title }}</h3>
       <span class="subtitle" *ngIf="subtitle">{{ subtitle }}</span>
     </div>
-    <div
-      class="status-chip"
-      *ngIf="statusLabel"
-      [class.status-ok]="statusTone === 'ok'"
-      [class.status-warn]="statusTone === 'warn'"
-      [class.status-alert]="statusTone === 'alert'"
-    >
-      {{ statusLabel }}
+    <div class="header-right">
+      <span
+        class="quality-dot"
+        *ngIf="quality"
+        [attr.data-quality]="quality"
+      ></span>
+      <div
+        class="status-chip"
+        *ngIf="statusLabel"
+        [class.status-ok]="statusTone === 'ok'"
+        [class.status-warn]="statusTone === 'warn'"
+        [class.status-alert]="statusTone === 'alert'"
+      >
+        {{ statusLabel }}
+      </div>
     </div>
   </div>
 

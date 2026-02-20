@@ -9,7 +9,7 @@
   border: 1px solid var(--border-default);
   border-left: 3px solid var(--alarm-accent);
   border-radius: var(--radius-lg);
-  background: var(--bg-surface);
+  background: var(--gb-bg-panel);
   box-shadow: var(--shadow-sm);
   display: flex;
   flex-direction: column;
@@ -47,7 +47,7 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: var(--text-secondary);
+  color: var(--gb-text-muted);
 }
 
 .alarm-panel-widget__state {
@@ -60,7 +60,7 @@
   min-height: 120px;
   border: 1px dashed var(--border-default);
   border-radius: var(--radius-md);
-  color: var(--text-secondary);
+  color: var(--gb-text-muted);
   display: flex;
   align-items: center;
   justify-content: center;

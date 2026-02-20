@@ -18,7 +18,7 @@
 .label {
   font-size: 0.875rem;
   font-weight: 500;
-  color: var(--text-secondary);
+  color: var(--gb-text-muted);
 }
 
 .pickers-row {
@@ -39,7 +39,7 @@
 }
 
 .separator {
-  color: var(--text-tertiary);
+  color: var(--gb-text-muted);
   font-size: 0.875rem;
   
   @media (max-width: 600px) {

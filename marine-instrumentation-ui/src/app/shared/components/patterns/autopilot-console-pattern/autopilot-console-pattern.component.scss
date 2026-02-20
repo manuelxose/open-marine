@@ -7,7 +7,7 @@
   padding: 0.8rem;
   border: 1px solid var(--border-default);
   border-radius: var(--radius-lg);
-  background: var(--bg-surface);
+  background: var(--gb-bg-panel);
   box-shadow: var(--shadow-sm);
   display: flex;
   flex-direction: column;
@@ -38,7 +38,7 @@
   border-radius: 999px;
   border: 1px solid var(--border-default);
   background: var(--bg-surface-secondary);
-  color: var(--primary);
+  color: var(--gb-needle-secondary);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -55,13 +55,13 @@
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--text-secondary);
+  color: var(--gb-text-muted);
 }
 
 .autopilot-console-pattern__subtitle {
   margin: 0.2rem 0 0;
   font-size: 0.82rem;
-  color: var(--text-primary);
+  color: var(--gb-text-value);
 }
 
 .autopilot-console-pattern__state-pill {

@@ -86,14 +86,14 @@ type TestStatus = 'idle' | 'testing' | 'success' | 'error';
       justify-content: center;
       height: 100%;
       padding: var(--space-4);
-      background: var(--bg-base);
+      background: var(--gb-bg-canvas);
     }
 
     .onboarding-card {
       width: 100%;
       max-width: 480px;
       padding: var(--space-8);
-      background: var(--bg-surface);
+      background: var(--gb-bg-panel);
       border: 1px solid var(--border-default);
       border-radius: var(--radius-xl, 12px);
     }
@@ -102,22 +102,22 @@ type TestStatus = 'idle' | 'testing' | 'success' | 'error';
       display: inline-block;
       margin-bottom: var(--space-4);
       font-size: 0.8125rem;
-      color: var(--text-secondary);
+      color: var(--gb-text-muted);
       text-decoration: none;
     }
-    .back-link:hover { color: var(--text-primary); }
+    .back-link:hover { color: var(--gb-text-value); }
 
     .onboarding-title {
       margin: 0 0 var(--space-1) 0;
       font-size: 1.25rem;
       font-weight: 700;
-      color: var(--text-primary);
+      color: var(--gb-text-value);
     }
 
     .onboarding-subtitle {
       margin: 0 0 var(--space-4) 0;
       font-size: 0.75rem;
-      color: var(--text-secondary);
+      color: var(--gb-text-muted);
       text-transform: uppercase;
       letter-spacing: 0.08em;
     }
@@ -126,13 +126,13 @@ type TestStatus = 'idle' | 'testing' | 'success' | 'error';
       margin: 0 0 var(--space-6) 0;
       font-size: 0.875rem;
       line-height: 1.6;
-      color: var(--text-secondary);
+      color: var(--gb-text-muted);
     }
 
     .onboarding-description code {
       padding: 2px 6px;
       font-size: 0.8125rem;
-      background: var(--bg-elevated, var(--bg-surface));
+      background: var(--bg-elevated, var(--gb-bg-panel));
       border-radius: var(--radius-sm, 4px);
       color: var(--accent, #88c0d0);
     }
@@ -144,7 +144,7 @@ type TestStatus = 'idle' | 'testing' | 'success' | 'error';
       margin-bottom: var(--space-1);
       font-size: 0.8125rem;
       font-weight: 600;
-      color: var(--text-secondary);
+      color: var(--gb-text-muted);
     }
 
     .field-row {
@@ -157,8 +157,8 @@ type TestStatus = 'idle' | 'testing' | 'success' | 'error';
       height: 44px;
       padding: 0 var(--space-3);
       font-size: 0.875rem;
-      color: var(--text-primary);
-      background: var(--bg-base);
+      color: var(--gb-text-value);
+      background: var(--gb-bg-canvas);
       border: 1px solid var(--border-default);
       border-radius: var(--radius-md, 8px);
       outline: none;
@@ -174,8 +174,8 @@ type TestStatus = 'idle' | 'testing' | 'success' | 'error';
       padding: 0 var(--space-4);
       font-size: 0.8125rem;
       font-weight: 600;
-      color: var(--text-primary);
-      background: var(--bg-elevated, var(--bg-surface));
+      color: var(--gb-text-value);
+      background: var(--bg-elevated, var(--gb-bg-panel));
       border: 1px solid var(--border-default);
       border-radius: var(--radius-md, 8px);
       cursor: pointer;
@@ -209,7 +209,7 @@ type TestStatus = 'idle' | 'testing' | 'success' | 'error';
     [data-status='success'] .status-dot { background: var(--success, #a3be8c); }
     [data-status='error']   .status-dot { background: var(--danger, #bf616a); }
 
-    .status-text { color: var(--text-secondary); }
+    .status-text { color: var(--gb-text-muted); }
 
     .actions {
       display: flex;
@@ -247,7 +247,7 @@ type TestStatus = 'idle' | 'testing' | 'success' | 'error';
     }
 
     .onboarding-btn--ghost {
-      color: var(--text-secondary);
+      color: var(--gb-text-muted);
       background: transparent;
       border: 1px solid var(--border-default);
     }

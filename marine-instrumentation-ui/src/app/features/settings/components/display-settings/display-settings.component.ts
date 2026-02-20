@@ -67,9 +67,10 @@ import { ThemeService } from '../../../../core/theme/theme.service';
   styles: [`
     .settings-section h2 {
       margin: 0 0 var(--space-4) 0;
+      font-family: 'Space Grotesk', sans-serif;
       font-size: 1.125rem;
-      font-weight: 600;
-      color: var(--text-primary);
+      font-weight: 700;
+      color: var(--gb-text-value);
     }
 
     .setting-item {
@@ -78,7 +79,7 @@ import { ThemeService } from '../../../../core/theme/theme.service';
       justify-content: space-between;
       gap: var(--space-4);
       padding: var(--space-3) 0;
-      border-bottom: 1px solid var(--border-default);
+      border-bottom: 1px solid var(--gb-border-panel);
     }
 
     .setting-info {
@@ -89,37 +90,49 @@ import { ThemeService } from '../../../../core/theme/theme.service';
     }
 
     .setting-label {
+      font-family: 'Space Grotesk', sans-serif;
       font-size: 0.875rem;
       font-weight: 500;
-      color: var(--text-primary);
+      color: var(--gb-text-value);
     }
 
     .setting-description {
       font-size: 0.75rem;
-      color: var(--text-secondary);
+      color: var(--gb-text-muted);
     }
 
     .theme-toggle {
       display: flex;
-      gap: var(--space-1);
+      gap: 2px;
+      padding: 3px;
+      background: var(--gb-bg-panel);
+      border: 1px solid var(--gb-border-panel);
+      border-radius: 10px;
     }
 
     .theme-btn {
-      height: 32px;
+      height: 30px;
       padding: 0 var(--space-3);
-      font-size: 0.8125rem;
-      font-weight: 500;
-      color: var(--text-secondary);
-      background: var(--bg-base);
-      border: 1px solid var(--border-default);
-      border-radius: var(--radius-md, 6px);
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--gb-text-muted);
+      background: transparent;
+      border: none;
+      border-radius: 7px;
       cursor: pointer;
-      transition: border-color 0.15s;
+      transition: all 150ms ease;
+      white-space: nowrap;
+    }
+
+    .theme-btn:hover {
+      background: var(--gb-bg-glass-active, rgba(255,255,255,0.04));
+      color: var(--gb-text-value);
     }
 
     .theme-btn.active {
-      color: var(--accent, #88c0d0);
-      border-color: var(--accent, #88c0d0);
+      background: rgba(74, 144, 217, 0.15);
+      color: #4a90d9;
     }
   `],
 })

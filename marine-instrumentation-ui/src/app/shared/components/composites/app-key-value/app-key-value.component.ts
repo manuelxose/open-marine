@@ -55,7 +55,7 @@ export type KeyValueOrientation = 'horizontal' | 'vertical';
         gap: var(--spacing-md, 16px);
         
         .key-value-label {
-            color: var(--text-secondary);
+            color: var(--gb-text-muted);
         }
         
         .key-value-content {
@@ -69,7 +69,7 @@ export type KeyValueOrientation = 'horizontal' | 'vertical';
         
         .key-value-label {
             font-size: var(--text-sm, 0.875rem);
-            color: var(--text-secondary);
+            color: var(--gb-text-muted);
             text-transform: uppercase;
             letter-spacing: 0.05em;
         }
@@ -88,7 +88,7 @@ export type KeyValueOrientation = 'horizontal' | 'vertical';
         display: flex;
         align-items: baseline;
         gap: 4px;
-        color: var(--text-primary);
+        color: var(--gb-text-value);
         font-family: var(--font-mono, monospace);
         position: relative;
                
@@ -99,7 +99,7 @@ export type KeyValueOrientation = 'horizontal' | 'vertical';
 
       &-unit {
         font-size: 0.8em;
-        color: var(--text-tertiary);
+        color: var(--gb-text-muted);
       }
       
       &-actions {
@@ -112,7 +112,7 @@ export type KeyValueOrientation = 'horizontal' | 'vertical';
          border: none;
          padding: 4px;
          cursor: pointer;
-         color: var(--text-tertiary);
+         color: var(--gb-text-muted);
          opacity: 0; 
          transition: opacity 0.2s, color 0.2s;
          border-radius: 4px;
@@ -121,7 +121,7 @@ export type KeyValueOrientation = 'horizontal' | 'vertical';
 
          &:hover {
              background-color: var(--bg-surface-secondary);
-             color: var(--primary);
+             color: var(--gb-needle-secondary);
          }
       }
       

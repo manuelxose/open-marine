@@ -40,7 +40,7 @@
   align-items: center;
   justify-content: center;
   background: var(--bg-surface-secondary, rgba(255,255,255,0.05));
-  color: var(--text-secondary);
+  color: var(--gb-text-muted);
   flex-shrink: 0;
 
   &.status-safe {
@@ -62,7 +62,7 @@
   padding: 0.25rem 0.75rem;
   border-radius: 999px;
   background: var(--bg-surface-secondary, rgba(255,255,255,0.05));
-  color: var(--text-secondary);
+  color: var(--gb-text-muted);
   flex-shrink: 0;
 
   &.status-safe {
