@@ -479,8 +479,14 @@ export class ChartPage implements AfterViewInit, OnDestroy {
   private readonly playbackStore = inject(PlaybackStoreService);
   
   private readonly engine = new MapLibreEngineService(); // Engine logic maintained
+  private canvasComponent: ChartCanvasComponent | undefined;
+  private mapInitialized = false;
 
-  @ViewChild(ChartCanvasComponent) canvasComponent?: ChartCanvasComponent;
+  @ViewChild(ChartCanvasComponent)
+  set canvasComponentRef(component: ChartCanvasComponent | undefined) {
+    this.canvasComponent = component;
+    this.tryInitMap();
+  }
 
   // View Models (from Facade)
   readonly canvasVm$ = this.facade.canvasVm$;
@@ -725,8 +731,18 @@ export class ChartPage implements AfterViewInit, OnDestroy {
   }
 
   ngAfterViewInit(): void {
+    this.tryInitMap();
+  }
+
+  private tryInitMap(): void {
+    if (this.mapInitialized) {
+      return;
+    }
+
     const container = this.canvasComponent?.mapContainer?.nativeElement;
-    if (!container) return;
+    if (!container) {
+      return;
+    }
 
     this.engine.setClickHandler((lngLat) => {
       // When measurement mode is active, route clicks to measurement service
@@ -743,10 +759,12 @@ export class ChartPage implements AfterViewInit, OnDestroy {
     });
 
     this.engine.init(container, this.facade.initialView);
+    this.mapInitialized = true;
   }
 
   ngOnDestroy(): void {
     this.engine.destroy();
+    this.mapInitialized = false;
   }
   
   // ---- Event Handlers ----

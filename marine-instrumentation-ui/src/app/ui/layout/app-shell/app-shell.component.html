@@ -1,15 +1,8 @@
-<div class="app-layout" [class.app-layout--chart]="(isChartRoute$ | async)">
-  <!-- Overlay backdrop when sidenav open in chart mode -->
-  <div
-    class="nav-overlay"
-    *ngIf="(isChartRoute$ | async) && !navCollapsed"
-    (click)="toggleNav()"></div>
-
-  <!-- Side Navigation — Icon Rail 64px -->
-  <nav class="sidenav" 
+<div class="app-layout" [class.app-layout--chart]="(isChartRoute$ | async) && navCollapsed">
+  <!-- Side Navigation - Icon Rail 64px -->
+  <nav class="sidenav"
        [class.sidenav--chart-hidden]="(isChartRoute$ | async) && navCollapsed"
-       [class.sidenav--chart-overlay]="(isChartRoute$ | async) && !navCollapsed"
-       role="navigation" 
+       role="navigation"
        aria-label="Main navigation"
        (click)="navCollapsed = true">
     <div class="nav-main">
@@ -105,7 +98,7 @@
   </nav>
 
   <!-- Main Content -->
-  <div class="main-container">
+  <div class="main-container" (click)="handleMainAreaClick($event)">
     <app-top-bar *ngIf="!(isChartRoute$ | async)"
       [connected]="(connected$ | async) ?? false"
       [isNight]="(theme$ | async) === 'night'"
@@ -133,7 +126,7 @@
     </button>
 
     <app-alarm-banner></app-alarm-banner>
-    
+
     <main class="content-area">
       <div class="page-container">
         <router-outlet></router-outlet>
