@@ -9,11 +9,18 @@ const DIAGNOSTIC_PATHS: SignalKPath[] = [
   PATHS.navigation.speedOverGround,
   PATHS.navigation.courseOverGroundTrue,
   PATHS.navigation.headingTrue,
+  PATHS.navigation.headingMagnetic,
+  PATHS.navigation.attitude,
   PATHS.environment.depth.belowTransducer,
   PATHS.environment.wind.angleApparent,
   PATHS.environment.wind.speedApparent,
   PATHS.electrical.batteries.house.voltage,
   PATHS.electrical.batteries.house.current,
+  PATHS.sensors.gps.fix,
+  PATHS.sensors.gps.satellitesInView,
+  PATHS.sensors.imu.accelerometer,
+  PATHS.sensors.imu.gyroscope,
+  PATHS.sensors.imu.magnetometer,
 ];
 
 export type Freshness = "fresh" | "stale" | "dead" | "unknown";
