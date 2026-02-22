@@ -1,19 +1,31 @@
 <app-shared-panel-card [title]="vm.title | translate" [loading]="vm.isLoading" [error]="vm.error">
   <omi-gb-bezel class="panel-bezel" [quality]="panelQuality">
     <div class="wind-content">
-      <div class="metrics-list">
-        <div class="metric-row" *ngFor="let m of vm.metrics; trackBy: trackByMetric">
-          <div class="metric-info">
-            <span class="metric-label gb-instrument-label">{{ m.label | translate }}</span>
-            <div class="metric-value-group">
-              <span class="value gb-display-value gb-display-value--md" [class.value--large]="m.label === 'dashboard.metrics.aws' || m.label === 'AWS'">
-                {{ displayValue(m.value) }}
-              </span>
-              <span class="unit gb-display-unit" *ngIf="showUnit(m.value)">{{ m.unit }}</span>
-            </div>
-          </div>
-          <div class="metric-trend" *ngIf="m.series && m.series.length > 0">
-            <app-shared-sparkline [data]="m.series" [width]="80" [height]="24"></app-shared-sparkline>
+      <div class="aws-display">
+        <span class="awa-label">{{ (vm.metrics[0]?.label || 'dashboard.metrics.aws') | translate }}</span>
+        <div class="aws-value-group">
+          <span class="aws-value">{{ displayValue(vm.metrics[0]?.value || '---') }}</span>
+          <span class="aws-unit" *ngIf="showUnit(vm.metrics[0]?.value || '---')">{{ vm.metrics[0]?.unit }}</span>
+        </div>
+        <div class="aws-trend" *ngIf="(vm.metrics[0]?.series?.length || 0) > 0">
+          <app-shared-sparkline [data]="vm.metrics[0]?.series || []" [width]="180" [height]="36"></app-shared-sparkline>
+        </div>
+      </div>
+
+      <div class="awa-section" *ngIf="vm.metrics[1] as awa">
+        <span class="awa-label">{{ awa.label | translate }}</span>
+        <div class="awa-value-group">
+          <span class="awa-value">{{ displayValue(awa.value) }}</span>
+          <span class="awa-unit" *ngIf="showUnit(awa.value)">{{ awa.unit }}</span>
+        </div>
+      </div>
+
+      <div class="wind-secondary">
+        <div class="secondary-row" *ngFor="let m of vm.metrics | slice:2; trackBy: trackByMetric">
+          <span class="secondary-label">{{ m.label | translate }}</span>
+          <div class="secondary-value-group">
+            <span class="secondary-value">{{ displayValue(m.value) }}</span>
+            <span class="secondary-unit" *ngIf="showUnit(m.value)">{{ m.unit }}</span>
           </div>
         </div>
       </div>

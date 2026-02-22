@@ -89,7 +89,10 @@ import { PATHS } from '@omi/marine-data-contract';
       display: flex;
       flex-direction: column;
       overflow: hidden;
-      background: var(--gb-bg-canvas);
+      background:
+        radial-gradient(ellipse 100% 60% at 50% 0%, rgba(74, 144, 217, 0.06), transparent 70%),
+        radial-gradient(ellipse 80% 50% at 80% 100%, rgba(136, 192, 208, 0.04), transparent 60%),
+        var(--gb-bg-canvas);
     }
 
     /* ── Toolbar ──────────────────────────────────── */
@@ -97,19 +100,46 @@ import { PATHS } from '@omi/marine-data-contract';
       display: flex;
       align-items: center;
       padding: var(--space-3, 12px) var(--space-5, 24px);
-      border-bottom: 1px solid var(--gb-border-panel);
-      background: var(--gb-bg-bezel);
+      border-bottom: 1px solid var(--glass-border, var(--gb-border-panel));
+      background: var(--glass-bg, var(--gb-bg-bezel));
+      backdrop-filter: blur(var(--glass-blur, 16px));
+      -webkit-backdrop-filter: blur(var(--glass-blur, 16px));
       flex-shrink: 0;
-      gap: var(--space-3, 12px);
+      gap: var(--space-4, 16px);
+      position: relative;
+    }
+
+    .instruments-toolbar::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--glass-shine, rgba(255,255,255,0.1)), transparent);
+      opacity: 0.5;
     }
 
     .instruments-toolbar__title {
       font-family: 'Space Grotesk', sans-serif;
       font-size: 1rem;
       font-weight: 700;
-      color: var(--gb-text-value);
+      color: var(--text-primary, var(--gb-text-value));
       margin: 0;
       white-space: nowrap;
+      position: relative;
+    }
+
+    .instruments-toolbar__title::before {
+      content: '';
+      position: absolute;
+      left: -12px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 3px;
+      height: 60%;
+      background: var(--primary, #4a90d9);
+      border-radius: var(--radius-full, 999px);
     }
 
     .instruments-toolbar__tabs {
@@ -117,9 +147,9 @@ import { PATHS } from '@omi/marine-data-contract';
       gap: 2px;
       overflow-x: auto;
       padding: 3px;
-      background: var(--gb-bg-panel);
-      border: 1px solid var(--gb-border-panel);
-      border-radius: 10px;
+      background: linear-gradient(145deg, rgba(0,0,0,0.04), rgba(0,0,0,0.07));
+      border: 1px solid var(--glass-border, var(--gb-border-panel));
+      border-radius: 12px;
       -webkit-overflow-scrolling: touch;
       scrollbar-width: none;
     }
@@ -129,26 +159,28 @@ import { PATHS } from '@omi/marine-data-contract';
     .instruments-toolbar__tab {
       background: transparent;
       border: none;
-      color: var(--gb-text-muted);
-      padding: 6px 12px;
-      border-radius: 7px;
+      color: var(--text-muted, var(--gb-text-muted));
+      padding: 6px 14px;
+      border-radius: 9px;
       font-family: 'Space Grotesk', sans-serif;
       font-weight: 600;
       font-size: 0.7rem;
       cursor: pointer;
-      transition: all 150ms ease;
+      transition: all 0.2s ease;
       white-space: nowrap;
       min-height: 32px;
+      position: relative;
     }
 
     .instruments-toolbar__tab:hover {
-      background: var(--gb-bg-glass-active, rgba(255,255,255,0.04));
-      color: var(--gb-text-value);
+      background: rgba(74, 144, 217, 0.08);
+      color: var(--text-primary, var(--gb-text-value));
     }
 
     .instruments-toolbar__tab.active {
-      background: rgba(74, 144, 217, 0.15);
+      background: rgba(74, 144, 217, 0.18);
       color: #4a90d9;
+      box-shadow: 0 0 8px rgba(74, 144, 217, 0.15);
     }
 
     /* ── Scrollable content ───────────────────────── */
@@ -156,14 +188,16 @@ import { PATHS } from '@omi/marine-data-contract';
       flex: 1;
       overflow-y: auto;
       overflow-x: hidden;
+      scrollbar-width: thin;
+      scrollbar-color: var(--glass-border, rgba(255,255,255,0.1)) transparent;
     }
 
     /* ── Instruments grid ─────────────────────────── */
     .instruments-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-      gap: var(--space-3, 12px);
-      padding: var(--space-4, 16px) var(--space-5, 24px);
+      grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+      gap: var(--space-4, 16px);
+      padding: var(--space-5, 24px);
     }
 
     /* ── Section ──────────────────────────────────── */
@@ -178,33 +212,73 @@ import { PATHS } from '@omi/marine-data-contract';
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 0.2em;
-      color: var(--gb-text-muted);
+      color: var(--text-muted, var(--gb-text-muted));
       padding: var(--space-3, 12px) 0 var(--space-2, 8px);
-      border-bottom: 1px solid var(--gb-border-panel);
+      border-bottom: 1px solid var(--glass-border, var(--gb-border-panel));
       margin-bottom: var(--space-3, 12px);
+      position: relative;
+    }
+
+    .instruments-section__title::after {
+      content: '';
+      position: absolute;
+      bottom: -1px;
+      left: 0;
+      width: 40px;
+      height: 2px;
+      background: var(--primary, #4a90d9);
+      border-radius: 1px;
     }
 
     /* ── AIS panel ────────────────────────────────── */
     .ais-panel {
-      background: var(--gb-bg-panel);
-      border-radius: 14px;
-      border: 1px solid var(--gb-border-panel);
+      background: var(--glass-bg, var(--gb-bg-panel));
+      backdrop-filter: blur(var(--glass-blur, 16px));
+      -webkit-backdrop-filter: blur(var(--glass-blur, 16px));
+      border-radius: var(--glass-card-radius-sm, 14px);
+      border: 1px solid var(--glass-border, var(--gb-border-panel));
+      box-shadow:
+        var(--glass-highlight, none),
+        var(--glass-depth-shadow, 0 4px 20px rgba(0,0,0,0.12));
       padding: var(--space-4, 16px);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .ais-panel::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 10%;
+      right: 10%;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--glass-shine, rgba(255,255,255,0.1)), transparent);
+      opacity: 0.5;
     }
 
     @media (max-width: 640px) {
       .instruments-grid {
         grid-template-columns: repeat(2, 1fr);
         padding: var(--space-3, 12px);
+        gap: var(--space-3, 12px);
       }
 
       .instruments-toolbar {
         flex-wrap: wrap;
         padding: var(--space-2, 8px) var(--space-3, 12px);
+        gap: var(--space-2, 8px);
       }
+
+      .instruments-toolbar__title::before { display: none; }
 
       .instruments-section {
         padding: 0 var(--space-3, 12px);
+      }
+    }
+
+    @media (min-width: 1200px) {
+      .instruments-grid {
+        grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
       }
     }
   `],

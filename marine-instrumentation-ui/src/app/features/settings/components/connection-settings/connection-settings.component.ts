@@ -251,7 +251,7 @@ export class ConnectionSettingsComponent {
   readonly connected$ = this.signalK.connected$;
   readonly online$ = this.networkStatus.online$;
 
-  serverUrl = 'ws://localhost:3000';
+  serverUrl = this.defaultServerUrl();
 
   readonly testStatus$ = new BehaviorSubject<TestStatus>('idle');
   readonly testMessage$ = new BehaviorSubject<string>('');
@@ -289,5 +289,14 @@ export class ConnectionSettingsComponent {
       this.testStatus$.next('error');
       this.testMessage$.next('Invalid URL format.');
     }
+  }
+
+  private defaultServerUrl(): string {
+    if (typeof window !== 'undefined' && window.location?.hostname) {
+      const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+      return `${protocol}://${window.location.hostname}:3000`;
+    }
+
+    return 'ws://localhost:3000';
   }
 }

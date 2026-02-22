@@ -17,13 +17,19 @@
   height: 100%;
   width: 100%;
   padding: 10px;
+  background: radial-gradient(
+    circle at 50% 45%,
+    color-mix(in srgb, var(--gb-needle-secondary) 4%, transparent) 0%,
+    transparent 55%
+  );
 }
 
 .gauge-svg {
   width: 100%;
-  max-width: 180px;
-  max-height: 180px;
+  max-width: 190px;
+  max-height: 190px;
   overflow: visible;
+  filter: drop-shadow(0 2px 6px color-mix(in srgb, var(--gb-bg-canvas) 30%, transparent));
 
   .scale-track {
     fill: none;
@@ -33,7 +39,7 @@
   }
 
   .decor-ring {
-    stroke: color-mix(in srgb, var(--gb-border-panel) 28%, transparent);
+    stroke: color-mix(in srgb, var(--gb-border-panel) 22%, transparent);
   }
 
   .scale-value {
@@ -41,6 +47,7 @@
     stroke-width: 16;
     stroke-linecap: round;
     transition: stroke-dashoffset var(--gb-anim-needle) var(--gb-ease-data);
+    filter: drop-shadow(0 0 4px color-mix(in srgb, var(--gb-needle-secondary) 35%, transparent));
   }
 
   .ticks {
@@ -49,10 +56,12 @@
       font-size: 10px;
       fill: var(--gb-text-unit);
       text-anchor: middle;
-      font-weight: 500;
+      font-weight: 600;
 
       &.redline-text {
         fill: var(--gb-data-stale);
+        font-weight: 700;
+        filter: drop-shadow(0 0 3px color-mix(in srgb, var(--gb-data-stale) 40%, transparent));
       }
     }
   }
@@ -65,7 +74,7 @@
       font-weight: 700;
       font-size: 32px;
       fill: var(--gb-text-value);
-      filter: drop-shadow(0 0 5px color-mix(in srgb, var(--gb-needle-secondary) 40%, transparent));
+      filter: drop-shadow(0 0 6px color-mix(in srgb, var(--gb-needle-secondary) 45%, transparent));
       font-variant-numeric: tabular-nums;
     }
 
@@ -73,7 +82,7 @@
       font-family: 'Space Grotesk', system-ui, sans-serif;
       font-size: 10px;
       fill: var(--gb-text-unit);
-      letter-spacing: 1px;
+      letter-spacing: 1.5px;
     }
   }
 
@@ -84,7 +93,7 @@
 
   .needle {
     fill: var(--gb-text-value);
-    filter: drop-shadow(0 0 2px color-mix(in srgb, var(--gb-bg-canvas) 80%, transparent));
+    filter: drop-shadow(0 1px 3px color-mix(in srgb, var(--gb-bg-canvas) 80%, transparent));
   }
 
   .needle-center {
@@ -99,5 +108,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-top: 0.25rem;
+  margin-top: 0.35rem;
+  padding-top: 0.25rem;
+  border-top: 1px solid color-mix(in srgb, var(--gb-border-panel) 18%, transparent);
 }

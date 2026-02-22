@@ -34,7 +34,7 @@ Cambios aplicados:
 
 ## 3. Fase P1 - Smoke E2E reproducible
 
-Estado: `[PENDING]`.
+Estado: `[IN_PROGRESS]`.
 
 Objetivo:
 
@@ -50,9 +50,15 @@ Criterio de aceptacion:
 
 - Checklist funcional completado sin bloqueos criticos.
 
+Avance 2026-02-22:
+
+- `✅` Sub-flujo IMU (Raspberry Pi -> Signal K -> API lectura) validado en entorno real.
+- `✅` Publicacion IMU estabilizada con fallback WebSocket cuando HTTP write no esta disponible.
+- `[PENDING]` Mantener pendiente smoke global completo con todos los subsistemas en simultaneo.
+
 ## 4. Fase P2 - Calidad de codigo
 
-Estado: `[PENDING]`.
+Estado: `[IN_PROGRESS]`.
 
 Objetivos:
 
@@ -67,6 +73,11 @@ Tareas:
 Criterio de aceptacion:
 
 - Cada paquete critico con al menos una bateria minima de tests automatizados ejecutables en CI local.
+
+Avance 2026-02-22:
+
+- `✅` `marine-sensor-gateway` incorpora test IMU ejecutable por `npm run test`.
+- `✅` Cobertura minima inicial para contrato IMU/publisher Signal K (4 casos verdes).
 
 ## 5. Fase P3 - Performance y deuda UI
 

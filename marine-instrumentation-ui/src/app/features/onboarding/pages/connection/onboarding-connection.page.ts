@@ -256,7 +256,7 @@ type TestStatus = 'idle' | 'testing' | 'success' | 'error';
 export class OnboardingConnectionPage {
   private readonly router = inject(Router);
 
-  serverUrl = 'ws://localhost:3000';
+  serverUrl = this.defaultServerUrl();
 
   readonly testStatus$ = new BehaviorSubject<TestStatus>('idle');
   readonly statusMessage$ = new BehaviorSubject<string>('');
@@ -309,5 +309,14 @@ export class OnboardingConnectionPage {
     const base = raw.replace(/\/+$/, '');
     if (base.includes('/signalk/')) return base;
     return `${base}/signalk/v1/stream?subscribe=none`;
+  }
+
+  private defaultServerUrl(): string {
+    if (typeof window !== 'undefined' && window.location?.hostname) {
+      const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+      return `${protocol}://${window.location.hostname}:3000`;
+    }
+
+    return 'ws://localhost:3000';
   }
 }

@@ -6,6 +6,9 @@
   padding: var(--space-3);
   box-shadow: var(--gb-shadow-instrument);
   transition: border-color 400ms ease, box-shadow 400ms ease;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
 
   &.gb-bezel--quality-stale {
     border-color: rgba(var(--gb-data-stale-rgb), 0.4);
@@ -31,6 +34,26 @@
   }
 }
 
+/* ── Transparent passthrough when nested inside panel-card (dashboard) ── */
+:host-context(app-shared-panel-card) .gb-bezel-wrapper {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  box-shadow: none;
+
+  &.gb-bezel--quality-stale,
+  &.gb-bezel--quality-warn {
+    border: none;
+    box-shadow: none;
+  }
+}
+
+/* Also strip the header when inside panel-card (panel-card already has its own title) */
+:host-context(app-shared-panel-card) .gb-bezel-header {
+  display: none;
+}
+
 .gb-bezel-header {
   display: flex;
   align-items: center;
@@ -43,6 +66,8 @@
   align-items: center;
   justify-content: center;
   width: 100%;
+  flex: 1;
+  min-height: 0;
 
   > * {
     width: 100%;

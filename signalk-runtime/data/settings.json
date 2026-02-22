@@ -1,21 +1,21 @@
 {
   "pipedProviders": [
     {
+      "id": "ais-catcher-udp",
       "pipeElements": [
         {
-          "type": "providers/simple",
+          "type": "providers/udp",
           "options": {
-            "logging": true,
-            "type": "NMEA0183",
-            "subOptions": {
-              "validateChecksum": true,
-              "type": "udp",
-              "port": "10110"
-            }
+            "port": 10110
+          }
+        },
+        {
+          "type": "providers/nmea0183-signalk",
+          "options": {
+            "validateChecksum": false
           }
         }
       ],
-      "id": "signaltcp",
       "enabled": true
     }
   ],

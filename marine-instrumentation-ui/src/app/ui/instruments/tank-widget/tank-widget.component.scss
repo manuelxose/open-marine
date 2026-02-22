@@ -17,17 +17,45 @@
 }
 
 .tank-card {
-  background: color-mix(in srgb, var(--gb-bg-glass) 65%, transparent);
-  border: 1px solid color-mix(in srgb, var(--gb-border-panel) 45%, transparent);
-  border-radius: 8px;
-  padding: 10px 5px;
+  background: color-mix(in srgb, var(--gb-bg-glass) 45%, transparent);
+  border: 1px solid color-mix(in srgb, var(--gb-border-panel) 35%, transparent);
+  border-radius: 10px;
+  padding: 10px 6px;
   display: flex;
   flex-direction: column;
   align-items: center;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  position: relative;
+  overflow: hidden;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 15%;
+    right: 15%;
+    height: 1px;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      color-mix(in srgb, var(--gb-text-value) 15%, transparent),
+      transparent
+    );
+  }
+
+  &:hover {
+    border-color: color-mix(in srgb, var(--gb-border-panel) 55%, transparent);
+    box-shadow:
+      0 4px 12px color-mix(in srgb, var(--gb-bg-canvas) 30%, transparent);
+  }
 }
 
 .tank-title {
   margin-bottom: 8px;
+  font-size: 0.58rem;
+  letter-spacing: 0.1em;
 }
 
 .visual-area {
@@ -43,6 +71,7 @@
   width: 100%;
   max-width: 50px;
   overflow: visible;
+  filter: drop-shadow(0 1px 3px color-mix(in srgb, var(--gb-bg-canvas) 25%, transparent));
 
   .tube-bg {
     fill: color-mix(in srgb, var(--gb-bg-canvas) 40%, transparent);
@@ -55,14 +84,17 @@
 
     &.fuel {
       fill: var(--gb-needle-secondary);
+      filter: drop-shadow(0 0 3px color-mix(in srgb, var(--gb-needle-secondary) 40%, transparent));
     }
 
     &.water {
       fill: var(--gb-data-good);
+      filter: drop-shadow(0 0 3px color-mix(in srgb, var(--gb-data-good) 40%, transparent));
     }
 
     &.waste {
       fill: var(--gb-data-warn);
+      filter: drop-shadow(0 0 3px color-mix(in srgb, var(--gb-data-warn) 40%, transparent));
     }
 
     &.gray {
@@ -90,27 +122,38 @@
   left: 50%;
   transform: translate(-50%, -50%);
   text-align: center;
-  text-shadow: 0 0 4px color-mix(in srgb, var(--gb-bg-canvas) 80%, transparent);
+  text-shadow:
+    0 0 6px color-mix(in srgb, var(--gb-bg-canvas) 90%, transparent),
+    0 1px 3px color-mix(in srgb, var(--gb-bg-canvas) 60%, transparent);
   pointer-events: none;
 
   .value {
     color: var(--gb-text-value);
     display: block;
     line-height: 1;
+    font-weight: 700;
   }
 
   .unit {
     color: color-mix(in srgb, var(--gb-text-value) 70%, transparent);
+    font-size: 0.55rem;
   }
 }
 
 .status-indicator {
   margin-top: 8px;
   color: var(--gb-text-unit);
+  font-size: 0.55rem;
+  letter-spacing: 0.08em;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--gb-bg-glass) 30%, transparent);
 
   &.alert {
     color: var(--gb-data-stale);
     font-weight: 700;
+    background: color-mix(in srgb, var(--gb-data-stale) 12%, transparent);
+    border: 1px solid color-mix(in srgb, var(--gb-data-stale) 25%, transparent);
     animation: pulse var(--gb-anim-alarm-pulse) infinite;
   }
 }
@@ -120,6 +163,8 @@
   align-items: center;
   justify-content: space-between;
   margin-top: 0.5rem;
+  padding-top: 0.25rem;
+  border-top: 1px solid color-mix(in srgb, var(--gb-border-panel) 18%, transparent);
 }
 
 @keyframes pulse {
@@ -129,6 +174,6 @@
 
   100% {
     opacity: 1;
-    text-shadow: 0 0 5px color-mix(in srgb, var(--gb-data-stale) 65%, transparent);
+    text-shadow: 0 0 6px color-mix(in srgb, var(--gb-data-stale) 65%, transparent);
   }
 }
