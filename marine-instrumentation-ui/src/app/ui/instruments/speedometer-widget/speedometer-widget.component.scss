@@ -18,12 +18,18 @@
   height: 100%;
   width: 100%;
   padding-bottom: 0.5rem;
+  background: radial-gradient(
+    ellipse at 50% 35%,
+    color-mix(in srgb, var(--gb-needle-secondary) 6%, transparent) 0%,
+    transparent 65%
+  );
 }
 
 .gauge-svg {
   width: 100%;
-  max-width: 260px;
+  max-width: 280px;
   overflow: visible;
+  filter: drop-shadow(0 2px 8px color-mix(in srgb, var(--gb-bg-canvas) 40%, transparent));
 
   .tick-mark {
     stroke: var(--gb-tick-minor);
@@ -33,8 +39,8 @@
 
     &.major {
       stroke: var(--gb-tick-major);
-      stroke-width: 2px;
-      opacity: 0.85;
+      stroke-width: 2.5px;
+      opacity: 0.9;
     }
   }
 
@@ -49,7 +55,7 @@
 
   .progress-arc {
     transition: stroke-dasharray var(--gb-anim-needle) var(--gb-ease-data);
-    filter: drop-shadow(0 0 4px color-mix(in srgb, var(--gb-needle-secondary) 40%, transparent));
+    filter: drop-shadow(0 0 6px color-mix(in srgb, var(--gb-needle-secondary) 55%, transparent));
   }
 
   .needle-group {
@@ -76,10 +82,12 @@
         stroke: var(--gb-needle-secondary);
         stroke-width: 4px;
         stroke-linecap: round;
+        filter: drop-shadow(0 0 3px color-mix(in srgb, var(--gb-needle-secondary) 60%, transparent));
       }
 
       .needle-tip {
         fill: var(--gb-text-value);
+        filter: drop-shadow(0 0 4px color-mix(in srgb, var(--gb-needle-secondary) 50%, transparent));
       }
     }
   }
@@ -90,17 +98,23 @@
   display: flex;
   justify-content: space-between;
   align-items: flex-end;
-  padding: 0 10px;
-  margin-top: -30px;
+  padding: 0 12px;
+  margin-top: -28px;
   z-index: 2;
 
   .readout.stw {
     display: flex;
     flex-direction: column;
     align-items: flex-start;
+    padding: 4px 8px;
+    background: color-mix(in srgb, var(--gb-bg-glass) 50%, transparent);
+    border-radius: 6px;
+    border: 1px solid color-mix(in srgb, var(--gb-border-panel) 25%, transparent);
 
     .label {
       color: var(--gb-needle-primary);
+      font-size: 0.6rem;
+      letter-spacing: 0.08em;
     }
 
     .value {
@@ -117,7 +131,9 @@
     .value {
       line-height: 1;
       color: var(--gb-text-value);
-      text-shadow: 0 0 15px color-mix(in srgb, var(--gb-needle-secondary) 45%, transparent);
+      text-shadow:
+        0 0 15px color-mix(in srgb, var(--gb-needle-secondary) 45%, transparent),
+        0 2px 6px color-mix(in srgb, var(--gb-bg-canvas) 50%, transparent);
     }
 
     .unit {
@@ -131,5 +147,8 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding-inline: 0.35rem;
+  padding-inline: 0.5rem;
+  padding-top: 0.25rem;
+  border-top: 1px solid color-mix(in srgb, var(--gb-border-panel) 20%, transparent);
+  margin-top: auto;
 }

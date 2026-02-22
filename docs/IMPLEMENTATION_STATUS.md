@@ -2,7 +2,7 @@
 
 Estado tecnico consolidado del proyecto.
 
-Fecha de corte: 2026-02-20.
+Fecha de corte: 2026-02-22.
 
 ## 1. Resumen ejecutivo
 
@@ -11,8 +11,12 @@ Fecha de corte: 2026-02-20.
 - `✅` UI Angular compila en modo produccion.
 - `✅` Build de `marine-data-simulator` en verde.
 - `✅` Build de `marine-sensor-gateway` en verde.
+- `✅` Test de integracion IMU en `marine-sensor-gateway` agregado y ejecutado en verde (`npm run test`).
+- `✅` Integracion IMU ICM-20948 validada por SSH en Raspberry Pi (`manu@manu.local`).
+- `✅` Flujo real IMU -> Signal K validado con fallback WebSocket por restricciones HTTP write (`POST 404`, `PUT 405`).
 - `✅` DOC_3 Commercial App Restructuring — Fases A, B, C, D, E, F, G, H, I implementadas.
 - `✅` DOC_4 UX/UI Commercial Final — Secciones S1–S10 implementadas (Glass Bridge Design System).
+- `✅` Glass Bridge Pro Redesign — Dashboard, panel-card, 5 paneles, critical strip, instruments page con glass morphism premium.
 
 ## 2. Estado por paquete
 
@@ -21,7 +25,7 @@ Fecha de corte: 2026-02-20.
 | `marine-data-contract` | `✅` | Build y tests en verde. |
 | `marine-instrumentation-ui` | `✅` | Build en verde; warnings de budget. |
 | `marine-data-simulator` | `✅` | Build en verde tras fix de tipado en CLI y escenario AIS. |
-| `marine-sensor-gateway` | `✅` | Build en verde tras fix de tipado en gateway AIS. |
+| `marine-sensor-gateway` | `✅` | Build en verde + contratos IMU y scripts RPi validados en entorno real. |
 | `signalk-runtime` | `✅` | Compose listo para entorno local. |
 
 ## 3. Estado funcional UI
@@ -106,6 +110,8 @@ Correcciones aplicadas en esta iteracion:
 
 - `src/ais/rtlAisGateway.ts`: tipado de proceso hijo alineado con `stdio: ["ignore", "pipe", "pipe"]`.
 - `src/ais/rtlAisGateway.ts`: manejo de `pid` compatible con `exactOptionalPropertyTypes`.
+- `src/__tests__/imu-integration.test.ts`: nuevo test de integracion IMU (tipos, conversiones, paths y delta publisher).
+- `package.json`: nuevo script `npm run test` para ejecutar test IMU con `tsx --test`.
 
 ## 5. Calidad visual y styleguide
 
@@ -227,3 +233,34 @@ Referencia: `docs/DOC_3_COMMERCIAL_APP_RESTRUCTURING.md`.
 
 - `[PENDING]` Fase J — Testing (unit tests for XTE, CPA, anchor watch, true wind).
 - `[PENDING]` Fase K — User documentation (docs-user/, help overlay).
+
+## 10. IMU ICM-20948 - Validacion tecnica (2026-02-22)
+
+Resumen:
+
+- `✅` `marine-data-contract` ampliado con:
+  - `sensors.imu.accelerometer`
+  - `sensors.imu.gyroscope`
+  - `sensors.imu.magnetometer`
+  - Tipos `Vector3` y `Attitude`
+- `✅` `marine-sensor-gateway` ampliado con:
+  - `src/adapters/imu.ts`
+  - `src/publishers/signalkPublisher.ts`
+  - scripts RPi en `rpi/omi-imu/`
+- `✅` Validacion en Raspberry Pi:
+  - `setup.sh` ejecutado en verde
+  - `01_test_sensor.py` leyendo 9 ejes en tiempo real
+  - `02_publish_signalk.py` publicando en Signal K
+
+Comportamiento observado en Signal K:
+
+- `GET /signalk/v1/api/` responde `200`.
+- `POST /signalk/v1/api/` responde `404`.
+- `PUT /signalk/v1/api/vessels/self/...` responde `405`.
+- WebSocket `/signalk/v1/stream?subscribe=none` permite envio de deltas (`ws.icm20948`).
+
+Endpoints de lectura validados:
+
+- `/signalk/v1/api/vessels/self/navigation/headingMagnetic`
+- `/signalk/v1/api/vessels/self/navigation/attitude`
+- `/signalk/v1/api/vessels/self/sensors/imu`

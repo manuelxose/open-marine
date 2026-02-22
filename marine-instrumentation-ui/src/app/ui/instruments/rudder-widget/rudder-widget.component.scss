@@ -17,6 +17,11 @@
   height: 100%;
   width: 100%;
   padding: 0.5rem;
+  background: radial-gradient(
+    ellipse at 50% 55%,
+    color-mix(in srgb, var(--gb-needle-secondary) 4%, transparent) 0%,
+    transparent 55%
+  );
 }
 
 .scale-view {
@@ -29,10 +34,11 @@
   .rudder-svg {
     width: 100%;
     max-height: 140px;
+    filter: drop-shadow(0 2px 6px color-mix(in srgb, var(--gb-bg-canvas) 25%, transparent));
 
     .scale-track-bg {
       fill: none;
-      stroke: color-mix(in srgb, var(--gb-border-panel) 55%, transparent);
+      stroke: color-mix(in srgb, var(--gb-border-panel) 50%, transparent);
       stroke-width: 12;
       stroke-linecap: round;
     }
@@ -52,6 +58,7 @@
         &.center-tick {
           stroke: var(--gb-text-value);
           stroke-width: 3;
+          filter: drop-shadow(0 0 2px color-mix(in srgb, var(--gb-text-value) 30%, transparent));
         }
       }
 
@@ -60,15 +67,18 @@
         font-size: 10px;
         font-family: 'JetBrains Mono', 'Courier New', monospace;
         text-anchor: middle;
+        font-weight: 600;
 
         &.port-text {
           fill: var(--gb-data-stale);
           opacity: 0.85;
+          filter: drop-shadow(0 0 2px color-mix(in srgb, var(--gb-data-stale) 25%, transparent));
         }
 
         &.stbd-text {
           fill: var(--gb-data-good);
           opacity: 0.85;
+          filter: drop-shadow(0 0 2px color-mix(in srgb, var(--gb-data-good) 25%, transparent));
         }
       }
     }
@@ -78,6 +88,7 @@
 
       .needle-head {
         fill: var(--gb-needle-secondary);
+        filter: drop-shadow(0 0 4px color-mix(in srgb, var(--gb-needle-secondary) 50%, transparent));
       }
 
       .needle-shaft {
@@ -100,23 +111,29 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  margin-top: -10px;
+  margin-top: -8px;
   margin-bottom: 10px;
   z-index: 2;
 
   .digital-value {
     line-height: 1;
     color: var(--gb-text-value);
-    text-shadow: 0 0 10px color-mix(in srgb, var(--gb-text-value) 30%, transparent);
+    text-shadow:
+      0 0 10px color-mix(in srgb, var(--gb-text-value) 30%, transparent),
+      0 2px 4px color-mix(in srgb, var(--gb-bg-canvas) 40%, transparent);
 
     &.port {
       color: var(--gb-data-stale);
-      text-shadow: 0 0 15px color-mix(in srgb, var(--gb-data-stale) 40%, transparent);
+      text-shadow:
+        0 0 15px color-mix(in srgb, var(--gb-data-stale) 45%, transparent),
+        0 0 30px color-mix(in srgb, var(--gb-data-stale) 15%, transparent);
     }
 
     &.stbd {
       color: var(--gb-data-good);
-      text-shadow: 0 0 15px color-mix(in srgb, var(--gb-data-good) 40%, transparent);
+      text-shadow:
+        0 0 15px color-mix(in srgb, var(--gb-data-good) 45%, transparent),
+        0 0 30px color-mix(in srgb, var(--gb-data-good) 15%, transparent);
     }
   }
 
@@ -125,21 +142,27 @@
 
     .side-indicator {
       color: color-mix(in srgb, var(--gb-text-unit) 70%, transparent);
-      background: color-mix(in srgb, var(--gb-bg-glass) 75%, transparent);
-      padding: 2px 8px;
+      background: color-mix(in srgb, var(--gb-bg-glass) 55%, transparent);
+      padding: 2px 10px;
       border-radius: 4px;
-      border: 1px solid transparent;
+      border: 1px solid color-mix(in srgb, var(--gb-border-panel) 25%, transparent);
+      font-size: 0.6rem;
+      letter-spacing: 0.1em;
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
 
       &.active-port {
         color: var(--gb-text-value);
-        background: rgba(var(--gb-data-stale-rgb), 0.3);
-        border-color: rgba(var(--gb-data-stale-rgb), 0.5);
+        background: color-mix(in srgb, var(--gb-data-stale) 18%, transparent);
+        border-color: color-mix(in srgb, var(--gb-data-stale) 35%, transparent);
+        box-shadow: 0 0 8px color-mix(in srgb, var(--gb-data-stale) 18%, transparent);
       }
 
       &.active-stbd {
         color: var(--gb-text-value);
-        background: rgba(var(--gb-data-good-rgb), 0.28);
-        border-color: rgba(var(--gb-data-good-rgb), 0.48);
+        background: color-mix(in srgb, var(--gb-data-good) 18%, transparent);
+        border-color: color-mix(in srgb, var(--gb-data-good) 35%, transparent);
+        box-shadow: 0 0 8px color-mix(in srgb, var(--gb-data-good) 18%, transparent);
       }
     }
   }
@@ -150,5 +173,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding-inline: 0.35rem;
+  padding-inline: 0.5rem;
+  padding-top: 0.25rem;
+  border-top: 1px solid color-mix(in srgb, var(--gb-border-panel) 18%, transparent);
 }

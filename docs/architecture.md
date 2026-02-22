@@ -23,6 +23,7 @@ Componentes:
                                |
 [Sensores reales / rtl_ais] ---+--> [Signal K Server] --> [Angular UI]
                                       (REST + WS)
+[Raspberry Pi IMU ICM-20948] --^
 ```
 
 Servicios y puertos principales:
@@ -81,6 +82,8 @@ Estado funcional:
 
 - `StubSensorGateway` operativo como estructura base.
 - `AisGateway` con proceso hijo, parseo NMEA y forward UDP/TCP.
+- Contrato IMU disponible (`src/adapters/imu.ts`).
+- Scripts Raspberry Pi validados para ICM-20948 (`rpi/omi-imu/`), con publicacion a Signal K.
 
 ## 3.4 `marine-instrumentation-ui`
 
@@ -168,6 +171,11 @@ Pendiente:
 - dejar build verde en simulator y gateway,
 - ampliar cobertura de pruebas,
 - reforzar smoke tests de integracion entre paquetes.
+
+Nota de integracion IMU (2026-02-22):
+
+- En el entorno validado, Signal K acepto escritura via WebSocket y rechazo HTTP write (`POST /api` 404, `PUT` 405).
+- El publisher IMU usa fallback en cadena: delta HTTP -> REST PUT -> WebSocket.
 
 Detalle en:
 

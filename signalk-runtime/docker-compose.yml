@@ -1,5 +1,3 @@
-
-
 services:
   signalk:
     image: signalk/signalk-server:latest
@@ -7,6 +5,7 @@ services:
     entrypoint: ["/home/node/signalk/node_modules/signalk-server/bin/signalk-server"]
     ports:
       - "3000:3000"
+      - "10110:10110/udp"
     environment:
       - TZ=Europe/Madrid
       - IS_IN_DOCKER=true

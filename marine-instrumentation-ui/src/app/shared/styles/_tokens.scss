@@ -271,6 +271,83 @@
   // Animation
   --chart-panel-duration: 250ms;
   --chart-panel-easing: cubic-bezier(0.4, 0, 0.2, 1);
+
+  // ---------------------------------------------------------------------------
+  // DASHBOARD GLASS MORPHISM TOKENS
+  // ---------------------------------------------------------------------------
+  --glass-blur: 16px;
+  --glass-blur-heavy: 28px;
+  --glass-blur-light: 8px;
+
+  // Day mode glass
+  --glass-bg-day: rgba(255, 255, 255, 0.55);
+  --glass-bg-day-heavy: rgba(255, 255, 255, 0.75);
+  --glass-border-day: rgba(255, 255, 255, 0.8);
+  --glass-shine-day: rgba(255, 255, 255, 0.9);
+
+  // Night mode glass
+  --glass-bg-night: rgba(46, 52, 64, 0.6);
+  --glass-bg-night-heavy: rgba(59, 66, 82, 0.8);
+  --glass-border-night: rgba(136, 192, 208, 0.18);
+  --glass-shine-night: rgba(136, 192, 208, 0.08);
+
+  // Active values (day defaults)
+  --glass-bg: var(--glass-bg-day);
+  --glass-bg-heavy: var(--glass-bg-day-heavy);
+  --glass-border: var(--glass-border-day);
+  --glass-shine: var(--glass-shine-day);
+
+  // Nautical gradients
+  --gradient-nav: linear-gradient(135deg, rgba(0, 119, 190, 0.12) 0%, rgba(94, 129, 172, 0.06) 100%);
+  --gradient-wind: linear-gradient(135deg, rgba(143, 188, 187, 0.12) 0%, rgba(136, 192, 208, 0.06) 100%);
+  --gradient-depth: linear-gradient(135deg, rgba(0, 75, 120, 0.15) 0%, rgba(0, 119, 190, 0.08) 100%);
+  --gradient-power: linear-gradient(135deg, rgba(163, 190, 140, 0.12) 0%, rgba(235, 203, 139, 0.08) 100%);
+  --gradient-system: linear-gradient(135deg, rgba(76, 86, 106, 0.15) 0%, rgba(59, 66, 82, 0.1) 100%);
+
+  // Glow effects
+  --glow-primary: 0 0 20px rgba(0, 119, 190, 0.35);
+  --glow-success: 0 0 16px rgba(163, 190, 140, 0.4);
+  --glow-warn: 0 0 16px rgba(235, 203, 139, 0.5);
+  --glow-danger: 0 0 20px rgba(191, 97, 106, 0.5);
+
+  // Highlight line
+  --glass-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  --glass-highlight-night: inset 0 1px 0 rgba(136, 192, 208, 0.15);
+
+  // ---------------------------------------------------------------------------
+  // ENHANCED GLASS PRO TOKENS (Dashboard & Instruments)
+  // ---------------------------------------------------------------------------
+  --glass-noise-opacity: 0.03;
+  --glass-inner-shadow: inset 0 2px 12px rgba(255, 255, 255, 0.06);
+  --glass-inner-shadow-night: inset 0 2px 12px rgba(136, 192, 208, 0.04);
+  --glass-depth-shadow: 0 8px 32px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.04);
+  --glass-depth-shadow-night: 0 8px 32px rgba(0, 0, 0, 0.35), 0 2px 8px rgba(0, 0, 0, 0.2);
+  --glass-hover-glow: 0 0 40px rgba(0, 119, 190, 0.12);
+  --glass-card-radius: 20px;
+  --glass-card-radius-sm: 14px;
+
+  // Instrument-specific tokens
+  --instrument-bg: rgba(255, 255, 255, 0.45);
+  --instrument-bg-night: rgba(46, 52, 64, 0.65);
+  --instrument-border: rgba(255, 255, 255, 0.6);
+  --instrument-border-night: rgba(136, 192, 208, 0.14);
+  --instrument-value-glow: 0 0 12px rgba(0, 119, 190, 0.15);
+  --instrument-value-glow-night: 0 0 16px rgba(136, 192, 208, 0.12);
+  --instrument-bezel-shadow: 
+    inset 0 1px 0 rgba(255, 255, 255, 0.35),
+    0 4px 16px rgba(0, 0, 0, 0.06);
+  --instrument-bezel-shadow-night: 
+    inset 0 1px 0 rgba(136, 192, 208, 0.1),
+    0 4px 16px rgba(0, 0, 0, 0.3);
+
+  // Category accent colors for instruments
+  --cat-navigation: var(--marine-blue);
+  --cat-wind: var(--nord-7);
+  --cat-depth: var(--nord-8);
+  --cat-environment: var(--nord-15);
+  --cat-electrical: var(--nord-14);
+  --cat-engine: var(--nord-12);
+  --cat-performance: var(--nord-9);
 }
 
 // ---------------------------------------------------------------------------
@@ -334,4 +411,17 @@
   --color-danger-500-rgb: 166, 52, 52;
   --surface-ground-rgb: 46, 52, 64;
   --overlay-backdrop: rgba(0, 0, 0, 0.65);
+
+  // Dashboard glass overrides
+  --glass-bg: var(--glass-bg-night);
+  --glass-bg-heavy: var(--glass-bg-night-heavy);
+  --glass-border: var(--glass-border-night);
+  --glass-shine: var(--glass-shine-night);
+  --glass-highlight: var(--glass-highlight-night);
+  --glass-inner-shadow: var(--glass-inner-shadow-night);
+  --glass-depth-shadow: var(--glass-depth-shadow-night);
+  --instrument-bg: var(--instrument-bg-night);
+  --instrument-border: var(--instrument-border-night);
+  --instrument-value-glow: var(--instrument-value-glow-night);
+  --instrument-bezel-shadow: var(--instrument-bezel-shadow-night);
 }

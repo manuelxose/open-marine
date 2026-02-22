@@ -1,5 +1,5 @@
 <ng-container *ngIf="{ compact: isCompact$ | async, layout: layout$ | async } as view">
-  <div class="dashboard">
+  <div class="dashboard" [class.compact]="view.compact">
     <div class="dashboard-header">
       <h1>Dashboard</h1>
       <div class="dashboard-actions">

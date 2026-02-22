@@ -20,11 +20,13 @@
   background-color: var(--gb-bg-bezel);
   border-radius: 8px;
   overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--gb-border-panel) 20%, transparent);
 }
 
 .depth-container.alarm-active {
-  box-shadow: inset 0 0 20px rgba(var(--gb-data-stale-rgb), 0.2);
+  box-shadow: inset 0 0 25px rgba(var(--gb-data-stale-rgb), 0.25);
   animation: pulse-border var(--gb-anim-alarm-pulse) infinite alternate;
+  border-color: color-mix(in srgb, var(--gb-data-stale) 40%, transparent);
 }
 
 .sonar-wrapper {
@@ -37,7 +39,7 @@
     height: 100%;
 
     .grid-line {
-      stroke: color-mix(in srgb, var(--gb-text-value) 15%, transparent);
+      stroke: color-mix(in srgb, var(--gb-text-value) 12%, transparent);
       stroke-width: 1px;
       stroke-dasharray: 4 2;
     }
@@ -45,13 +47,14 @@
     .grid-label {
       font-family: 'Space Grotesk', system-ui, sans-serif;
       font-size: 9px;
-      fill: color-mix(in srgb, var(--gb-text-value) 55%, transparent);
+      fill: color-mix(in srgb, var(--gb-text-value) 50%, transparent);
       font-weight: 500;
     }
 
     .surface-line {
       stroke: color-mix(in srgb, var(--gb-needle-secondary) 80%, transparent);
       stroke-width: 2px;
+      filter: drop-shadow(0 0 3px color-mix(in srgb, var(--gb-needle-secondary) 35%, transparent));
     }
 
     .sonar-fill,
@@ -65,10 +68,11 @@
       stroke-width: 2.5px;
       stroke-linecap: round;
       stroke-linejoin: round;
-      filter: drop-shadow(0 4px 6px color-mix(in srgb, var(--gb-bg-canvas) 80%, transparent));
+      filter: drop-shadow(0 4px 8px color-mix(in srgb, var(--gb-bg-canvas) 80%, transparent));
 
       &.alarm-stroke {
         stroke: var(--gb-data-stale);
+        filter: drop-shadow(0 0 6px color-mix(in srgb, var(--gb-data-stale) 40%, transparent));
       }
     }
   }
@@ -95,19 +99,24 @@
     line-height: 0.9;
     letter-spacing: -0.02em;
     color: var(--gb-text-value);
-    text-shadow: 0 4px 10px color-mix(in srgb, var(--gb-bg-canvas) 70%, transparent);
+    text-shadow:
+      0 4px 12px color-mix(in srgb, var(--gb-bg-canvas) 75%, transparent),
+      0 0 8px color-mix(in srgb, var(--gb-bg-canvas) 50%, transparent);
     transition: color var(--gb-anim-theme) var(--gb-ease-data);
   }
 
   .unit {
     color: var(--gb-needle-secondary);
     opacity: 0.85;
+    filter: drop-shadow(0 0 3px color-mix(in srgb, var(--gb-needle-secondary) 25%, transparent));
   }
 
   &.danger {
     .value {
       color: var(--gb-data-stale);
-      text-shadow: 0 0 20px rgba(var(--gb-data-stale-rgb), 0.6);
+      text-shadow:
+        0 0 20px rgba(var(--gb-data-stale-rgb), 0.6),
+        0 0 40px rgba(var(--gb-data-stale-rgb), 0.2);
       animation: pulse-text var(--gb-anim-alarm-pulse) infinite;
     }
 
@@ -123,22 +132,27 @@
   margin-top: 10px;
 
   .badge {
-    padding: 3px 8px;
-    border-radius: 4px;
-    box-shadow: 0 2px 4px color-mix(in srgb, var(--gb-bg-canvas) 55%, transparent);
+    padding: 3px 10px;
+    border-radius: 5px;
+    box-shadow: 0 2px 6px color-mix(in srgb, var(--gb-bg-canvas) 55%, transparent);
+    font-size: 0.55rem;
+    letter-spacing: 0.06em;
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
   }
 
   .scale-badge {
-    background: color-mix(in srgb, var(--gb-bg-glass) 85%, transparent);
+    background: color-mix(in srgb, var(--gb-bg-glass) 70%, transparent);
     color: var(--gb-text-unit);
-    border: 1px solid color-mix(in srgb, var(--gb-border-panel) 55%, transparent);
+    border: 1px solid color-mix(in srgb, var(--gb-border-panel) 40%, transparent);
   }
 
   .alarm-badge {
-    background: rgba(var(--gb-data-stale-rgb), 0.9);
+    background: rgba(var(--gb-data-stale-rgb), 0.85);
     color: var(--gb-text-value);
     border: 1px solid var(--gb-data-stale);
     animation: flash-badge var(--gb-anim-alarm-pulse) infinite;
+    box-shadow: 0 0 10px color-mix(in srgb, var(--gb-data-stale) 35%, transparent);
   }
 }
 
