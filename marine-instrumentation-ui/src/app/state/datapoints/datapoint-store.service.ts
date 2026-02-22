@@ -12,6 +12,7 @@ const MAX_TRACK_POINTS = 1000;
 const TRACK_WINDOW_MS = 30 * 60 * 1000;
 const TRACK_MIN_TIME_MS = 1000;
 const TRACK_MIN_DISTANCE_METERS = 10;
+const DERIVED_HEADING_SOURCE = "derived:headingMagneticFallback";
 const PERSISTED_HISTORY_PATHS = new Set<string>([
   PATHS.navigation.speedOverGround,
   PATHS.navigation.courseOverGroundTrue,
@@ -138,10 +139,59 @@ export class DatapointStoreService {
       }
     }
 
+    this.deriveHeadingFallback(next);
     this.deriveTrueWind(next, latestTimestamp || Date.now());
 
     this._state.next(next);
     this._lastUpdate.next(latestTimestamp || Date.now());
+  }
+
+  private deriveHeadingFallback(state: DataPointMap): void {
+    const trueHeadingPoint = state.get(PATHS.navigation.headingTrue);
+    const magneticHeadingPoint = state.get(PATHS.navigation.headingMagnetic);
+    const attitudePoint = state.get(PATHS.navigation.attitude);
+
+    let fallbackHeading: number | null = null;
+    let fallbackTimestamp = 0;
+    let fallbackSource = DERIVED_HEADING_SOURCE;
+
+    if (magneticHeadingPoint && typeof magneticHeadingPoint.value === "number") {
+      fallbackHeading = magneticHeadingPoint.value;
+      fallbackTimestamp = magneticHeadingPoint.timestamp;
+      fallbackSource = magneticHeadingPoint.source || DERIVED_HEADING_SOURCE;
+    }
+
+    const yaw = this.extractAttitudeYaw(attitudePoint?.value);
+    if (
+      yaw !== null
+      && attitudePoint
+      && attitudePoint.timestamp > fallbackTimestamp
+    ) {
+      fallbackHeading = yaw;
+      fallbackTimestamp = attitudePoint.timestamp;
+      fallbackSource = attitudePoint.source || DERIVED_HEADING_SOURCE;
+    }
+
+    if (fallbackHeading === null) {
+      return;
+    }
+
+    const shouldOverride =
+      !trueHeadingPoint
+      || typeof trueHeadingPoint.value !== "number"
+      || trueHeadingPoint.source === DERIVED_HEADING_SOURCE
+      || trueHeadingPoint.timestamp <= fallbackTimestamp;
+
+    if (!shouldOverride) {
+      return;
+    }
+
+    state.set(PATHS.navigation.headingTrue, {
+      path: PATHS.navigation.headingTrue,
+      value: fallbackHeading,
+      timestamp: fallbackTimestamp || Date.now(),
+      source: fallbackSource || DERIVED_HEADING_SOURCE,
+    });
   }
 
   private deriveTrueWind(state: DataPointMap, timestamp: number): void {
@@ -211,6 +261,17 @@ export class DatapointStoreService {
       timestamp,
       source
     });
+  }
+
+  private extractAttitudeYaw(value: unknown): number | null {
+    if (!value || typeof value !== "object") {
+      return null;
+    }
+    const yaw = (value as { yaw?: unknown }).yaw;
+    if (typeof yaw !== "number" || !Number.isFinite(yaw)) {
+      return null;
+    }
+    return yaw;
   }
 
   observe<T>(path: string): Observable<DataPoint<T> | undefined> {

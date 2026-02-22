@@ -361,3 +361,55 @@ npm test       # Run tests (if any)
 ---
 
 **Status:** Stable, foundational | Last Updated: 2026-01-28 | Agent Version: 1.0
+
+---
+
+## 2026-02-22 Update - IMU Contract Additions
+
+Implemented in package source:
+
+- New paths in `src/paths.ts`:
+  - `sensors.imu.accelerometer`
+  - `sensors.imu.gyroscope`
+  - `sensors.imu.magnetometer`
+- Existing navigation paths confirmed present:
+  - `navigation.headingMagnetic`
+  - `navigation.attitude`
+- New types in `src/types.ts`:
+  - `Vector3`
+  - `Attitude`
+
+Verification executed:
+
+- `npm run build` in `marine-data-contract`: green.
+- `npm run lint` in `marine-data-contract`: green.
+
+Known issue update:
+
+- Previous note about missing `navigation.headingMagnetic` is obsolete as of 2026-02-22.
+
+---
+
+## 2026-02-22 Update - GPS Contract Additions
+
+Implemented in package source:
+
+- New navigation paths in `src/paths.ts`:
+  - `navigation.magneticVariation`
+  - `navigation.datetime`
+- New GPS sensor paths in `src/paths.ts`:
+  - `sensors.gps.fix`
+  - `sensors.gps.satellitesInView`
+  - `sensors.gps.horizontalDilution`
+- New types in `src/types.ts`:
+  - `GpsFixType` (`"none" | "2d" | "3d" | "dgps"`)
+  - `GpsSatelliteInfo`
+
+Verification executed:
+
+- `npm run build` in `marine-data-contract`: green.
+- `npm run lint` in `marine-data-contract`: green.
+
+Documentation:
+
+- Root data model reference updated in `docs/data-model.md` with IMU and GPS path tables, units, and payload examples.

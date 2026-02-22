@@ -6,7 +6,9 @@ export const PATHS = {
     speedThroughWater: "navigation.speedThroughWater",
     courseOverGroundTrue: "navigation.courseOverGroundTrue",
     headingTrue: "navigation.headingTrue",
+    magneticVariation: "navigation.magneticVariation",
     headingMagnetic: "navigation.headingMagnetic",
+    datetime: "navigation.datetime",
     destination: "navigation.destination",
     attitude: "navigation.attitude",
     leeway: "navigation.leeway",
@@ -88,6 +90,18 @@ export const PATHS = {
     solar: {
       voltage: "electrical.solar.0.voltage",
       current: "electrical.solar.0.current",
+    },
+  },
+  sensors: {
+    imu: {
+      accelerometer: "sensors.imu.accelerometer",
+      gyroscope: "sensors.imu.gyroscope",
+      magnetometer: "sensors.imu.magnetometer",
+    },
+    gps: {
+      fix: "sensors.gps.fix",
+      satellitesInView: "sensors.gps.satellitesInView",
+      horizontalDilution: "sensors.gps.horizontalDilution",
     },
   },
   performance: {
