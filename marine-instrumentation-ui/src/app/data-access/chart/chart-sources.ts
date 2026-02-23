@@ -1,4 +1,5 @@
 import type { StyleSpecification } from 'maplibre-gl';
+import { buildEncStyle } from '../../features/chart/layers/enc-style';
 
 export type ChartSourceKind = 'raster' | 'vector';
 
@@ -14,6 +15,7 @@ export interface ChartSourceDefinition {
 
 export const DEFAULT_CHART_SOURCE_ID = 'osm-raster';
 export const NAUTICAL_CHART_SOURCE_ID = 'nautical';
+export const ENC_CHART_SOURCE_ID = 'enc';
 
 const OSM_RASTER_STYLE: StyleSpecification = {
   version: 8,
@@ -71,6 +73,19 @@ export const NAUTICAL_RASTER_STYLE: StyleSpecification = {
   ],
 };
 
+const ENC_DEFAULT_STYLE: StyleSpecification = buildEncStyle(
+  {
+    showDepthAreas: true,
+    showDepthContours: true,
+    showBuoys: true,
+    showHazards: true,
+    showAnchorages: true,
+    showTSS: true,
+    showLights: true,
+  },
+  2.0,
+);
+
 export const CHART_SOURCES: ChartSourceDefinition[] = [
   {
     id: DEFAULT_CHART_SOURCE_ID,
@@ -93,6 +108,14 @@ export const CHART_SOURCES: ChartSourceDefinition[] = [
     kind: 'raster',
     style: NAUTICAL_RASTER_STYLE,
     description: 'OpenStreetMap + OpenSeaMap nautical overlay with buoys, lights, hazards.',
+    available: true,
+  },
+  {
+    id: ENC_CHART_SOURCE_ID,
+    label: 'ENC',
+    kind: 'vector',
+    style: ENC_DEFAULT_STYLE,
+    description: 'Vector ENC chart style with semantic nautical layers.',
     available: true,
   },
 ];

@@ -5,14 +5,17 @@ import {
   ChartSettingsService,
   VESSEL_TYPE_KEYS,
   VESSEL_TYPE_LABELS,
+  type EncLayerConfig,
   type WindVectorSource,
 } from '../../../chart/services/chart-settings.service';
+import { ChartFacadeService } from '../../../chart/services/chart-facade.service';
 import { AppToggleComponent } from '../../../../shared/components/app-toggle/app-toggle.component';
+import { TranslatePipe } from '../../../../shared/pipes/translate.pipe';
 
 @Component({
   selector: 'app-chart-settings',
   standalone: true,
-  imports: [CommonModule, FormsModule, AppToggleComponent],
+  imports: [CommonModule, FormsModule, AppToggleComponent, TranslatePipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="settings-section" *ngIf="chartSettingsService.settings$ | async as s">
@@ -66,6 +69,64 @@ import { AppToggleComponent } from '../../../../shared/components/app-toggle/app
         <app-toggle [ngModel]="s.showOpenSeaMap" (ngModelChange)="chartSettingsService.toggleOpenSeaMap()"></app-toggle>
       </div>
 
+      <h3 class="settings-subtitle">ENC</h3>
+
+      <div class="setting-item setting-item--stack">
+        <div class="setting-info">
+          <span class="setting-label">ENC Chart Layers</span>
+          <span class="setting-description">
+            Configure semantic nautical layers shown in ENC mode.
+          </span>
+        </div>
+
+        <div class="setting-item-inline">
+          <div class="setting-info">
+            <span class="setting-label">Safety depth (m)</span>
+            <span class="setting-description">Areas shallower than this threshold are highlighted.</span>
+          </div>
+          <span class="line-label">{{ s.safetyDepth | number: '1.1-1' }}m</span>
+        </div>
+        <input
+          type="range"
+          min="0.5"
+          max="20"
+          step="0.5"
+          class="setting-slider"
+          [ngModel]="s.safetyDepth"
+          (ngModelChange)="setSafetyDepth($event)" />
+
+        <div class="grid-two">
+          <div class="setting-item-inline">
+            <span class="line-label">Depth areas</span>
+            <app-toggle [ngModel]="s.encLayers.showDepthAreas" (ngModelChange)="toggleEncLayer('showDepthAreas')"></app-toggle>
+          </div>
+          <div class="setting-item-inline">
+            <span class="line-label">Depth contours</span>
+            <app-toggle [ngModel]="s.encLayers.showDepthContours" (ngModelChange)="toggleEncLayer('showDepthContours')"></app-toggle>
+          </div>
+          <div class="setting-item-inline">
+            <span class="line-label">Buoys & signals</span>
+            <app-toggle [ngModel]="s.encLayers.showBuoys" (ngModelChange)="toggleEncLayer('showBuoys')"></app-toggle>
+          </div>
+          <div class="setting-item-inline">
+            <span class="line-label">Hazards</span>
+            <app-toggle [ngModel]="s.encLayers.showHazards" (ngModelChange)="toggleEncLayer('showHazards')"></app-toggle>
+          </div>
+          <div class="setting-item-inline">
+            <span class="line-label">Anchorages</span>
+            <app-toggle [ngModel]="s.encLayers.showAnchorages" (ngModelChange)="toggleEncLayer('showAnchorages')"></app-toggle>
+          </div>
+          <div class="setting-item-inline">
+            <span class="line-label">Traffic separation</span>
+            <app-toggle [ngModel]="s.encLayers.showTSS" (ngModelChange)="toggleEncLayer('showTSS')"></app-toggle>
+          </div>
+          <div class="setting-item-inline">
+            <span class="line-label">Lights</span>
+            <app-toggle [ngModel]="s.encLayers.showLights" (ngModelChange)="toggleEncLayer('showLights')"></app-toggle>
+          </div>
+        </div>
+      </div>
+
       <div class="setting-item">
         <div class="setting-info">
           <span class="setting-label">AIS Targets</span>
@@ -88,6 +149,17 @@ import { AppToggleComponent } from '../../../../shared/components/app-toggle/app
           <span class="setting-description">Draw closest point of approach lines to AIS targets.</span>
         </div>
         <app-toggle [ngModel]="s.showCpaLines" (ngModelChange)="chartSettingsService.toggleCpaLines()"></app-toggle>
+      </div>
+
+      <div class="setting-item">
+        <div class="setting-info">
+          <span class="setting-label">{{ 'settings.vessel_enrichment' | translate }}</span>
+          <span class="setting-description">{{ 'settings.vessel_enrichment_desc' | translate }}</span>
+        </div>
+        <app-toggle
+          [ngModel]="s.enableVesselEnrichment"
+          (ngModelChange)="chartSettingsService.toggleVesselEnrichment()">
+        </app-toggle>
       </div>
 
       <div class="setting-item setting-item--stack">
@@ -543,6 +615,11 @@ import { AppToggleComponent } from '../../../../shared/components/app-toggle/app
       cursor: not-allowed;
     }
 
+    .setting-slider {
+      width: 100%;
+      accent-color: var(--gb-needle-secondary);
+    }
+
     @media (max-width: 960px) {
       .grid-two,
       .grid-three {
@@ -553,6 +630,7 @@ import { AppToggleComponent } from '../../../../shared/components/app-toggle/app
 })
 export class ChartSettingsComponent {
   readonly chartSettingsService = inject(ChartSettingsService);
+  readonly chartFacade = inject(ChartFacadeService);
   readonly vesselTypeKeys = VESSEL_TYPE_KEYS;
   readonly vesselTypeLabels = VESSEL_TYPE_LABELS;
   readonly iconSizeOptions = [
@@ -585,5 +663,16 @@ export class ChartSettingsComponent {
     }
     const parsed = this.toNumber(value, Number.NaN);
     return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  setSafetyDepth(value: unknown): void {
+    const current = this.chartSettingsService.snapshot.safetyDepth;
+    const depth = this.toNumber(value, current);
+    this.chartFacade.setSafetyDepth(depth);
+  }
+
+  toggleEncLayer(key: keyof EncLayerConfig): void {
+    const current = this.chartSettingsService.snapshot.encLayers;
+    this.chartFacade.updateEncLayers({ [key]: !current[key] });
   }
 }

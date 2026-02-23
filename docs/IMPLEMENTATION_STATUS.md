@@ -24,6 +24,7 @@ Fecha de corte: 2026-02-23.
 - `✅` Dashboard modernizado — migrado a signals + `@if`/`@for`/`@switch`, toolbar compacto, palette sidebar deslizable, drag & drop de tile completo, empty state, layout sin gaps, responsive desktop/tablet/móvil.
 - `✅` Dashboard como panel de control principal — Añadidos 2 paneles nuevos: **Engine** (RPM hero, temp. refrigerante, presión aceite, barra nivel combustible, consumo L/h) y **Environment** (temp. agua hero, temp. aire, presión barométrica, humedad). Critical strip ampliada con COG y RPM (8 indicadores). Grid por defecto: Navigation, Wind, Engine, Depth, Power, Environment, System. Nuevos formatters (`formatTemperature`, `formatPressure`, `formatRpm`, `formatPercent`), selectores (`selectRpm`, `selectCoolantTemp`, etc.), VMs (`EnginePanelVm`, `EnvironmentPanelVm`). Simulador actualizado con datos de motor y ambiente.
 - `✅` Splash Screen + Onboarding Wizard + Guided Tour — Splash con logo SVG compass + loader animado + status messages. Wizard de 4 pasos (Welcome, Preferences, Connection, Tour). Tour guiado con spotlight SVG-mask y tooltips posicionados. Settings integrados con replay/reset. i18n EN+ES completa. Build en verde.
+- `✅` P4 Sistema de Leyenda Náutica — 12 categorías (OMI, AIS, IALA-A, Luces, Peligros, Batimetría, Zonas, Líneas, Abreviaturas, Unidades, Beaufort, Tipos AIS), ~100+ entradas, búsqueda full-text, modal responsive (sidebar+grid), componente `LegendSymbolComponent` (6 tipos de símbolo), integración en `/chart` (botón "?") y ruta standalone `/legend`, i18n EN+ES completa. Build en verde.
 
 ## 2. Estado por paquete
 
@@ -52,6 +53,7 @@ Rutas activas (fuente: `marine-instrumentation-ui/src/app/app.routes.ts`):
 - `✅ /vessels` — Nuevo: AIS targets dedicado (lista + detalle, danger indicators, responsive split layout)
 - `✅ /performance` — Nuevo: polar sailing performance (VMG, polar ratio, CSV upload)
 - `✅ /onboarding` — Nuevo: setup wizard (welcome, connection, vessel)
+- `✅ /legend` — Nuevo: leyenda náutica completa (12 categorías, búsqueda, responsive)
 
 Rutas protegidas por `onboardingGuard` (DOC_3):
 

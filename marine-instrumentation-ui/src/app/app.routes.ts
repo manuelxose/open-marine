@@ -89,4 +89,15 @@ export const routes: Routes = [
     loadComponent: () => import('./features/styleguide/styleguide.page').then(m => m.StyleguidePage),
     title: 'Styleguide',
   },
+
+  // Legend — standalone access from sidebar
+  {
+    path: 'legend',
+    loadComponent: () =>
+      import('./features/chart-legend/chart-legend-standalone.page').then(
+        m => m.ChartLegendStandalonePage,
+      ),
+    title: 'Chart Legend | OMI',
+    canActivate: [onboardingGuard],
+  },
 ];

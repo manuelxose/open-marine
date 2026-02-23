@@ -330,18 +330,20 @@ export class MapLibreEngineService {
 
   setOwnVesselIconScale(scale: number): void {
     this.ownVesselIconScale = this.clamp(scale, 0.5, 2.5);
+    const effectiveScale = this.getEffectiveOwnVesselScale(this.ownVesselIconScale);
     if (!this.map || !this.mapReady || !this.map.getLayer(VESSEL_LAYER_ID)) {
       return;
     }
-    this.map.setLayoutProperty(VESSEL_LAYER_ID, 'icon-size', this.ownVesselIconScale);
+    this.map.setLayoutProperty(VESSEL_LAYER_ID, 'icon-size', effectiveScale);
   }
 
   setAisTargetIconScale(scale: number): void {
     this.aisTargetIconScale = this.clamp(scale, 0.4, 2.0);
+    const effectiveScale = this.getEffectiveAisTargetScale(this.aisTargetIconScale);
     if (!this.map || !this.mapReady || !this.map.getLayer(AIS_LAYER_ID)) {
       return;
     }
-    this.map.setLayoutProperty(AIS_LAYER_ID, 'icon-size', this.aisTargetIconScale);
+    this.map.setLayoutProperty(AIS_LAYER_ID, 'icon-size', effectiveScale);
   }
 
   setWindTrackMinZoom(minZoom: number): void {
@@ -732,6 +734,7 @@ export class MapLibreEngineService {
     if (!this.map) return;
 
     this.ensureAisIcons();
+    const effectiveScale = this.getEffectiveAisTargetScale(this.aisTargetIconScale);
 
     if (!this.map.getSource(AIS_SOURCE_ID)) {
       this.map.addSource(AIS_SOURCE_ID, {
@@ -747,7 +750,7 @@ export class MapLibreEngineService {
         source: AIS_SOURCE_ID,
         layout: {
           'icon-image': ['case', ['has', 'iconId'], ['get', 'iconId'], AIS_FALLBACK_ICON_ID],
-          'icon-size': this.aisTargetIconScale,
+          'icon-size': effectiveScale,
           'icon-allow-overlap': true,
           'icon-rotation-alignment': 'map',
           'icon-rotate': ['get', 'heading'],
@@ -1097,6 +1100,8 @@ export class MapLibreEngineService {
       return;
     }
 
+    const effectiveScale = this.getEffectiveOwnVesselScale(this.ownVesselIconScale);
+
     this.upsertIcon(VESSEL_ICON_ID, this.createVesselIcon('#0284c7', '#38bdf8'), 2);
     this.upsertIcon(VESSEL_ICON_STALE_ID, this.createVesselIcon('#eab308', '#fde047'), 2);
     this.upsertIcon(VESSEL_ICON_NO_FIX_ID, this.createVesselIcon('#6b7280', '#9ca3af'), 2);
@@ -1124,7 +1129,7 @@ export class MapLibreEngineService {
             // default
             VESSEL_ICON_ID,
           ],
-          'icon-size': this.ownVesselIconScale,
+          'icon-size': effectiveScale,
           'icon-allow-overlap': true,
           'icon-rotation-alignment': 'map',
           'icon-rotate': ['get', 'heading'],
@@ -1752,6 +1757,20 @@ export class MapLibreEngineService {
       return min;
     }
     return Math.min(max, Math.max(min, value));
+  }
+
+  private isEncBaseStyleActive(): boolean {
+    return this.baseSource?.id === 'enc';
+  }
+
+  private getEffectiveOwnVesselScale(scale: number): number {
+    const adjusted = this.isEncBaseStyleActive() ? scale * 0.55 : scale;
+    return this.clamp(adjusted, 0.3, 2.5);
+  }
+
+  private getEffectiveAisTargetScale(scale: number): number {
+    const adjusted = this.isEncBaseStyleActive() ? scale * 0.42 : scale;
+    return this.clamp(adjusted, 0.2, 2.0);
   }
 
   private adjustHexColor(hex: string, factor: number): string {

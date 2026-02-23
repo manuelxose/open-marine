@@ -38,6 +38,9 @@ import { AisTargetDetailsComponent } from '../ais/components/ais-target-details/
 import { PlaybackBarComponent } from '../playback/components/playback-bar/playback-bar.component';
 import { InstrumentsDrawerComponent } from '../instruments/components/instruments-drawer/instruments-drawer.component';
 import { MapSettingsPanelComponent } from './components/map-settings-panel/map-settings-panel.component';
+import { ChartLegendComponent } from '../chart-legend/chart-legend.component';
+import { AppIconComponent } from '../../shared/components/app-icon/app-icon.component';
+import { TranslatePipe } from '../../shared/pipes/translate.pipe';
 
 // Utils & Types
 import { selectSog, selectCog, selectDepth, selectPosition, selectHeading, selectAws, selectAwa } from '../../state/datapoints/datapoint.selectors';
@@ -73,6 +76,9 @@ const INITIAL_PLAYBACK_STATE: PlaybackState = {
     PlaybackBarComponent,
     InstrumentsDrawerComponent,
     MapSettingsPanelComponent,
+    ChartLegendComponent,
+    AppIconComponent,
+    TranslatePipe,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -218,11 +224,32 @@ const INITIAL_PLAYBACK_STATE: PlaybackState = {
       />
       
       <!-- AIS Details Modal -->
-      <app-ais-target-details 
+      <div
         *ngIf="selectedAisTarget()"
-        [target]="selectedAisTarget()!"
-        (close)="handleCloseAisDetails()"
-        class="ais-details-modal"
+        class="ais-details-overlay"
+        (click)="handleCloseAisDetails()">
+        <app-ais-target-details
+          [target]="selectedAisTarget()!"
+          (close)="handleCloseAisDetails()"
+          class="ais-details-modal"
+          (click)="$event.stopPropagation()"
+        />
+      </div>
+
+      <!-- Chart Legend: "?" button + fullscreen modal -->
+      <button
+        class="legend-btn"
+        (click)="showLegend.set(!showLegend())"
+        [attr.aria-label]="'legend.open_button' | translate"
+        [attr.aria-expanded]="showLegend()"
+        title="Chart Legend"
+      >
+        <app-icon name="info" [size]="22" class="legend-btn-icon" />
+      </button>
+
+      <app-chart-legend
+        [isOpen]="showLegend()"
+        (close)="showLegend.set(false)"
       />
     </div>
   `,
@@ -388,6 +415,16 @@ const INITIAL_PLAYBACK_STATE: PlaybackState = {
       animation: modal-enter 0.3s var(--ease-out) both;
     }
 
+    .ais-details-overlay {
+      position: absolute;
+      inset: 0;
+      z-index: var(--z-chart-modals);
+      background: color-mix(in srgb, #000 28%, transparent);
+      backdrop-filter: blur(2px);
+      -webkit-backdrop-filter: blur(2px);
+      pointer-events: auto;
+    }
+
     // ═══════════════════════════════════════════════
     // ENTRANCE ANIMATIONS
     // ═══════════════════════════════════════════════
@@ -459,6 +496,47 @@ const INITIAL_PLAYBACK_STATE: PlaybackState = {
     }
 
     // ═══════════════════════════════════════════════
+    // LEGEND BUTTON
+    // ═══════════════════════════════════════════════
+
+    .legend-btn {
+      position: absolute;
+      bottom: var(--chart-edge-gap);
+      left: var(--chart-edge-gap);
+      z-index: var(--z-chart-panels);
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      border: 1px solid var(--chart-overlay-border, rgba(255,255,255,0.12));
+      background: var(--chart-overlay-bg, rgba(46,52,64,0.85));
+      backdrop-filter: var(--chart-overlay-blur, blur(12px));
+      color: var(--gb-text-value);
+      font-size: 1.1rem;
+      font-weight: bold;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: var(--chart-overlay-shadow, 0 2px 8px rgba(0,0,0,0.3));
+      transition: all 0.2s ease;
+      pointer-events: auto;
+      animation: chart-zone-enter-bottom 0.5s var(--ease-out) both;
+      animation-delay: 0.4s;
+
+      &:hover {
+        background: color-mix(in srgb, var(--chart-overlay-bg, rgba(46,52,64,0.85)) 80%, white);
+        transform: scale(1.1);
+        border-color: rgba(74, 144, 217, 0.5);
+      }
+    }
+
+    .legend-btn-icon {
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 700;
+      line-height: 1;
+    }
+
+    // ═══════════════════════════════════════════════
     // RESPONSIVE
     // ═══════════════════════════════════════════════
 
@@ -513,6 +591,7 @@ export class ChartPage implements AfterViewInit, OnDestroy {
   // UI State
   readonly isFullscreen = this.fullscreenService.isFullscreen;
   readonly showInstruments = signal(false);
+  readonly showLegend = signal(false);
   readonly leftPanelOpen = signal(true);
   readonly leftPanelTab = signal<ChartLeftPanelTab>('layers');
   readonly aisSortBy = signal<'distance' | 'cpa' | 'name'>('distance');

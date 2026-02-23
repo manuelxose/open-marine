@@ -13,6 +13,16 @@ export type AisDisplayAge = '1h' | '24h';
 export type TrackDuration = '1d' | '7d' | '90d';
 export type WindVectorSource = 'true' | 'apparent';
 
+export interface EncLayerConfig {
+  showDepthAreas: boolean;
+  showDepthContours: boolean;
+  showBuoys: boolean;
+  showHazards: boolean;
+  showAnchorages: boolean;
+  showTSS: boolean;
+  showLights: boolean;
+}
+
 export type { VesselTypeFilter, VesselTypeColors } from './chart-vessel-types';
 export { VESSEL_TYPE_KEYS, VESSEL_TYPE_LABELS, DEFAULT_VESSEL_TYPE_COLORS } from './chart-vessel-types';
 
@@ -25,6 +35,8 @@ export interface ChartSettings {
   rangeRingIntervals: number[];
   showOpenSeaMap: boolean;
   showAisTracks: boolean;
+  safetyDepth: number;
+  encLayers: EncLayerConfig;
   showAisTargets: boolean;
   showAisLabels: boolean;
   showCpaLines: boolean;
@@ -57,6 +69,7 @@ export interface ChartSettings {
   showTemperature: boolean;
   showWindSpeed: boolean;
   showWaves: boolean;
+  enableVesselEnrichment: boolean;
 }
 
 const DEFAULT_SETTINGS: ChartSettings = {
@@ -68,6 +81,16 @@ const DEFAULT_SETTINGS: ChartSettings = {
   rangeRingIntervals: [0.25, 0.5, 1.0],
   showOpenSeaMap: false,
   showAisTracks: true,
+  safetyDepth: 2.0,
+  encLayers: {
+    showDepthAreas: true,
+    showDepthContours: true,
+    showBuoys: true,
+    showHazards: true,
+    showAnchorages: true,
+    showTSS: true,
+    showLights: true,
+  },
   showAisTargets: true,
   showAisLabels: true,
   showCpaLines: true,
@@ -97,6 +120,7 @@ const DEFAULT_SETTINGS: ChartSettings = {
   showTemperature: false,
   showWindSpeed: false,
   showWaves: false,
+  enableVesselEnrichment: true,
 };
 
 const STORAGE_KEY = 'omi-chart-settings';
@@ -257,6 +281,24 @@ export class ChartSettingsService {
     this.update({ showAisTracks: !this.settingsSubject.value.showAisTracks });
   }
 
+  toggleVesselEnrichment(): void {
+    this.update({ enableVesselEnrichment: !this.settingsSubject.value.enableVesselEnrichment });
+  }
+
+  setSafetyDepth(depth: number): void {
+    const normalized = this.clampNumber(depth, DEFAULT_SETTINGS.safetyDepth, 0.5, 20);
+    this.update({ safetyDepth: normalized });
+  }
+
+  updateEncLayers(partial: Partial<EncLayerConfig>): void {
+    this.update({
+      encLayers: {
+        ...this.settingsSubject.value.encLayers,
+        ...partial,
+      },
+    });
+  }
+
   toggleAisTargets(): void {
     this.update({ showAisTargets: !this.settingsSubject.value.showAisTargets });
   }
@@ -368,9 +410,15 @@ export class ChartSettingsService {
     normalized.showHeadingLine = this.toBoolean(saved.showHeadingLine, DEFAULT_SETTINGS.showHeadingLine);
     normalized.showLaylines = this.toBoolean(saved.showLaylines, DEFAULT_SETTINGS.showLaylines);
     normalized.showAisTracks = this.toBoolean(saved.showAisTracks, DEFAULT_SETTINGS.showAisTracks);
+    normalized.safetyDepth = this.clampNumber(saved.safetyDepth, DEFAULT_SETTINGS.safetyDepth, 0.5, 20);
+    normalized.encLayers = this.hydrateEncLayers(saved.encLayers);
     normalized.hideMooredTargets = this.toBoolean(saved.hideMooredTargets, DEFAULT_SETTINGS.hideMooredTargets);
     normalized.hideAnchoredTargets = this.toBoolean(saved.hideAnchoredTargets, DEFAULT_SETTINGS.hideAnchoredTargets);
     normalized.fixedLocationMode = this.toBoolean(saved.fixedLocationMode, DEFAULT_SETTINGS.fixedLocationMode);
+    normalized.enableVesselEnrichment = this.toBoolean(
+      saved.enableVesselEnrichment,
+      DEFAULT_SETTINGS.enableVesselEnrichment,
+    );
 
     return normalized;
   }
@@ -388,6 +436,23 @@ export class ChartSettingsService {
       next[key] = normalizeHexColor(candidate, DEFAULT_VESSEL_TYPE_COLORS[key]);
     }
     return next;
+  }
+
+  private hydrateEncLayers(saved: Partial<Record<keyof EncLayerConfig, unknown>> | undefined): EncLayerConfig {
+    const defaults = DEFAULT_SETTINGS.encLayers;
+    if (!saved || typeof saved !== 'object') {
+      return { ...defaults };
+    }
+
+    return {
+      showDepthAreas: this.toBoolean(saved.showDepthAreas, defaults.showDepthAreas),
+      showDepthContours: this.toBoolean(saved.showDepthContours, defaults.showDepthContours),
+      showBuoys: this.toBoolean(saved.showBuoys, defaults.showBuoys),
+      showHazards: this.toBoolean(saved.showHazards, defaults.showHazards),
+      showAnchorages: this.toBoolean(saved.showAnchorages, defaults.showAnchorages),
+      showTSS: this.toBoolean(saved.showTSS, defaults.showTSS),
+      showLights: this.toBoolean(saved.showLights, defaults.showLights),
+    };
   }
 
   private isVesselTypeFilter(value: unknown): value is VesselTypeFilter {

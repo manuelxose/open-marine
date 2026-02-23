@@ -16,42 +16,56 @@ import { SplashService } from './splash.service';
   imports: [CommonModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div class="splash-logo">
-      <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <!-- Compass rose / navigation logo -->
-        <circle cx="32" cy="32" r="30" stroke="currentColor" stroke-width="1.5" opacity="0.3"/>
-        <circle cx="32" cy="32" r="24" stroke="currentColor" stroke-width="1" opacity="0.2"/>
-        <!-- Cardinal ticks -->
-        <line x1="32" y1="2" x2="32" y2="10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-        <line x1="32" y1="54" x2="32" y2="62" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-        <line x1="2" y1="32" x2="10" y2="32" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-        <line x1="54" y1="32" x2="62" y2="32" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-        <!-- Intercardinal ticks -->
-        <line x1="10.8" y1="10.8" x2="15.5" y2="15.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" opacity="0.5"/>
-        <line x1="48.5" y1="48.5" x2="53.2" y2="53.2" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" opacity="0.5"/>
-        <line x1="53.2" y1="10.8" x2="48.5" y2="15.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" opacity="0.5"/>
-        <line x1="15.5" y1="48.5" x2="10.8" y2="53.2" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" opacity="0.5"/>
-        <!-- North needle -->
-        <polygon points="32,12 35,30 32,28 29,30" fill="currentColor" opacity="0.9"/>
-        <!-- South needle -->
-        <polygon points="32,52 35,34 32,36 29,34" fill="currentColor" opacity="0.35"/>
-        <!-- Center dot -->
-        <circle cx="32" cy="32" r="2.5" fill="currentColor"/>
-        <!-- N marker -->
-        <text x="32" y="9" text-anchor="middle" font-size="5" font-weight="700" fill="currentColor" font-family="Space Grotesk, sans-serif">N</text>
+    <!-- Subtle animated background wave -->
+    <div class="splash-bg">
+      <svg class="splash-wave" viewBox="0 0 1440 320" preserveAspectRatio="none">
+        <path d="M0,224L48,213.3C96,203,192,181,288,186.7C384,192,480,224,576,218.7C672,213,768,171,864,165.3C960,160,1056,192,1152,197.3C1248,203,1344,181,1392,170.7L1440,160L1440,320L0,320Z" />
       </svg>
     </div>
 
-    <div class="splash-title">Open Marine</div>
-    <div class="splash-subtitle">Instrumentation</div>
+    <div class="splash-content">
+      <!-- Animated compass logo -->
+      <div class="splash-logo-wrap">
+        <div class="splash-logo-ring"></div>
+        <svg class="splash-logo" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <!-- Outer ring -->
+          <circle cx="40" cy="40" r="36" stroke="#4a90d9" stroke-width="1.2" opacity="0.25"/>
+          <!-- Tick marks at cardinal points -->
+          <line x1="40" y1="4" x2="40" y2="11" stroke="#4a90d9" stroke-width="2.2" stroke-linecap="round"/>
+          <line x1="40" y1="69" x2="40" y2="76" stroke="#4a90d9" stroke-width="1.4" stroke-linecap="round" opacity="0.4"/>
+          <line x1="4" y1="40" x2="11" y2="40" stroke="#4a90d9" stroke-width="1.4" stroke-linecap="round" opacity="0.4"/>
+          <line x1="69" y1="40" x2="76" y2="40" stroke="#4a90d9" stroke-width="1.4" stroke-linecap="round" opacity="0.4"/>
+          <!-- North needle (solid blue) -->
+          <polygon points="40,14 43.5,37 40,35 36.5,37" fill="#4a90d9"/>
+          <!-- South needle (light) -->
+          <polygon points="40,66 43.5,43 40,45 36.5,43" fill="#4a90d9" opacity="0.15"/>
+          <!-- Center -->
+          <circle cx="40" cy="40" r="3" fill="#4a90d9"/>
+          <circle cx="40" cy="40" r="1.5" fill="white"/>
+        </svg>
+      </div>
 
-    <!-- Compass loader -->
-    <div class="splash-loader">
-      <div class="loader-ring"></div>
-      <div class="loader-needle"></div>
+      <!-- Brand -->
+      <h1 class="splash-brand">
+        <span class="splash-brand-main">Open Marine</span>
+        <span class="splash-brand-sub">Instrumentation</span>
+      </h1>
+
+      <!-- Modern progress bar -->
+      <div class="splash-progress">
+        <div class="splash-progress-track">
+          <div class="splash-progress-bar"></div>
+        </div>
+      </div>
+
+      <!-- Status -->
+      <p class="splash-status">{{ status$ | async }}</p>
     </div>
 
-    <div class="splash-status">{{ status$ | async }}</div>
+    <!-- Footer badge -->
+    <footer class="splash-footer">
+      <span class="splash-version">OMI v1.0</span>
+    </footer>
   `,
   styleUrl: './splash-screen.component.scss',
 })
@@ -63,13 +77,6 @@ export class SplashScreenComponent implements OnInit, OnDestroy {
   readonly status$ = this.splashService.status$;
 
   ngOnInit(): void {
-    // Apply initial theme from localStorage to avoid FOUC
-    const theme = this.resolveTheme();
-    if (theme === 'day') {
-      this.elementRef.nativeElement.style.background = '#e5e9f0';
-      this.elementRef.nativeElement.style.color = '#2e3440';
-    }
-
     // Listen for visibility changes to add fade-out class
     this.sub = this.splashService.visible$.subscribe(visible => {
       if (!visible) {
@@ -80,19 +87,5 @@ export class SplashScreenComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.sub?.unsubscribe();
-  }
-
-  private resolveTheme(): string {
-    try {
-      const legacy = localStorage.getItem('omi-theme');
-      if (legacy === 'day' || legacy === 'night') return legacy;
-
-      const prefs = localStorage.getItem('omi-preferences');
-      if (prefs) {
-        const parsed = JSON.parse(prefs);
-        if (parsed.theme === 'day' || parsed.theme === 'night') return parsed.theme;
-      }
-    } catch { /* ignore */ }
-    return 'night';
   }
 }
