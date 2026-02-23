@@ -1,5 +1,5 @@
 import { Injectable, computed, signal } from '@angular/core';
-import { AisTarget } from '../../core/models/ais.model';
+import { AisTarget, AisTrackPoint } from '../../core/models/ais.model';
 import { calculateCpa } from '../../core/calculations/cpa';
 import { DatapointStoreService } from '../datapoints/datapoint-store.service';
 import { PATHS } from '@omi/marine-data-contract';
@@ -15,6 +15,7 @@ const TCPA_WARNING_SECONDS = 20 * 60; // 20 Minutes
 export class AisStoreService {
   // Use a map for O(1) access by properties
   private _targets = signal<Map<string, AisTarget>>(new Map());
+  private readonly _trackBuffer = new Map<string, AisTrackPoint[]>();
   
   // Public signal for UI consumption
   public readonly targets = this._targets.asReadonly();
@@ -29,9 +30,20 @@ export class AisStoreService {
     return dangerous;
   });
 
+  getTrackPoints(mmsi: string): AisTrackPoint[] {
+    return this._trackBuffer.get(mmsi) ?? [];
+  }
+
+  getAllTracks(): Map<string, AisTrackPoint[]> {
+    return this._trackBuffer;
+  }
+
   // Constants
   private readonly TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes (Class B is slower)
   private readonly CLEANUP_INTERVAL_MS = 60 * 1000; // Clean every minute
+  private readonly TRACK_MAX_AGE_MS = 30 * 60 * 1000; // 30 minutes
+  private readonly TRACK_MIN_DISTANCE_M = 50; // 50 meters
+  private readonly TRACK_MAX_POINTS_PER_TARGET = 120;
   
   constructor(
     private datapointStore: DatapointStoreService,
@@ -107,6 +119,25 @@ export class AisStoreService {
     // Need to create a new Map to trigger signal change
     const nextMap = new Map(currentMap);
     nextMap.set(mmsi, updated);
+
+    if (
+      data.latitude !== undefined &&
+      data.longitude !== undefined &&
+      Number.isFinite(updated.latitude) &&
+      Number.isFinite(updated.longitude)
+    ) {
+      const trackPoint: AisTrackPoint = {
+        latitude: updated.latitude,
+        longitude: updated.longitude,
+        timestamp,
+        ...(typeof updated.sog === 'number' && Number.isFinite(updated.sog) ? { sog: updated.sog } : {}),
+        ...(typeof updated.cog === 'number' && Number.isFinite(updated.cog) ? { cog: updated.cog } : {}),
+      };
+      this.recordTrackPoint(mmsi, {
+        ...trackPoint,
+      });
+    }
+
     this._targets.set(nextMap);
   }
 
@@ -184,7 +215,19 @@ export class AisStoreService {
     for (const [mmsi, target] of currentMap) {
       if (now - target.lastUpdated > this.TIMEOUT_MS) {
         nextMap.delete(mmsi);
+        this._trackBuffer.delete(mmsi);
         changed = true;
+      }
+    }
+
+    for (const [mmsi, points] of this._trackBuffer.entries()) {
+      const fresh = points.filter((point) => now - point.timestamp <= this.TRACK_MAX_AGE_MS);
+      if (fresh.length === 0) {
+        this._trackBuffer.delete(mmsi);
+        continue;
+      }
+      if (fresh.length !== points.length) {
+        this._trackBuffer.set(mmsi, fresh);
       }
     }
 
@@ -251,5 +294,42 @@ export class AisStoreService {
 
   private positiveOr(value: number, fallback: number): number {
     return Number.isFinite(value) && value > 0 ? value : fallback;
+  }
+
+  private recordTrackPoint(mmsi: string, point: AisTrackPoint): void {
+    const existing = this._trackBuffer.get(mmsi) ?? [];
+    if (existing.length > 0) {
+      const last = existing[existing.length - 1];
+      if (last) {
+        const distanceM = this.haversineApproxMeters(
+          last.latitude,
+          last.longitude,
+          point.latitude,
+          point.longitude,
+        );
+        if (distanceM < this.TRACK_MIN_DISTANCE_M) {
+          return;
+        }
+      }
+    }
+
+    const next = [...existing, point];
+    const trimmed =
+      next.length > this.TRACK_MAX_POINTS_PER_TARGET
+        ? next.slice(next.length - this.TRACK_MAX_POINTS_PER_TARGET)
+        : next;
+
+    this._trackBuffer.set(mmsi, trimmed);
+  }
+
+  private haversineApproxMeters(lat1: number, lon1: number, lat2: number, lon2: number): number {
+    const earthRadiusM = 6371000;
+    const dLat = ((lat2 - lat1) * Math.PI) / 180;
+    const dLon = ((lon2 - lon1) * Math.PI) / 180;
+    const a = Math.sin(dLat / 2) ** 2
+      + Math.cos((lat1 * Math.PI) / 180)
+      * Math.cos((lat2 * Math.PI) / 180)
+      * Math.sin(dLon / 2) ** 2;
+    return earthRadiusM * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   }
 }

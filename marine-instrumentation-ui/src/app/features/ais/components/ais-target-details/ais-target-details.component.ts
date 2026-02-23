@@ -1,13 +1,14 @@
-import { ChangeDetectionStrategy, Component, EventEmitter, Input, Output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, EventEmitter, Input, Output, inject } from '@angular/core';
 import { CommonModule, DecimalPipe } from '@angular/common';
-import { AisTarget, AisNavStatus } from '../../../../core/models/ais.model';
+import { AisTarget, AisNavStatus, type AisTrackPoint } from '../../../../core/models/ais.model';
 import { AppButtonComponent } from '../../../../shared/components/app-button/app-button.component';
 import { AppIconComponent } from '../../../../shared/components/app-icon/app-icon.component';
 import { TimeAgoPipe } from '../../../../shared/pipes/time-ago.pipe';
 import { DistancePipe } from '../../../../shared/pipes/distance.pipe';
 import { LatFormatPipe } from '../../../../shared/pipes/lat-format.pipe';
 import { LonFormatPipe } from '../../../../shared/pipes/lon-format.pipe';
-import { metersPerSecondToKnots } from '../../../../state/calculations/navigation';
+import { METERS_PER_NM, metersPerSecondToKnots, normalizeDegrees, toDegrees } from '../../../../state/calculations/navigation';
+import { AisStoreService } from '../../../../state/ais/ais-store.service';
 
 @Component({
   selector: 'app-ais-target-details',
@@ -62,6 +63,33 @@ import { metersPerSecondToKnots } from '../../../../state/calculations/navigatio
                     <span class="value">{{ target.destination || '--' }}</span>
                 </div>
             </div>
+        </section>
+
+        <section class="details-section">
+            <h3>Track & Prediction</h3>
+            <div class="grid-2">
+                <div class="field">
+                    <label>Track Points</label>
+                    <span class="value">{{ trackPointsCount }}</span>
+                </div>
+                <div class="field">
+                    <label>Track Span</label>
+                    <span class="value">{{ trackHistoryMinutes !== null ? ((trackHistoryMinutes | number:'1.0-0') + ' min') : '--' }}</span>
+                </div>
+                <div class="field">
+                    <label>Prediction</label>
+                    <span class="value">{{ hasPrediction ? '6 min' : '--' }}</span>
+                </div>
+                <div class="field">
+                    <label>Predicted Run</label>
+                    <span class="value">{{ predictionDistanceNm !== null ? ((predictionDistanceNm | number:'1.2-2') + ' NM') : '--' }}</span>
+                </div>
+                <div class="field full-width">
+                    <label>Predicted COG</label>
+                    <span class="value">{{ predictionBearingDeg !== null ? ((predictionBearingDeg | number:'1.0-0') + ' deg') : '--' }}</span>
+                </div>
+            </div>
+            <p class="hint">Projection shown on chart as dashed amber line when target is moving.</p>
         </section>
 
         <!-- Navigation Data -->
@@ -265,10 +293,17 @@ import { metersPerSecondToKnots } from '../../../../state/calculations/navigatio
         font-size: 0.68rem;
         color: var(--text-muted, var(--gb-text-muted));
     }
+
+    .hint {
+      margin: 0.4rem 0 0;
+      font-size: 0.68rem;
+      color: var(--text-muted, var(--gb-text-muted));
+    }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class AisTargetDetailsComponent {
+  private readonly aisStore = inject(AisStoreService);
   @Input({ required: true }) target!: AisTarget;
   @Output() close = new EventEmitter<void>();
 
@@ -283,5 +318,61 @@ export class AisTargetDetailsComponent {
     }
 
     return `${metersPerSecondToKnots(sogMps).toFixed(1)} kn`;
+  }
+
+  get trackPointsCount(): number {
+    return this.getTrackPoints().length;
+  }
+
+  get trackHistoryMinutes(): number | null {
+    const points = this.getTrackPoints();
+    if (points.length < 2) {
+      return null;
+    }
+
+    const first = points[0];
+    const last = points[points.length - 1];
+    if (!first || !last) {
+      return null;
+    }
+    const spanMs = last.timestamp - first.timestamp;
+    return spanMs > 0 ? spanMs / 60000 : null;
+  }
+
+  get hasPrediction(): boolean {
+    return this.predictionDistanceNm !== null;
+  }
+
+  get predictionDistanceNm(): number | null {
+    if (!this.canPredictTarget()) {
+      return null;
+    }
+    const sog = this.target.sog as number;
+    const distanceMeters = sog * 6 * 60;
+    return distanceMeters / METERS_PER_NM;
+  }
+
+  get predictionBearingDeg(): number | null {
+    if (!this.canPredictTarget()) {
+      return null;
+    }
+    return normalizeDegrees(toDegrees(this.target.cog as number));
+  }
+
+  private getTrackPoints(): AisTrackPoint[] {
+    if (!this.target?.mmsi) {
+      return [];
+    }
+    return this.aisStore.getTrackPoints(this.target.mmsi);
+  }
+
+  private canPredictTarget(): boolean {
+    if (!Number.isFinite(this.target?.latitude) || !Number.isFinite(this.target?.longitude)) {
+      return false;
+    }
+    if (typeof this.target?.sog !== 'number' || !Number.isFinite(this.target.sog) || this.target.sog < 0.5) {
+      return false;
+    }
+    return typeof this.target?.cog === 'number' && Number.isFinite(this.target.cog);
   }
 }

@@ -1,11 +1,13 @@
 import { Component, ChangeDetectionStrategy, EventEmitter, Input, Output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { AppIconComponent } from '../../../../shared/components/app-icon/app-icon.component';
+import { TranslatePipe } from '../../../../shared/pipes/translate.pipe';
+import type { ChartLayerMode } from '../../types/chart-vm';
 
 @Component({
   selector: 'app-map-controls',
   standalone: true,
-  imports: [CommonModule, AppIconComponent],
+  imports: [CommonModule, AppIconComponent, TranslatePipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="map-controls">
@@ -96,10 +98,12 @@ import { AppIconComponent } from '../../../../shared/components/app-icon/app-ico
       <div class="control-group">
         <button
           class="control-btn"
-          [class.active]="sourceId === 'satellite'"
+          [class.active]="layerMode === 'nautical'"
           (click)="toggleBaseLayer.emit()"
-          [title]="sourceId === 'satellite' ? 'Map View' : 'Satellite'">
-          <app-icon name="layers" [size]="16" />
+          [attr.aria-label]="layerButtonAriaLabel"
+          [title]="layerButtonLabel">
+          <app-icon [name]="layerButtonIcon" [size]="16" />
+          <span class="control-btn__micro-label">{{ layerModeBadge }}</span>
         </button>
         <div class="control-group__divider"></div>
         <button
@@ -112,6 +116,15 @@ import { AppIconComponent } from '../../../../shared/components/app-icon/app-ico
             <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"></path>
             <path d="M2 12h20"></path>
           </svg>
+        </button>
+        <div class="control-group__divider"></div>
+        <button
+          class="control-btn"
+          [class.active]="showAisTracks"
+          (click)="toggleAisTracks.emit()"
+          [attr.aria-label]="showAisTracks ? 'Hide AIS tracks' : 'Show AIS tracks'"
+          [title]="'chart.controls.ais_tracks' | translate">
+          <app-icon name="route" [size]="16" />
         </button>
       </div>
 
@@ -222,9 +235,10 @@ export class MapControlsComponent {
   @Input() orientation: 'north-up' | 'course-up' = 'north-up';
   @Input() canCenter = false;
   @Input() autoCenter = false;
-  @Input() sourceId = 'osm-raster';
+  @Input() layerMode: ChartLayerMode = 'osm';
   @Input() anchorWatchActive = false;
   @Input() showOpenSeaMap = false;
+  @Input() showAisTracks = true;
   @Input() measureActive = false;
   @Input() addWaypointModeActive = false;
   @Input() hasActiveWaypoint = false;
@@ -240,7 +254,48 @@ export class MapControlsComponent {
   @Output() toggleBaseLayer = new EventEmitter<void>();
   @Output() toggleAnchorWatch = new EventEmitter<void>();
   @Output() toggleOpenSeaMap = new EventEmitter<void>();
+  @Output() toggleAisTracks = new EventEmitter<void>();
   @Output() toggleMeasure = new EventEmitter<void>();
   @Output() deleteActiveWaypoint = new EventEmitter<void>();
   @Output() toggleSettingsPanel = new EventEmitter<void>();
+
+  get layerButtonLabel(): string {
+    switch (this.layerMode) {
+      case 'osm':
+        return 'Satellite';
+      case 'satellite':
+        return 'Nautical';
+      case 'nautical':
+      default:
+        return 'Map';
+    }
+  }
+
+  get layerButtonAriaLabel(): string {
+    return `Switch to ${this.layerButtonLabel} view`;
+  }
+
+  get layerButtonIcon(): 'map' | 'satellite' | 'anchor' {
+    switch (this.layerMode) {
+      case 'satellite':
+        return 'satellite';
+      case 'nautical':
+        return 'anchor';
+      case 'osm':
+      default:
+        return 'map';
+    }
+  }
+
+  get layerModeBadge(): 'MAP' | 'SAT' | 'NAU' {
+    switch (this.layerMode) {
+      case 'satellite':
+        return 'SAT';
+      case 'nautical':
+        return 'NAU';
+      case 'osm':
+      default:
+        return 'MAP';
+    }
+  }
 }

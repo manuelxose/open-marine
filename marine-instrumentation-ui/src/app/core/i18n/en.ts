@@ -11,6 +11,7 @@ export const en = {
       connections: 'Connections',
       experiments: 'Experiments',
       dashboard: 'Dashboard Widgets',
+      tour: 'Guided Tour',
     },
     language: {
       label: 'Language',
@@ -47,6 +48,18 @@ export const en = {
         depth_simple: 'Depth - compact',
       },
     },
+    tour: {
+      replay: {
+        label: 'Replay Tour',
+        description: 'Start the guided tour again to explore all features of OMI.',
+        button: 'Start Tour',
+      },
+      reset: {
+        label: 'Reset Initial Setup',
+        description: 'Show the initial setup wizard again on next app launch.',
+        button: 'Reset',
+      },
+    },
   },
 
   nav: {
@@ -77,11 +90,13 @@ export const en = {
       layer: 'Layer',
       satellite: 'Satellite',
       map: 'Map',
+      nautical: 'Nautical',
       center_boat: 'Center on Boat',
       on: 'ON',
       off: 'OFF',
       ais_targets: 'AIS Targets',
       ais_labels: 'AIS Labels',
+      ais_tracks: 'AIS Tracks',
       cpa_lines: 'CPA Lines',
       nautical_overlay: 'Nautical Chart',
     },
@@ -207,6 +222,104 @@ export const en = {
     system: {
       updates_processed: 'Updates processed',
       last_update: 'Last update',
+    },
+  },
+
+  // ── Onboarding ──────────────────────────────
+  onboarding: {
+    skipAll: 'Skip setup',
+    back: 'Back',
+    next: 'Next',
+    welcome: {
+      desc: 'Your professional navigation system for open-source marine computing.',
+      feature1: 'Real-time instrument data',
+      feature2: 'Chart plotter with AIS',
+      feature3: 'Alarm system & MOB',
+      feature4: 'Autopilot integration',
+      getStarted: 'Get Started',
+      skipSetup: 'Skip setup',
+    },
+    preferences: {
+      title: 'Basic Configuration',
+      language: 'Language',
+      theme: 'Theme',
+      day: 'Day',
+      night: 'Night',
+      speedUnit: 'Speed Unit',
+      depthUnit: 'Depth Unit',
+    },
+    connection: {
+      title: 'Signal K Connection',
+      serverUrl: 'Server URL',
+      status: 'Status',
+      connected: 'Connected',
+      disconnected: 'Disconnected',
+      hint: 'You can change this later in Settings → Connection',
+    },
+    tour: {
+      title: 'Explore OMI',
+      desc: 'Would you like a quick guided tour of the application?',
+      preview: {
+        dashboard: 'Live instruments',
+        chart: 'Navigation map',
+        instruments: 'Detailed gauges',
+        alarms: 'Safety system',
+        settings: 'Customization',
+      },
+      time: 'Takes about 2 minutes.',
+      startButton: 'Start Tour',
+      skipButton: 'Skip, go to app',
+    },
+  },
+
+  // ── Guided Tour ─────────────────────────────
+  tour: {
+    back: 'Back',
+    next: 'Next',
+    finish: 'Finish',
+    sidebar: {
+      title: 'Navigation Menu',
+      desc: 'Access all sections of OMI from here. The sidebar can be collapsed for more screen space.',
+    },
+    dashboard: {
+      title: 'Dashboard',
+      desc: 'Your real-time instrument overview. See speed, heading, depth, wind, and more at a glance.',
+    },
+    strip: {
+      title: 'Critical Data Strip',
+      desc: 'The most important navigation data always visible: SOG, COG, depth, and wind.',
+    },
+    chart: {
+      title: 'Navigation Chart',
+      desc: 'Full-screen chart plotter with your vessel position, AIS targets, waypoints, and routes.',
+    },
+    chartControls: {
+      title: 'Map Controls',
+      desc: 'Zoom, center on vessel, toggle orientation, and manage map layers.',
+    },
+    chartInstr: {
+      title: 'Instrument Overlay',
+      desc: 'Open the instruments drawer to see compass, wind rose, and depth gauge overlaid on the chart.',
+    },
+    instruments: {
+      title: 'Instruments',
+      desc: 'Detailed instrument displays with customizable widgets. Drag to reorder and configure.',
+    },
+    alarms: {
+      title: 'Alarms & Safety',
+      desc: 'Configure depth alarms, CPA warnings, anchor watch, and Man Overboard emergency alert.',
+    },
+    topbar: {
+      title: 'Status Bar',
+      desc: 'Shows connection status, position, and quick access to theme toggle and alerts.',
+    },
+    settings: {
+      title: 'Settings',
+      desc: 'Customize units, theme, language, and alarm thresholds. Restart this tour from here anytime.',
+    },
+    complete: {
+      title: 'You\'re All Set! 🎉',
+      desc: 'OMI is ready for navigation. Fair winds and following seas!',
     },
   },
 };

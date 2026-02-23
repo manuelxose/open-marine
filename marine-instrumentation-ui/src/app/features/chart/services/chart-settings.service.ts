@@ -24,6 +24,7 @@ export interface ChartSettings {
   showRangeRings: boolean;
   rangeRingIntervals: number[];
   showOpenSeaMap: boolean;
+  showAisTracks: boolean;
   showAisTargets: boolean;
   showAisLabels: boolean;
   showCpaLines: boolean;
@@ -66,6 +67,7 @@ const DEFAULT_SETTINGS: ChartSettings = {
   showRangeRings: false,
   rangeRingIntervals: [0.25, 0.5, 1.0],
   showOpenSeaMap: false,
+  showAisTracks: true,
   showAisTargets: true,
   showAisLabels: true,
   showCpaLines: true,
@@ -251,6 +253,10 @@ export class ChartSettingsService {
     this.update({ showOpenSeaMap: !this.settingsSubject.value.showOpenSeaMap });
   }
 
+  toggleAisTracks(): void {
+    this.update({ showAisTracks: !this.settingsSubject.value.showAisTracks });
+  }
+
   toggleAisTargets(): void {
     this.update({ showAisTargets: !this.settingsSubject.value.showAisTargets });
   }
@@ -361,6 +367,7 @@ export class ChartSettingsService {
         : DEFAULT_SETTINGS.windVectorSource;
     normalized.showHeadingLine = this.toBoolean(saved.showHeadingLine, DEFAULT_SETTINGS.showHeadingLine);
     normalized.showLaylines = this.toBoolean(saved.showLaylines, DEFAULT_SETTINGS.showLaylines);
+    normalized.showAisTracks = this.toBoolean(saved.showAisTracks, DEFAULT_SETTINGS.showAisTracks);
     normalized.hideMooredTargets = this.toBoolean(saved.hideMooredTargets, DEFAULT_SETTINGS.hideMooredTargets);
     normalized.hideAnchoredTargets = this.toBoolean(saved.hideAnchoredTargets, DEFAULT_SETTINGS.hideAnchoredTargets);
     normalized.fixedLocationMode = this.toBoolean(saved.fixedLocationMode, DEFAULT_SETTINGS.fixedLocationMode);

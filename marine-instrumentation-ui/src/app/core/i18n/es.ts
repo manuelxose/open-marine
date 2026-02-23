@@ -13,6 +13,7 @@ export const es: Translations = {
       connections: 'Conexiones',
       experiments: 'Experimentos',
       dashboard: 'Widgets del Dashboard',
+      tour: 'Tour Guiado',
     },
     language: {
       label: 'Idioma',
@@ -49,6 +50,18 @@ export const es: Translations = {
         depth_simple: 'Profundidad - compacto',
       },
     },
+    tour: {
+      replay: {
+        label: 'Repetir Tour',
+        description: 'Inicia el tour guiado de nuevo para explorar todas las funciones de OMI.',
+        button: 'Iniciar Tour',
+      },
+      reset: {
+        label: 'Reiniciar Configuración Inicial',
+        description: 'Mostrar el asistente de configuración inicial de nuevo en el próximo inicio.',
+        button: 'Reiniciar',
+      },
+    },
   },
 
   nav: {
@@ -71,6 +84,7 @@ export const es: Translations = {
       layer: 'Capa',
       satellite: 'SatÃ©lite',
       map: 'Mapa',
+      nautical: 'Náutico',
       range_rings: 'Anillos',
       range_rings_label: 'Intervalos (MN)',
       range_rings_placeholder: '0.25, 0.5, 1',
@@ -84,6 +98,7 @@ export const es: Translations = {
       off: 'OFF',
       ais_targets: 'Objetivos AIS',
       ais_labels: 'Etiquetas AIS',
+      ais_tracks: 'Estelas AIS',
       cpa_lines: 'Lineas CPA',
       nautical_overlay: 'Carta Nautica',
     },
@@ -211,5 +226,101 @@ export const es: Translations = {
       last_update: 'Ãšltima actualizaciÃ³n',
     },
   },
-};
+  // ── Onboarding ──────────────────────────────────
+  onboarding: {
+    skipAll: 'Saltar configuración',
+    back: 'Atrás',
+    next: 'Siguiente',
+    welcome: {
+      desc: 'Tu sistema profesional de navegación para computación marina de código abierto.',
+      feature1: 'Datos de instrumentos en tiempo real',
+      feature2: 'Plotter con AIS',
+      feature3: 'Sistema de alarmas y MOB',
+      feature4: 'Integración con piloto automático',
+      getStarted: 'Comenzar',
+      skipSetup: 'Saltar configuración',
+    },
+    preferences: {
+      title: 'Configuración Básica',
+      language: 'Idioma',
+      theme: 'Tema',
+      day: 'Día',
+      night: 'Noche',
+      speedUnit: 'Unidad de Velocidad',
+      depthUnit: 'Unidad de Profundidad',
+    },
+    connection: {
+      title: 'Conexión Signal K',
+      serverUrl: 'URL del Servidor',
+      status: 'Estado',
+      connected: 'Conectado',
+      disconnected: 'Desconectado',
+      hint: 'Puedes cambiar esto luego en Ajustes → Conexión',
+    },
+    tour: {
+      title: 'Explora OMI',
+      desc: '¿Te gustaría hacer un tour rápido por la aplicación?',
+      preview: {
+        dashboard: 'Instrumentos en vivo',
+        chart: 'Carta de navegación',
+        instruments: 'Indicadores detallados',
+        alarms: 'Sistema de seguridad',
+        settings: 'Personalización',
+      },
+      time: 'Toma aproximadamente 2 minutos.',
+      startButton: 'Iniciar Tour',
+      skipButton: 'Saltar, ir a la app',
+    },
+  },
+
+  // ── Tour Guiado ─────────────────────────────────
+  tour: {
+    back: 'Atrás',
+    next: 'Siguiente',
+    finish: 'Finalizar',
+    sidebar: {
+      title: 'Menú de Navegación',
+      desc: 'Accede a todas las secciones de OMI desde aquí. La barra lateral puede ocultarse para mayor espacio.',
+    },
+    dashboard: {
+      title: 'Panel de Control',
+      desc: 'Tu vista general de instrumentos en tiempo real. Ve velocidad, rumbo, profundidad, viento y más de un vistazo.',
+    },
+    strip: {
+      title: 'Franja de Datos Críticos',
+      desc: 'Los datos de navegación más importantes siempre visibles: SOG, COG, profundidad y viento.',
+    },
+    chart: {
+      title: 'Carta de Navegación',
+      desc: 'Plotter a pantalla completa con posición del barco, objetivos AIS, waypoints y rutas.',
+    },
+    chartControls: {
+      title: 'Controles del Mapa',
+      desc: 'Zoom, centrar en el barco, cambiar orientación y gestionar capas del mapa.',
+    },
+    chartInstr: {
+      title: 'Instrumentos Superpuestos',
+      desc: 'Abre el panel de instrumentos para ver compás, rosa de vientos y sonda sobre la carta.',
+    },
+    instruments: {
+      title: 'Instrumentos',
+      desc: 'Pantallas de instrumentos detalladas con widgets configurables. Arrastra para reordenar y configurar.',
+    },
+    alarms: {
+      title: 'Alarmas y Seguridad',
+      desc: 'Configura alarmas de profundidad, avisos CPA, fondeo y alerta de Hombre al Agua.',
+    },
+    topbar: {
+      title: 'Barra de Estado',
+      desc: 'Muestra estado de conexión, posición y acceso rápido al cambio de tema y alertas.',
+    },
+    settings: {
+      title: 'Ajustes',
+      desc: 'Personaliza unidades, tema, idioma y umbrales de alarma. Repite este tour desde aquí en cualquier momento.',
+    },
+    complete: {
+      title: '¡Todo Listo! 🎉',
+      desc: 'OMI está listo para navegar. ¡Buen viento y buena mar!',
+    },
+  },};
 
