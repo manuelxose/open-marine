@@ -42,6 +42,7 @@ export interface AisTarget {
 
   // Static Data
   destination?: string;
+  imo?: string;
   vesselType?: string;
   length?: number;
   beam?: number;
@@ -54,6 +55,7 @@ export interface AisTarget {
   cpa?: number; // Closest Point of Approach (meters)
   tcpa?: number; // Time to CPA (seconds)
   isDangerous?: boolean; // If CPA < threshold && TCPA < threshold
+  riskEligible?: boolean; // Risk computation is valid for own-ship collision logic
 }
 
 export interface AisState {

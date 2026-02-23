@@ -4,7 +4,8 @@ import { BehaviorSubject, auditTime, combineLatest, firstValueFrom, map, scan, s
 import { DatapointStoreService } from '../../../state/datapoints/datapoint-store.service';
 import { AisStoreService } from '../../../state/ais/ais-store.service';
 import { SignalKClientService } from '../../../data-access/signalk/signalk-client.service';
-import type { FeatureCollection, Point } from 'geojson';
+import type { Feature, FeatureCollection, LineString, Point } from 'geojson';
+import { AisNavStatus, type AisTarget } from '../../../core/models/ais.model';
 import {
   isPositionValue,
   selectAwa,
@@ -38,7 +39,9 @@ import { WaypointService, type Waypoint } from './waypoint.service';
 import { RouteService } from './route.service';
 import type { ChartSourceConfig, MapLibreInitView } from './maplibre-engine.service';
 import type { WaypointFeatureCollection, WaypointFeatureProperties } from '../types/chart-geojson';
+import { getAisVesselIconId, mapAisVesselTypeToFilter } from './chart-vessel-types';
 import { DataQualityService } from '../../../shared/services/data-quality.service';
+import { AlarmSettingsService } from '../../../state/alarms/alarm-settings.service';
 import { formatCoordinate } from '../../../core/formatting/formatters';
 import {
   bearingDistanceNm,
@@ -158,6 +161,7 @@ export class ChartFacadeService {
   private readonly aisStore = inject(AisStoreService);
   private readonly signalKClient = inject(SignalKClientService);
   private readonly settingsService = inject(ChartSettingsService);
+  private readonly alarmSettings = inject(AlarmSettingsService);
   private readonly qualityService = inject(DataQualityService);
   private readonly waypointService = inject(WaypointService);
   private readonly routeService = inject(RouteService);
@@ -169,11 +173,33 @@ export class ChartFacadeService {
     this._orientation$.next(current === 'north-up' ? 'course-up' : 'north-up');
   }
 
-  readonly aisTargetsGeoJson$ = toObservable(this.aisStore.targets).pipe(
-    map((targetsMap) => {
-      const features: any[] = [];
+  readonly aisTargetsGeoJson$ = combineLatest([
+    toObservable(this.aisStore.targets),
+    this.settingsService.settings$,
+    timer(0, 5000),
+  ]).pipe(
+    map(([targetsMap, settings]) => {
+      const now = Date.now();
+      const visibleTypes = new Set(settings.visibleVesselTypes);
+      const features: Feature<Point>[] = [];
       for (const t of targetsMap.values()) {
-        if (!t.latitude || !t.longitude) continue;
+        if (this.isTargetExpired(t, settings.aisRemoveAfterMinutes, now)) {
+          continue;
+        }
+        if (this.isTargetHiddenByStatus(t, settings.hideMooredTargets, settings.hideAnchoredTargets)) {
+          continue;
+        }
+        if (!Number.isFinite(t.latitude) || !Number.isFinite(t.longitude)) {
+          continue;
+        }
+
+        const vesselTypeKey = mapAisVesselTypeToFilter(t.vesselType);
+        if (!visibleTypes.has(vesselTypeKey)) {
+          continue;
+        }
+
+        const dangerous = t.isDangerous === true && t.riskEligible === true;
+        const inactive = this.isTargetInactive(t, settings.aisInactiveAfterMinutes, now);
 
         features.push({
           type: 'Feature',
@@ -184,8 +210,11 @@ export class ChartFacadeService {
           properties: {
             mmsi: t.mmsi,
             heading: toDegrees(t.heading ?? t.cog ?? 0),
-            status: t.isDangerous ? 'dangerous' : 'normal',
+            status: dangerous ? 'dangerous' : 'normal',
+            vesselTypeKey,
+            iconId: getAisVesselIconId(vesselTypeKey, dangerous),
             name: t.name ?? t.mmsi,
+            inactive,
           },
         });
       }
@@ -200,91 +229,66 @@ export class ChartFacadeService {
   readonly cpaLinesGeoJson$ = combineLatest([
     toObservable(this.aisStore.dangerousTargets),
     selectPosition(this.store),
-    selectSog(this.store),
-    selectCog(this.store)
+    this.settingsService.settings$,
+    timer(0, 5000),
   ]).pipe(
-      map(([targets, ownPos, ownSog, ownCog]) => {
-          const features: any[] = [];
-          if (!ownPos || typeof ownSog !== 'number' || typeof ownCog !== 'number' || !ownPos.timestamp) {
-              return { type: 'FeatureCollection', features: [] } as CpaLinesFeatureCollection;
-          }
+    map(([targets, ownPos, settings]) => {
+      const features: Feature<LineString>[] = [];
+      if (!ownPos?.value || !ownPos.timestamp) {
+        return { type: 'FeatureCollection', features: [] } as CpaLinesFeatureCollection;
+      }
 
-          // Use position, speed, cog to project
-          for (const t of targets) {
-              if (t.tcpa !== undefined && t.tcpa !== null && Math.abs(t.tcpa) < 120 * 60) { // Limit huge projections
-                 // tcpa is seconds. cpa.ts says tCpa is seconds? 
-                 // Wait, ais-store: TCPA_WARNING_SECONDS = 20 * 60.
-                 // calculateCpa returns tCpa in seconds.
-                 
-                 const tCpaSeconds = t.tcpa;
-                 // It can be negative if passed?
-                 if (tCpaSeconds < -60) continue; // Don't show old lines too long
-                 
-                 // Project Own Ship
-                 // SOG is m/s in store? No knots usually.
-                 // Store types: value is T. 
-                 // marine-data-contract says SOG is m/s usually in SignalK, but we might have converted?
-                 // Let's assume SignalK m/s as per contract.
-                 
-                 // However, projectDestination takes DISTANCE in METERS.
-                 // Distance = speed(m/s) * time(s).
-                 
-                 // We need to confirm units.
-                 // DatapointStore maps raw values. Simulator sends 3.2 (knots? m/s?).
-                 // Simulator: sog: 3.2. Contract doesn't enforce unit but SI is standard.
-                 // 3.2 m/s ~ 6 knots. Reasonable.
-                 // Let's assume m/s.
-                 
-                 const ownDist = Math.max(0, ownSog * tCpaSeconds);
-                 const ownCpaPos = projectDestination(
-                     { lat: ownPos.value.latitude, lon: ownPos.value.longitude }, 
-                     toDegrees(ownCog), // projectDestination takes Degrees
-                     ownDist
-                 );
+      const ownLat = ownPos.value.latitude;
+      const ownLon = ownPos.value.longitude;
+      if (!Number.isFinite(ownLat) || !Number.isFinite(ownLon)) {
+        return { type: 'FeatureCollection', features: [] } as CpaLinesFeatureCollection;
+      }
 
-                 // Project Target
-                 if (typeof t.sog === 'number' && typeof t.cog === 'number' && t.latitude && t.longitude) {
-                     const targetDist = Math.max(0, t.sog * tCpaSeconds);
-                     const targetCpaPos = projectDestination(
-                         { lat: t.latitude, lon: t.longitude },
-                         toDegrees(t.cog),
-                         targetDist
-                     );
+      const now = Date.now();
+      const visibleTypes = new Set(settings.visibleVesselTypes);
 
-                     // Line connecting future positions (The "Miss Distance" geometry)
-                     features.push({
-                         type: 'Feature',
-                         geometry: {
-                             type: 'LineString',
-                             coordinates: [
-                                 [ownCpaPos.lon, ownCpaPos.lat],
-                                 [targetCpaPos.lon, targetCpaPos.lat]
-                             ]
-                         },
-                         properties: {}
-                     });
-                     
-                     // Line connecting current positions (The "Hazard Link") - Optional?
-                     // Spec says "Linea a target peligroso".
-                     // Maybe a line from OwnShip -> Target?
-                     features.push({
-                         type: 'Feature',
-                         geometry: {
-                             type: 'LineString',
-                             coordinates: [
-                                 [ownPos.value.longitude, ownPos.value.latitude],
-                                 [t.longitude, t.latitude]
-                             ]
-                         },
-                         properties: {}
-                     });
-                 }
-              }
-          }
-          return { type: 'FeatureCollection', features } as CpaLinesFeatureCollection;
-      }),
-      startWith({ type: 'FeatureCollection', features: [] } as CpaLinesFeatureCollection),
-      shareReplay({ bufferSize: 1, refCount: true })
+      // Draw only own-ship -> target hazard links to avoid any target-target interpretation.
+      for (const t of targets) {
+        if (t.riskEligible !== true || t.isDangerous !== true) {
+          continue;
+        }
+        if (this.isTargetExpired(t, settings.aisRemoveAfterMinutes, now)) {
+          continue;
+        }
+        if (this.isTargetHiddenByStatus(t, settings.hideMooredTargets, settings.hideAnchoredTargets)) {
+          continue;
+        }
+
+        const vesselTypeKey = mapAisVesselTypeToFilter(t.vesselType);
+        if (!visibleTypes.has(vesselTypeKey)) {
+          continue;
+        }
+        if (!Number.isFinite(t.latitude) || !Number.isFinite(t.longitude)) {
+          continue;
+        }
+        if (typeof t.tcpa !== 'number' || !Number.isFinite(t.tcpa)) {
+          continue;
+        }
+        if (t.tcpa < 0 || t.tcpa > 120 * 60) {
+          continue;
+        }
+
+        features.push({
+          type: 'Feature',
+          geometry: {
+            type: 'LineString',
+            coordinates: [
+              [ownLon, ownLat],
+              [t.longitude, t.latitude],
+            ],
+          },
+          properties: {},
+        });
+      }
+      return { type: 'FeatureCollection', features } as CpaLinesFeatureCollection;
+    }),
+    startWith({ type: 'FeatureCollection', features: [] } as CpaLinesFeatureCollection),
+    shareReplay({ bufferSize: 1, refCount: true }),
   );
 
   private readonly tick$ = timer(0, 1000);
@@ -309,6 +313,28 @@ export class ChartFacadeService {
   private readonly positionValue$ = this.position$.pipe(
     map((point) => this.extractPosition(point)),
     startWith(null),
+    shareReplay({ bufferSize: 1, refCount: true }),
+  );
+
+  private readonly effectivePosition$ = combineLatest([
+    this.positionValue$,
+    this.settingsService.settings$,
+  ]).pipe(
+    map(([position, settings]) => {
+      if (
+        settings.fixedLocationMode &&
+        typeof settings.fixedLocationLat === 'number' &&
+        Number.isFinite(settings.fixedLocationLat) &&
+        typeof settings.fixedLocationLon === 'number' &&
+        Number.isFinite(settings.fixedLocationLon)
+      ) {
+        return {
+          latitude: settings.fixedLocationLat,
+          longitude: settings.fixedLocationLon,
+        };
+      }
+      return position;
+    }),
     shareReplay({ bufferSize: 1, refCount: true }),
   );
 
@@ -337,7 +363,7 @@ export class ChartFacadeService {
   );
 
   private readonly center$ = combineLatest({
-    position: this.positionValue$,
+    position: this.effectivePosition$,
     settings: this.settingsService.settings$,
   }).pipe(
     scan((current, { position, settings }) => {
@@ -369,7 +395,7 @@ export class ChartFacadeService {
     shareReplay({ bufferSize: 1, refCount: true }),
   );
 
-  private readonly waypointNav$ = combineLatest([this.positionValue$, this.waypointService.activeWaypoint$]).pipe(
+  private readonly waypointNav$ = combineLatest([this.effectivePosition$, this.waypointService.activeWaypoint$]).pipe(
     map(([position, waypoint]) => {
       if (!position || !waypoint) {
         return null;
@@ -491,10 +517,13 @@ export class ChartFacadeService {
       const cogDeg = cogValue !== null ? normalizeDegrees(toDegrees(cogValue)) : null;
       const headingDeg = headingValue !== null ? normalizeDegrees(toDegrees(headingValue)) : null;
       const positionQuality = this.qualityService.getQuality(positionPoint?.timestamp ?? null);
+      const minSpeedForXteKnots = this.positiveOr(this.alarmSettings.snapshot.xteMinSpeedKnots, 0.5);
+      const hasReliablePositionForXte = positionQuality === 'good' || positionQuality === 'warn';
+      const hasNavigationMotion = sogKnots !== null && sogKnots >= minSpeedForXteKnots;
 
       // Compute XTE when we have an active leg and vessel position
       let xteNm = 0;
-      if (activeLeg && position) {
+      if (activeLeg && position && hasReliablePositionForXte && hasNavigationMotion) {
         const xte = crossTrackErrorNm(
           { lat: activeLeg.from.lat, lon: activeLeg.from.lon },
           { lat: activeLeg.to.lat, lon: activeLeg.to.lon },
@@ -547,7 +576,7 @@ export class ChartFacadeService {
   );
 
   readonly vesselUpdate$ = combineLatest({
-    position: this.positionValue$,
+    position: this.effectivePosition$,
     heading: this.heading$,
     cog: this.cog$,
     fixState: this.fixState$,
@@ -584,7 +613,45 @@ export class ChartFacadeService {
   );
 
   readonly vectorUpdate$ = combineLatest({
-    position: this.positionValue$,
+    position: this.effectivePosition$,
+    cog: this.cog$,
+    sog: this.sog$,
+    settings: this.settingsService.settings$,
+  }).pipe(
+    auditTime(200),
+    map(({ position, cog, sog, settings }) => {
+      if (!settings.showVector || !position) {
+        return { coords: [] as [number, number][], visible: false };
+      }
+
+      const cogRad = coerceNumber(cog?.value);
+      if (cogRad === null) {
+        return { coords: [] as [number, number][], visible: false };
+      }
+
+      const cogDeg = normalizeDegrees(toDegrees(cogRad));
+      const sogMps = coerceNumber(sog?.value) ?? 0;
+      const vectorSeconds = Math.max(60, settings.cogLineMinutes * 60);
+      const vectorMeters = Math.max(DEFAULT_VECTOR_NM * METERS_PER_NM, sogMps * vectorSeconds);
+      const destination = projectDestination(
+        { lat: position.latitude, lon: position.longitude },
+        cogDeg,
+        vectorMeters,
+      );
+
+      return {
+        coords: [
+          [position.longitude, position.latitude],
+          [destination.lon, destination.lat],
+        ] as [number, number][],
+        visible: true,
+      };
+    }),
+    shareReplay({ bufferSize: 1, refCount: true }),
+  );
+
+  readonly headingLineUpdate$ = combineLatest({
+    position: this.effectivePosition$,
     heading: this.heading$,
     cog: this.cog$,
     sog: this.sog$,
@@ -592,7 +659,7 @@ export class ChartFacadeService {
   }).pipe(
     auditTime(200),
     map(({ position, heading, cog, sog, settings }) => {
-      if (!settings.showVector || !position) {
+      if (!settings.showHeadingLine || !position) {
         return { coords: [] as [number, number][], visible: false };
       }
 
@@ -603,7 +670,8 @@ export class ChartFacadeService {
 
       const headingDeg = normalizeDegrees(toDegrees(headingRad));
       const sogMps = coerceNumber(sog?.value) ?? 0;
-      const vectorMeters = Math.max(DEFAULT_VECTOR_NM * METERS_PER_NM, sogMps * VECTOR_TIME_SECONDS);
+      const vectorSeconds = Math.max(60, settings.headingLineMinutes * 60);
+      const vectorMeters = Math.max(DEFAULT_VECTOR_NM * METERS_PER_NM, sogMps * vectorSeconds);
       const destination = projectDestination(
         { lat: position.latitude, lon: position.longitude },
         headingDeg,
@@ -619,41 +687,97 @@ export class ChartFacadeService {
       };
     }),
     shareReplay({ bufferSize: 1, refCount: true }),
-  );trueWindUpdate$ = combineLatest({
-    position: this.positionValue$,
+  );
+
+  readonly laylinesUpdate$ = combineLatest({
+    position: this.effectivePosition$,
+    heading: this.heading$,
+    cog: this.cog$,
+    sog: this.sog$,
+    settings: this.settingsService.settings$,
+  }).pipe(
+    auditTime(200),
+    map(({ position, heading, cog, sog, settings }) => {
+      if (!settings.showLaylines || !position) {
+        return { lines: [] as [number, number][][], visible: false };
+      }
+
+      const headingRad = coerceNumber(heading?.value) ?? coerceNumber(cog?.value);
+      if (headingRad === null) {
+        return { lines: [] as [number, number][][], visible: false };
+      }
+
+      const baseDeg = normalizeDegrees(toDegrees(headingRad));
+      const laylineAngle = settings.laylineAngleDeg;
+      const sogMps = coerceNumber(sog?.value) ?? 0;
+      const vectorSeconds = Math.max(60, settings.headingLineMinutes * 60);
+      const vectorMeters = Math.max(DEFAULT_VECTOR_NM * METERS_PER_NM, sogMps * vectorSeconds);
+
+      const starboard = projectDestination(
+        { lat: position.latitude, lon: position.longitude },
+        normalizeDegrees(baseDeg + laylineAngle),
+        vectorMeters,
+      );
+      const port = projectDestination(
+        { lat: position.latitude, lon: position.longitude },
+        normalizeDegrees(baseDeg - laylineAngle),
+        vectorMeters,
+      );
+
+      const origin = [position.longitude, position.latitude] as [number, number];
+      const lines = [
+        [origin, [starboard.lon, starboard.lat] as [number, number]],
+        [origin, [port.lon, port.lat] as [number, number]],
+      ] as [number, number][][];
+
+      return {
+        lines,
+        visible: true,
+      };
+    }),
+    shareReplay({ bufferSize: 1, refCount: true }),
+  );
+
+  readonly trueWindUpdate$ = combineLatest({
+    position: this.effectivePosition$,
+    heading: this.heading$,
+    cog: this.cog$,
+    awa: this.awa$,
+    aws: this.aws$,
     twd: this.twd$,
     tws: this.tws$,
     settings: this.settingsService.settings$,
   }).pipe(
     auditTime(200),
-    map(({ position, twd, tws, settings }) => {
+    map(({ position, heading, cog, awa, aws, twd, tws, settings }) => {
       if (!settings.showTrueWind || !position) {
         return { coords: [] as [number, number][], visible: false };
       }
 
-      const twdRad = coerceNumber(twd?.value);
-      if (twdRad === null) {
-        return { coords: [] as [number, number][], visible: false };
+      let windDirectionDeg: number | null = null;
+      let windSpeedMps = 0;
+
+      if (settings.windVectorSource === 'apparent') {
+        const headingRad = coerceNumber(heading?.value) ?? coerceNumber(cog?.value);
+        const awaRad = coerceNumber(awa?.value);
+        if (headingRad === null || awaRad === null) {
+          return { coords: [] as [number, number][], visible: false };
+        }
+        windDirectionDeg = normalizeDegrees(toDegrees(headingRad + awaRad));
+        windSpeedMps = coerceNumber(aws?.value) ?? 0;
+      } else {
+        const twdRad = coerceNumber(twd?.value);
+        if (twdRad === null) {
+          return { coords: [] as [number, number][], visible: false };
+        }
+        windDirectionDeg = normalizeDegrees(toDegrees(twdRad));
+        windSpeedMps = coerceNumber(tws?.value) ?? 0;
       }
 
-      const twdDeg = normalizeDegrees(toDegrees(twdRad));
-
-      // Calculate wind vector length
-      // TWS is in m/s. We project where the "wind particle" would be in 60 seconds
-      // OR we just use a fixed length.
-      // Let's use the same logic as SOG: 60 seconds of travel.
-      // NOTE: Wind vector normally points WITH the wind.
-      // If TWD is North (0), wind is blowing FROM North TO South.
-      // Standard vector points South (180).
-      // BUT we want a "Wind Barb" which points INTO the wind (North).
-      // So use TWD directly.
-      
-      const twsMps = coerceNumber(tws?.value) ?? 0;
-      const vectorMeters = Math.max(DEFAULT_VECTOR_NM * METERS_PER_NM, twsMps * VECTOR_TIME_SECONDS);
-      
+      const vectorMeters = Math.max(DEFAULT_VECTOR_NM * METERS_PER_NM, windSpeedMps * VECTOR_TIME_SECONDS);
       const destination = projectDestination(
         { lat: position.latitude, lon: position.longitude },
-        twdDeg,
+        windDirectionDeg,
         vectorMeters,
       );
 
@@ -730,7 +854,7 @@ export class ChartFacadeService {
   );
 
   readonly rangeRingsUpdate$ = combineLatest({
-    position: this.positionValue$,
+    position: this.effectivePosition$,
     settings: this.settingsService.settings$,
   }).pipe(
     auditTime(200),
@@ -747,7 +871,7 @@ export class ChartFacadeService {
   );
 
   readonly bearingLineUpdate$ = combineLatest({
-    position: this.positionValue$,
+    position: this.effectivePosition$,
     activeWaypoint: this.waypointService.activeWaypoint$,
   }).pipe(
     auditTime(200),
@@ -895,7 +1019,28 @@ export class ChartFacadeService {
   );
 
   readonly showCpaLines$ = this.settingsService.settings$.pipe(
-    map(s => s.showCpaLines),
+    map((s) => s.showCpaLines),
+  );
+
+  readonly ownVesselIconScale$ = this.settingsService.settings$.pipe(
+    map((s) => s.ownVesselIconScale),
+  );
+
+  readonly aisTargetIconScale$ = this.settingsService.settings$.pipe(
+    map((s) => s.aisTargetIconScale),
+  );
+
+  readonly windTrackMinZoom$ = this.settingsService.settings$.pipe(
+    map((s) => s.windTrackMinZoom),
+  );
+
+  readonly rangeRingsMinZoom$ = this.settingsService.settings$.pipe(
+    map((s) => s.rangeRingsMinZoom),
+  );
+
+  readonly vesselTypeColors$ = this.settingsService.settings$.pipe(
+    map((s) => s.vesselTypeColors),
+    shareReplay({ bufferSize: 1, refCount: true }),
   );
 
   setRangeRingIntervals(intervals: number[]): void {
@@ -943,6 +1088,70 @@ export class ChartFacadeService {
 
   clearActiveWaypoint(): void {
     this.waypointService.clearActive();
+  }
+
+  private isTargetExpired(target: AisTarget, removeAfterMinutes: number, nowMs: number): boolean {
+    const removeMs = this.positiveOr(removeAfterMinutes, 9) * 60_000;
+    return this.getTargetAgeMs(target, nowMs) >= removeMs;
+  }
+
+  private isTargetInactive(target: AisTarget, inactiveAfterMinutes: number, nowMs: number): boolean {
+    const inactiveMs = this.positiveOr(inactiveAfterMinutes, 6) * 60_000;
+    return this.getTargetAgeMs(target, nowMs) >= inactiveMs;
+  }
+
+  private getTargetAgeMs(target: AisTarget, nowMs: number): number {
+    if (typeof target.lastUpdated !== 'number' || !Number.isFinite(target.lastUpdated)) {
+      return 0;
+    }
+    return Math.max(0, nowMs - target.lastUpdated);
+  }
+
+  private isTargetHiddenByStatus(target: AisTarget, hideMoored: boolean, hideAnchored: boolean): boolean {
+    if (!hideMoored && !hideAnchored) {
+      return false;
+    }
+
+    const state = this.resolveNavStatus(target.state);
+    if (state === null) {
+      return false;
+    }
+
+    if (hideMoored && state === AisNavStatus.Moored) {
+      return true;
+    }
+    if (hideAnchored && state === AisNavStatus.AtAnchor) {
+      return true;
+    }
+    return false;
+  }
+
+  private resolveNavStatus(rawStatus: unknown): AisNavStatus | null {
+    if (typeof rawStatus === 'number' && Number.isInteger(rawStatus)) {
+      return rawStatus as AisNavStatus;
+    }
+    if (typeof rawStatus !== 'string') {
+      return null;
+    }
+
+    const normalized = rawStatus.trim().toLowerCase();
+    if (!normalized) {
+      return null;
+    }
+    if (/^\d+$/.test(normalized)) {
+      return Number.parseInt(normalized, 10) as AisNavStatus;
+    }
+    if (normalized.includes('moored')) {
+      return AisNavStatus.Moored;
+    }
+    if (normalized.includes('anchor')) {
+      return AisNavStatus.AtAnchor;
+    }
+    if (normalized.includes('fishing')) {
+      return AisNavStatus.EngagedInFishing;
+    }
+
+    return null;
   }
 
   private buildTopBarActiveRoute(
@@ -1017,5 +1226,9 @@ export class ChartFacadeService {
       createdAt: waypoint.createdAt,
       positionLabel: `${formatFixed(waypoint.lat, 4)}, ${formatFixed(waypoint.lon, 4)}`,
     };
+  }
+
+  private positiveOr(value: number, fallback: number): number {
+    return Number.isFinite(value) && value > 0 ? value : fallback;
   }
 }

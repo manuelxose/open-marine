@@ -91,3 +91,31 @@ export function formatDuration(seconds: number | null | undefined): string {
   }
   return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
 }
+
+/** Signal K sends temperature in Kelvin. Convert to °C (default) or °F. */
+export function formatTemperature(kelvin: number | null | undefined, unit: '°C' | '°F' = '°C'): { value: string; unit: string } {
+  if (kelvin === null || kelvin === undefined || !Number.isFinite(kelvin)) return { value: '--', unit };
+  let val = kelvin - 273.15; // K → °C
+  if (unit === '°F') val = val * 9 / 5 + 32;
+  return { value: val.toFixed(1), unit };
+}
+
+/** Signal K sends pressure in Pascals. Convert to hPa (mbar). */
+export function formatPressure(pascals: number | null | undefined): { value: string; unit: string } {
+  if (pascals === null || pascals === undefined || !Number.isFinite(pascals)) return { value: '--', unit: 'hPa' };
+  const hpa = pascals / 100;
+  return { value: hpa.toFixed(1), unit: 'hPa' };
+}
+
+/** Signal K sends revolutions in Hz (revolutions per second). Convert to RPM. */
+export function formatRpm(hertz: number | null | undefined): { value: string; unit: string } {
+  if (hertz === null || hertz === undefined || !Number.isFinite(hertz)) return { value: '--', unit: 'RPM' };
+  const rpm = hertz * 60;
+  return { value: rpm.toFixed(0), unit: 'RPM' };
+}
+
+/** Signal K sends ratio 0–1. Convert to percentage. */
+export function formatPercent(ratio: number | null | undefined): { value: string; unit: string } {
+  if (ratio === null || ratio === undefined || !Number.isFinite(ratio)) return { value: '--', unit: '%' };
+  return { value: (ratio * 100).toFixed(0), unit: '%' };
+}

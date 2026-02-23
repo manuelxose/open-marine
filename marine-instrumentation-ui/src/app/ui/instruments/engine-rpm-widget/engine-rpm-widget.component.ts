@@ -33,7 +33,7 @@ export class EngineRpmWidgetComponent {
   readonly MAX_RPM = 4000;
   readonly ARC_LENGTH = 377;
 
-  private readonly hz$ = this.store.observe<number>(PATHS.propulsion.main.revolutions).pipe(startWith(undefined));
+  private readonly hz$ = this.store.observe<number>(PATHS.propulsion?.main?.revolutions ?? 'propulsion.main.revolutions').pipe(startWith(undefined));
 
   readonly view = toSignal(
     combineLatest([this.hz$, this.ticker$]).pipe(

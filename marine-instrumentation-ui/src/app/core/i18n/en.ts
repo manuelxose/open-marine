@@ -48,21 +48,7 @@ export const en = {
       },
     },
   },
-  widgets: {
-    title: 'Widgets',
-    subtitle: 'Manage visibility and order for instruments and dashboard widgets',
-    sections: {
-      instruments: 'Instruments',
-      dashboard: 'Dashboard Widgets',
-    },
-    instruments: {
-      desc: 'Control the instruments drawer widgets shown on the chart.',
-    },
-    dashboard: {
-      desc: 'Control the widgets shown on the dashboard layout.',
-    },
-    reset: 'Reset',
-  },
+
   nav: {
     dashboard: 'Dashboard',
     chart: 'Chart',
@@ -72,7 +58,6 @@ export const en = {
     alarms: 'Alarms',
     diagnostics: 'Diagnostics',
     settings: 'Settings',
-    widgets: 'Widgets',
     styleguide: 'Styleguide',
   },
   chart: {
@@ -130,7 +115,34 @@ export const en = {
   instruments: {
     page: {
       title: 'Instruments',
-      subtitle: 'All available instrumentation data',
+      subtitle: 'Real-time marine data from connected sensors',
+    },
+    view: {
+      numeric: 'Numeric',
+      visual: 'Visual',
+      both: 'Both',
+    },
+    types: {
+      compass: 'Compass',
+      speed: 'Speed (SOG)',
+      depth: 'Depth',
+      'depth-sonar': 'Depth Sonar',
+      wind: 'Wind',
+      rudder: 'Rudder',
+      engine: 'Engine RPM',
+      tank: 'Tanks',
+      battery: 'Power',
+      meteo: 'Weather',
+      gps: 'GPS Status',
+      clock: 'Clock',
+      cog: 'Course (COG)',
+      position: 'Position',
+      'gps-status': 'GPS Status',
+    },
+    config: {
+      title: 'Configure Instruments',
+      reorder: 'Drag to reorder',
+      reset: 'Reset Defaults',
     },
   },
   alarms: {

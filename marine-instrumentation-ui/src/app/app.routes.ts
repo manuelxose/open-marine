@@ -36,6 +36,12 @@ export const routes: Routes = [
     canActivate: [onboardingGuard],
   },
   {
+    path: 'vessels',
+    loadComponent: () => import('./features/vessels/vessels.page').then(m => m.VesselsPage),
+    title: 'Vessels',
+    canActivate: [onboardingGuard],
+  },
+  {
     path: 'alarms',
     loadComponent: () => import('./features/alarms/alarms.page').then(m => m.AlarmsPage),
     title: 'Alarms',
@@ -73,9 +79,8 @@ export const routes: Routes = [
   },
   {
     path: 'widgets',
-    loadComponent: () => import('./pages/widgets/widgets.page').then(m => m.WidgetsPage),
-    title: 'Widgets',
-    canActivate: [onboardingGuard],
+    redirectTo: 'instruments',
+    pathMatch: 'full',
   },
 
   // Dev-only routes (no guard)

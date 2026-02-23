@@ -13,7 +13,8 @@ import {
   ChartSettingsService,
   type AisDisplayAge,
   type TrackDuration,
-  type VesselTypeFilter,
+  VESSEL_TYPE_KEYS,
+  VESSEL_TYPE_LABELS,
 } from '../../services/chart-settings.service';
 import { PreferencesService, type SpeedUnit } from '../../../../core/services/preferences.service';
 
@@ -33,24 +34,6 @@ const NAVIGATE_PRESETS: NavigateToPreset[] = [
   { label: 'Baltic Sea',       lng: 20.0,    lat: 58.0,   zoom: 5 },
   { label: 'South China Sea',  lng: 114.0,   lat: 12.0,   zoom: 5 },
   { label: 'Persian Gulf',     lng: 52.0,    lat: 26.5,   zoom: 6 },
-];
-
-const VESSEL_TYPE_LABELS: Record<VesselTypeFilter, string> = {
-  cargo:     'Cargo',
-  tanker:    'Tanker',
-  passenger: 'Passenger',
-  fishing:   'Fishing',
-  sailing:   'Sailing',
-  pleasure:  'Pleasure Craft',
-  tug:       'Tug & Pilot',
-  military:  'Military',
-  hsc:       'High-Speed Craft',
-  other:     'Other',
-};
-
-const VESSEL_TYPE_KEYS: VesselTypeFilter[] = [
-  'cargo', 'tanker', 'passenger', 'fishing', 'sailing',
-  'pleasure', 'tug', 'military', 'hsc', 'other',
 ];
 
 @Component({
@@ -138,7 +121,9 @@ const VESSEL_TYPE_KEYS: VesselTypeFilter[] = [
                     [checked]="s.visibleVesselTypes.includes(vt)"
                     (change)="chartSettings.toggleVesselType(vt)"
                     class="vessel-check__input" />
-                  <span class="vessel-check__indicator"></span>
+                  <span
+                    class="vessel-check__indicator"
+                    [style.--vessel-color]="s.vesselTypeColors[vt]"></span>
                   <span class="vessel-check__label">{{ vesselTypeLabels[vt] }}</span>
                 </label>
               </div>
@@ -579,16 +564,18 @@ const VESSEL_TYPE_KEYS: VesselTypeFilter[] = [
       &__indicator {
         width: 12px;
         height: 12px;
-        border: 1.5px solid var(--border-default);
+        border: 1.5px solid var(--vessel-color, var(--border-default));
         border-radius: 3px;
         flex-shrink: 0;
         transition: all var(--duration-fast) var(--ease-out);
         position: relative;
+        opacity: 0.8;
       }
 
       &--active &__indicator {
-        background: var(--gb-needle-secondary);
-        border-color: var(--gb-needle-secondary);
+        background: var(--vessel-color, var(--gb-needle-secondary));
+        border-color: var(--vessel-color, var(--gb-needle-secondary));
+        opacity: 1;
 
         &::after {
           content: '';

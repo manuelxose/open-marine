@@ -3,6 +3,12 @@ import type { FeatureCollection, LineString, Point, Polygon, Position } from 'ge
 import type { WaypointFeatureCollection } from '../types/chart-geojson';
 import type { MapOrientation } from '../types/chart-vm';
 import { METERS_PER_NM, projectDestination } from '../../../state/calculations/navigation';
+import {
+  DEFAULT_VESSEL_TYPE_COLORS,
+  VESSEL_TYPE_KEYS,
+  getAisVesselIconId,
+  type VesselTypeColors,
+} from './chart-vessel-types';
 
 export interface MapLibreInitView {
   center: [number, number];
@@ -45,6 +51,10 @@ const TRACK_SOURCE_ID = 'chart-track-source';
 const TRACK_LAYER_ID = 'chart-track-layer';
 const VECTOR_SOURCE_ID = 'chart-vector-source';
 const VECTOR_LAYER_ID = 'chart-vector-layer';
+const HEADING_LINE_SOURCE_ID = 'chart-heading-line-source';
+const HEADING_LINE_LAYER_ID = 'chart-heading-line-layer';
+const LAYLINES_SOURCE_ID = 'chart-laylines-source';
+const LAYLINES_LAYER_ID = 'chart-laylines-layer';
 const WAYPOINT_SOURCE_ID = 'chart-waypoints-source';
 const WAYPOINT_LAYER_ID = 'chart-waypoints-layer';
 const ROUTE_SOURCE_ID = 'chart-route-source';
@@ -57,8 +67,7 @@ const BEARING_LINE_SOURCE_ID = 'chart-bearing-line-source';
 const BEARING_LINE_LAYER_ID = 'chart-bearing-line-layer';
 const AIS_SOURCE_ID = 'chart-ais-source';
 const AIS_LAYER_ID = 'chart-ais-layer';
-const AIS_ICON_ID = 'chart-ais-icon';
-const AIS_ICON_DANGEROUS_ID = 'chart-ais-icon-dangerous';
+const AIS_FALLBACK_ICON_ID = getAisVesselIconId('other');
 const CPA_LINE_SOURCE_ID = 'chart-cpa-line-source';
 const CPA_LINE_LAYER_ID = 'chart-cpa-line-layer';
 const ANCHOR_SOURCE_ID = 'chart-anchor-source';
@@ -98,20 +107,29 @@ export class MapLibreEngineService {
     if (!this.clickHandler) {
       return;
     }
-    // Check if we clicked a feature (AIS layer for now)
+    // Check if we clicked an interactive feature first (waypoints / AIS).
     if (this.map && this.featureClickHandler) {
-        const features = this.map.queryRenderedFeatures(event.point, { layers: [AIS_LAYER_ID] });
-        if (features.length > 0) {
-            const feature = features[0];
-            if (feature) {
-                this.featureClickHandler({
-                    featureId: feature.id as string,
-                    properties: feature.properties,
-                    layerId: AIS_LAYER_ID
-                });
-                return; // Stop propagation to map click (centering)
-            }
+      const features = this.map.queryRenderedFeatures(event.point, {
+        layers: [WAYPOINT_LAYER_ID, AIS_LAYER_ID],
+      });
+      if (features.length > 0) {
+        const feature = features[0];
+        if (feature?.layer?.id) {
+          const featurePropertyId = feature.properties?.['id'];
+          const featureId =
+            typeof feature.id === 'string'
+              ? feature.id
+              : typeof featurePropertyId === 'string'
+                ? featurePropertyId
+                : undefined;
+          this.featureClickHandler({
+            ...(featureId ? { featureId } : {}),
+            properties: feature.properties,
+            layerId: feature.layer.id,
+          });
+          return; // Stop propagation to plain map click.
         }
+      }
     }
 
     this.clickHandler([event.lngLat.lng, event.lngLat.lat]);
@@ -127,6 +145,14 @@ export class MapLibreEngineService {
     coords: [],
     visible: false,
   };
+  private lastHeadingLine: { coords: [number, number][]; visible: boolean } = {
+    coords: [],
+    visible: false,
+  };
+  private lastLaylines: { lines: [number, number][][]; visible: boolean } = {
+    lines: [],
+    visible: false,
+  };
   private lastWaypoints: WaypointFeatureCollection = EMPTY_POINTS as unknown as WaypointFeatureCollection;
   private lastRoute: FeatureCollection<LineString> = EMPTY_LINE;
   private lastTrueWind: { coords: [number, number][]; visible: boolean } = {
@@ -140,6 +166,11 @@ export class MapLibreEngineService {
   };
   private lastAisTargets: FeatureCollection<Point> = { type: 'FeatureCollection', features: [] };
   private lastCpaLines: FeatureCollection<LineString> = { type: 'FeatureCollection', features: [] };
+  private aisVesselTypeColors: VesselTypeColors = { ...DEFAULT_VESSEL_TYPE_COLORS };
+  private ownVesselIconScale = 1.15;
+  private aisTargetIconScale = 0.8;
+  private windTrackMinZoom = 15;
+  private rangeRingsMinZoom = 8;
   private showOpenSeaMap = false;
   private aisTargetsVisible = true;
   private aisLabelsVisible = true;
@@ -223,6 +254,22 @@ export class MapLibreEngineService {
     this.applyVector();
   }
 
+  updateHeadingLine(lineStringCoords: [number, number][], visible: boolean): void {
+    this.lastHeadingLine = { coords: lineStringCoords, visible };
+    if (!this.mapReady) {
+      return;
+    }
+    this.applyHeadingLine();
+  }
+
+  updateLaylines(lines: [number, number][][], visible: boolean): void {
+    this.lastLaylines = { lines, visible };
+    if (!this.mapReady) {
+      return;
+    }
+    this.applyLaylines();
+  }
+
   updateWaypoints(geojson: WaypointFeatureCollection): void {
     this.lastWaypoints = geojson;
     if (!this.mapReady) {
@@ -273,6 +320,38 @@ export class MapLibreEngineService {
     if (this.mapReady) {
       this.applyRangeRings();
     }
+  }
+
+  setOwnVesselIconScale(scale: number): void {
+    this.ownVesselIconScale = this.clamp(scale, 0.5, 2.5);
+    if (!this.map || !this.mapReady || !this.map.getLayer(VESSEL_LAYER_ID)) {
+      return;
+    }
+    this.map.setLayoutProperty(VESSEL_LAYER_ID, 'icon-size', this.ownVesselIconScale);
+  }
+
+  setAisTargetIconScale(scale: number): void {
+    this.aisTargetIconScale = this.clamp(scale, 0.4, 2.0);
+    if (!this.map || !this.mapReady || !this.map.getLayer(AIS_LAYER_ID)) {
+      return;
+    }
+    this.map.setLayoutProperty(AIS_LAYER_ID, 'icon-size', this.aisTargetIconScale);
+  }
+
+  setWindTrackMinZoom(minZoom: number): void {
+    this.windTrackMinZoom = this.clamp(minZoom, 0, 24);
+    if (!this.map || !this.mapReady) {
+      return;
+    }
+    this.applyWindTrackZoomRanges();
+  }
+
+  setRangeRingsMinZoom(minZoom: number): void {
+    this.rangeRingsMinZoom = this.clamp(minZoom, 0, 24);
+    if (!this.map || !this.mapReady) {
+      return;
+    }
+    this.applyRangeRingZoomRange();
   }
 
   updateView(center: [number, number] | null): void {
@@ -513,6 +592,12 @@ export class MapLibreEngineService {
     }
   }
 
+  setAisVesselTypeColors(colors: VesselTypeColors): void {
+    this.aisVesselTypeColors = { ...DEFAULT_VESSEL_TYPE_COLORS, ...colors };
+    if (!this.map || !this.mapReady) return;
+    this.ensureAisIcons();
+  }
+
   setAisTargetsVisible(visible: boolean): void {
     this.aisTargetsVisible = visible;
     if (!this.map || !this.mapReady) return;
@@ -553,12 +638,7 @@ export class MapLibreEngineService {
   private ensureAisLayer(): void {
     if (!this.map) return;
 
-    if (!this.map.hasImage(AIS_ICON_ID)) {
-      this.map.addImage(AIS_ICON_ID, this.createAisIcon('#9ca3af', '#4b5563')); // Gray
-    }
-    if (!this.map.hasImage(AIS_ICON_DANGEROUS_ID)) {
-      this.map.addImage(AIS_ICON_DANGEROUS_ID, this.createAisIcon('#ef4444', '#b91c1c')); // Red
-    }
+    this.ensureAisIcons();
 
     if (!this.map.getSource(AIS_SOURCE_ID)) {
       this.map.addSource(AIS_SOURCE_ID, {
@@ -573,18 +653,15 @@ export class MapLibreEngineService {
         type: 'symbol',
         source: AIS_SOURCE_ID,
         layout: {
-          'icon-image': [
-            'match',
-            ['get', 'status'], // 'dangerous' or 'normal'
-            'dangerous',
-            AIS_ICON_DANGEROUS_ID,
-            // default
-            AIS_ICON_ID,
-          ],
-          'icon-size': 0.8, // Slightly smaller than own vessel (which is effectively 1.0 logic size if we consider ratio)
+          'icon-image': ['case', ['has', 'iconId'], ['get', 'iconId'], AIS_FALLBACK_ICON_ID],
+          'icon-size': this.aisTargetIconScale,
           'icon-allow-overlap': true,
           'icon-rotation-alignment': 'map',
           'icon-rotate': ['get', 'heading'],
+        },
+        paint: {
+          'icon-opacity': ['case', ['boolean', ['get', 'inactive'], false], 0.55, 1],
+          'text-opacity': ['case', ['boolean', ['get', 'inactive'], false], 0.6, 1],
         },
       });
     }
@@ -631,14 +708,43 @@ export class MapLibreEngineService {
     source?.setData(this.lastCpaLines);
   }
 
+  private ensureAisIcons(): void {
+    if (!this.map) return;
+
+    for (const type of VESSEL_TYPE_KEYS) {
+      const color = this.aisVesselTypeColors[type] ?? DEFAULT_VESSEL_TYPE_COLORS[type];
+      const normalId = getAisVesselIconId(type);
+      const dangerousId = getAisVesselIconId(type, true);
+
+      this.upsertAisIcon(normalId, this.createAisIcon(color, this.adjustHexColor(color, -0.35)));
+      this.upsertAisIcon(dangerousId, this.createDangerousAisIcon(color));
+    }
+  }
+
+  private upsertAisIcon(iconId: string, image: ImageData): void {
+    this.upsertIcon(iconId, image);
+  }
+
+  private upsertIcon(iconId: string, image: ImageData, pixelRatio = 1): void {
+    if (!this.map) return;
+
+    if (this.map.hasImage(iconId)) {
+      this.map.updateImage(iconId, image);
+      return;
+    }
+
+    this.map.addImage(iconId, image, { pixelRatio });
+  }
+
+  private createDangerousAisIcon(baseColor: string): ImageData {
+    return this.createAisIcon(
+      this.adjustHexColor(baseColor, 0.12),
+      '#dc2626',
+    );
+  }
+
   private createAisIcon(fillColor: string, strokeColor: string): ImageData {
-    // Reuse the detailed vessel shape for AIS targets
-    // We pass strokeColor as the "lighter" color for gradient if we want, 
-    // or just use the same logic. 
-    // Let's call createVesselIcon directly but we need to ensure colors make sense.
-    // createVesselIcon uses (color1, color2) for gradient.
-    // We can pass (strokeColor, fillColor) or similar.
-    return this.createVesselIcon(strokeColor, fillColor);
+    return this.createVesselIcon(strokeColor, fillColor, false);
   }
 
   private updateCamera(): void {
@@ -673,7 +779,6 @@ export class MapLibreEngineService {
     
     if (Object.keys(options).length > 0) {
         // Use easeTo for smooth tracking for both center and bearing
-        console.log('[MapLibreEngine] updateCamera easing to:', options, 'Orientation:', this.orientation);
         this.map.easeTo({ 
             ...options,
             duration: 250, // slightly longer for smoothness
@@ -687,6 +792,8 @@ export class MapLibreEngineService {
     this.ensureVesselLayer();
     this.ensureTrackLayer();
     this.ensureVectorLayer();
+    this.ensureHeadingLineLayer();
+    this.ensureLaylinesLayer();
     this.ensureTrueWindLayer();
     this.ensureWaypointsLayer();
     this.ensureRouteLayer();
@@ -698,6 +805,8 @@ export class MapLibreEngineService {
     this.applyVessel();
     this.applyTrack();
     this.applyVector();
+    this.applyHeadingLine();
+    this.applyLaylines();
     this.applyTrueWind();
     this.applyWaypoints();
     this.applyRoute();
@@ -710,6 +819,10 @@ export class MapLibreEngineService {
     this.mapReady = true;
 
     // Re-apply visibility state after style swap
+    this.setOwnVesselIconScale(this.ownVesselIconScale);
+    this.setAisTargetIconScale(this.aisTargetIconScale);
+    this.applyWindTrackZoomRanges();
+    this.applyRangeRingZoomRange();
     this.setAisTargetsVisible(this.aisTargetsVisible);
     this.setAisLabelsVisible(this.aisLabelsVisible);
     this.setCpaLinesVisible(this.cpaLinesVisible);
@@ -862,15 +975,9 @@ export class MapLibreEngineService {
       return;
     }
 
-    if (!this.map.hasImage(VESSEL_ICON_ID)) {
-      this.map.addImage(VESSEL_ICON_ID, this.createVesselIcon('#0284c7', '#38bdf8'), { pixelRatio: 2 });
-    }
-    if (!this.map.hasImage(VESSEL_ICON_STALE_ID)) {
-      this.map.addImage(VESSEL_ICON_STALE_ID, this.createVesselIcon('#eab308', '#fde047'), { pixelRatio: 2 });
-    }
-    if (!this.map.hasImage(VESSEL_ICON_NO_FIX_ID)) {
-      this.map.addImage(VESSEL_ICON_NO_FIX_ID, this.createVesselIcon('#6b7280', '#9ca3af'), { pixelRatio: 2 });
-    }
+    this.upsertIcon(VESSEL_ICON_ID, this.createVesselIcon('#0284c7', '#38bdf8'), 2);
+    this.upsertIcon(VESSEL_ICON_STALE_ID, this.createVesselIcon('#eab308', '#fde047'), 2);
+    this.upsertIcon(VESSEL_ICON_NO_FIX_ID, this.createVesselIcon('#6b7280', '#9ca3af'), 2);
 
     if (!this.map.getSource(VESSEL_SOURCE_ID)) {
       this.map.addSource(VESSEL_SOURCE_ID, {
@@ -895,7 +1002,7 @@ export class MapLibreEngineService {
             // default
             VESSEL_ICON_ID,
           ],
-          'icon-size': 0.8, // Increased from 0.5 to match larger canvas (96px)
+          'icon-size': this.ownVesselIconScale,
           'icon-allow-overlap': true,
           'icon-rotation-alignment': 'map',
           'icon-rotate': ['get', 'heading'],
@@ -961,6 +1068,70 @@ export class MapLibreEngineService {
           'line-width': 2,
           'line-opacity': 0.85,
           'line-dasharray': [1.5, 1.5],
+        },
+      });
+    }
+  }
+
+  private ensureHeadingLineLayer(): void {
+    if (!this.map) {
+      return;
+    }
+
+    if (!this.map.getSource(HEADING_LINE_SOURCE_ID)) {
+      this.map.addSource(HEADING_LINE_SOURCE_ID, {
+        type: 'geojson',
+        data: EMPTY_LINE,
+      });
+    }
+
+    if (!this.map.getLayer(HEADING_LINE_LAYER_ID)) {
+      this.map.addLayer({
+        id: HEADING_LINE_LAYER_ID,
+        type: 'line',
+        source: HEADING_LINE_SOURCE_ID,
+        layout: {
+          'line-cap': 'round',
+          'line-join': 'round',
+          visibility: 'none',
+        },
+        paint: {
+          'line-color': '#0ea5e9',
+          'line-width': 2.25,
+          'line-opacity': 0.9,
+          'line-dasharray': [4, 2],
+        },
+      });
+    }
+  }
+
+  private ensureLaylinesLayer(): void {
+    if (!this.map) {
+      return;
+    }
+
+    if (!this.map.getSource(LAYLINES_SOURCE_ID)) {
+      this.map.addSource(LAYLINES_SOURCE_ID, {
+        type: 'geojson',
+        data: EMPTY_LINE,
+      });
+    }
+
+    if (!this.map.getLayer(LAYLINES_LAYER_ID)) {
+      this.map.addLayer({
+        id: LAYLINES_LAYER_ID,
+        type: 'line',
+        source: LAYLINES_SOURCE_ID,
+        layout: {
+          'line-cap': 'round',
+          'line-join': 'round',
+          visibility: 'none',
+        },
+        paint: {
+          'line-color': '#a855f7',
+          'line-width': 1.8,
+          'line-opacity': 0.8,
+          'line-dasharray': [2, 2],
         },
       });
     }
@@ -1195,6 +1366,84 @@ export class MapLibreEngineService {
     this.map.setLayoutProperty(VECTOR_LAYER_ID, 'visibility', 'visible');
   }
 
+  private applyHeadingLine(): void {
+    if (!this.map) {
+      return;
+    }
+
+    const source = this.map.getSource(HEADING_LINE_SOURCE_ID) as maplibregl.GeoJSONSource | undefined;
+    if (!source || !this.map.getLayer(HEADING_LINE_LAYER_ID)) {
+      return;
+    }
+
+    if (!this.lastHeadingLine.visible || this.lastHeadingLine.coords.length < 2) {
+      source.setData(EMPTY_LINE);
+      this.map.setLayoutProperty(HEADING_LINE_LAYER_ID, 'visibility', 'none');
+      return;
+    }
+
+    const data: FeatureCollection<LineString> = {
+      type: 'FeatureCollection',
+      features: [
+        {
+          type: 'Feature',
+          geometry: {
+            type: 'LineString',
+            coordinates: this.lastHeadingLine.coords,
+          },
+          properties: {},
+        },
+      ],
+    };
+
+    source.setData(data);
+    this.map.setLayoutProperty(HEADING_LINE_LAYER_ID, 'visibility', 'visible');
+  }
+
+  private applyLaylines(): void {
+    if (!this.map) {
+      return;
+    }
+
+    const source = this.map.getSource(LAYLINES_SOURCE_ID) as maplibregl.GeoJSONSource | undefined;
+    if (!source || !this.map.getLayer(LAYLINES_LAYER_ID)) {
+      return;
+    }
+
+    if (!this.lastLaylines.visible || this.lastLaylines.lines.length === 0) {
+      source.setData(EMPTY_LINE);
+      this.map.setLayoutProperty(LAYLINES_LAYER_ID, 'visibility', 'none');
+      return;
+    }
+
+    const features: FeatureCollection<LineString>['features'] = [];
+    for (const line of this.lastLaylines.lines) {
+      if (line.length < 2) {
+        continue;
+      }
+      features.push({
+        type: 'Feature',
+        geometry: {
+          type: 'LineString',
+          coordinates: line,
+        },
+        properties: {},
+      });
+    }
+
+    if (features.length === 0) {
+      source.setData(EMPTY_LINE);
+      this.map.setLayoutProperty(LAYLINES_LAYER_ID, 'visibility', 'none');
+      return;
+    }
+
+    source.setData({
+      type: 'FeatureCollection',
+      features,
+    });
+    this.map.setLayoutProperty(LAYLINES_LAYER_ID, 'visibility', 'visible');
+  }
+
   private applyWaypoints(): void {
     if (!this.map) {
       return;
@@ -1317,6 +1566,33 @@ export class MapLibreEngineService {
     this.map.setLayoutProperty(BEARING_LINE_LAYER_ID, 'visibility', 'visible');
   }
 
+  private applyWindTrackZoomRanges(): void {
+    if (!this.map) {
+      return;
+    }
+    const minZoom = this.windTrackMinZoom;
+    for (const layerId of [
+      TRACK_LAYER_ID,
+      VECTOR_LAYER_ID,
+      HEADING_LINE_LAYER_ID,
+      LAYLINES_LAYER_ID,
+      TRUE_WIND_LAYER_ID,
+    ]) {
+      if (this.map.getLayer(layerId)) {
+        this.map.setLayerZoomRange(layerId, minZoom, 24);
+      }
+    }
+  }
+
+  private applyRangeRingZoomRange(): void {
+    if (!this.map) {
+      return;
+    }
+    if (this.map.getLayer(RANGE_RINGS_LAYER_ID)) {
+      this.map.setLayerZoomRange(RANGE_RINGS_LAYER_ID, this.rangeRingsMinZoom, 24);
+    }
+  }
+
   private createCircle(center: [number, number], radiusNm: number, points = 64): any {
     const coords: Position[] = [];
     const radiusMeters = radiusNm * METERS_PER_NM;
@@ -1349,8 +1625,64 @@ export class MapLibreEngineService {
     return Math.abs(left[0] - right[0]) < 1e-7 && Math.abs(left[1] - right[1]) < 1e-7;
   }
 
-  private createVesselIcon(color1: string, color2: string): ImageData {
-    const size = 96; // Increased from 64
+  private clamp(value: number, min: number, max: number): number {
+    if (!Number.isFinite(value)) {
+      return min;
+    }
+    return Math.min(max, Math.max(min, value));
+  }
+
+  private adjustHexColor(hex: string, factor: number): string {
+    const rgb = this.parseHexColor(hex);
+    if (!rgb) {
+      return hex;
+    }
+
+    const apply = (channel: number): number => {
+      if (factor >= 0) {
+        return Math.round(channel + (255 - channel) * factor);
+      }
+      return Math.round(channel * (1 + factor));
+    };
+
+    return this.toHexColor({
+      r: apply(rgb.r),
+      g: apply(rgb.g),
+      b: apply(rgb.b),
+    });
+  }
+
+  private parseHexColor(hex: string): { r: number; g: number; b: number } | null {
+    const value = hex.trim().replace('#', '');
+    if (/^[0-9a-fA-F]{3}$/.test(value)) {
+      const rDigit = value.slice(0, 1);
+      const gDigit = value.slice(1, 2);
+      const bDigit = value.slice(2, 3);
+      const r = Number.parseInt(rDigit + rDigit, 16);
+      const g = Number.parseInt(gDigit + gDigit, 16);
+      const b = Number.parseInt(bDigit + bDigit, 16);
+      return { r, g, b };
+    }
+
+    if (/^[0-9a-fA-F]{6}$/.test(value)) {
+      const r = Number.parseInt(value.slice(0, 2), 16);
+      const g = Number.parseInt(value.slice(2, 4), 16);
+      const b = Number.parseInt(value.slice(4, 6), 16);
+      return { r, g, b };
+    }
+
+    return null;
+  }
+
+  private toHexColor(rgb: { r: number; g: number; b: number }): string {
+    const clamp = (value: number): number => Math.max(0, Math.min(255, value));
+    return `#${[rgb.r, rgb.g, rgb.b]
+      .map((channel) => clamp(channel).toString(16).padStart(2, '0'))
+      .join('')}`;
+  }
+
+  private createVesselIcon(color1: string, color2: string, withSails = true): ImageData {
+    const size = 128;
     const canvas = document.createElement('canvas');
     canvas.width = size;
     canvas.height = size;
@@ -1361,52 +1693,72 @@ export class MapLibreEngineService {
 
     ctx.clearRect(0, 0, size, size);
     ctx.shadowColor = 'rgba(0, 0, 0, 0.35)';
-    ctx.shadowBlur = 8;
+    ctx.shadowBlur = 10;
 
-    // Modern Ship Shape (Boat outline)
-    // Center is size/2, size/2
     const cx = size / 2;
     const cy = size / 2;
-    
-    // Scale factor to fit in 96x96
-    // Previous target fit in ~64. Now we have 50% more space.
-    // Let's scale up properly.
-    const scale = 1.5;
-    
-    const tipY = cy - (20 * scale);
-    const rearY = cy + (20 * scale);
-    const widthHalf = 10 * scale;
 
-    const gradient = ctx.createLinearGradient(0, tipY, 0, rearY);
-    gradient.addColorStop(0, color2);
-    gradient.addColorStop(1, color1);
-    ctx.fillStyle = gradient;
-    ctx.strokeStyle = color1;
-    ctx.lineWidth = 3;
+    // Hull
+    const bowY = cy - 36;
+    const sternY = cy + 34;
+    const beamHalf = 18;
+    const hullGradient = ctx.createLinearGradient(0, bowY, 0, sternY);
+    hullGradient.addColorStop(0, color2);
+    hullGradient.addColorStop(1, color1);
+    ctx.fillStyle = hullGradient;
+    ctx.strokeStyle = this.adjustHexColor(color1, -0.15);
+    ctx.lineWidth = 4;
     ctx.lineJoin = 'round';
 
     ctx.beginPath();
-    // Bow (Tip)
-    ctx.moveTo(cx, tipY);
-    
-    // Starboard side curve
-    ctx.bezierCurveTo(cx + widthHalf * 1.5, tipY + (10 * scale), cx + widthHalf, rearY, cx + widthHalf, rearY);
-    
-    // Stern (Rear)
-    ctx.lineTo(cx - widthHalf, rearY);
-    
-    // Port side curve
-    ctx.bezierCurveTo(cx - widthHalf, rearY, cx - widthHalf * 1.5, tipY + (10 * scale), cx, tipY);
-    
+    ctx.moveTo(cx, bowY);
+    ctx.bezierCurveTo(cx + 24, bowY + 18, cx + beamHalf, sternY - 8, cx + beamHalf, sternY);
+    ctx.lineTo(cx - beamHalf, sternY);
+    ctx.bezierCurveTo(cx - beamHalf, sternY - 8, cx - 24, bowY + 18, cx, bowY);
     ctx.closePath();
     ctx.fill();
     ctx.stroke();
 
-    // Add a center dot or cockpit
-    ctx.fillStyle = 'rgba(255,255,255,0.4)';
-    ctx.beginPath();
-    ctx.arc(cx, cy + (5 * scale), 4, 0, Math.PI * 2);
-    ctx.fill();
+    ctx.shadowBlur = 0;
+    if (withSails) {
+      const sailFill = this.adjustHexColor(color2, 0.52);
+      const sailStroke = this.adjustHexColor(color1, 0.12);
+
+      // Mast
+      ctx.strokeStyle = this.adjustHexColor(color1, -0.3);
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(cx, cy + 20);
+      ctx.lineTo(cx, cy - 26);
+      ctx.stroke();
+
+      // Main sail
+      ctx.fillStyle = sailFill;
+      ctx.strokeStyle = sailStroke;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(cx, cy - 24);
+      ctx.lineTo(cx + 18, cy + 12);
+      ctx.lineTo(cx, cy + 12);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      // Jib sail
+      ctx.beginPath();
+      ctx.moveTo(cx, cy - 22);
+      ctx.lineTo(cx - 15, cy + 2);
+      ctx.lineTo(cx, cy + 4);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      // Cockpit dot
+      ctx.fillStyle = this.adjustHexColor(color2, 0.3);
+      ctx.beginPath();
+      ctx.arc(cx, cy + 12, 4.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
 
     return ctx.getImageData(0, 0, size, size);
   }

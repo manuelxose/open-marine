@@ -2,7 +2,7 @@
 
 Estado tecnico consolidado del proyecto.
 
-Fecha de corte: 2026-02-22.
+Fecha de corte: 2026-02-23.
 
 ## 1. Resumen ejecutivo
 
@@ -17,6 +17,12 @@ Fecha de corte: 2026-02-22.
 - `✅` DOC_3 Commercial App Restructuring — Fases A, B, C, D, E, F, G, H, I implementadas.
 - `✅` DOC_4 UX/UI Commercial Final — Secciones S1–S10 implementadas (Glass Bridge Design System).
 - `✅` Glass Bridge Pro Redesign — Dashboard, panel-card, 5 paneles, critical strip, instruments page con glass morphism premium.
+- `✅` Separacion de paginas instruments/vessels — AIS extraido de `/instruments` a nueva ruta `/vessels` dedicada.
+- `✅` Unificación instruments/widgets — `/widgets` eliminada, redirect a `/instruments`. Cada instrumento tiene InstrumentContainerComponent con toggle numérico/visual/ambos. Nuevos instrumentos: COG, Position, GPS Status. Dashboard config en Settings.
+- `✅` Widgets page rediseñada — **ELIMINADA**: unificada en `/instruments` con dual-view (numérico/visual/ambos). Configuración de dashboard movida a Settings.
+- `✅` Catálogo completo de instrumentos — `/instruments` muestra los 50 instrumentos del catálogo (`instrument-catalog.ts`) con filtros por categoría (7 tabs: Navigation, Wind, Depth, Environment, Electrical, Engine, Performance). Cada instrumento usa `omi-instrument-widget` para vista numérica + widget visual dedicado cuando existe. Chart "Configure Instruments" navega a `/instruments`.
+- `✅` Dashboard modernizado — migrado a signals + `@if`/`@for`/`@switch`, toolbar compacto, palette sidebar deslizable, drag & drop de tile completo, empty state, layout sin gaps, responsive desktop/tablet/móvil.
+- `✅` Dashboard como panel de control principal — Añadidos 2 paneles nuevos: **Engine** (RPM hero, temp. refrigerante, presión aceite, barra nivel combustible, consumo L/h) y **Environment** (temp. agua hero, temp. aire, presión barométrica, humedad). Critical strip ampliada con COG y RPM (8 indicadores). Grid por defecto: Navigation, Wind, Engine, Depth, Power, Environment, System. Nuevos formatters (`formatTemperature`, `formatPressure`, `formatRpm`, `formatPercent`), selectores (`selectRpm`, `selectCoolantTemp`, etc.), VMs (`EnginePanelVm`, `EnvironmentPanelVm`). Simulador actualizado con datos de motor y ambiente.
 
 ## 2. Estado por paquete
 
@@ -34,14 +40,15 @@ Rutas activas (fuente: `marine-instrumentation-ui/src/app/app.routes.ts`):
 
 - `✅ /dashboard`
 - `✅ /chart` — Chart Reconstruction M1-M8 completados + utilidades avanzadas (VMG, OpenSeaMap overlay, measurement tool, GPX export)
-- `✅ /instruments`
+- `✅ /instruments` — Catálogo completo: 50 instrumentos, 7 categorías con filtros, dual-view (numérico/visual/ambos), sección AIS
 - `✅ /alarms`
 - `✅ /diagnostics`
-- `✅ /settings`
-- `✅ /widgets`
+- `✅ /settings` — Incluye configuración de dashboard widgets (drag & drop, visibilidad)
+- `↩️ /widgets` — Redirect a `/instruments` (página eliminada)
 - `✅ /styleguide`
 - `✅ /resources`
 - `✅ /autopilot`
+- `✅ /vessels` — Nuevo: AIS targets dedicado (lista + detalle, danger indicators, responsive split layout)
 - `✅ /performance` — Nuevo: polar sailing performance (VMG, polar ratio, CSV upload)
 - `✅ /onboarding` — Nuevo: setup wizard (welcome, connection, vessel)
 
@@ -121,6 +128,10 @@ Estado:
 - `✅` El simbolo oficial de completado es `✅`.
 - `✅` Hamburger menu integrado en TopBar (chart mode) — eliminado boton flotante que solapaba iconos.
 - `✅` Widgets page (`/widgets`) migrada a tokens `--gb-*` con toggle switches custom (sin checkbox nativo).
+- `✅` Widgets page (`/widgets`) rediseñada con layout card-grid, glass-morphism cards con previews, section icons, stat counters y size badges.
+- `✅` Vessels page (`/vessels`) nueva — split layout lista+detalle AIS, header con conteo de targets y danger count, slide-in animation, responsive.
+- `✅` Instruments page (`/instruments`) limpia — eliminado bloque AIS (AisTargetListComponent, AisStoreService), añadido empty state.
+- `✅` Dashboard page (`/dashboard`) modernizado — observables→signals con `toSignal()`, template `@if`/`@for`/`@switch`, toolbar compacto, palette sidebar con animación slide-in, drag & drop de tiles completas (cursor grab/grabbing), CDK placeholder/preview mejorados, empty state, layout sin gaps, responsive 3-tier (desktop/tablet/mobile).
 - `✅` Styleguide page (`/styleguide`) migrada a tokens `--gb-*` consistente con Glass Bridge.
 - `✅` AppButtonComponent migrado a tokens `--gb-*` (glass morphism, marine-pro look).
 - `✅` MapLibreEngineService: ResizeObserver + post-load resize() para evitar mapa gris tras transiciones de grid.
@@ -214,7 +225,7 @@ Referencia: `docs/DOC_3_COMMERCIAL_APP_RESTRUCTURING.md`.
 - `✅` PATHS extended with 50+ Signal K paths (depth, wind, environment, electrical, propulsion, tanks, navigation, performance).
 - `✅` Instrument catalog — features/instruments/data/instrument-catalog.ts (50 instruments, 7 categories).
 - `✅` InstrumentWidgetComponent — features/instruments/components/instrument-widget/ (digital, analog-circular, analog-linear, wind-rose display types, quality indicator, stale detection).
-- `✅` Instruments page restructured — category tabs (All / Navigation / Wind / Depth / Environment / Electrical / Engine / Performance) + dynamic grid rendering all 50 instruments via InstrumentWidgetComponent + AIS target list preserved.
+- `✅` Instruments page restructured — category tabs (All / Navigation / Wind / Depth / Environment / Electrical / Engine / Performance) + dynamic grid rendering all 50 instruments via InstrumentWidgetComponent. AIS targets extraido a `/vessels` page dedicada.
 
 ### Fase F — Performance Sailing
 

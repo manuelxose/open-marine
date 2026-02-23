@@ -6,14 +6,20 @@ import { TranslatePipe } from '../../shared/pipes/translate.pipe';
 import { AlarmsFacadeService } from './services/alarms-facade.service';
 import { AlarmSeverity, AlarmState } from '../../state/alarms/alarm.models';
 import { map } from 'rxjs';
-import { AlarmSettingsService, AlarmSettings } from '../../state/alarms/alarm-settings.service';
+import {
+  ALARM_SETTINGS_PRESETS,
+  AlarmSettingsService,
+  AlarmSettings,
+  AlarmSettingsPresetId,
+} from '../../state/alarms/alarm-settings.service';
 import { AnchorWatchComponent } from './components/anchor-watch/anchor-watch.component';
 import { AppModalComponent } from '../../shared/components/app-modal/app-modal.component';
+import { AppToggleComponent } from '../../shared/components/app-toggle/app-toggle.component';
 
 @Component({
   selector: 'app-alarms-page',
   standalone: true,
-  imports: [CommonModule, FormsModule, TranslatePipe, AnchorWatchComponent, AppModalComponent],
+  imports: [CommonModule, FormsModule, TranslatePipe, AnchorWatchComponent, AppModalComponent, AppToggleComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="alarms-page">
@@ -83,6 +89,87 @@ import { AppModalComponent } from '../../shared/components/app-modal/app-modal.c
         [showFooter]="false"
         (close)="showSettings = false"
       >
+        <div class="settings-section-title">OPERATIONAL PRESETS</div>
+        <div class="settings-presets">
+          <button
+            type="button"
+            class="settings-preset-btn"
+            *ngFor="let preset of presetOptions"
+            (click)="applyPreset(preset.id)"
+          >
+            <span class="settings-preset-btn__title">{{ preset.label }}</span>
+            <span class="settings-preset-btn__desc">{{ preset.description }}</span>
+          </button>
+        </div>
+
+        <div class="settings-section-title">ALARM VISIBILITY</div>
+        <div class="settings-group settings-group--full">
+          <div class="settings-row">
+            <div>
+              <div class="settings-row__label">Shallow Water</div>
+              <div class="settings-row__desc">Enable/disable shallow depth alarms.</div>
+            </div>
+            <div class="settings-row__control">
+              <app-toggle
+                [ngModel]="settings().showShallowWaterAlarm"
+                (ngModelChange)="toggleSetting('showShallowWaterAlarm', $event)"
+              ></app-toggle>
+            </div>
+          </div>
+
+          <div class="settings-row">
+            <div>
+              <div class="settings-row__label">Battery Low</div>
+              <div class="settings-row__desc">Enable/disable low battery alarms.</div>
+            </div>
+            <div class="settings-row__control">
+              <app-toggle
+                [ngModel]="settings().showBatteryLowAlarm"
+                (ngModelChange)="toggleSetting('showBatteryLowAlarm', $event)"
+              ></app-toggle>
+            </div>
+          </div>
+
+          <div class="settings-row">
+            <div>
+              <div class="settings-row__label">CPA Collision</div>
+              <div class="settings-row__desc">Enable/disable CPA/TCPA collision warnings.</div>
+            </div>
+            <div class="settings-row__control">
+              <app-toggle
+                [ngModel]="settings().showCpaWarningAlarm"
+                (ngModelChange)="toggleSetting('showCpaWarningAlarm', $event)"
+              ></app-toggle>
+            </div>
+          </div>
+
+          <div class="settings-row">
+            <div>
+              <div class="settings-row__label">GPS Lost</div>
+              <div class="settings-row__desc">Enable/disable stale GPS alarms.</div>
+            </div>
+            <div class="settings-row__control">
+              <app-toggle
+                [ngModel]="settings().showGpsLostAlarm"
+                (ngModelChange)="toggleSetting('showGpsLostAlarm', $event)"
+              ></app-toggle>
+            </div>
+          </div>
+
+          <div class="settings-row">
+            <div>
+              <div class="settings-row__label">Anchor Watch</div>
+              <div class="settings-row__desc">Enable/disable anchor watch alerts.</div>
+            </div>
+            <div class="settings-row__control">
+              <app-toggle
+                [ngModel]="settings().showAnchorWatchAlarm"
+                (ngModelChange)="toggleSetting('showAnchorWatchAlarm', $event)"
+              ></app-toggle>
+            </div>
+          </div>
+        </div>
+
         <div class="settings-section-title">ALARM THRESHOLDS</div>
         <div class="settings-grid">
           <div class="settings-group">
@@ -166,7 +253,117 @@ import { AppModalComponent } from '../../shared/components/app-modal/app-modal.c
             </div>
           </div>
 
-          <app-anchor-watch class="settings-anchor"></app-anchor-watch>
+          <div class="settings-group">
+            <div class="settings-group__title">Data Quality</div>
+            <div class="settings-row">
+              <div>
+                <div class="settings-row__label">CPA Own Min Speed (m/s)</div>
+                <div class="settings-row__desc">Ignore CPA risk below this own-ship speed.</div>
+              </div>
+              <div class="settings-row__control">
+                <input
+                  type="number" min="0" max="10" step="0.1"
+                  [ngModel]="settings().cpaRiskOwnShipMinSpeedMps"
+                  (ngModelChange)="updateSetting('cpaRiskOwnShipMinSpeedMps', $event, 0, 10, 2)"
+                />
+              </div>
+            </div>
+            <div class="settings-row">
+              <div>
+                <div class="settings-row__label">CPA Target Min Speed (m/s)</div>
+                <div class="settings-row__desc">Ignore CPA risk for slower targets.</div>
+              </div>
+              <div class="settings-row__control">
+                <input
+                  type="number" min="0" max="10" step="0.1"
+                  [ngModel]="settings().cpaRiskTargetMinSpeedMps"
+                  (ngModelChange)="updateSetting('cpaRiskTargetMinSpeedMps', $event, 0, 10, 2)"
+                />
+              </div>
+            </div>
+            <div class="settings-row">
+              <div>
+                <div class="settings-row__label">XTE Min Speed (kn)</div>
+                <div class="settings-row__desc">Do not show route deviation when below this speed.</div>
+              </div>
+              <div class="settings-row__control">
+                <input
+                  type="number" min="0" max="20" step="0.1"
+                  [ngModel]="settings().xteMinSpeedKnots"
+                  (ngModelChange)="updateSetting('xteMinSpeedKnots', $event, 0, 20, 2)"
+                />
+              </div>
+            </div>
+            <div class="settings-row">
+              <div>
+                <div class="settings-row__label">GPS Jump Max Speed (m/s)</div>
+                <div class="settings-row__desc">Reject implied speed spikes above this value.</div>
+              </div>
+              <div class="settings-row__control">
+                <input
+                  type="number" min="1" max="100" step="0.5"
+                  [ngModel]="settings().gpsOutlierMaxSpeedMps"
+                  (ngModelChange)="updateSetting('gpsOutlierMaxSpeedMps', $event, 1, 100, 1)"
+                />
+              </div>
+            </div>
+            <div class="settings-row">
+              <div>
+                <div class="settings-row__label">GPS Jump Min Distance (m)</div>
+                <div class="settings-row__desc">Only large jumps above this distance are filtered by speed.</div>
+              </div>
+              <div class="settings-row__control">
+                <input
+                  type="number" min="1" max="5000" step="1"
+                  [ngModel]="settings().gpsOutlierMinJumpDistanceMeters"
+                  (ngModelChange)="updateSetting('gpsOutlierMinJumpDistanceMeters', $event, 1, 5000, 0)"
+                />
+              </div>
+            </div>
+            <div class="settings-row">
+              <div>
+                <div class="settings-row__label">GPS Stationary SOG (m/s)</div>
+                <div class="settings-row__desc">Speed considered stationary for drift filter.</div>
+              </div>
+              <div class="settings-row__control">
+                <input
+                  type="number" min="0" max="5" step="0.1"
+                  [ngModel]="settings().gpsOutlierStationarySogMps"
+                  (ngModelChange)="updateSetting('gpsOutlierStationarySogMps', $event, 0, 5, 2)"
+                />
+              </div>
+            </div>
+            <div class="settings-row">
+              <div>
+                <div class="settings-row__label">GPS Stationary Max Drift (m)</div>
+                <div class="settings-row__desc">Maximum accepted drift in stationary window.</div>
+              </div>
+              <div class="settings-row__control">
+                <input
+                  type="number" min="1" max="5000" step="1"
+                  [ngModel]="settings().gpsOutlierMaxDriftMeters"
+                  (ngModelChange)="updateSetting('gpsOutlierMaxDriftMeters', $event, 1, 5000, 0)"
+                />
+              </div>
+            </div>
+            <div class="settings-row">
+              <div>
+                <div class="settings-row__label">GPS Stationary Window (s)</div>
+                <div class="settings-row__desc">Time window to validate stationary drift.</div>
+              </div>
+              <div class="settings-row__control">
+                <input
+                  type="number" min="1" max="300" step="1"
+                  [ngModel]="settings().gpsOutlierStationaryWindowSeconds"
+                  (ngModelChange)="updateSetting('gpsOutlierStationaryWindowSeconds', $event, 1, 300, 0)"
+                />
+              </div>
+            </div>
+          </div>
+
+          @if (settings().showAnchorWatchAlarm) {
+            <app-anchor-watch class="settings-anchor"></app-anchor-watch>
+          }
         </div>
       </app-modal>
     </div>
@@ -403,6 +600,44 @@ import { AppModalComponent } from '../../shared/components/app-modal/app-modal.c
       margin-bottom: var(--space-4, 16px);
     }
 
+    .settings-presets {
+      display: grid;
+      gap: var(--space-2, 8px);
+      grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+      margin-bottom: var(--space-4, 16px);
+    }
+
+    .settings-preset-btn {
+      border: 1px solid var(--gb-border-panel);
+      background: var(--gb-bg-panel);
+      border-radius: 10px;
+      padding: var(--space-2, 8px) var(--space-3, 12px);
+      text-align: left;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      cursor: pointer;
+      transition: border-color 150ms ease, background 150ms ease;
+    }
+
+    .settings-preset-btn:hover {
+      border-color: var(--gb-border-active, rgba(82, 152, 220, 0.6));
+      background: var(--gb-bg-bezel);
+    }
+
+    .settings-preset-btn__title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--gb-text-value);
+    }
+
+    .settings-preset-btn__desc {
+      font-size: 0.68rem;
+      color: var(--gb-text-muted);
+      line-height: 1.3;
+    }
+
     .settings-grid {
       display: grid;
       gap: var(--space-4, 16px);
@@ -415,6 +650,10 @@ import { AppModalComponent } from '../../shared/components/app-modal/app-modal.c
       border: 1px solid var(--gb-border-panel);
       border-radius: 14px;
       overflow: hidden;
+    }
+
+    .settings-group--full {
+      margin-bottom: var(--space-4, 16px);
     }
 
     .settings-group__title {
@@ -488,6 +727,7 @@ export class AlarmsPage {
   private readonly facade = inject(AlarmsFacadeService);
   private readonly settingsService = inject(AlarmSettingsService);
   showSettings = false;
+  readonly presetOptions = ALARM_SETTINGS_PRESETS;
 
   readonly vm = toSignal(
     this.facade.activeAlarms$.pipe(
@@ -523,6 +763,14 @@ export class AlarmsPage {
   onAcknowledge(id?: string): void {
     if (!id) return;
     this.facade.acknowledgeAlarm(id);
+  }
+
+  toggleSetting(key: keyof AlarmSettings, value: boolean): void {
+    this.settingsService.update({ [key]: !!value } as Partial<AlarmSettings>);
+  }
+
+  applyPreset(presetId: AlarmSettingsPresetId): void {
+    this.settingsService.applyPreset(presetId);
   }
 
   updateSetting(
