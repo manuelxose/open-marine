@@ -185,7 +185,7 @@
   --surface-border: var(--border-default);
   
   --border: var(--border-default);
-  --border-strong: var(--border-strong);
+  --border-strong: var(--nord-3);
   
   --shadow: var(--shadow-md);
   // --shadow-lg defined above
@@ -193,10 +193,7 @@
   --text-1: var(--text-primary);
   --text-2: var(--text-secondary);
   --text-3: var(--text-tertiary);
-  
-  --text-primary: var(--text-1); // Self-ref safety
-  --text-secondary: var(--text-2);
-  --text-tertiary: var(--text-3);
+
   --text-muted: var(--text-tertiary);
   --muted: var(--text-tertiary);
   --fg: var(--text-primary);
@@ -218,7 +215,7 @@
   --danger-default: var(--danger);
   --primary-default: var(--primary);
   
-  --warn-bg: var(--warn-bg);
+  --warning-bg: var(--warn-bg);
   --warning-400: var(--nord-13); // Yellowish
   --warning-500: var(--warn);
   

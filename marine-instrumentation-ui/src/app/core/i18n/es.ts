@@ -50,21 +50,7 @@ export const es: Translations = {
       },
     },
   },
-  widgets: {
-    title: 'Widgets',
-    subtitle: 'Gestiona la visibilidad y el orden de instrumentos y widgets del panel',
-    sections: {
-      instruments: 'Instrumentos',
-      dashboard: 'Widgets del Dashboard',
-    },
-    instruments: {
-      desc: 'Controla los widgets del drawer de instrumentos en la carta.',
-    },
-    dashboard: {
-      desc: 'Controla los widgets visibles en el dashboard.',
-    },
-    reset: 'Restablecer',
-  },
+
   nav: {
     dashboard: 'Panel de Control',
     chart: 'Carta',
@@ -74,7 +60,6 @@ export const es: Translations = {
     alarms: 'Alarmas',
     diagnostics: 'DiagnÃ³stico',
     settings: 'Ajustes',
-    widgets: 'Widgets',
     styleguide: 'Guia de estilos',
   },
   chart: {
@@ -132,7 +117,34 @@ export const es: Translations = {
   instruments: {
     page: {
       title: 'Instrumentos',
-      subtitle: 'Todos los datos de instrumentaciÃ³n disponibles',
+      subtitle: 'Datos marinos en tiempo real de los sensores conectados',
+    },
+    view: {
+      numeric: 'Numérico',
+      visual: 'Visual',
+      both: 'Ambos',
+    },
+    types: {
+      compass: 'Compás',
+      speed: 'Velocidad (SOG)',
+      depth: 'Profundidad',
+      'depth-sonar': 'Sonar de profundidad',
+      wind: 'Viento',
+      rudder: 'Timón',
+      engine: 'RPM Motor',
+      tank: 'Tanques',
+      battery: 'Energía',
+      meteo: 'Meteorología',
+      gps: 'Estado GPS',
+      clock: 'Reloj',
+      cog: 'Rumbo (COG)',
+      position: 'Posición',
+      'gps-status': 'Estado GPS',
+    },
+    config: {
+      title: 'Configurar Instrumentos',
+      reorder: 'Arrastra para reordenar',
+      reset: 'Restablecer predeterminados',
     },
   },
   alarms: {

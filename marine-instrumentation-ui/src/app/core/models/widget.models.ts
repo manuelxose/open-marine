@@ -8,7 +8,7 @@ export interface WidgetDefinition {
     description: string;
     size: WidgetSize;
     requiredPaths: SignalKPath[];
-    category: 'navigation' | 'environment' | 'electrical' | 'system';
+    category: 'navigation' | 'environment' | 'electrical' | 'system' | 'engine';
 }
 
 export interface WidgetConfig {
@@ -75,6 +75,29 @@ export const WIDGET_DEFINITIONS: WidgetDefinition[] = [
         category: 'system'
     },
     {
+        id: 'engine-card',
+        title: 'dashboard.panels.engine',
+        description: 'settings.widgets.desc.engine',
+        size: 'M',
+        requiredPaths: [
+            PATHS.propulsion?.main?.revolutions ?? 'propulsion.main.revolutions',
+            PATHS.propulsion?.main?.temperature ?? 'propulsion.main.temperature',
+        ],
+        category: 'engine'
+    },
+    {
+        id: 'environment-card',
+        title: 'dashboard.panels.environment',
+        description: 'settings.widgets.desc.environment',
+        size: 'M',
+        requiredPaths: [
+            PATHS.environment?.water?.temperature ?? 'environment.water.temperature',
+            PATHS.environment?.outside?.temperature ?? 'environment.outside.temperature',
+            PATHS.environment?.outside?.pressure ?? 'environment.outside.pressure',
+        ],
+        category: 'environment'
+    },
+    {
         id: 'sog-simple',
         title: 'SOG (Simple)',
         description: 'settings.widgets.desc.sog_simple',
@@ -105,11 +128,13 @@ export const DEFAULT_LAYOUT: DashboardLayout = {
     widgets: [
         { id: 'navigation-card', visible: true, order: 0 },
         { id: 'wind-card', visible: true, order: 1 },
-        { id: 'depth-card', visible: true, order: 2 },
-        { id: 'power-card', visible: true, order: 3 },
-        { id: 'system-card', visible: true, order: 4 },
-        { id: 'sog-simple', visible: false, order: 5 },
-        { id: 'heading-simple', visible: false, order: 6 },
-        { id: 'depth-simple', visible: false, order: 7 }
+        { id: 'engine-card', visible: true, order: 2 },
+        { id: 'depth-card', visible: true, order: 3 },
+        { id: 'power-card', visible: true, order: 4 },
+        { id: 'environment-card', visible: true, order: 5 },
+        { id: 'system-card', visible: true, order: 6 },
+        { id: 'sog-simple', visible: false, order: 7 },
+        { id: 'heading-simple', visible: false, order: 8 },
+        { id: 'depth-simple', visible: false, order: 9 }
     ]
 };

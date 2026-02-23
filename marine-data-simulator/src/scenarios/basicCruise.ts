@@ -35,6 +35,20 @@ interface BasicCruiseState {
   batteryCurrentTarget: number;
   batteryPhaseRemainingSec: number;
 
+  // Engine / Propulsion
+  engineRpm: number;       // Hz (revolutions per second)
+  engineRpmTarget: number;
+  coolantTemp: number;     // Kelvin
+  oilPressure: number;     // Pascals
+  fuelLevel: number;       // 0-1 ratio
+  fuelRate: number;        // m³/s (SI)
+
+  // Environment
+  waterTemp: number;       // Kelvin
+  airTemp: number;         // Kelvin
+  baroPressure: number;    // Pascals
+  humidity: number;        // 0-1 ratio
+
   // Intruder (AIS Target)
   intruderLat: number;
   intruderLon: number;
@@ -242,6 +256,20 @@ export const createBasicCruiseScenario = (): Scenario<BasicCruiseState> => {
       batteryCurrent: 8.0,
       batteryCurrentTarget: 8.0,
       batteryPhaseRemainingSec: 150,
+
+      // Engine / Propulsion — typical small marine diesel
+      engineRpm: 35,              // 35 Hz = 2100 RPM
+      engineRpmTarget: 35,
+      coolantTemp: 273.15 + 82,   // 82 °C in Kelvin
+      oilPressure: 350_000,       // 350 kPa in Pascals
+      fuelLevel: 0.72,            // 72%
+      fuelRate: 0.000_002_78,     // ~10 L/h in m³/s
+
+      // Environment sensors
+      waterTemp: 273.15 + 17.3,   // 17.3 °C
+      airTemp: 273.15 + 21.5,     // 21.5 °C
+      baroPressure: 101_325,      // 1013.25 hPa
+      humidity: 0.68,             // 68%
       
       intruderLat: 42.2450, // More to the North
       intruderLon: -8.7250, // Slightly West
@@ -377,6 +405,29 @@ export const createBasicCruiseScenario = (): Scenario<BasicCruiseState> => {
          intruderBroadcastTimer = 60; 
       }
 
+      // ── Engine / Propulsion simulation ──
+      // RPM correlates loosely with SOG
+      const rpmFactor = nextSog / MAX_SOG; // 0–1
+      const nextEngineRpmTarget = clamp(20 + rpmFactor * 25, 20, 45); // 1200–2700 RPM
+      const nextEngineRpm = smoothValue(state.engineRpm, nextEngineRpmTarget, 0.06);
+      // Coolant temp: slowly converges to operating temp, small jitter
+      const coolantTarget = 273.15 + 80 + rpmFactor * 10; // 80–90 °C
+      const nextCoolantTemp = smoothValue(state.coolantTemp, coolantTarget, 0.01) + (Math.random() - 0.5) * 0.3;
+      // Oil pressure: RPM-dependent
+      const oilTarget = 250_000 + rpmFactor * 200_000; // 250–450 kPa
+      const nextOilPressure = smoothValue(state.oilPressure, oilTarget, 0.04) + (Math.random() - 0.5) * 5_000;
+      // Fuel consumption: slow drain
+      const fuelConsumed = state.fuelRate * dtSeconds; // m³
+      const fuelTankSize = 0.200; // 200 liters = 0.200 m³
+      const nextFuelLevel = clamp(state.fuelLevel - fuelConsumed / fuelTankSize, 0.01, 1);
+      const nextFuelRate = state.fuelRate + (Math.random() - 0.5) * 0.000_000_1;
+
+      // ── Environment simulation ──
+      const nextWaterTemp = state.waterTemp + (Math.random() - 0.5) * 0.02;
+      const nextAirTemp = state.airTemp + (Math.random() - 0.5) * 0.03;
+      const nextBaroPressure = smoothValue(state.baroPressure, 101_325 + (Math.random() - 0.5) * 200, 0.005);
+      const nextHumidity = clamp(state.humidity + (Math.random() - 0.5) * 0.003, 0.30, 0.95);
+
       const nextState: BasicCruiseState = {
         latitude: moved.latitude,
         longitude: moved.longitude,
@@ -404,6 +455,20 @@ export const createBasicCruiseScenario = (): Scenario<BasicCruiseState> => {
         batteryCurrent: nextBatteryCurrent,
         batteryCurrentTarget,
         batteryPhaseRemainingSec,
+
+        // Engine
+        engineRpm: nextEngineRpm,
+        engineRpmTarget: nextEngineRpmTarget,
+        coolantTemp: nextCoolantTemp,
+        oilPressure: nextOilPressure,
+        fuelLevel: nextFuelLevel,
+        fuelRate: nextFuelRate,
+
+        // Environment
+        waterTemp: nextWaterTemp,
+        airTemp: nextAirTemp,
+        baroPressure: nextBaroPressure,
+        humidity: nextHumidity,
         
         intruderLat: intruderMoved.latitude,
         intruderLon: intruderMoved.longitude,
@@ -474,6 +539,19 @@ export const createBasicCruiseScenario = (): Scenario<BasicCruiseState> => {
           QualityFlag.Good,
         ),
         makePoint(PATHS.navigation.headingTrue, reportedHeading, timestamp, QualityFlag.Good),
+
+        // Engine / Propulsion
+        makePoint(PATHS.propulsion.main.revolutions, jitter(nextEngineRpm, 0.2), timestamp, QualityFlag.Good),
+        makePoint(PATHS.propulsion.main.temperature, nextCoolantTemp, timestamp, QualityFlag.Good),
+        makePoint(PATHS.propulsion.main.oilPressure as SignalKPath, nextOilPressure, timestamp, QualityFlag.Good),
+        makePoint(PATHS.propulsion.main.fuelRate as SignalKPath, nextFuelRate, timestamp, QualityFlag.Good),
+        makePoint(PATHS.tanks.fuel.level as SignalKPath, nextFuelLevel, timestamp, QualityFlag.Good),
+
+        // Environment
+        makePoint(PATHS.environment.water.temperature as SignalKPath, nextWaterTemp, timestamp, QualityFlag.Good),
+        makePoint(PATHS.environment.outside.temperature as SignalKPath, nextAirTemp, timestamp, QualityFlag.Good),
+        makePoint(PATHS.environment.outside.pressure as SignalKPath, nextBaroPressure, timestamp, QualityFlag.Good),
+        makePoint(PATHS.environment.outside.humidity as SignalKPath, nextHumidity, timestamp, QualityFlag.Good),
       ];
 
       // Intruder Points

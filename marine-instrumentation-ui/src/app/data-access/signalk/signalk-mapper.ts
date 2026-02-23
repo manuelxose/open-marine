@@ -12,9 +12,10 @@ export function normalizeDelta(delta: SignalKMessage): NormalizedDataPoint[] {
     const ts = update.timestamp ? new Date(update.timestamp).getTime() : Date.now();
 
     for (const val of update.values) {
-      if (!val.path) continue; // Some updates might be empty or meta
+      // Keep empty-string paths ("") because some Signal K producers use them for aggregate vessel snapshots.
+      if (val.path === undefined || val.path === null) continue;
       const entry: NormalizedDataPoint = {
-        path: val.path,
+        path: String(val.path),
         value: val.value,
         timestamp: ts,
         source: source,

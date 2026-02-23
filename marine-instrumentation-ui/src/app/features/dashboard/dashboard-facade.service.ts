@@ -31,6 +31,15 @@ import {
   selectTws,
   selectTwd,
   selectTwa,
+  selectRpm,
+  selectCoolantTemp,
+  selectOilPressure,
+  selectFuelRate,
+  selectFuelLevel,
+  selectWaterTemp,
+  selectAirTemp,
+  selectBaroPressure,
+  selectHumidity,
   type PositionValue,
 } from '../../state/datapoints/datapoint.selectors';
 import { PATHS } from '@omi/marine-data-contract';
@@ -41,8 +50,12 @@ import {
   formatCurrent,
   formatDepth,
   formatNumber,
+  formatPercent,
   formatPower,
+  formatPressure,
+  formatRpm,
   formatSpeed,
+  formatTemperature,
   formatVoltage,
 } from '../../core/formatting/formatters';
 import type {
@@ -51,6 +64,8 @@ import type {
   DashboardStatusVm,
   DashboardMetricVm,
   DepthPanelVm,
+  EnginePanelVm,
+  EnvironmentPanelVm,
   NavigationPanelVm,
   PowerPanelVm,
   StatusTone,
@@ -119,10 +134,25 @@ export class DashboardFacadeService {
   private readonly voltage$ = selectBatteryVoltage(this.store).pipe(shareReplay({ bufferSize: 1, refCount: true }));
   private readonly current$ = selectBatteryCurrent(this.store).pipe(shareReplay({ bufferSize: 1, refCount: true }));
 
+  // Engine / Propulsion
+  private readonly rpm$ = selectRpm(this.store).pipe(shareReplay({ bufferSize: 1, refCount: true }));
+  private readonly coolantTemp$ = selectCoolantTemp(this.store).pipe(shareReplay({ bufferSize: 1, refCount: true }));
+  private readonly oilPressure$ = selectOilPressure(this.store).pipe(shareReplay({ bufferSize: 1, refCount: true }));
+  private readonly fuelRate$ = selectFuelRate(this.store).pipe(shareReplay({ bufferSize: 1, refCount: true }));
+  private readonly fuelLevel$ = selectFuelLevel(this.store).pipe(shareReplay({ bufferSize: 1, refCount: true }));
+
+  // Environment
+  private readonly waterTemp$ = selectWaterTemp(this.store).pipe(shareReplay({ bufferSize: 1, refCount: true }));
+  private readonly airTemp$ = selectAirTemp(this.store).pipe(shareReplay({ bufferSize: 1, refCount: true }));
+  private readonly baroPressure$ = selectBaroPressure(this.store).pipe(shareReplay({ bufferSize: 1, refCount: true }));
+  private readonly humidity$ = selectHumidity(this.store).pipe(shareReplay({ bufferSize: 1, refCount: true }));
+
   private readonly sogSeries$ = selectSeries(this.store, PATHS.navigation.speedOverGround, 120).pipe(startWith([]));
   private readonly depthSeries$ = selectSeries(this.store, PATHS.environment.depth.belowTransducer, 120).pipe(startWith([]));
   private readonly windSeries$ = selectSeries(this.store, PATHS.environment.wind.speedApparent, 120).pipe(startWith([]));
   private readonly voltageSeries$ = selectSeries(this.store, PATHS.electrical.batteries.house.voltage, 120).pipe(startWith([]));
+  private readonly rpmSeries$ = selectSeries(this.store, PATHS.propulsion?.main?.revolutions ?? 'propulsion.main.revolutions', 120).pipe(startWith([]));
+  private readonly waterTempSeries$ = selectSeries(this.store, PATHS.environment?.water?.temperature ?? 'environment.water.temperature', 120).pipe(startWith([]));
 
   private readonly hasData$ = this.store.updatesProcessed$.pipe(
     map((count) => count > 0),
@@ -175,20 +205,24 @@ export class DashboardFacadeService {
 
   readonly criticalStripVm$ = combineLatest({
     sog: this.sog$,
+    cog: this.cog$,
     heading: this.heading$,
     depth: this.depth$,
     aws: this.aws$,
     awa: this.awa$,
     voltage: this.voltage$,
+    rpm: this.rpm$,
     prefs: this.prefs$,
     isLoading: this.isLoading$,
   }).pipe(
-    map(({ sog, heading, depth, aws, awa, voltage, prefs, isLoading }) => {
+    map(({ sog, cog, heading, depth, aws, awa, voltage, rpm, prefs, isLoading }) => {
       const sogMetric = formatSpeed(coerceNumber(sog?.value), prefs.speedUnit);
+      const cogMetric = formatAngleDegrees(coerceNumber(cog?.value));
       const headingMetric = formatAngleDegrees(coerceNumber(heading?.value));
       const depthMetric = formatDepth(coerceNumber(depth?.value), prefs.depthUnit);
       const awsMetric = formatSpeed(coerceNumber(aws?.value), prefs.speedUnit);
       const voltageMetric = formatVoltage(coerceNumber(voltage?.value));
+      const rpmMetric = formatRpm(coerceNumber(rpm?.value));
 
       const depthValue = coerceNumber(depth?.value);
       const depthTone =
@@ -198,17 +232,18 @@ export class DashboardFacadeService {
             ? 'alert'
             : 'ok';
 
-      const voltageValue = coerceNumber(voltage?.value);
       const voltageTone =
-        voltageValue === null ? 'neutral' : voltageValue < 12 ? 'warn' : 'ok';
+        coerceNumber(voltage?.value) === null ? 'neutral' : (coerceNumber(voltage?.value) ?? 0) < 12 ? 'warn' : 'ok';
 
       return {
         items: [
           stripItem('dashboard.metrics.sog', sogMetric, 'neutral'),
+          stripItem('dashboard.metrics.cog', cogMetric, 'neutral'),
           stripItem('dashboard.metrics.hdg', headingMetric, 'neutral'),
           stripItem('dashboard.metrics.depth', depthMetric, depthTone),
           stripItem('dashboard.metrics.aws', awsMetric, 'neutral'),
-          stripItem('dashboard.metrics.awa', { value: formatAngleDegrees(coerceNumber(awa?.value)).value, unit: "°" }, 'neutral'),
+          stripItem('dashboard.metrics.awa', { value: formatAngleDegrees(coerceNumber(awa?.value)).value, unit: '\u00B0' }, 'neutral'),
+          stripItem('dashboard.metrics.rpm', rpmMetric, 'neutral'),
           stripItem('dashboard.metrics.batt', voltageMetric, voltageTone),
         ],
         isLoading,
@@ -363,6 +398,83 @@ export class DashboardFacadeService {
     this.withFallback<PowerPanelVm>(
       { title: 'dashboard.panels.power', metrics: [], updatedAt: null, isLoading: false },
       'power panel',
+    ),
+    shareReplay({ bufferSize: 1, refCount: true }),
+  );
+
+  readonly engineVm$ = combineLatest({
+    rpm: this.rpm$,
+    coolantTemp: this.coolantTemp$,
+    oilPressure: this.oilPressure$,
+    fuelRate: this.fuelRate$,
+    fuelLevel: this.fuelLevel$,
+    series: this.rpmSeries$,
+    isLoading: this.isLoading$,
+  }).pipe(
+    map(({ rpm, coolantTemp, oilPressure, fuelRate, fuelLevel, series, isLoading }) => {
+      const rpmVal = coerceNumber(rpm?.value);
+      const coolantVal = coerceNumber(coolantTemp?.value);
+      const oilVal = coerceNumber(oilPressure?.value);
+      const fuelRateVal = coerceNumber(fuelRate?.value);
+      const fuelLevelVal = coerceNumber(fuelLevel?.value);
+      // Oil pressure: Signal K sends Pa, display in kPa
+      const oilKpa = oilVal !== null ? oilVal / 1000 : null;
+      return {
+        title: 'dashboard.panels.engine',
+        metrics: [
+          { ...metric('dashboard.metrics.rpm', formatRpm(rpmVal)), series },
+          metric('dashboard.metrics.coolant_temp', formatTemperature(coolantVal)),
+          metric('dashboard.metrics.oil_pressure', { value: oilKpa !== null ? oilKpa.toFixed(0) : '--', unit: 'kPa' }),
+          metric('dashboard.metrics.fuel_rate', { value: fuelRateVal !== null ? (fuelRateVal * 3600).toFixed(1) : '--', unit: 'L/h' }),
+        ],
+        fuelLevel: fuelLevelVal,
+        series,
+        updatedAt: Math.max(
+          rpm?.timestamp ?? 0,
+          coolantTemp?.timestamp ?? 0,
+          oilPressure?.timestamp ?? 0,
+          fuelLevel?.timestamp ?? 0,
+        ) || null,
+        isLoading,
+      } satisfies EnginePanelVm;
+    }),
+    startWith({ title: 'dashboard.panels.engine', metrics: [], fuelLevel: null, updatedAt: null, isLoading: true } satisfies EnginePanelVm),
+    this.withFallback<EnginePanelVm>(
+      { title: 'dashboard.panels.engine', metrics: [], fuelLevel: null, updatedAt: null, isLoading: false },
+      'engine panel',
+    ),
+    shareReplay({ bufferSize: 1, refCount: true }),
+  );
+
+  readonly environmentVm$ = combineLatest({
+    waterTemp: this.waterTemp$,
+    airTemp: this.airTemp$,
+    pressure: this.baroPressure$,
+    humidity: this.humidity$,
+    series: this.waterTempSeries$,
+    isLoading: this.isLoading$,
+  }).pipe(
+    map(({ waterTemp, airTemp, pressure, humidity, series, isLoading }) => ({
+      title: 'dashboard.panels.environment',
+      metrics: [
+        { ...metric('dashboard.metrics.water_temp', formatTemperature(coerceNumber(waterTemp?.value))), series },
+        metric('dashboard.metrics.air_temp', formatTemperature(coerceNumber(airTemp?.value))),
+        metric('dashboard.metrics.baro_pressure', formatPressure(coerceNumber(pressure?.value))),
+        metric('dashboard.metrics.humidity', formatPercent(coerceNumber(humidity?.value))),
+      ],
+      series,
+      updatedAt: Math.max(
+        waterTemp?.timestamp ?? 0,
+        airTemp?.timestamp ?? 0,
+        pressure?.timestamp ?? 0,
+        humidity?.timestamp ?? 0,
+      ) || null,
+      isLoading,
+    }) satisfies EnvironmentPanelVm),
+    startWith({ title: 'dashboard.panels.environment', metrics: [], updatedAt: null, isLoading: true } satisfies EnvironmentPanelVm),
+    this.withFallback<EnvironmentPanelVm>(
+      { title: 'dashboard.panels.environment', metrics: [], updatedAt: null, isLoading: false },
+      'environment panel',
     ),
     shareReplay({ bufferSize: 1, refCount: true }),
   );
@@ -529,3 +641,4 @@ export class DashboardFacadeService {
     this.errorSubject.next(`Dashboard ${context} error: ${message}`);
   }
 }
+

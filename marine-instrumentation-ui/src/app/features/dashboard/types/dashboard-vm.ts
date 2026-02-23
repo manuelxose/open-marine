@@ -73,6 +73,25 @@ export interface SystemPanelVm {
   error?: string;
 }
 
+export interface EnginePanelVm {
+  title: string;
+  metrics: DashboardMetricVm[];
+  fuelLevel: number | null;  // 0-1 ratio for fuel bar
+  series?: HistoryPoint[];
+  updatedAt?: number | null;
+  isLoading: boolean;
+  error?: string;
+}
+
+export interface EnvironmentPanelVm {
+  title: string;
+  metrics: DashboardMetricVm[];
+  series?: HistoryPoint[];
+  updatedAt?: number | null;
+  isLoading: boolean;
+  error?: string;
+}
+
 export interface DashboardStatusVm {
   label: string;
   detail: string;

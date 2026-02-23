@@ -7,6 +7,7 @@ import { TimeAgoPipe } from '../../../../shared/pipes/time-ago.pipe';
 import { DistancePipe } from '../../../../shared/pipes/distance.pipe';
 import { LatFormatPipe } from '../../../../shared/pipes/lat-format.pipe';
 import { LonFormatPipe } from '../../../../shared/pipes/lon-format.pipe';
+import { metersPerSecondToKnots } from '../../../../state/calculations/navigation';
 
 @Component({
   selector: 'app-ais-target-details',
@@ -25,7 +26,7 @@ import { LonFormatPipe } from '../../../../shared/pipes/lon-format.pipe';
     <div class="ais-details-panel">
       <header class="details-header" [class.dangerous]="target.isDangerous">
         <div class="header-main">
-          <h2>{{ target.name || 'Unknown Vessel' }}</h2>
+          <h2>{{ target.name || target.callsign || ('Vessel ' + target.mmsi) }}</h2>
           <span class="mmsi">MMSI: {{ target.mmsi }}</span>
         </div>
         <app-button 
@@ -69,7 +70,7 @@ import { LonFormatPipe } from '../../../../shared/pipes/lon-format.pipe';
             <div class="grid-2">
                 <div class="field">
                     <label>SOG</label>
-                    <span class="value">{{ target.sog | number:'1.1-1' }} kn</span>
+                    <span class="value">{{ formatSog(target.sog) }}</span>
                 </div>
                 <div class="field">
                     <label>COG</label>
@@ -101,6 +102,10 @@ import { LonFormatPipe } from '../../../../shared/pipes/lon-format.pipe';
                     <span class="value">{{ target.callsign || '--' }}</span>
                 </div>
                  <div class="field">
+                    <label>IMO</label>
+                    <span class="value">{{ target.imo || '--' }}</span>
+                </div>
+                 <div class="field">
                     <label>Type</label>
                     <span class="value">{{ target.vesselType || 'Unknown' }}</span>
                 </div>
@@ -111,7 +116,10 @@ import { LonFormatPipe } from '../../../../shared/pipes/lon-format.pipe';
                         {{ target.beam ? target.beam + 'm' : '--' }}
                     </span>
                 </div>
-                <!-- Draft could go here if available -->
+                <div class="field">
+                    <label>Draft</label>
+                    <span class="value">{{ target.draft ? target.draft + 'm' : '--' }}</span>
+                </div>
             </div>
         </section>
 
@@ -267,5 +275,13 @@ export class AisTargetDetailsComponent {
   getStatusLabel(): string {
     if (this.target.state === undefined) return 'Unknown';
     return AisNavStatus[this.target.state] ?? 'Unknown';
+  }
+
+  formatSog(sogMps: number | undefined): string {
+    if (typeof sogMps !== 'number' || !Number.isFinite(sogMps)) {
+      return '--';
+    }
+
+    return `${metersPerSecondToKnots(sogMps).toFixed(1)} kn`;
   }
 }

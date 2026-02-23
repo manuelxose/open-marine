@@ -11,6 +11,7 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { toSignal } from '@angular/core/rxjs-interop';
+import { Router } from '@angular/router';
 // Services
 import { ChartFacadeService } from './services/chart-facade.service';
 import { ChartFullscreenService } from './services/chart-fullscreen.service';
@@ -22,6 +23,7 @@ import { DatapointStoreService } from '../../state/datapoints/datapoint-store.se
 import { AisStoreService } from '../../state/ais/ais-store.service';
 import { PlaybackStoreService } from '../../state/playback/playback-store.service';
 import { MapLibreEngineService } from './services/maplibre-engine.service';
+import { DEFAULT_VESSEL_TYPE_COLORS } from './services/chart-settings.service';
 
 // Components
 import { ChartCanvasComponent } from './components/chart-canvas/chart-canvas.component';
@@ -41,7 +43,7 @@ import { MapSettingsPanelComponent } from './components/map-settings-panel/map-s
 import { selectSog, selectCog, selectDepth, selectPosition, selectHeading, selectAws, selectAwa } from '../../state/datapoints/datapoint.selectors';
 import { bearingDistanceNm, metersPerSecondToKnots, toDegrees } from '../../state/calculations/navigation';
 import { ChartLeftPanelTab, MapOrientation } from './types/chart-vm';
-import { FeatureCollection, Point } from 'geojson';
+import { FeatureCollection, LineString, Point } from 'geojson';
 import { RouteFeatureCollection, WaypointFeatureCollection } from './types/chart-geojson';
 import { PLAYBACK_POSITION_LAT_PATH, PLAYBACK_POSITION_LON_PATH, PlaybackState } from '../../state/playback/playback.models';
 import { AisTarget } from '../../core/models/ais.model';
@@ -102,6 +104,8 @@ const INITIAL_PLAYBACK_STATE: PlaybackState = {
           [anchorWatchActive]="anchorWatchActive()"
           [showOpenSeaMap]="(controlsVm$ | async)?.showOpenSeaMap ?? false"
           [measureActive]="measurementActive()"
+          [addWaypointModeActive]="addWaypointMode()"
+          [hasActiveWaypoint]="hasActiveWaypoint()"
           [panelOpen]="leftPanelOpen()"
           [settingsPanelOpen]="settingsPanelOpen()"
           (zoomIn)="handleZoomIn()"
@@ -112,14 +116,15 @@ const INITIAL_PLAYBACK_STATE: PlaybackState = {
           (toggleBaseLayer)="handleToggleBaseLayer()"
           (toggleOpenSeaMap)="handleToggleOpenSeaMap()"
           (toggleMeasure)="handleToggleMeasure()"
+          (deleteActiveWaypoint)="handleDeleteActiveWaypoint()"
           (toggleAnchorWatch)="handleToggleAnchorWatch()"
           (togglePanel)="handleToggleLeftPanel()"
           (toggleSettingsPanel)="handleToggleSettingsPanel()"
         />
       </div>
       
-      <!-- ZONA: Top Center - Alarm Strip -->
-      <div class="chart-zone chart-zone--top-center">
+      <!-- ZONA: Top Right - Alarm Badge -->
+      <div class="chart-zone chart-zone--top-right">
         <app-alarm-status-widget />
       </div>
       
@@ -228,7 +233,6 @@ const INITIAL_PLAYBACK_STATE: PlaybackState = {
 
     .chart-page {
       --chart-top-bar-height: 48px;
-      --chart-alarm-strip-height: 56px;
       --chart-top-controls-offset: calc(var(--chart-top-bar-height) + (var(--chart-edge-gap) * 0.25));
       --chart-left-panel-anchor: 48px;
       --chart-left-panel-width: 340px;
@@ -284,14 +288,12 @@ const INITIAL_PLAYBACK_STATE: PlaybackState = {
       animation-delay: 0.1s;
     }
 
-    // TOP CENTER: Alarm Strip
-    .chart-zone--top-center {
-      top: calc(var(--chart-top-bar-height) + var(--chart-edge-gap));
-      left: 50%;
-      transform: translateX(-50%);
-      max-width: 90%;
-      z-index: var(--z-chart-panels);
-      animation: chart-zone-enter-top 0.4s var(--ease-out) both;
+    // TOP RIGHT: Alarm badge (next to fullscreen FAB)
+    .chart-zone--top-right {
+      top: var(--chart-top-controls-offset);
+      right: calc(var(--chart-edge-gap) + 52px);
+      z-index: calc(var(--z-chart-panels) + 2);
+      animation: chart-zone-enter-right 0.35s var(--ease-out) both;
       animation-delay: 0.15s;
     }
 
@@ -459,6 +461,11 @@ const INITIAL_PLAYBACK_STATE: PlaybackState = {
     // ═══════════════════════════════════════════════
 
     @media (max-width: 768px) {
+      .chart-zone--top-right {
+        top: calc(var(--chart-top-bar-height) + var(--space-2));
+        right: var(--chart-edge-gap);
+      }
+
       .chart-zone--left-panel {
         top: auto;
         left: var(--chart-edge-gap);
@@ -508,6 +515,7 @@ export class ChartPage implements AfterViewInit, OnDestroy {
   readonly leftPanelTab = signal<ChartLeftPanelTab>('layers');
   readonly aisSortBy = signal<'distance' | 'cpa' | 'name'>('distance');
   readonly settingsPanelOpen = signal(false);
+  readonly addWaypointMode = signal(false);
 
   // Anchor Watch State (wired to service in M4)
   private readonly anchorWatchState = toSignal(this.anchorWatchService.state$, {
@@ -596,8 +604,20 @@ export class ChartPage implements AfterViewInit, OnDestroy {
   private readonly showAisTargetsSignal = toSignal(this.facade.showAisTargets$, { initialValue: true });
   private readonly showAisLabelsSignal = toSignal(this.facade.showAisLabels$, { initialValue: true });
   private readonly showCpaLinesSignal = toSignal(this.facade.showCpaLines$, { initialValue: true });
+  private readonly aisVesselTypeColorsSignal = toSignal(this.facade.vesselTypeColors$, {
+    initialValue: { ...DEFAULT_VESSEL_TYPE_COLORS },
+  });
+  private readonly ownVesselIconScaleSignal = toSignal(this.facade.ownVesselIconScale$, { initialValue: 1.15 });
+  private readonly aisTargetIconScaleSignal = toSignal(this.facade.aisTargetIconScale$, { initialValue: 0.8 });
+  private readonly windTrackMinZoomSignal = toSignal(this.facade.windTrackMinZoom$, { initialValue: 15 });
+  private readonly rangeRingsMinZoomSignal = toSignal(this.facade.rangeRingsMinZoom$, { initialValue: 8 });
   readonly orientation = toSignal(this.facade.orientation$, { initialValue: 'north-up' as MapOrientation });
   readonly isTracking = computed(() => this.controlsVmSignal()?.autoCenter ?? false);
+  private readonly waypointListVmSignal = toSignal(this.waypointVm$, {
+    initialValue: { waypoints: [], activeId: null },
+  });
+  readonly hasActiveWaypoint = computed(() => !!this.waypointListVmSignal().activeId);
+  readonly activeWaypointId = computed(() => this.waypointListVmSignal().activeId);
 
   private readonly vesselSignal = toSignal(this.facade.vesselUpdate$, {
     initialValue: { lngLat: null, rotationDeg: null, state: 'no-fix' as 'fix' | 'stale' | 'no-fix' },
@@ -607,6 +627,12 @@ export class ChartPage implements AfterViewInit, OnDestroy {
   });
   private readonly vectorSignal = toSignal(this.facade.vectorUpdate$, {
     initialValue: { coords: [] as [number, number][], visible: false },
+  });
+  private readonly headingLineSignal = toSignal(this.facade.headingLineUpdate$, {
+    initialValue: { coords: [] as [number, number][], visible: false },
+  });
+  private readonly laylinesSignal = toSignal(this.facade.laylinesUpdate$, {
+    initialValue: { lines: [] as [number, number][][], visible: false },
   });
   private readonly trueWindSignal = toSignal(this.facade.trueWindUpdate$, {
     initialValue: { coords: [] as [number, number][], visible: false },
@@ -630,7 +656,7 @@ export class ChartPage implements AfterViewInit, OnDestroy {
     initialValue: { type: 'FeatureCollection', features: [] } as FeatureCollection<Point>,
   });
   private readonly cpaLinesSignal = toSignal(this.facade.cpaLinesGeoJson$, {
-    initialValue: { type: 'FeatureCollection', features: [] } as FeatureCollection<any>,
+    initialValue: { type: 'FeatureCollection', features: [] } as FeatureCollection<LineString>,
   });
 
   // Playback Logic
@@ -673,6 +699,14 @@ export class ChartPage implements AfterViewInit, OnDestroy {
       this.engine.updateVector(vector.coords, vector.visible); 
     });
     effect(() => {
+      const headingLine = this.headingLineSignal();
+      this.engine.updateHeadingLine(headingLine.coords, headingLine.visible);
+    });
+    effect(() => {
+      const laylines = this.laylinesSignal();
+      this.engine.updateLaylines(laylines.lines, laylines.visible);
+    });
+    effect(() => {
       const wind = this.trueWindSignal();
       this.engine.updateTrueWind(wind.coords, wind.visible);
     });
@@ -698,6 +732,11 @@ export class ChartPage implements AfterViewInit, OnDestroy {
     effect(() => { this.engine.setOrientation(this.orientation()); });
     effect(() => { this.engine.updateAisTargets(this.aisTargetsSignal()); });
     effect(() => { this.engine.updateCpaLines(this.cpaLinesSignal()); });
+    effect(() => { this.engine.setAisVesselTypeColors(this.aisVesselTypeColorsSignal()); });
+    effect(() => { this.engine.setOwnVesselIconScale(this.ownVesselIconScaleSignal()); });
+    effect(() => { this.engine.setAisTargetIconScale(this.aisTargetIconScaleSignal()); });
+    effect(() => { this.engine.setWindTrackMinZoom(this.windTrackMinZoomSignal()); });
+    effect(() => { this.engine.setRangeRingsMinZoom(this.rangeRingsMinZoomSignal()); });
     effect(() => { this.engine.setOpenSeaMapVisible(this.openSeaMapSignal()); });
     effect(() => { this.engine.setAisTargetsVisible(this.showAisTargetsSignal()); });
     effect(() => { this.engine.setAisLabelsVisible(this.showAisLabelsSignal()); });
@@ -756,12 +795,24 @@ export class ChartPage implements AfterViewInit, OnDestroy {
         this.measurementService.addPoint(lngLat);
         return;
       }
-      this.facade.addWaypointAt(lngLat);
+      if (this.addWaypointMode()) {
+        this.facade.addWaypointAt(lngLat);
+      }
     });
     this.engine.setFeatureClickHandler((event) => {
-        if (event.layerId === 'chart-ais-layer' && event.properties?.mmsi) {
-            this.selectedAisMmsi.set(event.properties.mmsi);
+      if (event.layerId === 'chart-waypoints-layer') {
+        const waypointId =
+          typeof event.properties?.id === 'string' && event.properties.id.trim().length > 0
+            ? event.properties.id
+            : null;
+        if (waypointId) {
+          this.facade.selectWaypoint(waypointId);
         }
+        return;
+      }
+      if (event.layerId === 'chart-ais-layer' && event.properties?.mmsi) {
+        this.selectedAisMmsi.set(event.properties.mmsi);
+      }
     });
 
     this.engine.init(container, this.facade.initialView);
@@ -783,11 +834,15 @@ export class ChartPage implements AfterViewInit, OnDestroy {
   }
   
   handleCenterAndFollow() {
-    // Single button: center on vessel and enable auto-follow
-    this.facade.centerOnVessel();
-    if (!this.isTracking()) {
+    // Single button behavior:
+    // - If tracking is active: disable it.
+    // - If tracking is inactive: center and enable it.
+    if (this.isTracking()) {
       this.facade.toggleAutoCenter();
+      return;
     }
+
+    this.facade.centerOnVessel();
   }
   
   handleToggleOrientation() { this.facade.toggleOrientation(); }
@@ -805,11 +860,20 @@ export class ChartPage implements AfterViewInit, OnDestroy {
   }
 
   handleToggleMeasure() {
+    // Keep measure and add-waypoint modes mutually exclusive.
+    if (!this.measurementActive() && this.addWaypointMode()) {
+      this.addWaypointMode.set(false);
+    }
     this.measurementService.toggle();
   }
 
-  async handleAddWaypoint() {
-    await this.facade.addWaypointAtCenter();
+  handleAddWaypoint() {
+    const next = !this.addWaypointMode();
+    this.addWaypointMode.set(next);
+    // Keep measure and add-waypoint modes mutually exclusive.
+    if (next && this.measurementActive()) {
+      this.measurementService.toggle();
+    }
   }
 
   handleToggleTrack() {
@@ -890,10 +954,10 @@ export class ChartPage implements AfterViewInit, OnDestroy {
     this.instrumentsFacade.moveWidget(widget.id, targetIndex);
   }
 
+  private readonly router = inject(Router);
+
   handleInstrumentConfigure() {
-    // Future: open an instruments configuration modal
-    // For now, simply toggle the instruments panel open
-    this.showInstruments.set(true);
+    this.router.navigate(['/instruments']);
   }
   
   handleSelectAisTarget(mmsi: string) {
@@ -921,6 +985,14 @@ export class ChartPage implements AfterViewInit, OnDestroy {
 
   handleDeleteWaypoint(id: string) {
     this.facade.deleteWaypoint(id);
+  }
+
+  handleDeleteActiveWaypoint() {
+    const activeId = this.activeWaypointId();
+    if (!activeId) {
+      return;
+    }
+    this.facade.deleteWaypoint(activeId);
   }
 
   handleClearActiveWaypoint() {

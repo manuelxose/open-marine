@@ -1,20 +1,20 @@
 import { Injectable, Inject, PLATFORM_ID } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { BehaviorSubject } from 'rxjs';
+import {
+  DEFAULT_VESSEL_TYPE_COLORS,
+  VESSEL_TYPE_KEYS,
+  normalizeHexColor,
+  type VesselTypeColors,
+  type VesselTypeFilter,
+} from './chart-vessel-types';
 
 export type AisDisplayAge = '1h' | '24h';
 export type TrackDuration = '1d' | '7d' | '90d';
-export type VesselTypeFilter =
-  | 'cargo'
-  | 'tanker'
-  | 'passenger'
-  | 'fishing'
-  | 'sailing'
-  | 'pleasure'
-  | 'tug'
-  | 'military'
-  | 'hsc'
-  | 'other';
+export type WindVectorSource = 'true' | 'apparent';
+
+export type { VesselTypeFilter, VesselTypeColors } from './chart-vessel-types';
+export { VESSEL_TYPE_KEYS, VESSEL_TYPE_LABELS, DEFAULT_VESSEL_TYPE_COLORS } from './chart-vessel-types';
 
 export interface ChartSettings {
   autoCenter: boolean;
@@ -27,9 +27,29 @@ export interface ChartSettings {
   showAisTargets: boolean;
   showAisLabels: boolean;
   showCpaLines: boolean;
+  ownVesselIconScale: number;
+  aisTargetIconScale: number;
+  fixedLocationMode: boolean;
+  fixedLocationLat: number | null;
+  fixedLocationLon: number | null;
+  showHeadingLine: boolean;
+  headingLineMinutes: number;
+  cogLineMinutes: number;
+  showLaylines: boolean;
+  laylineAngleDeg: number;
+  windTrackMinZoom: number;
+  rangeRingsMinZoom: number;
+  rangeRingCount: number;
+  rangeRingStepNm: number;
+  hideMooredTargets: boolean;
+  hideAnchoredTargets: boolean;
+  aisInactiveAfterMinutes: number;
+  aisRemoveAfterMinutes: number;
+  windVectorSource: WindVectorSource;
   // AIS Settings
   aisDisplayAge: AisDisplayAge;
   visibleVesselTypes: VesselTypeFilter[];
+  vesselTypeColors: VesselTypeColors;
   // Track Settings
   trackDuration: TrackDuration;
   // Weather Overlays
@@ -37,11 +57,6 @@ export interface ChartSettings {
   showWindSpeed: boolean;
   showWaves: boolean;
 }
-
-const ALL_VESSEL_TYPES: VesselTypeFilter[] = [
-  'cargo', 'tanker', 'passenger', 'fishing', 'sailing',
-  'pleasure', 'tug', 'military', 'hsc', 'other',
-];
 
 const DEFAULT_SETTINGS: ChartSettings = {
   autoCenter: true,
@@ -54,8 +69,28 @@ const DEFAULT_SETTINGS: ChartSettings = {
   showAisTargets: true,
   showAisLabels: true,
   showCpaLines: true,
+  ownVesselIconScale: 1.15,
+  aisTargetIconScale: 0.8,
+  fixedLocationMode: false,
+  fixedLocationLat: null,
+  fixedLocationLon: null,
+  showHeadingLine: true,
+  headingLineMinutes: 6,
+  cogLineMinutes: 10,
+  showLaylines: false,
+  laylineAngleDeg: 45,
+  windTrackMinZoom: 15,
+  rangeRingsMinZoom: 8,
+  rangeRingCount: 4,
+  rangeRingStepNm: 0.25,
+  hideMooredTargets: false,
+  hideAnchoredTargets: false,
+  aisInactiveAfterMinutes: 6,
+  aisRemoveAfterMinutes: 9,
+  windVectorSource: 'true',
   aisDisplayAge: '24h',
-  visibleVesselTypes: [...ALL_VESSEL_TYPES],
+  visibleVesselTypes: [...VESSEL_TYPE_KEYS],
+  vesselTypeColors: { ...DEFAULT_VESSEL_TYPE_COLORS },
   trackDuration: '1d',
   showTemperature: false,
   showWindSpeed: false,
@@ -77,7 +112,7 @@ export class ChartSettingsService {
       if (saved) {
         try {
           const parsed = JSON.parse(saved) as Partial<ChartSettings>;
-          this.settingsSubject.next({ ...DEFAULT_SETTINGS, ...parsed });
+          this.settingsSubject.next(this.hydrateSettings(parsed));
         } catch {
           // ignore corrupted storage
         }
@@ -124,6 +159,94 @@ export class ChartSettingsService {
     this.update({ rangeRingIntervals: intervals });
   }
 
+  setRangeRingCount(count: number): void {
+    const normalized = Math.max(1, Math.min(12, Math.round(count)));
+    this.update({ rangeRingCount: normalized, rangeRingIntervals: this.buildRangeIntervals(normalized, this.snapshot.rangeRingStepNm) });
+  }
+
+  setRangeRingStepNm(stepNm: number): void {
+    const normalized = this.positiveOr(stepNm, 0.25);
+    this.update({
+      rangeRingStepNm: normalized,
+      rangeRingIntervals: this.buildRangeIntervals(this.snapshot.rangeRingCount, normalized),
+    });
+  }
+
+  setFixedLocationMode(enabled: boolean): void {
+    this.update({ fixedLocationMode: enabled });
+  }
+
+  setFixedLocation(lat: number | null, lon: number | null): void {
+    const normalizedLat = lat !== null && Number.isFinite(lat) ? Math.min(90, Math.max(-90, lat)) : null;
+    const normalizedLon = lon !== null && Number.isFinite(lon) ? Math.min(180, Math.max(-180, lon)) : null;
+    this.update({ fixedLocationLat: normalizedLat, fixedLocationLon: normalizedLon });
+  }
+
+  setOwnVesselIconScale(scale: number): void {
+    const normalized = this.clampNumber(scale, DEFAULT_SETTINGS.ownVesselIconScale, 0.5, 2.5);
+    this.update({ ownVesselIconScale: normalized });
+  }
+
+  setAisTargetIconScale(scale: number): void {
+    const normalized = this.clampNumber(scale, DEFAULT_SETTINGS.aisTargetIconScale, 0.4, 2.0);
+    this.update({ aisTargetIconScale: normalized });
+  }
+
+  setShowHeadingLine(show: boolean): void {
+    this.update({ showHeadingLine: show });
+  }
+
+  setHeadingLineMinutes(minutes: number): void {
+    const normalized = this.clampNumber(minutes, DEFAULT_SETTINGS.headingLineMinutes, 1, 120);
+    this.update({ headingLineMinutes: normalized });
+  }
+
+  setCogLineMinutes(minutes: number): void {
+    const normalized = this.clampNumber(minutes, DEFAULT_SETTINGS.cogLineMinutes, 1, 120);
+    this.update({ cogLineMinutes: normalized });
+  }
+
+  setShowLaylines(show: boolean): void {
+    this.update({ showLaylines: show });
+  }
+
+  setLaylineAngleDeg(angleDeg: number): void {
+    const normalized = this.clampNumber(angleDeg, DEFAULT_SETTINGS.laylineAngleDeg, 10, 80);
+    this.update({ laylineAngleDeg: normalized });
+  }
+
+  setWindTrackMinZoom(zoom: number): void {
+    const normalized = this.clampNumber(zoom, DEFAULT_SETTINGS.windTrackMinZoom, 0, 24);
+    this.update({ windTrackMinZoom: normalized });
+  }
+
+  setRangeRingsMinZoom(zoom: number): void {
+    const normalized = this.clampNumber(zoom, DEFAULT_SETTINGS.rangeRingsMinZoom, 0, 24);
+    this.update({ rangeRingsMinZoom: normalized });
+  }
+
+  setHideMooredTargets(hide: boolean): void {
+    this.update({ hideMooredTargets: hide });
+  }
+
+  setHideAnchoredTargets(hide: boolean): void {
+    this.update({ hideAnchoredTargets: hide });
+  }
+
+  setAisInactiveAfterMinutes(minutes: number): void {
+    const normalized = this.clampNumber(minutes, DEFAULT_SETTINGS.aisInactiveAfterMinutes, 1, 120);
+    this.update({ aisInactiveAfterMinutes: normalized });
+  }
+
+  setAisRemoveAfterMinutes(minutes: number): void {
+    const normalized = this.clampNumber(minutes, DEFAULT_SETTINGS.aisRemoveAfterMinutes, 1, 240);
+    this.update({ aisRemoveAfterMinutes: normalized });
+  }
+
+  setWindVectorSource(source: WindVectorSource): void {
+    this.update({ windVectorSource: source });
+  }
+
   toggleOpenSeaMap(): void {
     this.update({ showOpenSeaMap: !this.settingsSubject.value.showOpenSeaMap });
   }
@@ -154,7 +277,27 @@ export class ChartSettingsService {
   }
 
   setAllVesselTypes(visible: boolean): void {
-    this.update({ visibleVesselTypes: visible ? [...ALL_VESSEL_TYPES] : [] });
+    this.update({ visibleVesselTypes: visible ? [...VESSEL_TYPE_KEYS] : [] });
+  }
+
+  setVesselTypeColor(type: VesselTypeFilter, color: string): void {
+    const current = this.settingsSubject.value.vesselTypeColors[type];
+    const fallback = current ?? DEFAULT_VESSEL_TYPE_COLORS[type];
+    const normalized = normalizeHexColor(color, fallback);
+    if (normalized === current) {
+      return;
+    }
+
+    this.update({
+      vesselTypeColors: {
+        ...this.settingsSubject.value.vesselTypeColors,
+        [type]: normalized,
+      },
+    });
+  }
+
+  resetVesselTypeColors(): void {
+    this.update({ vesselTypeColors: { ...DEFAULT_VESSEL_TYPE_COLORS } });
   }
 
   // Track Settings
@@ -177,5 +320,106 @@ export class ChartSettingsService {
 
   update(partial: Partial<ChartSettings>): void {
     this.settingsSubject.next({ ...this.settingsSubject.value, ...partial });
+  }
+
+  private hydrateSettings(saved: Partial<ChartSettings>): ChartSettings {
+    const visibleVesselTypes = Array.isArray(saved.visibleVesselTypes)
+      ? saved.visibleVesselTypes.filter((type): type is VesselTypeFilter => this.isVesselTypeFilter(type))
+      : [...DEFAULT_SETTINGS.visibleVesselTypes];
+
+    const vesselTypeColors = this.hydrateVesselTypeColors(saved.vesselTypeColors);
+
+    const normalized = {
+      ...DEFAULT_SETTINGS,
+      ...saved,
+      visibleVesselTypes,
+      vesselTypeColors,
+    };
+
+    const rangeRingCount = this.coerceInteger(saved.rangeRingCount, DEFAULT_SETTINGS.rangeRingCount, 1, 12);
+    const rangeRingStepNm = this.positiveOr(
+      typeof saved.rangeRingStepNm === 'number' ? saved.rangeRingStepNm : DEFAULT_SETTINGS.rangeRingStepNm,
+      DEFAULT_SETTINGS.rangeRingStepNm,
+    );
+    normalized.rangeRingCount = rangeRingCount;
+    normalized.rangeRingStepNm = rangeRingStepNm;
+    normalized.rangeRingIntervals = this.buildRangeIntervals(rangeRingCount, rangeRingStepNm);
+    normalized.ownVesselIconScale = this.clampNumber(saved.ownVesselIconScale, DEFAULT_SETTINGS.ownVesselIconScale, 0.5, 2.5);
+    normalized.aisTargetIconScale = this.clampNumber(saved.aisTargetIconScale, DEFAULT_SETTINGS.aisTargetIconScale, 0.4, 2.0);
+    normalized.headingLineMinutes = this.clampNumber(saved.headingLineMinutes, DEFAULT_SETTINGS.headingLineMinutes, 1, 120);
+    normalized.cogLineMinutes = this.clampNumber(saved.cogLineMinutes, DEFAULT_SETTINGS.cogLineMinutes, 1, 120);
+    normalized.laylineAngleDeg = this.clampNumber(saved.laylineAngleDeg, DEFAULT_SETTINGS.laylineAngleDeg, 10, 80);
+    normalized.windTrackMinZoom = this.clampNumber(saved.windTrackMinZoom, DEFAULT_SETTINGS.windTrackMinZoom, 0, 24);
+    normalized.rangeRingsMinZoom = this.clampNumber(saved.rangeRingsMinZoom, DEFAULT_SETTINGS.rangeRingsMinZoom, 0, 24);
+    normalized.aisInactiveAfterMinutes = this.clampNumber(saved.aisInactiveAfterMinutes, DEFAULT_SETTINGS.aisInactiveAfterMinutes, 1, 120);
+    normalized.aisRemoveAfterMinutes = this.clampNumber(saved.aisRemoveAfterMinutes, DEFAULT_SETTINGS.aisRemoveAfterMinutes, 1, 240);
+    normalized.fixedLocationLat = this.toNullableClamped(saved.fixedLocationLat, -90, 90);
+    normalized.fixedLocationLon = this.toNullableClamped(saved.fixedLocationLon, -180, 180);
+    normalized.windVectorSource =
+      saved.windVectorSource === 'apparent' || saved.windVectorSource === 'true'
+        ? saved.windVectorSource
+        : DEFAULT_SETTINGS.windVectorSource;
+    normalized.showHeadingLine = this.toBoolean(saved.showHeadingLine, DEFAULT_SETTINGS.showHeadingLine);
+    normalized.showLaylines = this.toBoolean(saved.showLaylines, DEFAULT_SETTINGS.showLaylines);
+    normalized.hideMooredTargets = this.toBoolean(saved.hideMooredTargets, DEFAULT_SETTINGS.hideMooredTargets);
+    normalized.hideAnchoredTargets = this.toBoolean(saved.hideAnchoredTargets, DEFAULT_SETTINGS.hideAnchoredTargets);
+    normalized.fixedLocationMode = this.toBoolean(saved.fixedLocationMode, DEFAULT_SETTINGS.fixedLocationMode);
+
+    return normalized;
+  }
+
+  private hydrateVesselTypeColors(
+    savedColors: Partial<Record<VesselTypeFilter, unknown>> | undefined,
+  ): VesselTypeColors {
+    const next: VesselTypeColors = { ...DEFAULT_VESSEL_TYPE_COLORS };
+    if (!savedColors || typeof savedColors !== 'object') {
+      return next;
+    }
+
+    for (const key of VESSEL_TYPE_KEYS) {
+      const candidate = savedColors[key];
+      next[key] = normalizeHexColor(candidate, DEFAULT_VESSEL_TYPE_COLORS[key]);
+    }
+    return next;
+  }
+
+  private isVesselTypeFilter(value: unknown): value is VesselTypeFilter {
+    return typeof value === 'string' && VESSEL_TYPE_KEYS.includes(value as VesselTypeFilter);
+  }
+
+  private buildRangeIntervals(count: number, stepNm: number): number[] {
+    const safeCount = Math.max(1, Math.min(12, Math.round(count)));
+    const safeStep = this.positiveOr(stepNm, 0.25);
+    return Array.from({ length: safeCount }, (_, index) => Number(((index + 1) * safeStep).toFixed(3)));
+  }
+
+  private clampNumber(value: unknown, fallback: number, min: number, max: number): number {
+    const numeric = typeof value === 'number' && Number.isFinite(value) ? value : fallback;
+    return Math.min(max, Math.max(min, numeric));
+  }
+
+  private toNullableClamped(value: unknown, min: number, max: number): number | null {
+    if (value === null || value === undefined) {
+      return null;
+    }
+    if (typeof value !== 'number' || !Number.isFinite(value)) {
+      return null;
+    }
+    return Math.min(max, Math.max(min, value));
+  }
+
+  private coerceInteger(value: unknown, fallback: number, min: number, max: number): number {
+    if (typeof value !== 'number' || !Number.isFinite(value)) {
+      return fallback;
+    }
+    return Math.max(min, Math.min(max, Math.round(value)));
+  }
+
+  private positiveOr(value: number, fallback: number): number {
+    return Number.isFinite(value) && value > 0 ? value : fallback;
+  }
+
+  private toBoolean(value: unknown, fallback: boolean): boolean {
+    return typeof value === 'boolean' ? value : fallback;
   }
 }

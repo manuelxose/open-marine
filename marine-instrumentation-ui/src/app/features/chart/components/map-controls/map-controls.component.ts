@@ -39,7 +39,7 @@ import { AppIconComponent } from '../../../../shared/components/app-icon/app-ico
           [class.active]="autoCenter"
           [disabled]="!canCenter"
           (click)="centerOnVessel.emit()"
-          [title]="autoCenter ? 'Auto-tracking enabled' : 'Center & follow vessel'">
+          [title]="autoCenter ? 'Disable auto-tracking' : 'Center & follow vessel'">
           <app-icon name="crosshair" [size]="16" />
           <span *ngIf="autoCenter" class="control-btn__micro-label">A</span>
         </button>
@@ -56,9 +56,23 @@ import { AppIconComponent } from '../../../../shared/components/app-icon/app-ico
 
       <!-- Tools Group -->
       <div class="control-group">
-        <button class="control-btn" (click)="addWaypoint.emit()" title="Add Waypoint" aria-label="Add Waypoint">
+        <button
+          class="control-btn"
+          [class.active]="addWaypointModeActive"
+          (click)="addWaypoint.emit()"
+          [title]="addWaypointModeActive ? 'Stop Add Waypoint' : 'Add Waypoint'"
+          aria-label="Add Waypoint">
           <app-icon name="waypoint" [size]="16" />
-          <span class="control-btn__micro-label">+</span>
+          <span class="control-btn__micro-label">{{ addWaypointModeActive ? 'ON' : '+' }}</span>
+        </button>
+        <div class="control-group__divider"></div>
+        <button
+          class="control-btn"
+          [disabled]="!hasActiveWaypoint"
+          (click)="deleteActiveWaypoint.emit()"
+          title="Delete active waypoint"
+          aria-label="Delete active waypoint">
+          <app-icon name="trash" [size]="16" />
         </button>
         <div class="control-group__divider"></div>
         <button
@@ -212,6 +226,8 @@ export class MapControlsComponent {
   @Input() anchorWatchActive = false;
   @Input() showOpenSeaMap = false;
   @Input() measureActive = false;
+  @Input() addWaypointModeActive = false;
+  @Input() hasActiveWaypoint = false;
   @Input() panelOpen = false;
   @Input() settingsPanelOpen = false;
 
@@ -225,5 +241,6 @@ export class MapControlsComponent {
   @Output() toggleAnchorWatch = new EventEmitter<void>();
   @Output() toggleOpenSeaMap = new EventEmitter<void>();
   @Output() toggleMeasure = new EventEmitter<void>();
+  @Output() deleteActiveWaypoint = new EventEmitter<void>();
   @Output() toggleSettingsPanel = new EventEmitter<void>();
 }

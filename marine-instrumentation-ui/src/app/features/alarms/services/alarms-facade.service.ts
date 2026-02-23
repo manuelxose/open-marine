@@ -3,13 +3,13 @@ import { isPlatformBrowser } from '@angular/common';
 import { DatapointStoreService } from '../../../state/datapoints/datapoint-store.service';
 import { AlarmStoreService } from '../../../state/alarms/alarm-store.service';
 import { AudioService } from '../../../core/services/audio.service';
-import { AlarmSeverity, AlarmState } from '../../../state/alarms/alarm.models';
+import { AlarmSeverity, AlarmState, AlarmType } from '../../../state/alarms/alarm.models';
 import { PATHS } from '@omi/marine-data-contract';
 import { haversineDistanceMeters } from '../../../state/calculations/navigation';
 import { Subscription, combineLatest, debounceTime, distinctUntilChanged, filter, interval, map, startWith } from 'rxjs';
 import { AisStoreService } from '../../../state/ais/ais-store.service';
 import { toObservable } from '@angular/core/rxjs-interop';
-import { AlarmSettingsService } from '../../../state/alarms/alarm-settings.service';
+import { AlarmSettings, AlarmSettingsService } from '../../../state/alarms/alarm-settings.service';
 import { PlaybackStoreService } from '../../../state/playback/playback-store.service';
 
 const METERS_PER_NM = 1852;
@@ -29,8 +29,21 @@ export class AlarmsFacadeService implements OnDestroy {
   private readonly isBrowser = isPlatformBrowser(this.platformId);
 
   readonly alarms$ = this.alarmStore.alarms$;
-  readonly activeAlarms$ = this.alarmStore.activeAlarms$;
-  readonly highestSeverity$ = this.alarmStore.highestSeverity$;
+  readonly activeAlarms$ = combineLatest([
+    this.alarmStore.activeAlarms$,
+    this.alarmSettings.settings$,
+  ]).pipe(
+    map(([alarms, settings]) => alarms.filter((alarm) => this.isAlarmVisible(alarm.type, settings)))
+  );
+  readonly highestSeverity$ = this.activeAlarms$.pipe(
+    map((alarms) => {
+      if (alarms.some((a) => a.severity === AlarmSeverity.Emergency)) return AlarmSeverity.Emergency;
+      if (alarms.some((a) => a.severity === AlarmSeverity.Critical)) return AlarmSeverity.Critical;
+      if (alarms.some((a) => a.severity === AlarmSeverity.Warning)) return AlarmSeverity.Warning;
+      if (alarms.some((a) => a.severity === AlarmSeverity.Info)) return AlarmSeverity.Info;
+      return null;
+    })
+  );
 
   private readonly playbackActive$ = this.playbackStore.state$.pipe(
     map((state) => state.status === 'ready' || state.status === 'playing' || state.status === 'paused'),
@@ -45,6 +58,7 @@ export class AlarmsFacadeService implements OnDestroy {
 
   constructor() {
     this.restoreAnchorWatchConfig();
+    this.initAlarmVisibilitySync();
     this.initAudioSync();
     this.initPlaybackSuppression();
     this.initAnchorWatch();
@@ -73,63 +87,57 @@ export class AlarmsFacadeService implements OnDestroy {
   }
 
   private initAudioSync(): void {
-    // Play audio based on highest severity
     this.sub.add(
-      combineLatest([this.highestSeverity$, this.playbackActive$])
+      combineLatest([this.activeAlarms$, this.playbackActive$])
         .pipe(
-          // Debounce to avoid rapid switching
           debounceTime(200),
-          // Only play if we have active unacknowledged/unsilenced alarms with severity
-          // But wait, the Store activeAlarms$ includes Ack/Silence.
-          // We need to check if ANY active alarm is NOT silenced/ack?
-          // Actually, highestSeverity$ logic in Store counts Ack/Silenced.
-          // Usually Ack stops audio. Silence stops audio.
-          // AudioService logic needs refinement or we handle it here.
-          // Let's refine AlarmStore logic or here:
-          
-          // Re-derive audio trigger:
-          // We want audio ONLY if there is at least one alarm in State.Active (not Ack, not Silenced)
-          // (Unless Emergency, maybe that persists?)
         )
-        .subscribe(([, playbackActive]) => {
-           if (playbackActive) {
-             this.audioService.stop();
-             return;
-           }
-           // We need to check if we should play.
-           const currentState = this.alarmStore['_alarms']?.value || new Map();
-           const alarms = Array.from(currentState.values());
-           
-           const audibleAlarm = alarms.find(a => a.state === AlarmState.Active);
-           
-           if (audibleAlarm) {
-             // Play the sound for the highest severity among audible alarms
-             // (Simple version: just take this one's severity or find max)
-             // Let's find max severity of ACTIVE alarms
-             const activeAlarms = alarms.filter(a => a.state === AlarmState.Active);
-             let maxSev: AlarmSeverity | null = null;
-             const severityRank: Record<AlarmSeverity, number> = {
-               [AlarmSeverity.Info]: 0,
-               [AlarmSeverity.Warning]: 1,
-               [AlarmSeverity.Critical]: 2,
-               [AlarmSeverity.Emergency]: 3,
-             };
+        .subscribe(([alarms, playbackActive]) => {
+          if (playbackActive) {
+            this.audioService.stop();
+            return;
+          }
 
-             for (const a of activeAlarms) {
-               if (!maxSev || severityRank[a.severity] > severityRank[maxSev]) {
-                 maxSev = a.severity;
-               }
-             }
-             
-             if (maxSev) {
-               this.audioService.playAlarm(maxSev);
-             } else {
-               this.audioService.stop();
-             }
-           } else {
-             this.audioService.stop();
-           }
+          const activeAlarms = alarms.filter((alarm) => alarm.state === AlarmState.Active);
+          if (activeAlarms.length === 0) {
+            this.audioService.stop();
+            return;
+          }
+
+          let maxSeverity = activeAlarms[0]?.severity ?? AlarmSeverity.Info;
+          for (const alarm of activeAlarms) {
+            if (this.severityRank(alarm.severity) > this.severityRank(maxSeverity)) {
+              maxSeverity = alarm.severity;
+            }
+          }
+
+          this.audioService.playAlarm(maxSeverity);
         })
+    );
+  }
+
+  private initAlarmVisibilitySync(): void {
+    this.sub.add(
+      this.alarmSettings.settings$.subscribe((settings) => {
+        if (!settings.showShallowWaterAlarm) {
+          this.shallowActive = false;
+          this.alarmStore.clearAlarm('shallow-water');
+        }
+        if (!settings.showBatteryLowAlarm) {
+          this.batteryActive = false;
+          this.alarmStore.clearAlarm('battery-low');
+        }
+        if (!settings.showCpaWarningAlarm) {
+          this.alarmStore.clearAlarm('cpa-warning');
+        }
+        if (!settings.showGpsLostAlarm) {
+          this.gpsLostActive = false;
+          this.alarmStore.clearAlarm('gps-lost');
+        }
+        if (!settings.showAnchorWatchAlarm) {
+          this.alarmStore.clearAlarm('anchor-watch');
+        }
+      })
     );
   }
 
@@ -149,6 +157,11 @@ export class AlarmsFacadeService implements OnDestroy {
 
   private restoreAnchorWatchConfig(): void {
     if (!this.isBrowser) {
+      return;
+    }
+
+    if (!this.alarmSettings.snapshot.showAnchorWatchAlarm) {
+      localStorage.removeItem(ANCHOR_STORAGE_KEY);
       return;
     }
 
@@ -192,7 +205,12 @@ export class AlarmsFacadeService implements OnDestroy {
     }
 
     this.sub.add(
-      this.alarmStore.alarms$.subscribe((alarms) => {
+      combineLatest([this.alarmStore.alarms$, this.alarmSettings.settings$]).subscribe(([alarms, settings]) => {
+        if (!settings.showAnchorWatchAlarm) {
+          localStorage.removeItem(ANCHOR_STORAGE_KEY);
+          return;
+        }
+
         const anchorAlarm = alarms.find((alarm) => alarm.type === 'anchor-watch');
         if (!anchorAlarm || anchorAlarm.state === AlarmState.Cleared || anchorAlarm.state === AlarmState.Inactive) {
           localStorage.removeItem(ANCHOR_STORAGE_KEY);
@@ -222,66 +240,57 @@ export class AlarmsFacadeService implements OnDestroy {
     this.sub.add(
       combineLatest([
         this.alarmStore.alarms$.pipe(
-          map(alarms => alarms.find(a => a.type === 'anchor-watch')),
-          // Only proceed if anchor watch is configured (exists and not cleared/inactive)
-          filter(a => !!a && a.state !== AlarmState.Cleared && a.state !== AlarmState.Inactive && !!a.data?.['anchorPosition'])
+          map((alarms) => alarms.find((a) => a.type === 'anchor-watch') ?? null),
         ),
-        this.datapointStore.observe<{latitude:number, longitude:number}>(PATHS.navigation.position),
+        this.alarmSettings.settings$,
+        this.datapointStore.observe<{ latitude: number; longitude: number }>(PATHS.navigation.position),
         this.playbackActive$,
       ]).pipe(
-        debounceTime(1000) // Check every second
-      ).subscribe(([anchorAlarm, positionDp, playbackActive]) => {
-         if (playbackActive) return;
-         if (!anchorAlarm || !positionDp?.value) return;
+        debounceTime(1000)
+      ).subscribe(([anchorAlarm, settings, positionDp, playbackActive]) => {
+        if (!settings.showAnchorWatchAlarm) {
+          this.alarmStore.clearAlarm('anchor-watch');
+          return;
+        }
 
-         const currentPos = { lat: positionDp.value.latitude, lon: positionDp.value.longitude };
-         const anchorData = anchorAlarm.data;
-         if (!anchorData) return;
-         const anchorPos = anchorData['anchorPosition'] as { lat: number; lon: number };
-         const radius = (anchorData['radius'] as number) || 40;
-         
-         const distance = haversineDistanceMeters(anchorPos, currentPos);
-         
-         const isDrifting = distance > radius;
-         
-         // If state needs update
-         if (isDrifting && anchorAlarm.severity !== AlarmSeverity.Critical) {
-            // ESCALATE to Critical
-            this.alarmStore.triggerAlarm(
-               anchorAlarm.id,
-               anchorAlarm.type,
-               AlarmSeverity.Critical,
-               'ANCHOR DRAG DETECTED',
-               { ...anchorAlarm.data, currentDistance: distance }
-            );
-         } else if (!isDrifting && anchorAlarm.severity === AlarmSeverity.Critical) {
-            // DE-ESCALATE to Warning (Monitoring)
-            // Note: Usually once triggered we might want manual clear?
-            // But if vessel swings back, maybe auto-clear is annoying.
-            // Let's keep it Critical until acknowledged? 
-            // If we use triggerAlarm, it will reset to Active if severity increases.
-            // If severity decreases, we explicitly allow it here to "auto-resolve" valid range.
-            
-            // However, spec implies critical safety.
-            // Let's auto-recover severity if back in safe zone, but keep it as Warning/Active?
-             this.alarmStore.triggerAlarm(
-               anchorAlarm.id,
-               anchorAlarm.type,
-               AlarmSeverity.Warning,
-               'Anchor Watch Active', // Back to normal message
-               { ...anchorAlarm.data, currentDistance: distance }
-            );
-         } else {
-             // Just update metadata (distance) without changing triggering/severity
-             // triggerAlarm handles data-only updates gracefully
-             this.alarmStore.triggerAlarm(
-               anchorAlarm.id,
-               anchorAlarm.type,
-               anchorAlarm.severity,
-               anchorAlarm.message,
-               { ...anchorAlarm.data, currentDistance: distance }
-            );
-         }
+        if (playbackActive) return;
+        if (!anchorAlarm || !positionDp?.value) return;
+        if (anchorAlarm.state === AlarmState.Cleared || anchorAlarm.state === AlarmState.Inactive) return;
+
+        const anchorData = anchorAlarm.data;
+        if (!anchorData?.['anchorPosition']) return;
+
+        const currentPos = { lat: positionDp.value.latitude, lon: positionDp.value.longitude };
+        const anchorPos = anchorData['anchorPosition'] as { lat: number; lon: number };
+        const radius = (anchorData['radius'] as number) || 40;
+        const distance = haversineDistanceMeters(anchorPos, currentPos);
+        const isDrifting = distance > radius;
+
+        if (isDrifting && anchorAlarm.severity !== AlarmSeverity.Critical) {
+          this.alarmStore.triggerAlarm(
+            anchorAlarm.id,
+            anchorAlarm.type,
+            AlarmSeverity.Critical,
+            'ANCHOR DRAG DETECTED',
+            { ...anchorAlarm.data, currentDistance: distance }
+          );
+        } else if (!isDrifting && anchorAlarm.severity === AlarmSeverity.Critical) {
+          this.alarmStore.triggerAlarm(
+            anchorAlarm.id,
+            anchorAlarm.type,
+            AlarmSeverity.Warning,
+            'Anchor Watch Active',
+            { ...anchorAlarm.data, currentDistance: distance }
+          );
+        } else {
+          this.alarmStore.triggerAlarm(
+            anchorAlarm.id,
+            anchorAlarm.type,
+            anchorAlarm.severity,
+            anchorAlarm.message,
+            { ...anchorAlarm.data, currentDistance: distance }
+          );
+        }
       })
     );
   }
@@ -297,6 +306,12 @@ export class AlarmsFacadeService implements OnDestroy {
         this.alarmSettings.settings$,
         this.playbackActive$,
       ]).subscribe(([point, settings, playbackActive]) => {
+        if (!settings.showShallowWaterAlarm) {
+          this.shallowActive = false;
+          this.alarmStore.clearAlarm('shallow-water');
+          return;
+        }
+
         if (playbackActive) return;
         const value = point.value;
         const threshold = settings.shallowDepthThreshold;
@@ -346,6 +361,12 @@ export class AlarmsFacadeService implements OnDestroy {
         this.alarmSettings.settings$,
         this.playbackActive$,
       ]).subscribe(([point, settings, playbackActive]) => {
+        if (!settings.showBatteryLowAlarm) {
+          this.batteryActive = false;
+          this.alarmStore.clearAlarm('battery-low');
+          return;
+        }
+
         if (playbackActive) return;
         const value = point.value;
         const threshold = settings.lowBatteryThreshold;
@@ -391,6 +412,11 @@ export class AlarmsFacadeService implements OnDestroy {
         this.alarmSettings.settings$,
         this.playbackActive$,
       ]).subscribe(([targetsMap, settings, playbackActive]) => {
+        if (!settings.showCpaWarningAlarm) {
+          this.alarmStore.clearAlarm('cpa-warning');
+          return;
+        }
+
         if (playbackActive) return;
         const targets = Array.from(targetsMap.values());
         if (targets.length === 0) {
@@ -403,6 +429,11 @@ export class AlarmsFacadeService implements OnDestroy {
 
         let minCpa = Infinity;
         for (const target of targets) {
+          // Use only valid own-ship risk solutions (stationary/noisy GPS targets are filtered upstream).
+          if (target.riskEligible !== true) {
+            continue;
+          }
+
           if (typeof target.cpa !== 'number' || !Number.isFinite(target.cpa)) {
             continue;
           }
@@ -449,7 +480,13 @@ export class AlarmsFacadeService implements OnDestroy {
         this.alarmSettings.settings$,
         interval(1000).pipe(startWith(0)),
         this.playbackActive$,
-      ]).subscribe(([timestamp, settings, _tick, playbackActive]) => {
+      ]).subscribe(([timestamp, settings, , playbackActive]) => {
+        if (!settings.showGpsLostAlarm) {
+          this.gpsLostActive = false;
+          this.alarmStore.clearAlarm('gps-lost');
+          return;
+        }
+
         if (playbackActive) return;
         const thresholdMs = settings.gpsLostSeconds * 1000;
         const hysteresisMs = settings.gpsLostHysteresisSeconds * 1000;
@@ -486,5 +523,36 @@ export class AlarmsFacadeService implements OnDestroy {
         }
       })
     );
+  }
+
+  private isAlarmVisible(type: AlarmType, settings: AlarmSettings): boolean {
+    switch (type) {
+      case 'shallow-water':
+        return settings.showShallowWaterAlarm;
+      case 'battery-low':
+        return settings.showBatteryLowAlarm;
+      case 'cpa-warning':
+        return settings.showCpaWarningAlarm;
+      case 'gps-lost':
+        return settings.showGpsLostAlarm;
+      case 'anchor-watch':
+        return settings.showAnchorWatchAlarm;
+      default:
+        return true;
+    }
+  }
+
+  private severityRank(severity: AlarmSeverity): number {
+    switch (severity) {
+      case AlarmSeverity.Emergency:
+        return 3;
+      case AlarmSeverity.Critical:
+        return 2;
+      case AlarmSeverity.Warning:
+        return 1;
+      case AlarmSeverity.Info:
+      default:
+        return 0;
+    }
   }
 }

@@ -15,7 +15,7 @@ import type { CriticalStripVm, StatusTone } from '../../types/dashboard-vm';
 export class CriticalStripComponent {
   @Input({ required: true }) vm!: CriticalStripVm;
 
-  readonly placeholders = Array.from({ length: 6 });
+  readonly placeholders = Array.from({ length: 8 });
 
   trackByLabel(_index: number, item: CriticalStripVm['items'][number]): string {
     return item.label;

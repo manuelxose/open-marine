@@ -13,7 +13,10 @@ export type InstrumentWidgetType =
   | 'battery'
   | 'meteo'
   | 'gps'
-  | 'clock';
+  | 'clock'
+  | 'cog'
+  | 'position'
+  | 'gps-status';
 
 export type InstrumentWidgetSize = 'sm' | 'md' | 'lg';
 
@@ -37,6 +40,9 @@ const DEFAULT_WIDGETS: InstrumentWidget[] = [
   { id: 'meteo', type: 'meteo', size: 'md', visible: true },
   { id: 'gps', type: 'gps', size: 'sm', visible: true },
   { id: 'clock', type: 'clock', size: 'sm', visible: true },
+  { id: 'cog', type: 'cog', size: 'sm', visible: true },
+  { id: 'position', type: 'position', size: 'md', visible: true },
+  { id: 'gps-status', type: 'gps-status', size: 'sm', visible: true },
 ];
 
 @Injectable({

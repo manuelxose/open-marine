@@ -1,8 +1,6 @@
 import { Component, ChangeDetectionStrategy, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { AppIconComponent, type IconName } from '../../shared/components/app-icon/app-icon.component';
-import { LayoutService } from '../../core/services/layout.service';
-import { DashboardLayoutService } from '../../features/dashboard/services/dashboard-layout.service';
 import { LanguageService } from '../../core/services/language.service';
 import { TranslatePipe } from '../../shared/pipes/translate.pipe';
 
@@ -15,6 +13,7 @@ import { AlarmSettingsComponent } from '../../features/settings/components/alarm
 import { ChartSettingsComponent } from '../../features/settings/components/chart-settings/chart-settings.component';
 import { DataSettingsComponent } from '../../features/settings/components/data-settings/data-settings.component';
 import { ExperimentsSettingsComponent } from '../../features/settings/components/experiments-settings/experiments-settings.component';
+import { DashboardWidgetsSettingsComponent } from '../../features/settings/components/dashboard-widgets-settings/dashboard-widgets-settings.component';
 
 type SettingsSection =
   | 'general'
@@ -49,6 +48,7 @@ interface SectionMeta {
     ChartSettingsComponent,
     DataSettingsComponent,
     ExperimentsSettingsComponent,
+    DashboardWidgetsSettingsComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -122,29 +122,8 @@ interface SectionMeta {
           }
           @case ('dashboard') {
             <h2>Dashboard</h2>
-            <div class="settings-group">
-              <div class="settings-group__title">Widget Visibility</div>
-              @for (def of widgetDefs; track def.id) {
-                <div class="settings-row">
-                  <div>
-                    <div class="settings-row__label">{{ def.title | translate }}</div>
-                    <div class="settings-row__desc">{{ def.description | translate }}</div>
-                  </div>
-                  <div class="settings-row__control">
-                    <button
-                      (click)="toggleWidget(def.id)"
-                      class="toggle-btn"
-                      [class.active]="isWidgetVisible(def.id)"
-                    >
-                      <span class="toggle-slider"></span>
-                    </button>
-                  </div>
-                </div>
-              }
-            </div>
-            <button (click)="resetLayout()" class="reset-btn">
-              {{ 'settings.widgets.reset' | translate }}
-            </button>
+            <p class="settings-subtitle">Configure dashboard panel visibility, order and layout.</p>
+            <app-dashboard-widgets-settings />
           }
           @case ('data') {
             <h2>Data</h2>
@@ -417,8 +396,6 @@ interface SectionMeta {
 })
 export class SettingsPage {
   readonly lang = inject(LanguageService);
-  private readonly layout = inject(LayoutService);
-  private readonly dashLayout = inject(DashboardLayoutService);
 
   readonly activeSection = signal<SettingsSection>('general');
 
@@ -434,38 +411,6 @@ export class SettingsPage {
     { id: 'data', label: 'Data', icon: 'download' },
     { id: 'experiments', label: 'Experiments', icon: 'activity' },
   ];
-
-  get widgetDefs() {
-    return this.layout.getWidgetDefinitions();
-  }
-
-  /** Uses DashboardLayoutService to check visibility */
-  isWidgetVisible(widgetId: string): boolean {
-    const widget = this.dashLayout.getAllWidgets().find(w => w.id === widgetId);
-    if (widget) return widget.visible;
-    // Fallback to old LayoutService for non-dashboard widgets
-    const config = this.layout.getSnapshot().widgets.find(w => w.id === widgetId);
-    return config?.visible ?? false;
-  }
-
-  toggleWidget(widgetId: string) {
-    // Try DashboardLayoutService first
-    const dashWidgets = this.dashLayout.getAllWidgets();
-    if (dashWidgets.some(w => w.id === widgetId)) {
-      this.dashLayout.toggleWidget(widgetId);
-    } else {
-      this.layout.toggleWidget(widgetId);
-    }
-  }
-
-  resetLayout() {
-    this.dashLayout.reset();
-    this.layout.reset();
-  }
-
-  trackByWidget(_index: number, def: { id: string }): string {
-    return def.id;
-  }
 
   onLanguageChange(event: Event) {
     const target = event.target as HTMLSelectElement;
