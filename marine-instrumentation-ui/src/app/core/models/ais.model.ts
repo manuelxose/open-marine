@@ -63,3 +63,15 @@ export interface AisState {
   closestTargetId?: string;
   dangerousTargetIds: string[];
 }
+
+/**
+ * A single recorded position point for an AIS target historical trail.
+ * Stored separately from AisTarget to keep target signal payload compact.
+ */
+export interface AisTrackPoint {
+  latitude: number;
+  longitude: number;
+  timestamp: number; // ms since epoch
+  sog?: number; // m/s
+  cog?: number; // radians
+}

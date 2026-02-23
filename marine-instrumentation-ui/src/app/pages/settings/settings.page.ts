@@ -3,6 +3,9 @@ import { CommonModule } from '@angular/common';
 import { AppIconComponent, type IconName } from '../../shared/components/app-icon/app-icon.component';
 import { LanguageService } from '../../core/services/language.service';
 import { TranslatePipe } from '../../shared/pipes/translate.pipe';
+import { OnboardingService } from '../../core/onboarding/onboarding.service';
+import { GuidedTourService } from '../../core/onboarding/tour/guided-tour.service';
+import { AppToastService } from '../../shared/components/app-toast/app-toast.service';
 
 // Standalone settings sub-components
 import { VesselSettingsComponent } from '../../features/settings/components/vessel-settings/vessel-settings.component';
@@ -25,7 +28,8 @@ type SettingsSection =
   | 'connection'
   | 'dashboard'
   | 'data'
-  | 'experiments';
+  | 'experiments'
+  | 'tour';
 
 interface SectionMeta {
   id: SettingsSection;
@@ -132,6 +136,35 @@ interface SectionMeta {
           @case ('experiments') {
             <h2>Experiments</h2>
             <app-experiments-settings />
+          }
+          @case ('tour') {
+            <h2>{{ 'settings.sections.tour' | translate }}</h2>
+            <p class="settings-subtitle">{{ 'settings.tour.replay.description' | translate }}</p>
+            <div class="settings-group">
+              <div class="settings-group__title">{{ 'settings.sections.tour' | translate }}</div>
+              <div class="settings-row">
+                <div>
+                  <div class="settings-row__label">{{ 'settings.tour.replay.label' | translate }}</div>
+                  <div class="settings-row__desc">{{ 'settings.tour.replay.description' | translate }}</div>
+                </div>
+                <div class="settings-row__control">
+                  <button class="reset-btn" style="width: auto; margin-top: 0;" (click)="startTour()">
+                    {{ 'settings.tour.replay.button' | translate }}
+                  </button>
+                </div>
+              </div>
+              <div class="settings-row">
+                <div>
+                  <div class="settings-row__label">{{ 'settings.tour.reset.label' | translate }}</div>
+                  <div class="settings-row__desc">{{ 'settings.tour.reset.description' | translate }}</div>
+                </div>
+                <div class="settings-row__control">
+                  <button class="reset-btn" style="width: auto; margin-top: 0;" (click)="resetOnboarding()">
+                    {{ 'settings.tour.reset.button' | translate }}
+                  </button>
+                </div>
+              </div>
+            </div>
           }
         }
       </div>
@@ -410,11 +443,29 @@ export class SettingsPage {
     { id: 'dashboard', label: 'Dashboard', icon: 'layers' },
     { id: 'data', label: 'Data', icon: 'download' },
     { id: 'experiments', label: 'Experiments', icon: 'activity' },
+    { id: 'tour', label: 'Tour', icon: 'compass' },
   ];
+
+  private readonly onboardingService = inject(OnboardingService);
+  private readonly guidedTourService = inject(GuidedTourService);
+  private readonly toastService = inject(AppToastService);
 
   onLanguageChange(event: Event) {
     const target = event.target as HTMLSelectElement;
     this.lang.setLanguage(target.value as 'en' | 'es');
+  }
+
+  startTour(): void {
+    this.guidedTourService.start();
+  }
+
+  resetOnboarding(): void {
+    this.onboardingService.reset();
+    this.toastService.show({
+      message: 'Onboarding has been reset. It will show on next app reload.',
+      type: 'info',
+      duration: 3000,
+    });
   }
 }
 

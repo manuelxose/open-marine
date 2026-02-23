@@ -29,25 +29,26 @@
   ],
   "dataGroups": [
     {
-      "name": "map-tiles-osm",
+      "name": "osm-tiles",
       "urls": [
         "https://tile.openstreetmap.org/**"
       ],
       "cacheConfig": {
-        "maxSize": 500,
+        "maxSize": 10000,
         "maxAge": "7d",
         "timeout": "5s",
-        "strategy": "freshness"
+        "strategy": "performance"
       }
     },
     {
-      "name": "map-tiles-openseamap",
+      "name": "openseamap-tiles",
       "urls": [
         "https://tiles.openseamap.org/**"
       ],
       "cacheConfig": {
-        "maxSize": 200,
-        "maxAge": "30d",
+        "maxSize": 5000,
+        "maxAge": "14d",
+        "timeout": "5s",
         "strategy": "performance"
       }
     }

@@ -68,6 +68,10 @@ const BEARING_LINE_LAYER_ID = 'chart-bearing-line-layer';
 const AIS_SOURCE_ID = 'chart-ais-source';
 const AIS_LAYER_ID = 'chart-ais-layer';
 const AIS_FALLBACK_ICON_ID = getAisVesselIconId('other');
+const AIS_TRACKS_SOURCE_ID = 'chart-ais-tracks-source';
+const AIS_TRACKS_LAYER_ID = 'chart-ais-tracks-layer';
+const AIS_PREDICT_SOURCE_ID = 'chart-ais-predict-source';
+const AIS_PREDICT_LAYER_ID = 'chart-ais-predict-layer';
 const CPA_LINE_SOURCE_ID = 'chart-cpa-line-source';
 const CPA_LINE_LAYER_ID = 'chart-cpa-line-layer';
 const ANCHOR_SOURCE_ID = 'chart-anchor-source';
@@ -165,6 +169,8 @@ export class MapLibreEngineService {
     visible: false,
   };
   private lastAisTargets: FeatureCollection<Point> = { type: 'FeatureCollection', features: [] };
+  private lastAisTracks: FeatureCollection<LineString> = { type: 'FeatureCollection', features: [] };
+  private lastAisPredictions: FeatureCollection<LineString> = { type: 'FeatureCollection', features: [] };
   private lastCpaLines: FeatureCollection<LineString> = { type: 'FeatureCollection', features: [] };
   private aisVesselTypeColors: VesselTypeColors = { ...DEFAULT_VESSEL_TYPE_COLORS };
   private ownVesselIconScale = 1.15;
@@ -585,6 +591,20 @@ export class MapLibreEngineService {
     }
   }
 
+  updateAisTracks(geojson: FeatureCollection<LineString>): void {
+    this.lastAisTracks = geojson;
+    if (this.mapReady) {
+      this.applyAisTracks();
+    }
+  }
+
+  updateAisPredictions(geojson: FeatureCollection<LineString>): void {
+    this.lastAisPredictions = geojson;
+    if (this.mapReady) {
+      this.applyAisPredictions();
+    }
+  }
+
   updateCpaLines(geojson: FeatureCollection<LineString>): void {
     this.lastCpaLines = geojson;
     if (this.mapReady) {
@@ -632,6 +652,79 @@ export class MapLibreEngineService {
     const layer = this.map.getLayer(CPA_LINE_LAYER_ID);
     if (layer) {
       this.map.setLayoutProperty(CPA_LINE_LAYER_ID, 'visibility', visible ? 'visible' : 'none');
+    }
+  }
+
+  private ensureAisTracksLayer(): void {
+    if (!this.map) return;
+
+    if (!this.map.getSource(AIS_TRACKS_SOURCE_ID)) {
+      this.map.addSource(AIS_TRACKS_SOURCE_ID, {
+        type: 'geojson',
+        data: { type: 'FeatureCollection', features: [] },
+      });
+    }
+
+    if (!this.map.getLayer(AIS_TRACKS_LAYER_ID)) {
+      this.map.addLayer({
+        id: AIS_TRACKS_LAYER_ID,
+        type: 'line',
+        source: AIS_TRACKS_SOURCE_ID,
+        layout: {
+          'line-cap': 'round',
+          'line-join': 'round',
+        },
+        paint: {
+          'line-color': [
+            'case',
+            ['boolean', ['get', 'isDangerous'], false],
+            '#ef4444',
+            '#9ca3af',
+          ],
+          'line-width': 1.5,
+          'line-opacity': [
+            'interpolate',
+            ['linear'],
+            ['get', 'age'],
+            0, 0.75,
+            1, 0.05,
+          ],
+        },
+      });
+    }
+  }
+
+  private ensureAisPredictionsLayer(): void {
+    if (!this.map) return;
+
+    if (!this.map.getSource(AIS_PREDICT_SOURCE_ID)) {
+      this.map.addSource(AIS_PREDICT_SOURCE_ID, {
+        type: 'geojson',
+        data: { type: 'FeatureCollection', features: [] },
+      });
+    }
+
+    if (!this.map.getLayer(AIS_PREDICT_LAYER_ID)) {
+      this.map.addLayer({
+        id: AIS_PREDICT_LAYER_ID,
+        type: 'line',
+        source: AIS_PREDICT_SOURCE_ID,
+        layout: {
+          'line-cap': 'round',
+          'line-join': 'round',
+        },
+        paint: {
+          'line-color': [
+            'case',
+            ['boolean', ['get', 'isDangerous'], false],
+            '#ef4444',
+            '#f59e0b',
+          ],
+          'line-width': 1.5,
+          'line-opacity': 0.6,
+          'line-dasharray': [2, 3],
+        },
+      });
     }
   }
 
@@ -700,6 +793,18 @@ export class MapLibreEngineService {
     if (!this.map) return;
     const source = this.map.getSource(AIS_SOURCE_ID) as maplibregl.GeoJSONSource | undefined;
     source?.setData(this.lastAisTargets);
+  }
+
+  private applyAisTracks(): void {
+    if (!this.map) return;
+    const source = this.map.getSource(AIS_TRACKS_SOURCE_ID) as maplibregl.GeoJSONSource | undefined;
+    source?.setData(this.lastAisTracks);
+  }
+
+  private applyAisPredictions(): void {
+    if (!this.map) return;
+    const source = this.map.getSource(AIS_PREDICT_SOURCE_ID) as maplibregl.GeoJSONSource | undefined;
+    source?.setData(this.lastAisPredictions);
   }
 
   private applyCpaLines(): void {
@@ -799,6 +904,8 @@ export class MapLibreEngineService {
     this.ensureRouteLayer();
     this.ensureRangeRingsLayer();
     this.ensureBearingLineLayer();
+    this.ensureAisTracksLayer();
+    this.ensureAisPredictionsLayer();
     this.ensureAisLayer();
     this.ensureCpaLinesLayer();
 
@@ -812,6 +919,8 @@ export class MapLibreEngineService {
     this.applyRoute();
     this.applyRangeRings();
     this.applyBearingLine();
+    this.applyAisTracks();
+    this.applyAisPredictions();
     this.applyAisTargets();
     this.applyCpaLines();
     this.updateCamera();
@@ -831,12 +940,17 @@ export class MapLibreEngineService {
   private applyOpenSeaMapOverlay(): void {
     if (!this.map) return;
 
-    if (this.showOpenSeaMap) {
+    const nauticalBaseActive = this.baseSource?.id === 'nautical';
+    const shouldShowOverlay = nauticalBaseActive || this.showOpenSeaMap;
+
+    if (shouldShowOverlay) {
       if (!this.map.getSource(OPENSEAMAP_SOURCE_ID)) {
         this.map.addSource(OPENSEAMAP_SOURCE_ID, {
           type: 'raster',
           tiles: ['https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png'],
           tileSize: 256,
+          minzoom: 8,
+          maxzoom: 18,
           attribution: '&copy; <a href="https://www.openseamap.org">OpenSeaMap</a> contributors',
         });
       }
@@ -846,9 +960,17 @@ export class MapLibreEngineService {
           id: OPENSEAMAP_LAYER_ID,
           type: 'raster',
           source: OPENSEAMAP_SOURCE_ID,
-          paint: { 'raster-opacity': 0.85 },
+          paint: {
+            'raster-opacity': nauticalBaseActive ? 0.9 : 0.85,
+            'raster-fade-duration': 200,
+          },
+          minzoom: 8,
         });
+      } else {
+        this.map.setPaintProperty(OPENSEAMAP_LAYER_ID, 'raster-opacity', nauticalBaseActive ? 0.9 : 0.85);
+        this.map.setPaintProperty(OPENSEAMAP_LAYER_ID, 'raster-fade-duration', 200);
       }
+      this.map.setLayerZoomRange(OPENSEAMAP_LAYER_ID, 8, 24);
     } else {
       if (this.map.getLayer(OPENSEAMAP_LAYER_ID)) {
         this.map.removeLayer(OPENSEAMAP_LAYER_ID);

@@ -42,7 +42,7 @@ import { MapSettingsPanelComponent } from './components/map-settings-panel/map-s
 // Utils & Types
 import { selectSog, selectCog, selectDepth, selectPosition, selectHeading, selectAws, selectAwa } from '../../state/datapoints/datapoint.selectors';
 import { bearingDistanceNm, metersPerSecondToKnots, toDegrees } from '../../state/calculations/navigation';
-import { ChartLeftPanelTab, MapOrientation } from './types/chart-vm';
+import { ChartLayerMode, ChartLeftPanelTab, MapOrientation } from './types/chart-vm';
 import { FeatureCollection, LineString, Point } from 'geojson';
 import { RouteFeatureCollection, WaypointFeatureCollection } from './types/chart-geojson';
 import { PLAYBACK_POSITION_LAT_PATH, PLAYBACK_POSITION_LON_PATH, PlaybackState } from '../../state/playback/playback.models';
@@ -100,9 +100,10 @@ const INITIAL_PLAYBACK_STATE: PlaybackState = {
           [orientation]="orientation()"
           [canCenter]="(controlsVm$ | async)?.canCenter ?? false"
           [autoCenter]="(controlsVm$ | async)?.autoCenter ?? false"
-          [sourceId]="(controlsVm$ | async)?.sourceId ?? 'osm-raster'"
+          [layerMode]="layerModeSignal()"
           [anchorWatchActive]="anchorWatchActive()"
           [showOpenSeaMap]="(controlsVm$ | async)?.showOpenSeaMap ?? false"
+          [showAisTracks]="showAisTracksSignal()"
           [measureActive]="measurementActive()"
           [addWaypointModeActive]="addWaypointMode()"
           [hasActiveWaypoint]="hasActiveWaypoint()"
@@ -115,6 +116,7 @@ const INITIAL_PLAYBACK_STATE: PlaybackState = {
           (addWaypoint)="handleAddWaypoint()"
           (toggleBaseLayer)="handleToggleBaseLayer()"
           (toggleOpenSeaMap)="handleToggleOpenSeaMap()"
+          (toggleAisTracks)="handleToggleAisTracks()"
           (toggleMeasure)="handleToggleMeasure()"
           (deleteActiveWaypoint)="handleDeleteActiveWaypoint()"
           (toggleAnchorWatch)="handleToggleAnchorWatch()"
@@ -599,8 +601,13 @@ export class ChartPage implements AfterViewInit, OnDestroy {
 
   // Map & Playback State Logic (Legacy Integration)
   private readonly baseSourceSignal = toSignal(this.facade.baseSource$);
+  readonly layerModeSignal = computed<ChartLayerMode>(() => {
+    this.baseSourceSignal();
+    return this.facade.currentLayerMode;
+  });
   private readonly controlsVmSignal = toSignal(this.facade.controlsVm$, { initialValue: null });
   private readonly openSeaMapSignal = toSignal(this.facade.openSeaMapVisible$, { initialValue: false });
+  readonly showAisTracksSignal = toSignal(this.facade.showAisTracks$, { initialValue: true });
   private readonly showAisTargetsSignal = toSignal(this.facade.showAisTargets$, { initialValue: true });
   private readonly showAisLabelsSignal = toSignal(this.facade.showAisLabels$, { initialValue: true });
   private readonly showCpaLinesSignal = toSignal(this.facade.showCpaLines$, { initialValue: true });
@@ -654,6 +661,12 @@ export class ChartPage implements AfterViewInit, OnDestroy {
   });
   private readonly aisTargetsSignal = toSignal(this.facade.aisTargetsGeoJson$, {
     initialValue: { type: 'FeatureCollection', features: [] } as FeatureCollection<Point>,
+  });
+  private readonly aisTracksSignal = toSignal(this.facade.aisTracksGeoJson$, {
+    initialValue: { type: 'FeatureCollection', features: [] } as FeatureCollection<LineString>,
+  });
+  private readonly aisPredictionsSignal = toSignal(this.facade.aisPredictionsGeoJson$, {
+    initialValue: { type: 'FeatureCollection', features: [] } as FeatureCollection<LineString>,
   });
   private readonly cpaLinesSignal = toSignal(this.facade.cpaLinesGeoJson$, {
     initialValue: { type: 'FeatureCollection', features: [] } as FeatureCollection<LineString>,
@@ -731,6 +744,8 @@ export class ChartPage implements AfterViewInit, OnDestroy {
     });
     effect(() => { this.engine.setOrientation(this.orientation()); });
     effect(() => { this.engine.updateAisTargets(this.aisTargetsSignal()); });
+    effect(() => { this.engine.updateAisTracks(this.aisTracksSignal()); });
+    effect(() => { this.engine.updateAisPredictions(this.aisPredictionsSignal()); });
     effect(() => { this.engine.updateCpaLines(this.cpaLinesSignal()); });
     effect(() => { this.engine.setAisVesselTypeColors(this.aisVesselTypeColorsSignal()); });
     effect(() => { this.engine.setOwnVesselIconScale(this.ownVesselIconScaleSignal()); });
@@ -857,6 +872,10 @@ export class ChartPage implements AfterViewInit, OnDestroy {
 
   handleToggleOpenSeaMap() {
     this.facade.toggleOpenSeaMap();
+  }
+
+  handleToggleAisTracks() {
+    this.facade.toggleAisTracks();
   }
 
   handleToggleMeasure() {

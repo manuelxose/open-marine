@@ -4,8 +4,13 @@ import { BehaviorSubject, auditTime, combineLatest, firstValueFrom, map, scan, s
 import { DatapointStoreService } from '../../../state/datapoints/datapoint-store.service';
 import { AisStoreService } from '../../../state/ais/ais-store.service';
 import { SignalKClientService } from '../../../data-access/signalk/signalk-client.service';
+import {
+  DEFAULT_CHART_SOURCE_ID,
+  NAUTICAL_CHART_SOURCE_ID,
+  NAUTICAL_RASTER_STYLE,
+} from '../../../data-access/chart/chart-sources';
 import type { Feature, FeatureCollection, LineString, Point } from 'geojson';
-import { AisNavStatus, type AisTarget } from '../../../core/models/ais.model';
+import { AisNavStatus, type AisTarget, type AisTrackPoint } from '../../../core/models/ais.model';
 import {
   isPositionValue,
   selectAwa,
@@ -26,6 +31,7 @@ import type {
   ChartControlsVm,
   ChartRoutesPanelVm,
   ChartTopBarVm,
+  ChartLayerMode,
   ChartFixState,
   ChartHudRow,
   ChartHudVm,
@@ -62,9 +68,11 @@ const STALE_THRESHOLD_MS = 5000;
 const VECTOR_TIME_SECONDS = 60;
 const DEFAULT_VECTOR_NM = 0.2;
 const MIN_SPEED_FOR_ETA_KTS = 0.1;
+const AIS_TRACK_MAX_AGE_MS = 30 * 60 * 1000;
+const AIS_PREDICTION_SECONDS = 6 * 60;
 
 const DEFAULT_BASE_SOURCE: ChartSourceConfig = {
-  id: 'osm-raster',
+  id: DEFAULT_CHART_SOURCE_ID,
   style: {
     version: 8,
     sources: {
@@ -107,6 +115,11 @@ const SATELLITE_SOURCE: ChartSourceConfig = {
       },
     ],
   },
+};
+
+const NAUTICAL_SOURCE: ChartSourceConfig = {
+  id: NAUTICAL_CHART_SOURCE_ID,
+  style: NAUTICAL_RASTER_STYLE,
 };
 
 const hudRow = (labelKey: string, value: string, unit: string): ChartHudRow => ({
@@ -288,6 +301,139 @@ export class ChartFacadeService {
       return { type: 'FeatureCollection', features } as CpaLinesFeatureCollection;
     }),
     startWith({ type: 'FeatureCollection', features: [] } as CpaLinesFeatureCollection),
+    shareReplay({ bufferSize: 1, refCount: true }),
+  );
+
+  readonly aisTracksGeoJson$ = combineLatest([
+    toObservable(this.aisStore.targets),
+    this.settingsService.settings$,
+  ]).pipe(
+    auditTime(500),
+    map(([targetsMap, settings]) => {
+      if (!settings.showAisTracks) {
+        return { type: 'FeatureCollection', features: [] } as FeatureCollection<LineString>;
+      }
+
+      const now = Date.now();
+      const visibleTypes = new Set(settings.visibleVesselTypes);
+      const features: Feature<LineString>[] = [];
+
+      for (const [mmsi, target] of targetsMap) {
+        if (this.isTargetExpired(target, settings.aisRemoveAfterMinutes, now)) {
+          continue;
+        }
+        if (this.isTargetHiddenByStatus(target, settings.hideMooredTargets, settings.hideAnchoredTargets)) {
+          continue;
+        }
+
+        const vesselTypeKey = mapAisVesselTypeToFilter(target.vesselType);
+        if (!visibleTypes.has(vesselTypeKey)) {
+          continue;
+        }
+
+        const points: AisTrackPoint[] = this.aisStore.getTrackPoints(mmsi);
+        if (points.length < 2) {
+          continue;
+        }
+
+        const coordinates = points
+          .map((point) => [point.longitude, point.latitude] as [number, number])
+          .filter(([lon, lat]) => Number.isFinite(lon) && Number.isFinite(lat));
+        if (coordinates.length < 2) {
+          continue;
+        }
+
+        const newest = points[points.length - 1];
+        if (!newest) {
+          continue;
+        }
+        const ageFraction = Math.min(1, Math.max(0, (now - newest.timestamp) / AIS_TRACK_MAX_AGE_MS));
+        const dangerous = target.isDangerous === true && target.riskEligible === true;
+
+        features.push({
+          type: 'Feature',
+          geometry: {
+            type: 'LineString',
+            coordinates,
+          },
+          properties: {
+            mmsi,
+            isDangerous: dangerous,
+            age: ageFraction,
+          },
+        });
+      }
+
+      return { type: 'FeatureCollection', features } as FeatureCollection<LineString>;
+    }),
+    startWith({ type: 'FeatureCollection', features: [] } as FeatureCollection<LineString>),
+    shareReplay({ bufferSize: 1, refCount: true }),
+  );
+
+  readonly aisPredictionsGeoJson$ = combineLatest([
+    toObservable(this.aisStore.targets),
+    this.settingsService.settings$,
+  ]).pipe(
+    auditTime(500),
+    map(([targetsMap, settings]) => {
+      if (!settings.showAisTracks) {
+        return { type: 'FeatureCollection', features: [] } as FeatureCollection<LineString>;
+      }
+
+      const now = Date.now();
+      const visibleTypes = new Set(settings.visibleVesselTypes);
+      const features: Feature<LineString>[] = [];
+
+      for (const [mmsi, target] of targetsMap) {
+        if (this.isTargetExpired(target, settings.aisRemoveAfterMinutes, now)) {
+          continue;
+        }
+        if (this.isTargetHiddenByStatus(target, settings.hideMooredTargets, settings.hideAnchoredTargets)) {
+          continue;
+        }
+
+        const vesselTypeKey = mapAisVesselTypeToFilter(target.vesselType);
+        if (!visibleTypes.has(vesselTypeKey)) {
+          continue;
+        }
+
+        if (!Number.isFinite(target.latitude) || !Number.isFinite(target.longitude)) {
+          continue;
+        }
+        if (typeof target.sog !== 'number' || !Number.isFinite(target.sog) || target.sog < 0.5) {
+          continue;
+        }
+        if (typeof target.cog !== 'number' || !Number.isFinite(target.cog)) {
+          continue;
+        }
+
+        const distanceMeters = target.sog * AIS_PREDICTION_SECONDS;
+        const future = projectDestination(
+          { lat: target.latitude, lon: target.longitude },
+          toDegrees(target.cog),
+          distanceMeters,
+        );
+        const dangerous = target.isDangerous === true && target.riskEligible === true;
+
+        features.push({
+          type: 'Feature',
+          geometry: {
+            type: 'LineString',
+            coordinates: [
+              [target.longitude, target.latitude],
+              [future.lon, future.lat],
+            ],
+          },
+          properties: {
+            mmsi,
+            isDangerous: dangerous,
+          },
+        });
+      }
+
+      return { type: 'FeatureCollection', features } as FeatureCollection<LineString>;
+    }),
+    startWith({ type: 'FeatureCollection', features: [] } as FeatureCollection<LineString>),
     shareReplay({ bufferSize: 1, refCount: true }),
   );
 
@@ -843,6 +989,7 @@ export class ChartFacadeService {
       showTrueWind: settings.showTrueWind,
       showRangeRings: settings.showRangeRings,
       showOpenSeaMap: settings.showOpenSeaMap,
+      showAisTracks: settings.showAisTracks,
       rangeRingIntervals: settings.rangeRingIntervals,
       canCenter,
       sourceId: source.id,
@@ -994,6 +1141,10 @@ export class ChartFacadeService {
     this.settingsService.toggleOpenSeaMap();
   }
 
+  toggleAisTracks(): void {
+    this.settingsService.toggleAisTracks();
+  }
+
   toggleAisTargets(): void {
     this.settingsService.toggleAisTargets();
   }
@@ -1020,6 +1171,10 @@ export class ChartFacadeService {
 
   readonly showCpaLines$ = this.settingsService.settings$.pipe(
     map((s) => s.showCpaLines),
+  );
+
+  readonly showAisTracks$ = this.settingsService.settings$.pipe(
+    map((s) => s.showAisTracks),
   );
 
   readonly ownVesselIconScale$ = this.settingsService.settings$.pipe(
@@ -1049,11 +1204,29 @@ export class ChartFacadeService {
 
   toggleLayer(): void {
     const current = this._baseSource$.value;
-    if (current.id === 'osm-raster') {
-      this._baseSource$.next(SATELLITE_SOURCE);
-    } else {
-      this._baseSource$.next(DEFAULT_BASE_SOURCE);
+    switch (current.id) {
+      case DEFAULT_CHART_SOURCE_ID:
+        this._baseSource$.next(SATELLITE_SOURCE);
+        break;
+      case 'satellite':
+        this._baseSource$.next(NAUTICAL_SOURCE);
+        break;
+      case NAUTICAL_CHART_SOURCE_ID:
+      default:
+        this._baseSource$.next(DEFAULT_BASE_SOURCE);
+        break;
     }
+  }
+
+  get currentLayerMode(): ChartLayerMode {
+    const id = this._baseSource$.value.id;
+    if (id === 'satellite') {
+      return 'satellite';
+    }
+    if (id === NAUTICAL_CHART_SOURCE_ID) {
+      return 'nautical';
+    }
+    return 'osm';
   }
 
   centerOnVessel(): void {

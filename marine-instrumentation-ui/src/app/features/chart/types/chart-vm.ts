@@ -1,6 +1,7 @@
 export type ChartFixState = 'no-fix' | 'fix' | 'stale';
 
 export type MapOrientation = 'north-up' | 'course-up';
+export type ChartLayerMode = 'osm' | 'satellite' | 'nautical';
 
 export interface ChartPosition {
   lat: number;
@@ -38,6 +39,7 @@ export interface ChartControlsVm {
   showTrueWind: boolean;
   showRangeRings: boolean;
   showOpenSeaMap: boolean;
+  showAisTracks: boolean;
   rangeRingIntervals: number[];
   canCenter: boolean;
   sourceId: string;
