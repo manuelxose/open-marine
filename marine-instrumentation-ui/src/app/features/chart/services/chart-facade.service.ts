@@ -6,6 +6,7 @@ import { AisStoreService } from '../../../state/ais/ais-store.service';
 import { SignalKClientService } from '../../../data-access/signalk/signalk-client.service';
 import {
   DEFAULT_CHART_SOURCE_ID,
+  ENC_CHART_SOURCE_ID,
   NAUTICAL_CHART_SOURCE_ID,
   NAUTICAL_RASTER_STYLE,
 } from '../../../data-access/chart/chart-sources';
@@ -40,9 +41,10 @@ import type {
   ChartWaypointVm,
   MapOrientation,
 } from '../types/chart-vm';
-import { ChartSettingsService } from './chart-settings.service';
+import { ChartSettingsService, type EncLayerConfig } from './chart-settings.service';
 import { WaypointService, type Waypoint } from './waypoint.service';
 import { RouteService } from './route.service';
+import { buildEncStyle } from '../layers/enc-style';
 import type { ChartSourceConfig, MapLibreInitView } from './maplibre-engine.service';
 import type { WaypointFeatureCollection, WaypointFeatureProperties } from '../types/chart-geojson';
 import { getAisVesselIconId, mapAisVesselTypeToFilter } from './chart-vessel-types';
@@ -1202,6 +1204,16 @@ export class ChartFacadeService {
     this.settingsService.setRangeRingIntervals(intervals);
   }
 
+  setSafetyDepth(depth: number): void {
+    this.settingsService.setSafetyDepth(depth);
+    this.refreshEncStyle();
+  }
+
+  updateEncLayers(partial: Partial<EncLayerConfig>): void {
+    this.settingsService.updateEncLayers(partial);
+    this.refreshEncStyle();
+  }
+
   toggleLayer(): void {
     const current = this._baseSource$.value;
     switch (current.id) {
@@ -1212,6 +1224,9 @@ export class ChartFacadeService {
         this._baseSource$.next(NAUTICAL_SOURCE);
         break;
       case NAUTICAL_CHART_SOURCE_ID:
+        this._baseSource$.next(this.buildEncSource());
+        break;
+      case ENC_CHART_SOURCE_ID:
       default:
         this._baseSource$.next(DEFAULT_BASE_SOURCE);
         break;
@@ -1226,7 +1241,16 @@ export class ChartFacadeService {
     if (id === NAUTICAL_CHART_SOURCE_ID) {
       return 'nautical';
     }
+    if (id === ENC_CHART_SOURCE_ID) {
+      return 'enc';
+    }
     return 'osm';
+  }
+
+  refreshEncStyle(): void {
+    if (this._baseSource$.value.id === ENC_CHART_SOURCE_ID) {
+      this._baseSource$.next(this.buildEncSource());
+    }
   }
 
   centerOnVessel(): void {
@@ -1403,5 +1427,13 @@ export class ChartFacadeService {
 
   private positiveOr(value: number, fallback: number): number {
     return Number.isFinite(value) && value > 0 ? value : fallback;
+  }
+
+  private buildEncSource(): ChartSourceConfig {
+    const settings = this.settingsService.snapshot;
+    return {
+      id: ENC_CHART_SOURCE_ID,
+      style: buildEncStyle(settings.encLayers, settings.safetyDepth),
+    };
   }
 }

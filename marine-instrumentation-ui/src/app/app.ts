@@ -12,6 +12,7 @@ import { OnboardingOverlayComponent } from './core/onboarding/onboarding-overlay
 import { OnboardingService } from './core/onboarding/onboarding.service';
 import { TourHighlightComponent } from './core/onboarding/tour/tour-highlight.component';
 import { SignalKClientService } from './data-access/signalk/signalk-client.service';
+import { VesselEnrichmentService } from './data-access/vessel-enrichment/vessel-enrichment.service';
 
 type ThemeMode = 'day' | 'night';
 
@@ -56,6 +57,7 @@ export class AppComponent implements OnInit {
   private readonly splash = inject(SplashService);
   private readonly onboarding = inject(OnboardingService);
   private readonly signalK = inject(SignalKClientService);
+  private readonly enrichmentService = inject(VesselEnrichmentService);
 
   readonly showSplash = toSignal(this.splash.visible$, { initialValue: true });
   readonly showOnboarding = toSignal(this.onboarding.shouldShowOnboarding$, { initialValue: false });
@@ -66,6 +68,8 @@ export class AppComponent implements OnInit {
     if (!isPlatformBrowser(this.platformId)) {
       return;
     }
+
+    setTimeout(() => this.enrichmentService.purgeExpiredCache(), 5000);
 
     const savedTheme = this.resolveInitialTheme();
     document.documentElement.setAttribute('data-theme', savedTheme);

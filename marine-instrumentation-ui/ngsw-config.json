@@ -51,6 +51,17 @@
         "timeout": "5s",
         "strategy": "performance"
       }
+    },
+    {
+      "name": "maplibre-glyphs",
+      "urls": [
+        "https://demotiles.maplibre.org/font/**"
+      ],
+      "cacheConfig": {
+        "maxSize": 200,
+        "maxAge": "30d",
+        "strategy": "performance"
+      }
     }
   ]
 }

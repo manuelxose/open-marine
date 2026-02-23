@@ -1,3 +1,5 @@
+import type { VesselInfo } from '../../data-access/vessel-enrichment/vessel-enrichment.models';
+
 export enum AisNavStatus {
   UnderWayUsingEngine = 0,
   AtAnchor = 1,
@@ -47,6 +49,7 @@ export interface AisTarget {
   length?: number;
   beam?: number;
   draft?: number;
+  enrichedInfo?: VesselInfo;
 
   // Meta
   lastUpdated: number; // Timestamp ms

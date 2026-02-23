@@ -1,7 +1,7 @@
 export type ChartFixState = 'no-fix' | 'fix' | 'stale';
 
 export type MapOrientation = 'north-up' | 'course-up';
-export type ChartLayerMode = 'osm' | 'satellite' | 'nautical';
+export type ChartLayerMode = 'osm' | 'satellite' | 'nautical' | 'enc';
 
 export interface ChartPosition {
   lat: number;

@@ -98,7 +98,7 @@ import type { ChartLayerMode } from '../../types/chart-vm';
       <div class="control-group">
         <button
           class="control-btn"
-          [class.active]="layerMode === 'nautical'"
+          [class.active]="layerMode === 'nautical' || layerMode === 'enc'"
           (click)="toggleBaseLayer.emit()"
           [attr.aria-label]="layerButtonAriaLabel"
           [title]="layerButtonLabel">
@@ -266,6 +266,8 @@ export class MapControlsComponent {
       case 'satellite':
         return 'Nautical';
       case 'nautical':
+        return 'ENC';
+      case 'enc':
       default:
         return 'Map';
     }
@@ -275,24 +277,28 @@ export class MapControlsComponent {
     return `Switch to ${this.layerButtonLabel} view`;
   }
 
-  get layerButtonIcon(): 'map' | 'satellite' | 'anchor' {
+  get layerButtonIcon(): 'map' | 'satellite' | 'anchor' | 'layers' {
     switch (this.layerMode) {
       case 'satellite':
         return 'satellite';
       case 'nautical':
         return 'anchor';
+      case 'enc':
+        return 'layers';
       case 'osm':
       default:
         return 'map';
     }
   }
 
-  get layerModeBadge(): 'MAP' | 'SAT' | 'NAU' {
+  get layerModeBadge(): 'MAP' | 'SAT' | 'NAU' | 'ENC' {
     switch (this.layerMode) {
       case 'satellite':
         return 'SAT';
       case 'nautical':
         return 'NAU';
+      case 'enc':
+        return 'ENC';
       case 'osm':
       default:
         return 'MAP';
