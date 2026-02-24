@@ -20,6 +20,18 @@ AIS_PPM_DEFAULT="-50"
 AIS_GAIN_DEFAULT="33"
 AIS_HOST_DEFAULT="127.0.0.1"
 AIS_PORT_DEFAULT="10110"
+IMU_HOST_DEFAULT="127.0.0.1"
+IMU_PORT_DEFAULT="3000"
+IMU_RATE_DEFAULT="10"
+IMU_AUTO_SETUP_DEFAULT="true"
+IMU_RAW_ONLY_DEFAULT="false"
+IMU_NO_PUBLISH_DEFAULT="false"
+GPS_DEVICE_DEFAULT="auto"
+GPS_BAUD_DEFAULT="9600"
+GPS_HOST_DEFAULT="127.0.0.1"
+GPS_PORT_DEFAULT="3000"
+GPS_RATE_DEFAULT="1"
+GPS_AUTO_SETUP_DEFAULT="true"
 OMI_SIGNALK_IMAGE_DEFAULT="signalk/signalk-server:v2.22.1"
 DOCKER_CMD=(docker)
 DOCKER_USING_SUDO=0
@@ -111,10 +123,76 @@ load_omi_config_file() {
         AIS_GAIN) AIS_GAIN_DEFAULT="$value" ;;
         AIS_HOST) AIS_HOST_DEFAULT="$value" ;;
         AIS_PORT) AIS_PORT_DEFAULT="$value" ;;
+        IMU_HOST) IMU_HOST_DEFAULT="$value" ;;
+        IMU_PORT) IMU_PORT_DEFAULT="$value" ;;
+        IMU_RATE) IMU_RATE_DEFAULT="$value" ;;
+        IMU_AUTO_SETUP) IMU_AUTO_SETUP_DEFAULT="$value" ;;
+        IMU_RAW_ONLY) IMU_RAW_ONLY_DEFAULT="$value" ;;
+        IMU_NO_PUBLISH) IMU_NO_PUBLISH_DEFAULT="$value" ;;
+        GPS_DEVICE) GPS_DEVICE_DEFAULT="$value" ;;
+        GPS_BAUD) GPS_BAUD_DEFAULT="$value" ;;
+        GPS_HOST) GPS_HOST_DEFAULT="$value" ;;
+        GPS_PORT) GPS_PORT_DEFAULT="$value" ;;
+        GPS_RATE) GPS_RATE_DEFAULT="$value" ;;
+        GPS_AUTO_SETUP) GPS_AUTO_SETUP_DEFAULT="$value" ;;
         OMI_SIGNALK_IMAGE) OMI_SIGNALK_IMAGE_DEFAULT="$value" ;;
       esac
     fi
   done < "$file"
+}
+
+is_truthy() {
+  local value="${1:-}"
+  value="$(echo "$value" | tr '[:upper:]' '[:lower:]')"
+  [[ "$value" == "1" || "$value" == "true" || "$value" == "yes" || "$value" == "y" || "$value" == "s" ]]
+}
+
+detect_usb_gps_device() {
+  local candidates=(
+    /dev/ttyACM0
+    /dev/ttyUSB0
+  )
+  local dev
+
+  for dev in "${candidates[@]}"; do
+    if [[ -e "$dev" ]]; then
+      echo "$dev"
+      return 0
+    fi
+  done
+
+  for dev in /dev/ttyACM* /dev/ttyUSB*; do
+    if [[ -e "$dev" ]]; then
+      echo "$dev"
+      return 0
+    fi
+  done
+
+  return 1
+}
+
+detect_imu_i2c_address() {
+  if [[ ! -e /dev/i2c-1 ]]; then
+    return 1
+  fi
+
+  if ! command -v i2cdetect >/dev/null 2>&1; then
+    echo "i2c-1"
+    return 0
+  fi
+
+  local scan_output=""
+  scan_output="$(i2cdetect -y 1 2>/dev/null || true)"
+  if echo "$scan_output" | grep -qiE '(^|[[:space:]])69($|[[:space:]])'; then
+    echo "0x69"
+    return 0
+  fi
+  if echo "$scan_output" | grep -qiE '(^|[[:space:]])68($|[[:space:]])'; then
+    echo "0x68"
+    return 0
+  fi
+
+  return 1
 }
 
 require_linux() {
@@ -698,6 +776,112 @@ EOF'
   fi
 }
 
+setup_imu_publisher() {
+  local imu_setup_script="$PROJECT_ROOT/marine-sensor-gateway/rpi/omi-imu/setup.sh"
+  local imu_publish_script="$PROJECT_ROOT/marine-sensor-gateway/rpi/omi-imu/02_publish_signalk.py"
+  local imu_addr=""
+  local setup_now=0
+
+  if [[ ! -f "$imu_publish_script" ]]; then
+    warn "Script IMU no encontrado: $imu_publish_script"
+    return
+  fi
+
+  if ! command -v python3 >/dev/null 2>&1; then
+    warn "python3 no disponible. Se omite setup IMU."
+    return
+  fi
+
+  imu_addr="$(detect_imu_i2c_address || true)"
+  if [[ -z "$imu_addr" ]]; then
+    warn "No se detecto IMU ICM-20948 en I2C (0x69/0x68) o no existe /dev/i2c-1."
+    return
+  fi
+
+  log "IMU detectado en bus I2C ($imu_addr)"
+
+  if [[ ! -f "$imu_setup_script" ]]; then
+    warn "setup.sh de IMU no encontrado: $imu_setup_script"
+    return
+  fi
+
+  if is_truthy "$IMU_AUTO_SETUP_DEFAULT"; then
+    setup_now=1
+  else
+    local setup_response
+    read -r -p "IMU detectado. Deseas ejecutar setup.sh ahora? [s/N]: " setup_response
+    if [[ "$setup_response" =~ ^[sSyY]$ ]]; then
+      setup_now=1
+    fi
+  fi
+
+  if [[ "$setup_now" -ne 1 ]]; then
+    warn "Setup IMU omitido."
+    return
+  fi
+
+  info "Configurando dependencias IMU..."
+  if bash "$imu_setup_script"; then
+    log "Setup IMU completado."
+  else
+    warn "setup.sh de IMU fallo. Puedes reintentarlo con:"
+    warn "  bash $imu_setup_script"
+  fi
+}
+
+setup_gps_publisher() {
+  local gps_setup_script="$PROJECT_ROOT/marine-sensor-gateway/rpi/omi-imu/setup_gps.sh"
+  local gps_publish_script="$PROJECT_ROOT/marine-sensor-gateway/rpi/omi-imu/02_publish_gps_signalk.py"
+  local gps_device=""
+  local setup_now=0
+
+  if [[ ! -f "$gps_publish_script" ]]; then
+    warn "Script GPS no encontrado: $gps_publish_script"
+    return
+  fi
+
+  if ! command -v python3 >/dev/null 2>&1; then
+    warn "python3 no disponible. Se omite setup GPS."
+    return
+  fi
+
+  gps_device="$(detect_usb_gps_device || true)"
+  if [[ -z "$gps_device" ]]; then
+    warn "No se detecto GPS USB (/dev/ttyACM* o /dev/ttyUSB*)."
+    return
+  fi
+
+  log "GPS USB detectado en $gps_device"
+
+  if [[ ! -f "$gps_setup_script" ]]; then
+    warn "setup_gps.sh no encontrado: $gps_setup_script"
+    return
+  fi
+
+  if is_truthy "$GPS_AUTO_SETUP_DEFAULT"; then
+    setup_now=1
+  else
+    local setup_response
+    read -r -p "GPS detectado. Deseas ejecutar setup_gps.sh ahora? [s/N]: " setup_response
+    if [[ "$setup_response" =~ ^[sSyY]$ ]]; then
+      setup_now=1
+    fi
+  fi
+
+  if [[ "$setup_now" -ne 1 ]]; then
+    warn "Setup GPS omitido."
+    return
+  fi
+
+  info "Configurando dependencias GPS..."
+  if bash "$gps_setup_script"; then
+    log "Setup GPS completado."
+  else
+    warn "setup_gps.sh fallo. Puedes reintentarlo con:"
+    warn "  bash $gps_setup_script"
+  fi
+}
+
 detect_lan_ip() {
   local lan_ip=""
 
@@ -730,8 +914,14 @@ detect_lan_ip() {
 
 print_summary() {
   local ais_bin="$PROJECT_ROOT/tools/ais-catcher/AIS-catcher"
+  local imu_publish_script="$PROJECT_ROOT/marine-sensor-gateway/rpi/omi-imu/02_publish_signalk.py"
+  local gps_publish_script="$PROJECT_ROOT/marine-sensor-gateway/rpi/omi-imu/02_publish_gps_signalk.py"
+  local imu_addr=""
+  local gps_device=""
   local lan_ip
   lan_ip="$(detect_lan_ip)"
+  imu_addr="$(detect_imu_i2c_address || true)"
+  gps_device="$(detect_usb_gps_device || true)"
   echo ""
   echo -e "${GREEN}============================================================${NC}"
   echo -e "${GREEN} OMI - Open Marine Instrumentation - Inicializado OK       ${NC}"
@@ -756,6 +946,32 @@ print_summary() {
     echo "    (config: PPM=$AIS_PPM_DEFAULT, GAIN=$AIS_GAIN_DEFAULT, HOST=$AIS_HOST_DEFAULT, PORT=$AIS_PORT_DEFAULT)"
   else
     echo "    Ejecuta scripts/init.sh y selecciona instalacion de AIS-catcher."
+  fi
+  echo ""
+  echo -e "  ${YELLOW}IMU real:${NC}"
+  if [[ -f "$imu_publish_script" ]]; then
+    echo "    npm run start:imu"
+    echo "    (config: HOST=$IMU_HOST_DEFAULT, PORT=$IMU_PORT_DEFAULT, RATE=${IMU_RATE_DEFAULT}Hz, RAW_ONLY=$IMU_RAW_ONLY_DEFAULT)"
+    if [[ -n "$imu_addr" ]]; then
+      echo "    IMU I2C detectado: $imu_addr"
+    else
+      echo "    IMU I2C no detectado ahora (/dev/i2c-1, 0x69/0x68)."
+    fi
+  else
+    echo "    Script IMU no encontrado en marine-sensor-gateway/rpi/omi-imu."
+  fi
+  echo ""
+  echo -e "  ${YELLOW}GPS real:${NC}"
+  if [[ -f "$gps_publish_script" ]]; then
+    echo "    npm run start:gps"
+    echo "    (config: DEVICE=$GPS_DEVICE_DEFAULT, BAUD=$GPS_BAUD_DEFAULT, HOST=$GPS_HOST_DEFAULT, PORT=$GPS_PORT_DEFAULT, RATE=${GPS_RATE_DEFAULT}Hz)"
+    if [[ -n "$gps_device" ]]; then
+      echo "    GPS USB detectado: $gps_device"
+    else
+      echo "    GPS USB no detectado ahora (/dev/ttyACM* o /dev/ttyUSB*)."
+    fi
+  else
+    echo "    Script GPS no encontrado en marine-sensor-gateway/rpi/omi-imu."
   fi
   echo ""
 }
@@ -829,10 +1045,46 @@ start_post_init_services() {
     local ais_response
     read -r -p "Deseas arrancar AIS-catcher ahora? [s/N]: " ais_response
     if [[ "$ais_response" =~ ^[sSyY]$ ]]; then
-      nohup "$PROJECT_ROOT/scripts/start-ais.sh" > "$PROJECT_ROOT/.omi-ais.log" 2>&1 &
+      nohup bash "$PROJECT_ROOT/scripts/start-ais.sh" > "$PROJECT_ROOT/.omi-ais.log" 2>&1 &
       echo $! > "$PROJECT_ROOT/.omi-ais.pid"
       log "AIS-catcher arrancado en background."
       info "Log AIS: $PROJECT_ROOT/.omi-ais.log"
+    fi
+  fi
+
+  local imu_publish_script="$PROJECT_ROOT/marine-sensor-gateway/rpi/omi-imu/02_publish_signalk.py"
+  if [[ -f "$imu_publish_script" ]]; then
+    local imu_addr
+    imu_addr="$(detect_imu_i2c_address || true)"
+    if [[ -n "$imu_addr" ]]; then
+      local imu_response
+      read -r -p "Deseas arrancar IMU publisher ahora? [s/N]: " imu_response
+      if [[ "$imu_response" =~ ^[sSyY]$ ]]; then
+        nohup bash "$PROJECT_ROOT/scripts/start-imu.sh" > "$PROJECT_ROOT/.omi-imu.log" 2>&1 &
+        echo $! > "$PROJECT_ROOT/.omi-imu.pid"
+        log "IMU publisher arrancado en background."
+        info "Log IMU: $PROJECT_ROOT/.omi-imu.log"
+      fi
+    else
+      warn "IMU publisher disponible pero no se detecta ICM-20948 por I2C."
+    fi
+  fi
+
+  local gps_publish_script="$PROJECT_ROOT/marine-sensor-gateway/rpi/omi-imu/02_publish_gps_signalk.py"
+  if [[ -f "$gps_publish_script" ]]; then
+    local gps_device
+    gps_device="$(detect_usb_gps_device || true)"
+    if [[ -n "$gps_device" ]]; then
+      local gps_response
+      read -r -p "Deseas arrancar GPS publisher ahora? [s/N]: " gps_response
+      if [[ "$gps_response" =~ ^[sSyY]$ ]]; then
+        nohup bash "$PROJECT_ROOT/scripts/start-gps.sh" > "$PROJECT_ROOT/.omi-gps.log" 2>&1 &
+        echo $! > "$PROJECT_ROOT/.omi-gps.pid"
+        log "GPS publisher arrancado en background."
+        info "Log GPS: $PROJECT_ROOT/.omi-gps.log"
+      fi
+    else
+      warn "GPS publisher disponible pero no se detecta dispositivo USB GPS."
     fi
   fi
 }
@@ -852,6 +1104,8 @@ main() {
   setup_signalk
   build_packages
   setup_ais_catcher
+  setup_imu_publisher
+  setup_gps_publisher
   print_summary
   start_post_init_services
 }
