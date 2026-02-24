@@ -97,7 +97,7 @@ function Require-Command {
 function Invoke-External {
   param(
     [Parameter(Mandatory = $true)][string]$Name,
-    [Parameter(Mandatory = $true)][string[]]$Args
+    [Parameter(Mandatory = $true)][object[]]$Args
   )
 
   & $Name @Args
@@ -209,7 +209,7 @@ function Install-OpenSshPublicKey {
 function Invoke-ExternalWithRetry {
   param(
     [Parameter(Mandatory = $true)][string]$Name,
-    [Parameter(Mandatory = $true)][string[]]$Args,
+    [Parameter(Mandatory = $true)][object[]]$Args,
     [Parameter(Mandatory = $true)][string]$Operation,
     [int]$MaxRetries = 2,
     [int]$RetryDelaySeconds = 2
@@ -797,12 +797,20 @@ $openSshSshArgs = @(
   "-p", $TargetPort.ToString(),
   "-o", "StrictHostKeyChecking=accept-new",
   "-o", "ConnectTimeout=8",
-  "-o", "ConnectionAttempts=1"
+  "-o", "ConnectionAttempts=2",
+  "-o", "ServerAliveInterval=15",
+  "-o", "ServerAliveCountMax=3",
+  "-o", "IPQoS=none"
 )
 $openSshScpArgs = @(
   "-P", $TargetPort.ToString(),
   "-o", "StrictHostKeyChecking=accept-new",
-  "-o", "ConnectTimeout=8"
+  "-o", "ConnectTimeout=8",
+  "-o", "ConnectionAttempts=2",
+  "-o", "ServerAliveInterval=15",
+  "-o", "ServerAliveCountMax=3",
+  "-o", "IPQoS=none",
+  "-O"
 )
 if (-not [string]::IsNullOrWhiteSpace($SshKey)) {
   $openSshSshArgs += @("-i", $SshKey)
@@ -859,6 +867,23 @@ try {
   $primaryAuthOk = $true
   if ($skipInteractiveAuthPrecheck) {
     Warn "OpenSSH con password interactiva: se omite pre-check SSH para reducir prompts."
+    if (-not (Test-TcpPort -HostName $TargetHost -Port $parsedPort -TimeoutMs 1200)) {
+      Warn "Host primario no reachable por TCP ($TargetHost:$TargetPort). Buscando alternativa..."
+      $hostCandidates = @(Get-RaspberryHostCandidates -PrimaryHost $TargetHost -Port $parsedPort | Where-Object { $_ -ne $TargetHost })
+      foreach ($candidateHost in $hostCandidates) {
+        if (Test-TcpPort -HostName $candidateHost -Port $parsedPort -TimeoutMs 1200) {
+          $connectedHost = $candidateHost
+          Warn "Host alternativo seleccionado automaticamente: $connectedHost"
+          break
+        }
+      }
+
+      if ($connectedHost -eq $TargetHost) {
+        Err "No se encontro ningun host reachable para SSH en puerto $TargetPort."
+        Warn "Revisa RPI_HOST en config/omi.env y conectividad de red/mDNS."
+        exit 1
+      }
+    }
   } else {
     Log "Verificando autenticacion SSH para $primaryTarget..."
     $primaryAuthOk = Test-RemoteSshAuth -SshCommand $sshCommand -SshArgs $sshArgs -SshTarget $primaryTarget -UsingPutty:$usePutty
