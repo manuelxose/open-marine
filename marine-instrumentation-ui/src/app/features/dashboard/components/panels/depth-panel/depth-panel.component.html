@@ -1,18 +1,31 @@
 <app-shared-panel-card [title]="vm.title | translate" [loading]="vm.isLoading" [error]="vm.error">
-  <div class="depth-content">
-    <div class="main-metric" *ngFor="let m of vm.metrics; trackBy: trackByMetric">
-      <div class="metric-value-group">
-        <span class="value">{{ m.value }}</span>
-        <span class="unit">{{ m.unit }}</span>
+  <omi-gb-bezel class="panel-bezel" [quality]="panelQuality">
+    <div
+      class="depth-content"
+      [class.depth-ok]="panelQuality === 'good'"
+      [class.depth-warn]="panelQuality === 'warn'"
+      [class.depth-danger]="panelQuality === 'stale' || panelQuality === 'missing'"
+      *ngIf="vm.metrics[0] as depthMetric"
+    >
+      <span class="depth-label">{{ depthMetric.label | translate }}</span>
+      <div class="depth-value-group">
+        <span class="depth-value">{{ displayValue(depthMetric.value) }}</span>
+        <span class="depth-unit" *ngIf="showUnit(depthMetric.value)">{{ depthMetric.unit }}</span>
       </div>
+
+      <div class="depth-trend" *ngIf="vm.series && vm.series.length > 1">
+        <span>LIVE</span>
+        <span>Trend</span>
+      </div>
+
       <div class="trend-container" *ngIf="vm.series && vm.series.length > 0">
         <app-shared-sparkline
           [data]="vm.series"
           [width]="240"
           [height]="60"
-          stroke="var(--status-online)"
+          stroke="var(--nord-8)"
         ></app-shared-sparkline>
       </div>
     </div>
-  </div>
+  </omi-gb-bezel>
 </app-shared-panel-card>

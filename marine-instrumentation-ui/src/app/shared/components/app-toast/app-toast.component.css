@@ -2,11 +2,11 @@
   display: flex;
   align-items: flex-start;
   padding: 1rem;
-  background-color: var(--bg-surface);
+  background-color: var(--gb-bg-panel);
   border: 1px solid var(--border-default);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-lg);
-  color: var(--text-primary);
+  color: var(--gb-text-value);
   min-width: 300px;
   max-width: 400px;
   gap: 0.75rem;
@@ -41,7 +41,7 @@
 .action-btn {
   background: transparent;
   border: 1px solid var(--border-subtle);
-  color: var(--text-primary);
+  color: var(--gb-text-value);
   padding: 2px 8px;
   border-radius: var(--radius-sm);
   font-size: var(--text-xs);
@@ -56,12 +56,12 @@
 .close-btn {
   background: transparent;
   border: none;
-  color: var(--text-tertiary);
+  color: var(--gb-text-muted);
   cursor: pointer;
   padding: 0;
   display: flex;
 }
 
 .close-btn:hover {
-  color: var(--text-primary);
+  color: var(--gb-text-value);
 }

@@ -99,3 +99,54 @@ export const formatFixed = (value: number | null | undefined, fraction: number):
   }
   return value.toFixed(fraction);
 };
+
+// ── Cross Track Error (XTE) ────────────────────────────────
+// Formula: xte = asin(sin(d_ac / R) * sin(θ_ac − θ_ab)) * R
+//   where d_ac = distance from leg start to vessel,
+//         θ_ac = bearing from leg start to vessel,
+//         θ_ab = bearing of the leg (start → end),
+//         R    = earth radius.
+// Returns signed NM: positive = starboard, negative = port.
+
+export interface CrossTrackResult {
+  /** Signed cross-track error in NM (positive = starboard, negative = port) */
+  xteNm: number;
+  /** Absolute XTE value */
+  absXteNm: number;
+  /** Side of the vessel relative to the leg */
+  side: 'port' | 'starboard';
+}
+
+export const crossTrackErrorNm = (
+  legStart: GeoPoint,
+  legEnd: GeoPoint,
+  vessel: GeoPoint,
+): CrossTrackResult => {
+  const dAcMeters = haversineDistanceMeters(legStart, vessel);
+  const angularDistAc = dAcMeters / EARTH_RADIUS_METERS;
+  const bearingAcRad = toRadians(bearingDegrees(legStart, vessel));
+  const bearingAbRad = toRadians(bearingDegrees(legStart, legEnd));
+
+  const xteRad = Math.asin(Math.sin(angularDistAc) * Math.sin(bearingAcRad - bearingAbRad));
+  const xteMeters = xteRad * EARTH_RADIUS_METERS;
+  const xteNm = xteMeters / METERS_PER_NM;
+
+  return {
+    xteNm,
+    absXteNm: Math.abs(xteNm),
+    side: xteNm >= 0 ? 'starboard' : 'port',
+  };
+};
+
+// ── VMG (Velocity Made Good toward waypoint) ─────────────
+// VMG = SOG × cos(COG − BRG_wp)
+// Positive = closing on waypoint, negative = opening.
+
+export const vmgToWaypointKnots = (
+  sogKnots: number,
+  cogDeg: number,
+  bearingToWpDeg: number,
+): number => {
+  const deltaRad = toRadians(cogDeg - bearingToWpDeg);
+  return sogKnots * Math.cos(deltaRad);
+};

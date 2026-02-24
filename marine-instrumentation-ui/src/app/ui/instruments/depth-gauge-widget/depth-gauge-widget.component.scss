@@ -1,56 +1,94 @@
-.depth-gauge {
-  display: grid;
-  grid-template-columns: 28px 1fr;
-  gap: 12px;
-  align-items: center;
-  min-height: 96px;
+:host {
+  display: block;
+  width: 100%;
+  height: 100%;
 }
 
-.gauge-track {
-  position: relative;
-  height: 96px;
-  width: 24px;
-  border-radius: 14px;
-  background: linear-gradient(180deg, rgba(12, 74, 110, 0.2) 0%, rgba(12, 74, 110, 0.55) 100%);
-  border: 1px solid rgba(148, 163, 184, 0.35);
-  overflow: hidden;
+.marine-card {
+  display: block;
+  height: 100%;
 }
 
-.gauge-fill {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  border-radius: 12px;
-  background: linear-gradient(180deg, rgba(14, 116, 144, 0.8) 0%, rgba(59, 130, 246, 0.95) 100%);
-  box-shadow: 0 0 12px rgba(14, 116, 144, 0.35);
-  transition: height 160ms ease;
-}
-
-.gauge-fill.shallow {
-  background: linear-gradient(180deg, rgba(234, 88, 12, 0.85) 0%, rgba(239, 68, 68, 0.9) 100%);
-  box-shadow: 0 0 16px rgba(239, 68, 68, 0.35);
-}
-
-.depth-readout {
+.depth-gauge-container {
   display: flex;
-  align-items: baseline;
-  gap: 6px;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  height: 100%;
+  padding: 12px;
+  background: radial-gradient(
+    ellipse at 35% 50%,
+    color-mix(in srgb, var(--gb-needle-secondary) 5%, transparent) 0%,
+    transparent 55%
+  );
 }
 
-.depth-readout .value {
-  font-size: 2.2rem;
-  font-weight: 700;
-  letter-spacing: -0.02em;
+.digital-readout {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: center;
+
+  .value {
+    line-height: 1;
+    letter-spacing: -0.02em;
+    color: var(--gb-needle-secondary);
+    text-shadow:
+      0 0 12px color-mix(in srgb, var(--gb-needle-secondary) 35%, transparent),
+      0 2px 6px color-mix(in srgb, var(--gb-bg-canvas) 45%, transparent);
+
+    &.alarm {
+      color: var(--gb-data-stale);
+      text-shadow:
+        0 0 16px color-mix(in srgb, var(--gb-data-stale) 55%, transparent),
+        0 0 30px color-mix(in srgb, var(--gb-data-stale) 25%, transparent);
+      animation: pulse-danger var(--gb-anim-alarm-pulse) infinite alternate;
+    }
+  }
+
+  .unit {
+    margin-top: 5px;
+    color: var(--gb-text-unit);
+    font-size: 0.65rem;
+    letter-spacing: 0.1em;
+  }
 }
 
-.depth-readout .unit {
-  font-size: 0.95rem;
-  color: var(--text-muted, #94a3b8);
+.gauge-graphic {
+  height: 150px;
+  width: 60px;
+  display: flex;
+  justify-content: center;
+  filter: drop-shadow(0 2px 4px color-mix(in srgb, var(--gb-bg-canvas) 30%, transparent));
 }
 
-.depth-threshold {
-  margin-top: 8px;
-  font-size: 0.75rem;
-  color: var(--text-muted, #94a3b8);
+.bar-fill {
+  transition:
+    height var(--gb-anim-needle) var(--gb-ease-data),
+    fill 300ms var(--gb-ease-data);
+}
+
+.meta-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 0.35rem;
+  padding-top: 0.25rem;
+  border-top: 1px solid color-mix(in srgb, var(--gb-border-panel) 20%, transparent);
+}
+
+@keyframes pulse-danger {
+  from {
+    opacity: 1;
+    text-shadow:
+      0 0 8px color-mix(in srgb, var(--gb-data-stale) 45%, transparent);
+  }
+
+  to {
+    opacity: 0.7;
+    text-shadow:
+      0 0 22px color-mix(in srgb, var(--gb-data-stale) 90%, transparent),
+      0 0 40px color-mix(in srgb, var(--gb-data-stale) 40%, transparent);
+  }
 }

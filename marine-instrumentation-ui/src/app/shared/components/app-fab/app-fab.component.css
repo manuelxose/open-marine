@@ -81,7 +81,7 @@
 
 /* Color Variants */
 .fab-primary {
-  background-color: var(--primary);
+  background-color: var(--gb-needle-secondary);
   color: var(--primary-contrast);
 }
 
@@ -91,7 +91,7 @@
 }
 
 .fab-accent {
-  background-color: var(--accent);
+  background-color: var(--gb-needle-secondary);
   color: white;
 }
 

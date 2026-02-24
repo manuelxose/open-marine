@@ -1,216 +1,306 @@
 import { Component, ChangeDetectionStrategy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { AlarmStoreService } from '../../../state/alarms/alarm-store.service';
-import { AlarmSeverity, AlarmState } from '../../../state/alarms/alarm.models';
-import { combineLatest, map } from 'rxjs';
+import { RouterLink } from '@angular/router';
+import { combineLatest, interval, map, startWith } from 'rxjs';
 import { AlarmsFacadeService } from '../../../features/alarms/services/alarms-facade.service';
+import { AlarmSeverity, AlarmState, Alarm } from '../../../state/alarms/alarm.models';
+import { AppIconComponent, IconName } from '../../../shared/components/app-icon/app-icon.component';
 
-type BannerSeverity = 'warning' | 'critical';
+type BannerSeverity = 'warning' | 'critical' | 'emergency';
 
 interface BannerAlarm {
   id: string;
+  type: string;
   message: string;
   severity: BannerSeverity;
-  acknowledged: boolean;
-  source: 'store';
+  state: AlarmState;
+  timestamp: number;
+}
+
+interface AlarmBannerVm {
+  empty: boolean;
+  severity: BannerSeverity | null;
+  topAlarm: {
+    id: string;
+    icon: IconName;
+    message: string;
+    canAcknowledge: boolean;
+  } | null;
+  count: number;
+  ariaLive: 'polite' | 'assertive';
 }
 
 @Component({
   selector: 'app-alarm-banner',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, AppIconComponent, RouterLink],
+  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (vm$ | async; as vm) {
       <div
         class="alarm-banner"
-        [class.alarm-active]="vm.active"
-        [class.alarm-warning]="vm.severity === 'warning'"
-        [class.alarm-critical]="vm.severity === 'critical'"
-        [class.alarm-ack]="vm.acknowledged">
-        @if (vm.active) {
-          <div class="alarm-icon" aria-hidden="true">!</div>
-          <div class="alarm-body">
-            <div class="alarm-label">ALARMAS ACTIVAS · {{ vm.count }}</div>
-            <div class="alarm-message">{{ vm.message }}</div>
-          </div>
-          <div class="alarm-actions">
-            @if (!vm.acknowledged) {
-              <button class="alarm-button" type="button" (click)="acknowledge(vm)">
-                Acknowledge
-              </button>
+        [class.alarm-banner--empty]="vm.empty"
+        [class.alarm-banner--has-alarms]="!vm.empty"
+        [attr.aria-live]="vm.ariaLive"
+        role="alert"
+      >
+        @if (!vm.empty && vm.topAlarm) {
+          <div
+            class="alarm-banner__inner"
+            [attr.data-severity]="vm.severity"
+          >
+            <span class="alarm-banner__icon">
+              <app-icon [name]="vm.topAlarm.icon" size="16"></app-icon>
+            </span>
+
+            <span class="alarm-banner__message">
+              {{ vm.topAlarm.message }}
+            </span>
+
+            @if (vm.count > 1) {
+              <span class="alarm-banner__count">
+                +{{ vm.count - 1 }} more
+              </span>
             }
+
+            <span class="alarm-banner__actions">
+              @if (vm.topAlarm.canAcknowledge) {
+                <button
+                  type="button"
+                  class="alarm-banner__btn alarm-banner__btn--ack"
+                  (click)="acknowledge(vm.topAlarm.id)"
+                  aria-label="Acknowledge alarm"
+                >
+                  ACK
+                </button>
+              }
+              <a
+                class="alarm-banner__btn alarm-banner__btn--view"
+                routerLink="/alarms"
+                aria-label="View all alarms"
+              >
+                VIEW
+              </a>
+            </span>
           </div>
-        } @else {
-          <span class="alarm-empty text-muted">No active alarms</span>
         }
       </div>
     }
   `,
   styles: [`
+    :host {
+      display: block;
+    }
+
+    /* ── Container ────────────────────────────────────── */
     .alarm-banner {
-      min-height: 44px;
-      background: var(--panel-bg, var(--card-bg));
-      border: 1px solid var(--panel-border, var(--card-border));
+      position: relative;
+      z-index: var(--z-20, 20);
+      overflow: hidden;
+      transition: max-height 300ms cubic-bezier(0.4, 0, 0.2, 1),
+                  opacity 300ms ease;
+    }
+
+    .alarm-banner--empty {
+      max-height: 0;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .alarm-banner--has-alarms {
+      max-height: 52px;
+      opacity: 1;
+    }
+
+    /* ── Inner strip (severity-coloured) ─────────────── */
+    .alarm-banner__inner {
       display: flex;
       align-items: center;
-      gap: 0.75rem;
-      padding: 0.65rem 1rem;
-      font-size: 0.8rem;
-      font-weight: 600;
-      border-radius: 12px;
-      box-shadow: var(--shadow);
+      gap: var(--space-3);
+      padding: 0 var(--space-4);
+      height: 44px;
     }
 
-    .alarm-banner.alarm-warning {
-      border-color: color-mix(in srgb, var(--warn) 60%, var(--panel-border));
-      background: color-mix(in srgb, var(--warn) 12%, var(--panel-bg));
+    .alarm-banner__inner[data-severity="emergency"] {
+      background: var(--gb-alarm-emergency-bg);
+      border-bottom: 2px solid var(--gb-alarm-emergency-border);
+      animation: gb-alarm-beat 0.8s ease-in-out infinite;
     }
 
-    .alarm-banner.alarm-critical {
-      border-color: color-mix(in srgb, var(--danger) 60%, var(--panel-border));
-      background: color-mix(in srgb, var(--danger) 14%, var(--panel-bg));
+    .alarm-banner__inner[data-severity="critical"] {
+      background: var(--gb-alarm-critical-bg);
+      border-bottom: 2px solid var(--gb-alarm-critical-border);
+      animation: gb-alarm-beat 1.2s ease-in-out infinite;
     }
 
-    .alarm-icon {
-      width: 28px;
-      height: 28px;
-      border-radius: 999px;
+    .alarm-banner__inner[data-severity="warning"] {
+      background: var(--gb-alarm-warning-bg);
+      border-bottom: 1px solid var(--gb-alarm-warning-border);
+    }
+
+    /* ── Icon ─────────────────────────────────────────── */
+    .alarm-banner__icon {
+      font-size: 1rem;
+      flex-shrink: 0;
       display: inline-flex;
       align-items: center;
-      justify-content: center;
-      background: color-mix(in srgb, var(--text-2) 18%, transparent);
-      color: var(--text-1);
-      font-weight: 800;
-      font-size: 0.95rem;
-      line-height: 1;
+      color: var(--gb-text-value);
     }
 
-    .alarm-warning .alarm-icon {
-      background: color-mix(in srgb, var(--warn) 25%, transparent);
-      color: var(--warn);
-    }
-
-    .alarm-critical .alarm-icon {
-      background: color-mix(in srgb, var(--danger) 25%, transparent);
-      color: var(--danger);
-    }
-
-    .alarm-body {
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-      min-width: 0;
-    }
-
-    .alarm-label {
-      font-size: 0.65rem;
-      letter-spacing: 0.18em;
-      text-transform: uppercase;
-      color: var(--text-2);
-    }
-
-    .alarm-message {
-      font-size: 0.95rem;
-      font-weight: 700;
-      color: var(--text-1);
+    /* ── Message ──────────────────────────────────────── */
+    .alarm-banner__message {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 0.8125rem;
+      font-weight: 600;
+      color: var(--gb-text-value);
+      flex: 1;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
-      max-width: 60vw;
     }
 
-    .alarm-actions {
-      margin-left: auto;
+    /* ── Count badge ─────────────────────────────────── */
+    .alarm-banner__count {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.7rem;
+      color: var(--gb-text-muted);
+      flex-shrink: 0;
+    }
+
+    /* ── Actions ──────────────────────────────────────── */
+    .alarm-banner__actions {
+      display: flex;
+      gap: var(--space-2);
+      flex-shrink: 0;
+    }
+
+    .alarm-banner__btn {
+      height: 28px;
+      padding: 0 var(--space-2);
+      border-radius: var(--radius-sm, 4px);
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 0.65rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      cursor: pointer;
+      border: 1px solid;
+      transition: all 150ms ease;
       display: inline-flex;
       align-items: center;
-      gap: 0.5rem;
+      justify-content: center;
     }
 
-    .alarm-button {
-      border: 1px solid color-mix(in srgb, var(--text-2) 40%, transparent);
-      background: color-mix(in srgb, var(--surface-2) 70%, transparent);
-      color: var(--text-1);
-      padding: 0.4rem 0.75rem;
-      border-radius: 999px;
-      font-size: 0.75rem;
-      font-weight: 700;
-      cursor: pointer;
-      transition: all 0.2s ease;
+    .alarm-banner__btn--ack {
+      background: transparent;
+      border-color: var(--gb-text-muted);
+      color: var(--gb-text-muted);
     }
 
-    .alarm-button:hover {
-      background: color-mix(in srgb, var(--surface-3) 70%, transparent);
+    .alarm-banner__btn--ack:hover {
+      border-color: var(--gb-text-value);
+      color: var(--gb-text-value);
     }
 
-    .alarm-warning .alarm-button {
-      border-color: color-mix(in srgb, var(--warn) 55%, var(--panel-border));
-      color: var(--warn);
+    .alarm-banner__btn--view {
+      background: transparent;
+      border-color: #4a90d9;
+      color: #4a90d9;
+      text-decoration: none;
     }
 
-    .alarm-critical .alarm-button {
-      border-color: color-mix(in srgb, var(--danger) 55%, var(--panel-border));
-      color: var(--danger);
+    .alarm-banner__btn--view:hover {
+      background: rgba(74, 144, 217, 0.12);
     }
 
-    .alarm-empty {
-      font-size: 0.75rem;
-      font-weight: 600;
+    /* ── Animation ────────────────────────────────────── */
+    @keyframes gb-alarm-beat {
+      0%, 100% { opacity: 1; }
+      50%      { opacity: 0.72; }
     }
-  `],
-  changeDetection: ChangeDetectionStrategy.OnPush,
-})
-export class AlarmBannerComponent {
-  private readonly alarmsFacade = inject(AlarmsFacadeService);
-  private readonly alarmStore = inject(AlarmStoreService);
 
-  private readonly storeAlarms$ = this.alarmStore.activeAlarms$.pipe(
-    map(alarms => alarms
-      .filter(a => a.severity !== AlarmSeverity.Emergency)
-      .filter(a => a.state === AlarmState.Active || a.state === AlarmState.Acknowledged || a.state === AlarmState.Silenced)
-      .map((a): BannerAlarm => ({
-        id: a.id,
-        message: a.message,
-        severity: a.severity === AlarmSeverity.Critical ? 'critical' : 'warning',
-        acknowledged: a.state !== AlarmState.Active,
-        source: 'store',
-      }))
-    )
-  );
-
-  readonly vm$ = combineLatest([this.storeAlarms$]).pipe(
-    map(([store]) => {
-      const alarms: BannerAlarm[] = [...store];
-      if (alarms.length === 0) {
-        return { active: false, count: 0, severity: 'warning' as const, acknowledged: false, message: '' };
+    /* ── Responsive ───────────────────────────────────── */
+    @media (max-width: 600px) {
+      .alarm-banner__inner {
+        padding: 0 var(--space-3);
+        gap: var(--space-2);
       }
 
-      const severityRank: Record<BannerSeverity, number> = { warning: 1, critical: 2 };
-      const sorted = [...alarms].sort((a, b) => {
-        const sev = severityRank[b.severity] - severityRank[a.severity];
-        if (sev !== 0) return sev;
-        if (a.acknowledged !== b.acknowledged) return a.acknowledged ? 1 : -1;
-        return 0;
-      });
-
-      const top = sorted[0];
-      const countSuffix = alarms.length > 1 ? ` (+${alarms.length - 1})` : '';
-
-      return {
-        active: true,
-        count: alarms.length,
-        severity: top.severity,
-        acknowledged: top.acknowledged,
-        message: `${top.message}${countSuffix}`,
-        source: top.source,
-        id: top.id,
-      };
-    })
+      .alarm-banner__count {
+        display: none;
+      }
+    }
+  `],
+})
+export class AlarmBannerComponent {
+  private readonly facade = inject(AlarmsFacadeService);
+  private readonly now$ = interval(1000).pipe(
+    startWith(0),
+    map(() => Date.now()),
   );
 
-  acknowledge(vm: { source?: 'store'; id?: string }): void {
-    if (!vm.id) {
-      return;
-    }
-    this.alarmStore.acknowledgeAlarm(vm.id);
+  readonly vm$ = combineLatest([
+    this.facade.activeAlarms$,
+    this.now$,
+  ]).pipe(
+    map(([alarms, _now]) => {
+      const bannerAlarms = alarms.map((a) => this.toBannerAlarm(a));
+      const severityRank: Record<BannerSeverity, number> = {
+        warning: 1,
+        critical: 2,
+        emergency: 3,
+      };
+
+      const sorted = [...bannerAlarms].sort((a, b) => {
+        const rank = severityRank[b.severity] - severityRank[a.severity];
+        return rank !== 0 ? rank : b.timestamp - a.timestamp;
+      });
+
+      const count = sorted.length;
+      const first = sorted[0] ?? null;
+      const severity = first ? first.severity : null;
+      const ariaLive: 'polite' | 'assertive' =
+        severity === 'critical' || severity === 'emergency' ? 'assertive' : 'polite';
+
+      const topAlarm = first
+        ? {
+            id: first.id,
+            icon: this.iconFor(first),
+            message: first.message,
+            canAcknowledge: first.state === AlarmState.Active,
+          }
+        : null;
+
+      return { empty: count === 0, severity, topAlarm, count, ariaLive } satisfies AlarmBannerVm;
+    }),
+  );
+
+  acknowledge(alarmId: string): void {
+    this.facade.acknowledgeAlarm(alarmId);
+  }
+
+  private toBannerAlarm(alarm: Alarm): BannerAlarm {
+    const severity: BannerSeverity =
+      alarm.severity === AlarmSeverity.Emergency
+        ? 'emergency'
+        : alarm.severity === AlarmSeverity.Critical
+          ? 'critical'
+          : 'warning';
+
+    return {
+      id: alarm.id,
+      type: alarm.type,
+      message: alarm.message,
+      severity,
+      state: alarm.state,
+      timestamp: alarm.timestamp,
+    };
+  }
+
+  private iconFor(alarm: BannerAlarm): IconName {
+    if (alarm.type === 'mob') return 'mob';
+    if (alarm.severity === 'emergency') return 'alarm';
+    if (alarm.severity === 'critical') return 'error';
+    return 'alert-triangle';
   }
 }

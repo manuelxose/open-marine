@@ -4,98 +4,78 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { combineLatest, map, startWith, timer } from 'rxjs';
 import { PATHS } from '@omi/marine-data-contract';
 import { DatapointStoreService } from '../../../state/datapoints/datapoint-store.service';
-import { InstrumentCardComponent, DataQuality } from '../../components/instrument-card/instrument-card.component';
-import { formatAngleDegrees } from '../../../core/formatting/formatters';
+import { CompassComponent } from '../../../shared/components/patterns/compass/compass.component';
+import { GbInstrumentBezelComponent } from '../../../shared/components/gb-instrument-bezel/gb-instrument-bezel.component';
+import { DataQualityService, type DataQuality } from '../../../shared/services/data-quality.service';
 
 interface CompassView {
-  headingDeg: number | null;
-  value: string;
-  unit: string;
+  heading: number;
+  cogStr: string;
   quality: DataQuality;
   age: number | null;
   source: string;
+  timestamp: number;
 }
 
 @Component({
   selector: 'app-compass-widget',
   standalone: true,
-  imports: [CommonModule, InstrumentCardComponent],
+  imports: [CommonModule, CompassComponent, GbInstrumentBezelComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
-    <app-instrument-card
-      title="Compass"
-      [value]="'--'"
-      [quality]="view().quality"
-      [ageSeconds]="view().age"
-      [source]="view().source"
-    >
-      <div class="compass">
-        <div class="compass-ring"></div>
-        <div class="compass-label north">N</div>
-        <div class="compass-label east">E</div>
-        <div class="compass-label south">S</div>
-        <div class="compass-label west">W</div>
-
-        <div
-          class="compass-needle"
-          [style.transform]="view().headingDeg === null ? 'rotate(0deg)' : 'rotate(' + view().headingDeg + 'deg)'"
-        ></div>
-        <div class="compass-center"></div>
-
-        <div class="compass-readout">
-          <span class="value">{{ view().value }}</span>
-          <span class="unit">{{ view().unit }}</span>
-        </div>
-      </div>
-    </app-instrument-card>
-  `,
+  templateUrl: './compass-widget.component.html',
   styleUrls: ['./compass-widget.component.scss'],
 })
 export class CompassWidgetComponent {
-  private store = inject(DatapointStoreService);
-  private ticker$ = timer(0, 500);
-  private headingTrue$ = this.store.observe<number>(PATHS.navigation.headingTrue);
-  private headingMag$ = this.store.observe<number>(PATHS.navigation.headingMagnetic);
+  private readonly store = inject(DatapointStoreService);
+  private readonly quality = inject(DataQualityService);
+  private readonly ticker$ = timer(0, 1000);
+  private readonly heading$ = this.store.observe<number>(PATHS.navigation.headingTrue).pipe(startWith(undefined));
+  private readonly cog$ = this.store.observe<number>(PATHS.navigation.courseOverGroundTrue).pipe(startWith(undefined));
 
-  private vm$ = combineLatest([
-    this.headingTrue$.pipe(startWith(undefined)),
-    this.headingMag$.pipe(startWith(undefined)),
-    this.ticker$,
-  ]).pipe(
-    map(([headingTrue, headingMag]) => {
-      const point = headingTrue ?? headingMag;
-      if (!point) {
-        return { headingDeg: null, value: '--', unit: 'deg', quality: 'bad', age: null, source: '' } as CompassView;
+  private readonly vm$ = combineLatest([this.heading$, this.cog$, this.ticker$]).pipe(
+    map(([hdg, cog]) => {
+      if (!hdg || typeof hdg.value !== 'number') {
+        return {
+          heading: 0,
+          cogStr: '---',
+          quality: 'missing',
+          age: null,
+          source: '',
+          timestamp: 0,
+        } satisfies CompassView;
       }
 
-      const now = Date.now();
-      const age = (now - point.timestamp) / 1000;
-      let quality: DataQuality = 'good';
-      if (age > 2) quality = 'warn';
-      if (age > 5) quality = 'bad';
-
-      const formatted = formatAngleDegrees(point.value);
-      const headingDeg = this.toDegrees(point.value);
+      const age = (Date.now() - hdg.timestamp) / 1000;
+      const cogDeg = cog && typeof cog.value === 'number' ? this.radToDeg(cog.value) : null;
 
       return {
-        headingDeg,
-        value: formatted.value,
-        unit: formatted.unit,
-        quality,
+        heading: this.radToDeg(hdg.value),
+        cogStr: cogDeg === null ? '---' : String(Math.round(cogDeg)).padStart(3, '0'),
+        quality: this.quality.getQuality(hdg.timestamp),
         age,
-        source: point.source,
-      } as CompassView;
-    })
+        source: hdg.source ?? '',
+        timestamp: hdg.timestamp,
+      } satisfies CompassView;
+    }),
   );
 
-  view = toSignal(this.vm$, {
-    initialValue: { headingDeg: null, value: '--', unit: 'deg', quality: 'bad', age: null, source: '' },
+  readonly view = toSignal(this.vm$, {
+    initialValue: {
+      heading: 0,
+      cogStr: '---',
+      quality: 'missing',
+      age: null,
+      source: '',
+      timestamp: 0,
+    } satisfies CompassView,
   });
 
-  private toDegrees(radians: number): number {
-    let degrees = (radians * 180) / Math.PI;
-    degrees = degrees % 360;
-    if (degrees < 0) degrees += 360;
-    return degrees;
+  private radToDeg(rad: number): number {
+    let deg = (rad * 180) / Math.PI;
+    deg %= 360;
+    if (deg < 0) {
+      deg += 360;
+    }
+    return deg;
   }
 }

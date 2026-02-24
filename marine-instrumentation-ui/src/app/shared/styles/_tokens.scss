@@ -80,6 +80,40 @@
   --border-subtle: var(--nord-5);
   --border-default: var(--nord-4);
   --border-strong: var(--nord-3);
+
+  // Derived / Compatibility Tokens
+  --bg-surface-2: var(--bg-surface-secondary);
+  --bg-surface-3: var(--nord-4);
+  --bg-surface-tertiary: var(--nord-4);
+  --border-color: var(--border-default);
+  --bg-hover: color-mix(in srgb, var(--text-primary) 6%, var(--bg-surface-secondary));
+  --color-danger: var(--danger);
+  --color-danger-dim: color-mix(in srgb, var(--danger) 18%, var(--bg-surface-secondary));
+  --color-warning-500: var(--warn);
+  --color-success-500: var(--success);
+  --color-danger-500: var(--danger);
+  --color-danger-500-10: var(--danger-bg);
+  --color-danger-500-rgb: 220, 38, 38;
+  --color-info-500: var(--info);
+  --color-info-500-10: var(--info-bg);
+  --color-info-500-rgb: 129, 161, 193;
+  --color-info-500-30: color-mix(in srgb, var(--info) 30%, transparent);
+  --color-accent-500: var(--accent);
+  --color-primary-500: var(--primary);
+  --surface-card: var(--bg-surface);
+  --surface-ground-rgb: 236, 239, 244;
+  --panel: var(--panel-bg);
+  --panel-bg-hover: var(--bg-hover);
+  --accent-color: var(--accent);
+  --accent-strong: var(--primary-700);
+  --accent-soft: color-mix(in srgb, var(--primary) 12%, var(--bg-surface-secondary));
+  --chip-bg: color-mix(in srgb, var(--bg-surface-secondary) 85%, var(--primary) 15%);
+  --status-online: var(--success);
+  --status-offline: var(--text-tertiary);
+  --info-bg: color-mix(in srgb, var(--info) 12%, var(--bg-surface));
+  --info-text: var(--text-primary);
+  --overlay-backdrop: rgba(46, 52, 64, 0.45);
+  --overlay-blur: blur(4px);
   
   --radius-none: 0;
   --radius-sm: 0.25rem; // 4px
@@ -120,6 +154,13 @@
   
   --layout-gutter: var(--space-4);
   --section-spacing: var(--space-8);
+  
+  // Spacing aliases (legacy)
+  --spacing-xs: var(--space-2);
+  --spacing-sm: var(--space-3);
+  --spacing-md: var(--space-4);
+  --spacing-lg: var(--space-6);
+  --spacing-xl: var(--space-8);
 
   // ---------------------------------------------------------------------------
   // Z-INDEX TOKENS (T.8)
@@ -141,9 +182,10 @@
   --surface-1: var(--bg-surface);
   --surface-2: var(--bg-surface-secondary);
   --surface-3: var(--nord-4);
+  --surface-border: var(--border-default);
   
   --border: var(--border-default);
-  --border-strong: var(--border-strong);
+  --border-strong: var(--nord-3);
   
   --shadow: var(--shadow-md);
   // --shadow-lg defined above
@@ -151,10 +193,7 @@
   --text-1: var(--text-primary);
   --text-2: var(--text-secondary);
   --text-3: var(--text-tertiary);
-  
-  --text-primary: var(--text-1); // Self-ref safety
-  --text-secondary: var(--text-2);
-  --text-tertiary: var(--text-3);
+
   --text-muted: var(--text-tertiary);
   --muted: var(--text-tertiary);
   --fg: var(--text-primary);
@@ -171,8 +210,12 @@
   --success-400: var(--nord-14); // Approximate
   --success-500: var(--success);
   --success-600: var(--success-text);
+  --success-default: var(--success);
+  --warning-default: var(--warn);
+  --danger-default: var(--danger);
+  --primary-default: var(--primary);
   
-  --warn-bg: var(--warn-bg);
+  --warning-bg: var(--warn-bg);
   --warning-400: var(--nord-13); // Yellowish
   --warning-500: var(--warn);
   
@@ -192,6 +235,116 @@
   --panel-bg: var(--bg-surface);
   --panel-border: var(--border-default);
   // End Legacy
+
+  // ---------------------------------------------------------------------------
+  // CHART REBUILD TOKENS
+  // ---------------------------------------------------------------------------
+  
+  // Surfaces & Glassmorphism
+  --chart-overlay-bg: color-mix(in srgb, var(--bg-surface) 85%, transparent);
+  --chart-overlay-border: color-mix(in srgb, var(--border-default) 60%, transparent);
+  --chart-overlay-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+  --chart-overlay-blur: blur(12px);
+
+  // Status Colors
+  --fix-color: var(--success);
+  --stale-color: var(--warn);
+  --nofix-color: var(--danger);
+
+  // Z-Index Layers
+  --z-map: 0;
+  --z-map-controls: 10;
+  --z-chart-hud: 15;
+  --z-chart-panels: 20;
+  --z-chart-drawers: 25;
+  --z-chart-modals: 30;
+  --z-chart-alerts: 40;
+  --z-fullscreen: 100;
+
+  // Spacing
+  --chart-edge-gap: 1rem;
+  --chart-element-gap: 0.75rem;
+
+  // Animation
+  --chart-panel-duration: 250ms;
+  --chart-panel-easing: cubic-bezier(0.4, 0, 0.2, 1);
+
+  // ---------------------------------------------------------------------------
+  // DASHBOARD GLASS MORPHISM TOKENS
+  // ---------------------------------------------------------------------------
+  --glass-blur: 16px;
+  --glass-blur-heavy: 28px;
+  --glass-blur-light: 8px;
+
+  // Day mode glass
+  --glass-bg-day: rgba(255, 255, 255, 0.55);
+  --glass-bg-day-heavy: rgba(255, 255, 255, 0.75);
+  --glass-border-day: rgba(255, 255, 255, 0.8);
+  --glass-shine-day: rgba(255, 255, 255, 0.9);
+
+  // Night mode glass
+  --glass-bg-night: rgba(46, 52, 64, 0.6);
+  --glass-bg-night-heavy: rgba(59, 66, 82, 0.8);
+  --glass-border-night: rgba(136, 192, 208, 0.18);
+  --glass-shine-night: rgba(136, 192, 208, 0.08);
+
+  // Active values (day defaults)
+  --glass-bg: var(--glass-bg-day);
+  --glass-bg-heavy: var(--glass-bg-day-heavy);
+  --glass-border: var(--glass-border-day);
+  --glass-shine: var(--glass-shine-day);
+
+  // Nautical gradients
+  --gradient-nav: linear-gradient(135deg, rgba(0, 119, 190, 0.12) 0%, rgba(94, 129, 172, 0.06) 100%);
+  --gradient-wind: linear-gradient(135deg, rgba(143, 188, 187, 0.12) 0%, rgba(136, 192, 208, 0.06) 100%);
+  --gradient-depth: linear-gradient(135deg, rgba(0, 75, 120, 0.15) 0%, rgba(0, 119, 190, 0.08) 100%);
+  --gradient-power: linear-gradient(135deg, rgba(163, 190, 140, 0.12) 0%, rgba(235, 203, 139, 0.08) 100%);
+  --gradient-system: linear-gradient(135deg, rgba(76, 86, 106, 0.15) 0%, rgba(59, 66, 82, 0.1) 100%);
+
+  // Glow effects
+  --glow-primary: 0 0 20px rgba(0, 119, 190, 0.35);
+  --glow-success: 0 0 16px rgba(163, 190, 140, 0.4);
+  --glow-warn: 0 0 16px rgba(235, 203, 139, 0.5);
+  --glow-danger: 0 0 20px rgba(191, 97, 106, 0.5);
+
+  // Highlight line
+  --glass-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  --glass-highlight-night: inset 0 1px 0 rgba(136, 192, 208, 0.15);
+
+  // ---------------------------------------------------------------------------
+  // ENHANCED GLASS PRO TOKENS (Dashboard & Instruments)
+  // ---------------------------------------------------------------------------
+  --glass-noise-opacity: 0.03;
+  --glass-inner-shadow: inset 0 2px 12px rgba(255, 255, 255, 0.06);
+  --glass-inner-shadow-night: inset 0 2px 12px rgba(136, 192, 208, 0.04);
+  --glass-depth-shadow: 0 8px 32px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.04);
+  --glass-depth-shadow-night: 0 8px 32px rgba(0, 0, 0, 0.35), 0 2px 8px rgba(0, 0, 0, 0.2);
+  --glass-hover-glow: 0 0 40px rgba(0, 119, 190, 0.12);
+  --glass-card-radius: 20px;
+  --glass-card-radius-sm: 14px;
+
+  // Instrument-specific tokens
+  --instrument-bg: rgba(255, 255, 255, 0.45);
+  --instrument-bg-night: rgba(46, 52, 64, 0.65);
+  --instrument-border: rgba(255, 255, 255, 0.6);
+  --instrument-border-night: rgba(136, 192, 208, 0.14);
+  --instrument-value-glow: 0 0 12px rgba(0, 119, 190, 0.15);
+  --instrument-value-glow-night: 0 0 16px rgba(136, 192, 208, 0.12);
+  --instrument-bezel-shadow: 
+    inset 0 1px 0 rgba(255, 255, 255, 0.35),
+    0 4px 16px rgba(0, 0, 0, 0.06);
+  --instrument-bezel-shadow-night: 
+    inset 0 1px 0 rgba(136, 192, 208, 0.1),
+    0 4px 16px rgba(0, 0, 0, 0.3);
+
+  // Category accent colors for instruments
+  --cat-navigation: var(--marine-blue);
+  --cat-wind: var(--nord-7);
+  --cat-depth: var(--nord-8);
+  --cat-environment: var(--nord-15);
+  --cat-electrical: var(--nord-14);
+  --cat-engine: var(--nord-12);
+  --cat-performance: var(--nord-9);
 }
 
 // ---------------------------------------------------------------------------
@@ -227,7 +380,7 @@
   // Text (Night)
   --text-primary: var(--nord-6);
   --text-secondary: var(--nord-4);
-  --text-tertiary: var(--nord-3); // Muted
+  --text-tertiary: color-mix(in srgb, var(--nord-4) 60%, var(--nord-3)); // Muted, but legible
   --text-disabled: var(--nord-2);
   --text-inverse: var(--nord-0);
 
@@ -235,6 +388,7 @@
   --border-subtle: var(--nord-1);
   --border-default: var(--nord-2);
   --border-strong: var(--nord-3);
+  --bg-surface-tertiary: var(--nord-3);
   
   // Shadows (Lighter or invisible in dark mode)
   // In Night Mode, shadows are less useful for depth; borders become more important.
@@ -245,4 +399,26 @@
   --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.6);
   --shadow-2xl: 0 25px 50px -12px rgba(0, 0, 0, 0.8);
   --shadow-inner: inset 0 2px 4px 0 rgba(0, 0, 0, 0.5);
+
+  // Chart Night Mode Overrides
+  --chart-overlay-bg: color-mix(in srgb, var(--nord-1) 90%, transparent);
+  --chart-overlay-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+
+  // Compatibility overrides for night
+  --color-danger-500-rgb: 166, 52, 52;
+  --surface-ground-rgb: 46, 52, 64;
+  --overlay-backdrop: rgba(0, 0, 0, 0.65);
+
+  // Dashboard glass overrides
+  --glass-bg: var(--glass-bg-night);
+  --glass-bg-heavy: var(--glass-bg-night-heavy);
+  --glass-border: var(--glass-border-night);
+  --glass-shine: var(--glass-shine-night);
+  --glass-highlight: var(--glass-highlight-night);
+  --glass-inner-shadow: var(--glass-inner-shadow-night);
+  --glass-depth-shadow: var(--glass-depth-shadow-night);
+  --instrument-bg: var(--instrument-bg-night);
+  --instrument-border: var(--instrument-border-night);
+  --instrument-value-glow: var(--instrument-value-glow-night);
+  --instrument-bezel-shadow: var(--instrument-bezel-shadow-night);
 }

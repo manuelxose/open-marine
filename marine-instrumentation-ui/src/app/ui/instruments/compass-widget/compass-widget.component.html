@@ -1,0 +1,21 @@
+<omi-gb-bezel class="compass-widget-bezel" [quality]="view().quality" label="HEADING / COG">
+  <div class="compass-shell">
+    <div class="compass-figure">
+      <app-compass
+        [heading]="view().heading"
+        [timestamp]="view().timestamp"
+        [size]="240"
+        unit="&#176; T"
+      ></app-compass>
+    </div>
+
+    <div class="compass-meta">
+      <span class="gb-display-unit">COG {{ view().cogStr }}&#176;</span>
+      <span class="gb-display-unit" *ngIf="view().age !== null">{{ view().age | number:'1.1-1' }}s</span>
+    </div>
+
+    <div class="compass-source gb-instrument-label" *ngIf="view().source">
+      {{ view().source }}
+    </div>
+  </div>
+</omi-gb-bezel>

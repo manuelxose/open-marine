@@ -13,7 +13,7 @@
   position: relative;
   display: flex;
   align-items: center;
-  background-color: var(--bg-surface);
+  background-color: var(--gb-bg-panel);
   border: 1px solid var(--border-default);
   border-radius: var(--radius-md);
   transition: all 0.2s ease;
@@ -50,12 +50,12 @@
   padding: 0 0.75rem;
   font-family: var(--font-body);
   font-size: var(--text-sm);
-  color: var(--text-primary);
+  color: var(--gb-text-value);
   outline: none;
 }
 
 .native-input::placeholder {
-  color: var(--text-tertiary);
+  color: var(--gb-text-muted);
 }
 
 .disabled .native-input {
@@ -70,7 +70,7 @@
 .input-icon {
   position: absolute;
   left: 0.75rem;
-  color: var(--text-tertiary);
+  color: var(--gb-text-muted);
   pointer-events: none;
   transition: color 0.2s;
 }
@@ -94,7 +94,7 @@
   border-radius: 50%;
   border: none;
   background: transparent;
-  color: var(--text-tertiary);
+  color: var(--gb-text-muted);
   cursor: pointer;
   padding: 0;
   transition: background-color 0.2s;
@@ -102,7 +102,7 @@
 
 .clear-btn:hover {
   background-color: var(--bg-surface-tertiary);
-  color: var(--text-secondary);
+  color: var(--gb-text-muted);
 }
 
 .app-input-container.has-clear:not(.disabled) .native-input {

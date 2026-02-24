@@ -10,33 +10,46 @@ import {
   computed,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { Router } from '@angular/router';
+// Services
 import { ChartFacadeService } from './services/chart-facade.service';
-import { ChartCanvasComponent } from './components/chart-canvas/chart-canvas.component';
-import { ChartControlsComponent } from './components/chart-controls/chart-controls.component';
-import { MapControlsComponent } from './components/map-controls/map-controls.component';
-import { ChartHudComponent } from './components/chart-hud/chart-hud.component';
-import { ChartWaypointListComponent } from './components/chart-waypoint-list/chart-waypoint-list.component';
-import { AutopilotConsoleComponent } from '../autopilot/components/autopilot-console/autopilot-console.component';
-import { AisTargetDetailsComponent } from '../ais/components/ais-target-details/ais-target-details.component';
-import { AlarmStatusWidgetComponent } from './components/alarm-status-widget/alarm-status-widget.component';
-import { MapLibreEngineService } from './services/maplibre-engine.service';
-import { PlaybackBarComponent } from '../playback/components/playback-bar/playback-bar.component';
-import { InstrumentsDrawerComponent } from '../instruments/components/instruments-drawer/instruments-drawer.component';
-import { AppFabComponent } from '../../shared/components/app-fab/app-fab.component';
-
+import { ChartFullscreenService } from './services/chart-fullscreen.service';
+import { AnchorWatchService } from './services/anchor-watch.service';
+import { MeasurementService } from './services/measurement.service';
+import { GpxExportService } from './services/gpx-export.service';
+import { InstrumentsFacadeService } from '../instruments/instruments-facade.service';
+import { DatapointStoreService } from '../../state/datapoints/datapoint-store.service';
 import { AisStoreService } from '../../state/ais/ais-store.service';
 import { PlaybackStoreService } from '../../state/playback/playback-store.service';
-import { toSignal } from '@angular/core/rxjs-interop';
-import type { RouteFeatureCollection, WaypointFeatureCollection } from './types/chart-geojson';
-import type { MapOrientation } from './types/chart-vm';
-import type { FeatureCollection, Point } from 'geojson';
-import {
-  PLAYBACK_POSITION_LAT_PATH,
-  PLAYBACK_POSITION_LON_PATH,
-  PlaybackState,
-} from '../../state/playback/playback.models';
-import { InstrumentsFacadeService, InstrumentWidget } from '../instruments/instruments-facade.service';
+import { MapLibreEngineService } from './services/maplibre-engine.service';
+import { DEFAULT_VESSEL_TYPE_COLORS } from './services/chart-settings.service';
+
+// Components
+import { ChartCanvasComponent } from './components/chart-canvas/chart-canvas.component';
+import { MapControlsComponent } from './components/map-controls/map-controls.component';
+
+import { QuickInstrumentsComponent } from './components/quick-instruments/quick-instruments.component';
+import { LeftPanelComponent } from './components/left-panel/left-panel.component';
+import { FullscreenToggleComponent } from './components/fullscreen-toggle/fullscreen-toggle.component';
+import { AlarmStatusWidgetComponent } from './components/alarm-status-widget/alarm-status-widget.component';
+import { ChartTopBarComponent } from './components/chart-top-bar/chart-top-bar.component';
+import { AisTargetDetailsComponent } from '../ais/components/ais-target-details/ais-target-details.component';
+import { PlaybackBarComponent } from '../playback/components/playback-bar/playback-bar.component';
+import { InstrumentsDrawerComponent } from '../instruments/components/instruments-drawer/instruments-drawer.component';
+import { MapSettingsPanelComponent } from './components/map-settings-panel/map-settings-panel.component';
+import { ChartLegendComponent } from '../chart-legend/chart-legend.component';
+import { AppIconComponent } from '../../shared/components/app-icon/app-icon.component';
+import { TranslatePipe } from '../../shared/pipes/translate.pipe';
+
+// Utils & Types
+import { selectSog, selectCog, selectDepth, selectPosition, selectHeading, selectAws, selectAwa } from '../../state/datapoints/datapoint.selectors';
+import { bearingDistanceNm, metersPerSecondToKnots, toDegrees } from '../../state/calculations/navigation';
+import { ChartLayerMode, ChartLeftPanelTab, MapOrientation } from './types/chart-vm';
+import { FeatureCollection, LineString, Point } from 'geojson';
+import { RouteFeatureCollection, WaypointFeatureCollection } from './types/chart-geojson';
+import { PLAYBACK_POSITION_LAT_PATH, PLAYBACK_POSITION_LON_PATH, PlaybackState } from '../../state/playback/playback.models';
+import { AisTarget } from '../../core/models/ais.model';
 
 const INITIAL_PLAYBACK_STATE: PlaybackState = {
   status: 'idle',
@@ -53,53 +66,647 @@ const INITIAL_PLAYBACK_STATE: PlaybackState = {
   imports: [
     CommonModule,
     ChartCanvasComponent,
-    ChartControlsComponent,
     MapControlsComponent,
-    ChartHudComponent,
-    ChartWaypointListComponent,
-    AisTargetDetailsComponent,
+    QuickInstrumentsComponent,
+    LeftPanelComponent,
+    FullscreenToggleComponent,
     AlarmStatusWidgetComponent,
-    AutopilotConsoleComponent,
+    ChartTopBarComponent,
+    AisTargetDetailsComponent,
     PlaybackBarComponent,
     InstrumentsDrawerComponent,
-    AppFabComponent,
+    MapSettingsPanelComponent,
+    ChartLegendComponent,
+    AppIconComponent,
+    TranslatePipe,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  templateUrl: './chart.page.html',
-  styleUrls: ['./chart.page.css'],
+  template: `
+    <div 
+      class="chart-page" 
+      [class.fullscreen]="isFullscreen()"
+      [class.left-panel-open]="leftPanelOpen()"
+    >
+      <!-- Map Canvas -->
+      <app-chart-canvas 
+        *ngIf="canvasVm$ | async as vm"
+        class="chart-map" 
+        [vm]="vm" 
+      />
+
+      <app-chart-top-bar
+        *ngIf="topBarVm$ | async as vm"
+        class="chart-top-bar-host"
+        [vm]="vm"
+      />
+      
+      <!-- ZONA: Top Left - Map Controls -->
+      <div class="chart-zone chart-zone--top-left">
+        <app-map-controls
+          [orientation]="orientation()"
+          [canCenter]="(controlsVm$ | async)?.canCenter ?? false"
+          [autoCenter]="(controlsVm$ | async)?.autoCenter ?? false"
+          [layerMode]="layerModeSignal()"
+          [anchorWatchActive]="anchorWatchActive()"
+          [showOpenSeaMap]="(controlsVm$ | async)?.showOpenSeaMap ?? false"
+          [showAisTracks]="showAisTracksSignal()"
+          [measureActive]="measurementActive()"
+          [addWaypointModeActive]="addWaypointMode()"
+          [hasActiveWaypoint]="hasActiveWaypoint()"
+          [panelOpen]="leftPanelOpen()"
+          [settingsPanelOpen]="settingsPanelOpen()"
+          (zoomIn)="handleZoomIn()"
+          (zoomOut)="handleZoomOut()"
+          (centerOnVessel)="handleCenterAndFollow()"
+          (toggleOrientation)="handleToggleOrientation()"
+          (addWaypoint)="handleAddWaypoint()"
+          (toggleBaseLayer)="handleToggleBaseLayer()"
+          (toggleOpenSeaMap)="handleToggleOpenSeaMap()"
+          (toggleAisTracks)="handleToggleAisTracks()"
+          (toggleMeasure)="handleToggleMeasure()"
+          (deleteActiveWaypoint)="handleDeleteActiveWaypoint()"
+          (toggleAnchorWatch)="handleToggleAnchorWatch()"
+          (togglePanel)="handleToggleLeftPanel()"
+          (toggleSettingsPanel)="handleToggleSettingsPanel()"
+        />
+      </div>
+      
+      <!-- ZONA: Top Right - Alarm Badge -->
+      <div class="chart-zone chart-zone--top-right">
+        <app-alarm-status-widget />
+      </div>
+      
+      <!-- ZONA: Left Panel (M2) -->
+      <div class="chart-zone chart-zone--left-panel">
+        <app-left-panel
+          [isOpen]="leftPanelOpen()"
+          [activeTab]="leftPanelTab()"
+          [controlsVm]="(controlsVm$ | async) ?? null"
+          [waypointVm]="(waypointVm$ | async) ?? null"
+          [routesVm]="(routesVm$ | async) ?? null"
+          [aisTargets]="aisTargets()"
+          [selectedAisMmsi]="selectedAisMmsi()"
+          [aisSortBy]="aisSortBy()"
+          (toggleOpen)="handleToggleLeftPanel()"
+          (tabChange)="handleLeftPanelTabChange($event)"
+          (selectAisTarget)="handleSelectAisTarget($event)"
+          (aisSortByChange)="handleAisSortChange($event)"
+          (toggleTrack)="handleToggleTrack()"
+          (toggleVector)="handleToggleVector()"
+          (toggleTrueWind)="handleToggleTrueWind()"
+          (toggleRangeRings)="handleToggleRangeRings()"
+          (changeRangeRingIntervals)="handleChangeRangeRings($event)"
+          (toggleAisTargets)="handleToggleAisTargets()"
+          (toggleAisLabels)="handleToggleAisLabels()"
+          (toggleCpaLines)="handleToggleCpaLines()"
+          (toggleOpenSeaMap)="handleToggleOpenSeaMap()"
+          (selectWaypoint)="handleSelectWaypoint($event)"
+          (renameWaypoint)="handleRenameWaypoint($event)"
+          (deleteWaypoint)="handleDeleteWaypoint($event)"
+          (clearActiveWaypoint)="handleClearActiveWaypoint()"
+          (exportWaypointsGpx)="handleExportWaypointsGpx()"
+          (exportRouteGpx)="handleExportRouteGpx()"
+          (followTarget)="handleFollowAisTarget($event)" />
+      </div>
+      
+      <!-- ZONA: Bottom Right - Quick Instruments -->
+      <div class="chart-zone chart-zone--bottom-right">
+        <app-quick-instruments 
+          [sog]="sog() ?? null"
+          [cog]="cog() ?? null"
+          [hdg]="hdg() ?? null"
+          [depth]="depth() ?? null"
+          [aws]="aws() ?? null"
+          [awa]="awa() ?? null"
+          [depthUnit]="depthUnit()"
+          [speedUnit]="speedUnit()"
+          (openDrawer)="handleOpenInstruments()"
+        />
+      </div>
+      
+      <!-- ZONA: Bottom Center - Playback (M8) -->
+      <div class="chart-zone chart-zone--bottom-center" *ngIf="isPlaybackActive()">
+        <app-playback-bar
+          [state]="playbackState()"
+          (togglePlay)="handlePlaybackToggle()"
+          (stop)="handlePlaybackStop()"
+          (seek)="handlePlaybackSeek($event)"
+          (speedChange)="handlePlaybackSpeed($event)"
+          (skipForward)="handlePlaybackSkipForward()"
+          (skipBackward)="handlePlaybackSkipBackward()"
+        />
+      </div>
+      
+      <!-- Fullscreen Toggle (FAB) -->
+      <app-fullscreen-toggle 
+        class="fullscreen-fab"
+        [isFullscreen]="isFullscreen()"
+        (toggle)="handleToggleFullscreen()"
+      />
+
+      <!-- Map Settings Panel -->
+      <app-map-settings-panel
+        *ngIf="settingsPanelOpen()"
+        class="chart-zone chart-zone--settings-panel"
+        (navigateTo)="handleNavigateTo($event)"
+        (closePanel)="settingsPanelOpen.set(false)"
+      />
+      
+      <!-- Instruments Drawer (M6) -->
+      <app-instruments-drawer 
+        [isOpen]="showInstruments()"
+        [widgets]="instrumentWidgets()"
+        [data]="instrumentData()"
+        [depthUnit]="depthUnit()"
+        (close)="showInstruments.set(false)"
+        (reorder)="handleInstrumentReorder($event)"
+        (configure)="handleInstrumentConfigure()"
+      />
+      
+      <!-- AIS Details Modal -->
+      <div
+        *ngIf="selectedAisTarget()"
+        class="ais-details-overlay"
+        (click)="handleCloseAisDetails()">
+        <app-ais-target-details
+          [target]="selectedAisTarget()!"
+          (close)="handleCloseAisDetails()"
+          class="ais-details-modal"
+          (click)="$event.stopPropagation()"
+        />
+      </div>
+
+      <!-- Chart Legend: "?" button + fullscreen modal -->
+      <button
+        class="legend-btn"
+        (click)="showLegend.set(!showLegend())"
+        [attr.aria-label]="'legend.open_button' | translate"
+        [attr.aria-expanded]="showLegend()"
+        title="Chart Legend"
+      >
+        <app-icon name="info" [size]="22" class="legend-btn-icon" />
+      </button>
+
+      <app-chart-legend
+        [isOpen]="showLegend()"
+        (close)="showLegend.set(false)"
+      />
+    </div>
+  `,
+  styles: [`
+    :host {
+      display: block;
+      height: 100%;
+      width: 100%;
+    }
+
+    .chart-page {
+      --chart-top-bar-height: 48px;
+      --chart-top-controls-offset: calc(var(--chart-top-bar-height) + (var(--chart-edge-gap) * 0.25));
+      --chart-left-panel-anchor: 48px;
+      --chart-left-panel-width: 340px;
+
+      position: relative;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: var(--gb-bg-canvas);
+      
+      &.fullscreen {
+        position: fixed;
+        inset: 0;
+        z-index: var(--z-fullscreen, 100);
+      }
+    }
+
+    .chart-map {
+      position: absolute;
+      inset: 0;
+      z-index: var(--z-map);
+    }
+
+    .chart-top-bar-host {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: calc(var(--z-map-controls) + 1);
+      animation: chart-zone-enter-slide-down 0.35s var(--ease-out) both;
+    }
+
+    // ═══════════════════════════════════════════════
+    // FLOATING ZONES
+    // ═══════════════════════════════════════════════
+
+    .chart-zone {
+      position: absolute;
+      z-index: var(--z-map-controls);
+      pointer-events: none;
+      
+      > * {
+        pointer-events: auto;
+      }
+    }
+
+    // TOP LEFT: Map Controls
+    .chart-zone--top-left {
+      top: var(--chart-top-controls-offset);
+      left: var(--chart-edge-gap);
+      z-index: var(--z-chart-panels);
+      animation: chart-zone-enter 0.4s var(--ease-out) both;
+      animation-delay: 0.1s;
+    }
+
+    // TOP RIGHT: Alarm badge (next to fullscreen FAB)
+    .chart-zone--top-right {
+      top: var(--chart-top-controls-offset);
+      right: calc(var(--chart-edge-gap) + 52px);
+      z-index: calc(var(--z-chart-panels) + 2);
+      animation: chart-zone-enter-right 0.35s var(--ease-out) both;
+      animation-delay: 0.15s;
+    }
+
+    // LEFT PANEL: Floating tabs panel
+    .chart-zone--left-panel {
+      top: var(--chart-top-controls-offset);
+      bottom: var(--chart-edge-gap);
+      left: calc(var(--chart-edge-gap) + var(--chart-left-panel-anchor));
+      z-index: var(--z-chart-panels);
+      animation: chart-zone-enter 0.4s var(--ease-out) both;
+      animation-delay: 0.2s;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .chart-zone--left-panel > app-left-panel {
+      display: block;
+      flex: 1 1 auto;
+      min-height: 0;
+    }
+
+    // BOTTOM RIGHT: Quick Instruments
+    .chart-zone--bottom-right {
+      bottom: var(--chart-edge-gap);
+      right: var(--chart-edge-gap);
+      z-index: var(--z-chart-panels);
+      animation: chart-zone-enter-bottom 0.5s var(--ease-out) both;
+      animation-delay: 0.3s;
+    }
+
+    // BOTTOM CENTER: Playback Bar
+    .chart-zone--bottom-center {
+      bottom: var(--chart-edge-gap);
+      left: 50%;
+      transform: translateX(-50%);
+      width: min(720px, calc(100% - 400px));
+      z-index: var(--z-chart-panels);
+      animation: chart-zone-enter-bottom 0.4s var(--ease-out) both;
+    }
+
+    // SETTINGS PANEL: Below map controls on the left
+    .chart-zone--settings-panel {
+      top: var(--chart-top-controls-offset);
+      left: calc(var(--chart-edge-gap) + 48px);
+      bottom: var(--chart-edge-gap);
+      z-index: calc(var(--z-chart-panels) + 1);
+      animation: chart-zone-enter 0.3s var(--ease-out) both;
+      pointer-events: auto;
+    }
+
+    // ═══════════════════════════════════════════════
+    // FULLSCREEN FAB
+    // ═══════════════════════════════════════════════
+
+    .fullscreen-fab {
+      position: absolute;
+      top: var(--chart-top-controls-offset);
+      right: var(--chart-edge-gap);
+      z-index: var(--z-chart-panels);
+      transition: all var(--duration-normal) var(--ease-out);
+      animation: chart-zone-enter 0.3s var(--ease-out) both;
+      animation-delay: 0.35s;
+      
+      @media(max-width: 768px) {
+        right: var(--chart-edge-gap);
+        top: auto;
+        bottom: calc(var(--chart-edge-gap) + 200px);
+      }
+    }
+
+    // ═══════════════════════════════════════════════
+    // AIS DETAILS MODAL
+    // ═══════════════════════════════════════════════
+
+    .ais-details-modal {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: var(--z-chart-modals);
+      max-width: 420px;
+      width: 90%;
+      max-height: min(80vh, 600px);
+      border-radius: 14px;
+      border: 1px solid var(--chart-overlay-border);
+      background: var(--chart-overlay-bg);
+      backdrop-filter: var(--chart-overlay-blur);
+      box-shadow: var(--chart-overlay-shadow);
+      overflow: hidden;
+      animation: modal-enter 0.3s var(--ease-out) both;
+    }
+
+    .ais-details-overlay {
+      position: absolute;
+      inset: 0;
+      z-index: var(--z-chart-modals);
+      background: color-mix(in srgb, #000 28%, transparent);
+      backdrop-filter: blur(2px);
+      -webkit-backdrop-filter: blur(2px);
+      pointer-events: auto;
+    }
+
+    // ═══════════════════════════════════════════════
+    // ENTRANCE ANIMATIONS
+    // ═══════════════════════════════════════════════
+
+    @keyframes chart-zone-enter {
+      from {
+        opacity: 0;
+        transform: translateX(-12px);
+      }
+      to {
+        opacity: 1;
+        transform: translateX(0);
+      }
+    }
+
+    @keyframes chart-zone-enter-slide-down {
+      from {
+        opacity: 0;
+        transform: translateY(-10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes chart-zone-enter-top {
+      from {
+        opacity: 0;
+        transform: translateX(-50%) translateY(-10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+      }
+    }
+
+    @keyframes chart-zone-enter-right {
+      from {
+        opacity: 0;
+        transform: translateX(12px);
+      }
+      to {
+        opacity: 1;
+        transform: translateX(0);
+      }
+    }
+
+    @keyframes chart-zone-enter-bottom {
+      from {
+        opacity: 0;
+        transform: translateY(12px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes modal-enter {
+      from {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(0.92);
+      }
+      to {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1);
+      }
+    }
+
+    // ═══════════════════════════════════════════════
+    // LEGEND BUTTON
+    // ═══════════════════════════════════════════════
+
+    .legend-btn {
+      position: absolute;
+      bottom: var(--chart-edge-gap);
+      left: var(--chart-edge-gap);
+      z-index: var(--z-chart-panels);
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      border: 1px solid var(--chart-overlay-border, rgba(255,255,255,0.12));
+      background: var(--chart-overlay-bg, rgba(46,52,64,0.85));
+      backdrop-filter: var(--chart-overlay-blur, blur(12px));
+      color: var(--gb-text-value);
+      font-size: 1.1rem;
+      font-weight: bold;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: var(--chart-overlay-shadow, 0 2px 8px rgba(0,0,0,0.3));
+      transition: all 0.2s ease;
+      pointer-events: auto;
+      animation: chart-zone-enter-bottom 0.5s var(--ease-out) both;
+      animation-delay: 0.4s;
+
+      &:hover {
+        background: color-mix(in srgb, var(--chart-overlay-bg, rgba(46,52,64,0.85)) 80%, white);
+        transform: scale(1.1);
+        border-color: rgba(74, 144, 217, 0.5);
+      }
+    }
+
+    .legend-btn-icon {
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 700;
+      line-height: 1;
+    }
+
+    // ═══════════════════════════════════════════════
+    // RESPONSIVE
+    // ═══════════════════════════════════════════════
+
+    @media (max-width: 768px) {
+      .chart-zone--top-right {
+        top: calc(var(--chart-top-bar-height) + var(--space-2));
+        right: var(--chart-edge-gap);
+      }
+
+      .chart-zone--left-panel {
+        top: auto;
+        left: var(--chart-edge-gap);
+        right: var(--chart-edge-gap);
+        bottom: calc(var(--chart-edge-gap) + 88px);
+      }
+
+      .chart-zone--bottom-center {
+        width: calc(100% - 2 * var(--chart-edge-gap));
+        bottom: calc(var(--chart-edge-gap) + 140px);
+      }
+    }
+  `]
 })
 export class ChartPage implements AfterViewInit, OnDestroy {
   private readonly facade = inject(ChartFacadeService);
+  private readonly fullscreenService = inject(ChartFullscreenService);
+  private readonly anchorWatchService = inject(AnchorWatchService);
+  private readonly measurementService = inject(MeasurementService);
+  private readonly gpxExportService = inject(GpxExportService);
+  private readonly instrumentsFacade = inject(InstrumentsFacadeService);
+  private readonly datapointStore = inject(DatapointStoreService);
   private readonly aisStore = inject(AisStoreService);
   private readonly playbackStore = inject(PlaybackStoreService);
-  private readonly instrumentsFacade = inject(InstrumentsFacadeService);
-  private readonly router = inject(Router);
-  private readonly engine = new MapLibreEngineService();
+  
+  private readonly engine = new MapLibreEngineService(); // Engine logic maintained
+  private canvasComponent: ChartCanvasComponent | undefined;
+  private mapInitialized = false;
 
-  @ViewChild(ChartCanvasComponent) canvasComponent?: ChartCanvasComponent;
+  @ViewChild(ChartCanvasComponent)
+  set canvasComponentRef(component: ChartCanvasComponent | undefined) {
+    this.canvasComponent = component;
+    this.tryInitMap();
+  }
 
+  // View Models (from Facade)
   readonly canvasVm$ = this.facade.canvasVm$;
   readonly controlsVm$ = this.facade.controlsVm$;
-  readonly hudVm$ = this.facade.hudVm$;
+  readonly topBarVm$ = this.facade.topBarVm$;
   readonly waypointVm$ = this.facade.waypointListVm$;
-  private readonly baseSourceSignal = toSignal(this.facade.baseSource$);
-  readonly orientationSignal = toSignal(this.facade.orientation$, { initialValue: 'north-up' as MapOrientation });
+  readonly routesVm$ = this.facade.routesPanelVm$;
+  
+  // UI State
+  readonly isFullscreen = this.fullscreenService.isFullscreen;
+  readonly showInstruments = signal(false);
+  readonly showLegend = signal(false);
+  readonly leftPanelOpen = signal(true);
+  readonly leftPanelTab = signal<ChartLeftPanelTab>('layers');
+  readonly aisSortBy = signal<'distance' | 'cpa' | 'name'>('distance');
+  readonly settingsPanelOpen = signal(false);
+  readonly addWaypointMode = signal(false);
 
-  protected readonly showAutopilot = signal<boolean>(false);
-  protected readonly showInstruments = signal<boolean>(false);
+  // Anchor Watch State (wired to service in M4)
+  private readonly anchorWatchState = toSignal(this.anchorWatchService.state$, {
+    initialValue: this.anchorWatchService.snapshot,
+  });
+  readonly anchorWatchActive = computed(() => this.anchorWatchState().active);
 
-  protected readonly selectedAisMmsi = signal<string | null>(null);
-  protected readonly selectedAisTarget = computed(() => {
+  // Measurement State
+  private readonly measurementStateSignal = toSignal(this.measurementService.state$, {
+    initialValue: this.measurementService.snapshot,
+  });
+  readonly measurementActive = computed(() => this.measurementStateSignal().active);
+
+  // Instruments State (M6)
+  readonly instrumentWidgets = toSignal(this.instrumentsFacade.widgets$, {
+    initialValue: this.instrumentsFacade.snapshot,
+  });
+  readonly instrumentData = computed(() => {
+    const pos = this.ownPositionSignal();
+    return {
+      fixState: (pos?.value ? 'fix' : 'no-fix') as 'fix' | 'stale' | 'no-fix',
+      position: pos?.value ? { lat: pos.value.latitude, lon: pos.value.longitude } : null,
+    };
+  });
+
+  // AIS State
+  private readonly ownPositionSignal = toSignal(selectPosition(this.datapointStore), { initialValue: null });
+  readonly aisTargets = computed(() => this.sortAisTargets(
+    Array.from(this.aisStore.targets().values()),
+    this.aisSortBy(),
+    this.ownPositionSignal()?.value?.latitude ?? null,
+    this.ownPositionSignal()?.value?.longitude ?? null,
+  ));
+  readonly selectedAisMmsi = signal<string | null>(null);
+  readonly selectedAisTarget = computed(() => {
     const mmsi = this.selectedAisMmsi();
     return mmsi ? this.aisStore.targets().get(mmsi) : null;
   });
 
+  // Derived Data for Quick Instruments
+  private readonly rawSog = toSignal(selectSog(this.datapointStore), { initialValue: null });
+  private readonly rawCog = toSignal(selectCog(this.datapointStore), { initialValue: null });
+  private readonly rawDepth = toSignal(selectDepth(this.datapointStore), { initialValue: null });
+  private readonly rawHdg = toSignal(selectHeading(this.datapointStore), { initialValue: null });
+  private readonly rawAws = toSignal(selectAws(this.datapointStore), { initialValue: null });
+  private readonly rawAwa = toSignal(selectAwa(this.datapointStore), { initialValue: null });
+
+  readonly sog = computed(() => {
+    const val = this.rawSog();
+    return val?.value !== undefined && val.value !== null ? metersPerSecondToKnots(val.value) : null;
+  });
+  
+  readonly cog = computed(() => {
+    const val = this.rawCog();
+    return val?.value !== undefined && val.value !== null ? toDegrees(val.value) : null;
+  });
+  
+  readonly depth = computed(() => {
+    const val = this.rawDepth();
+    return val?.value;
+  });
+
+  readonly hdg = computed(() => {
+    const val = this.rawHdg();
+    return val?.value !== undefined && val.value !== null ? toDegrees(val.value) : null;
+  });
+
+  readonly aws = computed(() => {
+    const val = this.rawAws();
+    return val?.value !== undefined && val.value !== null ? metersPerSecondToKnots(val.value) : null;
+  });
+
+  readonly awa = computed(() => {
+    const val = this.rawAwa();
+    return val?.value !== undefined && val.value !== null ? toDegrees(val.value) : null;
+  });
+
+  // Units (Mocked for now, should come from preferences)
+  readonly speedUnit = signal<'kn'>('kn');
+  readonly depthUnit = signal<'m'>('m');
+
+  // Map & Playback State Logic (Legacy Integration)
+  private readonly baseSourceSignal = toSignal(this.facade.baseSource$);
+  readonly layerModeSignal = computed<ChartLayerMode>(() => {
+    this.baseSourceSignal();
+    return this.facade.currentLayerMode;
+  });
+  private readonly controlsVmSignal = toSignal(this.facade.controlsVm$, { initialValue: null });
+  private readonly openSeaMapSignal = toSignal(this.facade.openSeaMapVisible$, { initialValue: false });
+  readonly showAisTracksSignal = toSignal(this.facade.showAisTracks$, { initialValue: true });
+  private readonly showAisTargetsSignal = toSignal(this.facade.showAisTargets$, { initialValue: true });
+  private readonly showAisLabelsSignal = toSignal(this.facade.showAisLabels$, { initialValue: true });
+  private readonly showCpaLinesSignal = toSignal(this.facade.showCpaLines$, { initialValue: true });
+  private readonly aisVesselTypeColorsSignal = toSignal(this.facade.vesselTypeColors$, {
+    initialValue: { ...DEFAULT_VESSEL_TYPE_COLORS },
+  });
+  private readonly ownVesselIconScaleSignal = toSignal(this.facade.ownVesselIconScale$, { initialValue: 1.15 });
+  private readonly aisTargetIconScaleSignal = toSignal(this.facade.aisTargetIconScale$, { initialValue: 0.8 });
+  private readonly windTrackMinZoomSignal = toSignal(this.facade.windTrackMinZoom$, { initialValue: 15 });
+  private readonly rangeRingsMinZoomSignal = toSignal(this.facade.rangeRingsMinZoom$, { initialValue: 8 });
+  readonly orientation = toSignal(this.facade.orientation$, { initialValue: 'north-up' as MapOrientation });
+  readonly isTracking = computed(() => this.controlsVmSignal()?.autoCenter ?? false);
+  private readonly waypointListVmSignal = toSignal(this.waypointVm$, {
+    initialValue: { waypoints: [], activeId: null },
+  });
+  readonly hasActiveWaypoint = computed(() => !!this.waypointListVmSignal().activeId);
+  readonly activeWaypointId = computed(() => this.waypointListVmSignal().activeId);
+
   private readonly vesselSignal = toSignal(this.facade.vesselUpdate$, {
-    initialValue: {
-      lngLat: null,
-      rotationDeg: null,
-      state: 'no-fix' as 'fix' | 'stale' | 'no-fix',
-    },
+    initialValue: { lngLat: null, rotationDeg: null, state: 'no-fix' as 'fix' | 'stale' | 'no-fix' },
   });
   private readonly trackSignal = toSignal(this.facade.trackCoords$, {
     initialValue: [] as [number, number][],
@@ -107,54 +714,21 @@ export class ChartPage implements AfterViewInit, OnDestroy {
   private readonly vectorSignal = toSignal(this.facade.vectorUpdate$, {
     initialValue: { coords: [] as [number, number][], visible: false },
   });
+  private readonly headingLineSignal = toSignal(this.facade.headingLineUpdate$, {
+    initialValue: { coords: [] as [number, number][], visible: false },
+  });
+  private readonly laylinesSignal = toSignal(this.facade.laylinesUpdate$, {
+    initialValue: { lines: [] as [number, number][][], visible: false },
+  });
   private readonly trueWindSignal = toSignal(this.facade.trueWindUpdate$, {
     initialValue: { coords: [] as [number, number][], visible: false },
   });
-
   private readonly rangeRingsSignal = toSignal(this.facade.rangeRingsUpdate$, {
     initialValue: { center: null as [number, number] | null, intervals: [] as number[] },
   });
   private readonly bearingLineSignal = toSignal(this.facade.bearingLineUpdate$, {
     initialValue: { coords: [] as [number, number][], visible: false },
   });
-  protected readonly playbackStateSignal = toSignal(this.playbackStore.state$, {
-    initialValue: INITIAL_PLAYBACK_STATE,
-  });
-  protected readonly instrumentsWidgets = toSignal(this.instrumentsFacade.widgets$, {
-    initialValue: this.instrumentsFacade.snapshot,
-  });
-  private readonly playbackLatSignal = toSignal(
-    this.playbackStore.frameForPath(PLAYBACK_POSITION_LAT_PATH),
-    { initialValue: null },
-  );
-  private readonly playbackLonSignal = toSignal(
-    this.playbackStore.frameForPath(PLAYBACK_POSITION_LON_PATH),
-    { initialValue: null },
-  );
-  protected readonly instrumentsData = computed(() => {
-    const vessel = this.vesselSignal();
-    const lngLat = vessel.lngLat;
-    return {
-      fixState: vessel.state,
-      position: lngLat ? { lat: lngLat[1], lon: lngLat[0] } : null,
-    };
-  });
-  protected readonly playbackActive = computed(() => {
-    const status = this.playbackStateSignal().status;
-    return status === 'ready' || status === 'playing' || status === 'paused';
-  });
-  private readonly playbackVesselSignal = computed(() => {
-    if (!this.playbackActive()) return null;
-    const lat = this.playbackLatSignal();
-    const lon = this.playbackLonSignal();
-    if (!lat || !lon) return null;
-    return {
-      lngLat: [lon.value, lat.value] as [number, number],
-      rotationDeg: null,
-      state: 'fix' as 'fix' | 'stale' | 'no-fix',
-    };
-  });
-
   private readonly centerSignal = toSignal(this.facade.mapCenter$, {
     initialValue: this.facade.initialView.center,
   });
@@ -167,43 +741,70 @@ export class ChartPage implements AfterViewInit, OnDestroy {
   private readonly aisTargetsSignal = toSignal(this.facade.aisTargetsGeoJson$, {
     initialValue: { type: 'FeatureCollection', features: [] } as FeatureCollection<Point>,
   });
+  private readonly aisTracksSignal = toSignal(this.facade.aisTracksGeoJson$, {
+    initialValue: { type: 'FeatureCollection', features: [] } as FeatureCollection<LineString>,
+  });
+  private readonly aisPredictionsSignal = toSignal(this.facade.aisPredictionsGeoJson$, {
+    initialValue: { type: 'FeatureCollection', features: [] } as FeatureCollection<LineString>,
+  });
   private readonly cpaLinesSignal = toSignal(this.facade.cpaLinesGeoJson$, {
-    initialValue: { type: 'FeatureCollection', features: [] } as FeatureCollection<any>,
+    initialValue: { type: 'FeatureCollection', features: [] } as FeatureCollection<LineString>,
   });
 
+  // Playback Logic
+  readonly playbackState = toSignal(this.playbackStore.state$, { initialValue: INITIAL_PLAYBACK_STATE });
+  readonly isPlaybackActive = computed(() => {
+    const status = this.playbackState().status;
+    return status === 'ready' || status === 'playing' || status === 'paused';
+  });
+  private readonly playbackLatSignal = toSignal(
+    this.playbackStore.frameForPath(PLAYBACK_POSITION_LAT_PATH), { initialValue: null }
+  );
+  private readonly playbackLonSignal = toSignal(
+    this.playbackStore.frameForPath(PLAYBACK_POSITION_LON_PATH), { initialValue: null }
+  );
+  private readonly playbackVesselSignal = computed(() => {
+    if (!this.isPlaybackActive()) return null;
+    const lat = this.playbackLatSignal();
+    const lon = this.playbackLonSignal();
+    if (!lat || !lon) return null;
+    return {
+      lngLat: [lon.value, lat.value] as [number, number],
+      rotationDeg: null,
+      state: 'fix' as 'fix' | 'stale' | 'no-fix',
+    };
+  });
+  // Waypoints count derived from features
+  readonly waypointCount = computed(() => this.waypointsSignal().features.length);
+
   constructor() {
+    // ---- Map Engine Effects (Maintained from original) ----
     effect(() => {
       const vessel = this.playbackVesselSignal() ?? this.vesselSignal();
       if (!vessel) return;
       this.engine.updateVesselPosition(vessel.lngLat, vessel.rotationDeg, vessel.state);
     });
 
-    effect(() => {
-      this.engine.updateTrack(this.trackSignal());
+    effect(() => { this.engine.updateTrack(this.trackSignal()); });
+    effect(() => { 
+      const vector = this.vectorSignal(); 
+      this.engine.updateVector(vector.coords, vector.visible); 
     });
-
     effect(() => {
-      const vector = this.vectorSignal();
-      this.engine.updateVector(vector.coords, vector.visible);
+      const headingLine = this.headingLineSignal();
+      this.engine.updateHeadingLine(headingLine.coords, headingLine.visible);
     });
-
+    effect(() => {
+      const laylines = this.laylinesSignal();
+      this.engine.updateLaylines(laylines.lines, laylines.visible);
+    });
     effect(() => {
       const wind = this.trueWindSignal();
       this.engine.updateTrueWind(wind.coords, wind.visible);
     });
-
-    effect(() => {
-      this.engine.updateWaypoints(this.waypointsSignal());
-    });
-
-    effect(() => {
-      this.engine.updateRoute(this.routeSignal());
-    });
-
-    effect(() => {
-      this.engine.updateView(this.centerSignal());
-    });
-
+    effect(() => { this.engine.updateWaypoints(this.waypointsSignal()); });
+    effect(() => { this.engine.updateRoute(this.routeSignal()); });
+    effect(() => { this.engine.updateView(this.centerSignal()); });
     effect(() => {
       const rings = this.rangeRingsSignal();
       if (rings && rings.center) {
@@ -212,139 +813,378 @@ export class ChartPage implements AfterViewInit, OnDestroy {
         this.engine.clearRangeRings();
       }
     });
-
     effect(() => {
       const line = this.bearingLineSignal();
       this.engine.updateBearingLine(line.coords, line.visible);
     });
-
     effect(() => {
       const source = this.baseSourceSignal();
-      if (source) {
-        this.engine.setBaseSource(source);
+      if (source) this.engine.setBaseSource(source);
+    });
+    effect(() => { this.engine.setOrientation(this.orientation()); });
+    effect(() => { this.engine.updateAisTargets(this.aisTargetsSignal()); });
+    effect(() => { this.engine.updateAisTracks(this.aisTracksSignal()); });
+    effect(() => { this.engine.updateAisPredictions(this.aisPredictionsSignal()); });
+    effect(() => { this.engine.updateCpaLines(this.cpaLinesSignal()); });
+    effect(() => { this.engine.setAisVesselTypeColors(this.aisVesselTypeColorsSignal()); });
+    effect(() => { this.engine.setOwnVesselIconScale(this.ownVesselIconScaleSignal()); });
+    effect(() => { this.engine.setAisTargetIconScale(this.aisTargetIconScaleSignal()); });
+    effect(() => { this.engine.setWindTrackMinZoom(this.windTrackMinZoomSignal()); });
+    effect(() => { this.engine.setRangeRingsMinZoom(this.rangeRingsMinZoomSignal()); });
+    effect(() => { this.engine.setOpenSeaMapVisible(this.openSeaMapSignal()); });
+    effect(() => { this.engine.setAisTargetsVisible(this.showAisTargetsSignal()); });
+    effect(() => { this.engine.setAisLabelsVisible(this.showAisLabelsSignal()); });
+    effect(() => { this.engine.setCpaLinesVisible(this.showCpaLinesSignal()); });
+
+    // Measurement tool — sync to map engine
+    effect(() => {
+      const ms = this.measurementStateSignal();
+      if (ms.active) {
+        this.engine.updateMeasurement(ms.pointA, ms.pointB, ms.bearingDeg, ms.distanceNm);
+      } else {
+        this.engine.clearMeasurement();
       }
     });
 
+    // Anchor Watch — feed vessel position to service
     effect(() => {
-      this.engine.setOrientation(this.orientationSignal());
+      const pos = this.ownPositionSignal();
+      if (pos?.value?.longitude != null && pos?.value?.latitude != null) {
+        this.anchorWatchService.updateVesselPosition(pos.value.longitude, pos.value.latitude);
+      }
     });
+
+    // Anchor Watch — sync layer on map
     effect(() => {
-      this.engine.updateAisTargets(this.aisTargetsSignal());
+      const state = this.anchorWatchState();
+      if (state.active && state.config) {
+        this.engine.updateAnchorWatch(
+          state.config.anchorPosition,
+          state.config.radiusMeters,
+          state.alarmActive,
+        );
+      } else {
+        this.engine.clearAnchorWatch();
+      }
     });
-    effect(() => {
-      this.engine.updateCpaLines(this.cpaLinesSignal());
-    });
-  }
-
-  handleToggleAutoCenter(): void {
-    this.facade.toggleAutoCenter();
-  }
-
-  handleToggleTrack(): void {
-    this.facade.toggleTrack();
-  }
-
-  handleZoomIn(): void {
-    this.engine.zoomIn();
-  }
-
-  handleZoomOut(): void {
-    this.engine.zoomOut();
-  }
-
-  handleToggleLayers(): void {
-    this.facade.toggleLayer();
-  }
-
-  handleToggleOrientation(): void {
-    this.facade.toggleOrientation();
-  }
-
-  handleToggleVector(): void {
-    this.facade.toggleVector();
-  }
-
-  handleToggleTrueWind(): void {
-    this.facade.toggleTrueWind();
-  }
-
-  handleToggleRangeRings(): void {
-    this.facade.toggleRangeRings();
-  }
-
-  handleChangeRangeRings(intervals: number[]): void {
-    this.facade.setRangeRingIntervals(intervals);
-  }
-
-  handleSelectWaypoint(id: string): void {
-    this.facade.selectWaypoint(id);
-  }
-
-  handleRenameWaypoint(event: { id: string; name: string }): void {
-    this.facade.renameWaypoint(event.id, event.name);
-  }
-
-  handleDeleteWaypoint(id: string): void {
-    this.facade.deleteWaypoint(id);
-  }
-
-  handleClearActiveWaypoint(): void {
-    this.facade.clearActiveWaypoint();
-  }
-  
-  handleCloseAisDetails(): void {
-    this.selectedAisMmsi.set(null);
-  }
-
-  handlePlaybackSeek(timestamp: number): void {
-    this.playbackStore.seek(timestamp);
-  }
-
-  handlePlaybackSpeedChange(speed: number): void {
-    this.playbackStore.setSpeed(speed);
-  }
-
-  handleToggleInstruments(): void {
-    this.showInstruments.set(!this.showInstruments());
-  }
-
-  handleInstrumentsReorder(event: { previousIndex: number; currentIndex: number }): void {
-    const widgets = [...this.instrumentsFacade.snapshot];
-    const visible = widgets.filter((widget) => widget.visible);
-    if (event.previousIndex < 0 || event.currentIndex < 0 || event.previousIndex >= visible.length || event.currentIndex >= visible.length) {
-      return;
-    }
-    const [moved] = visible.splice(event.previousIndex, 1);
-    visible.splice(event.currentIndex, 0, moved);
-
-    let visibleIndex = 0;
-    const updated = widgets.map((widget) => (widget.visible ? visible[visibleIndex++] : widget));
-    this.instrumentsFacade.setWidgets(updated);
-  }
-
-  handleNavigateToAutopilot(): void {
-    // this.router.navigate(['/autopilot']);
-    this.showAutopilot.update(v => !v);
   }
 
   ngAfterViewInit(): void {
+    this.tryInitMap();
+  }
+
+  private tryInitMap(): void {
+    if (this.mapInitialized) {
+      return;
+    }
+
     const container = this.canvasComponent?.mapContainer?.nativeElement;
     if (!container) {
       return;
     }
 
-    this.engine.setClickHandler((lngLat) => this.facade.addWaypointAt(lngLat));
+    this.engine.setClickHandler((lngLat) => {
+      // When measurement mode is active, route clicks to measurement service
+      if (this.measurementActive()) {
+        this.measurementService.addPoint(lngLat);
+        return;
+      }
+      if (this.addWaypointMode()) {
+        this.facade.addWaypointAt(lngLat);
+      }
+    });
     this.engine.setFeatureClickHandler((event) => {
-        if (event.layerId === 'chart-ais-layer' && event.properties?.mmsi) {
-            console.log('AIS Target selected:', event.properties.mmsi);
-            this.selectedAisMmsi.set(event.properties.mmsi);
+      if (event.layerId === 'chart-waypoints-layer') {
+        const waypointId =
+          typeof event.properties?.id === 'string' && event.properties.id.trim().length > 0
+            ? event.properties.id
+            : null;
+        if (waypointId) {
+          this.facade.selectWaypoint(waypointId);
         }
+        return;
+      }
+      if (event.layerId === 'chart-ais-layer' && event.properties?.mmsi) {
+        this.selectedAisMmsi.set(event.properties.mmsi);
+      }
     });
 
     this.engine.init(container, this.facade.initialView);
+    this.mapInitialized = true;
   }
 
   ngOnDestroy(): void {
     this.engine.destroy();
+    this.mapInitialized = false;
   }
+  
+  // ---- Event Handlers ----
+  
+  handleZoomIn() { this.engine.zoomIn(); } // Using engine directly for standard zoom
+  handleZoomOut() { this.engine.zoomOut(); }
+  
+  handleCenter() {
+    this.facade.centerOnVessel();
+  }
+  
+  handleCenterAndFollow() {
+    // Single button behavior:
+    // - If tracking is active: disable it.
+    // - If tracking is inactive: center and enable it.
+    if (this.isTracking()) {
+      this.facade.toggleAutoCenter();
+      return;
+    }
+
+    this.facade.centerOnVessel();
+  }
+  
+  handleToggleOrientation() { this.facade.toggleOrientation(); }
+
+  handleToggleAutoCenter() {
+    this.facade.toggleAutoCenter();
+  }
+  
+  handleToggleBaseLayer() {
+     this.facade.toggleLayer();
+  }
+
+  handleToggleOpenSeaMap() {
+    this.facade.toggleOpenSeaMap();
+  }
+
+  handleToggleAisTracks() {
+    this.facade.toggleAisTracks();
+  }
+
+  handleToggleMeasure() {
+    // Keep measure and add-waypoint modes mutually exclusive.
+    if (!this.measurementActive() && this.addWaypointMode()) {
+      this.addWaypointMode.set(false);
+    }
+    this.measurementService.toggle();
+  }
+
+  handleAddWaypoint() {
+    const next = !this.addWaypointMode();
+    this.addWaypointMode.set(next);
+    // Keep measure and add-waypoint modes mutually exclusive.
+    if (next && this.measurementActive()) {
+      this.measurementService.toggle();
+    }
+  }
+
+  handleToggleTrack() {
+    this.facade.toggleTrack();
+  }
+
+  handleToggleVector() {
+    this.facade.toggleVector();
+  }
+
+  handleToggleTrueWind() {
+    this.facade.toggleTrueWind();
+  }
+
+  handleToggleRangeRings() {
+    this.facade.toggleRangeRings();
+  }
+
+  handleChangeRangeRings(intervals: number[]) {
+    this.facade.setRangeRingIntervals(intervals);
+  }
+
+  handleToggleAisTargets() {
+    this.facade.toggleAisTargets();
+  }
+
+  handleToggleAisLabels() {
+    this.facade.toggleAisLabels();
+  }
+
+  handleToggleCpaLines() {
+    this.facade.toggleCpaLines();
+  }
+
+  handleToggleLeftPanel() {
+    this.leftPanelOpen.set(!this.leftPanelOpen());
+  }
+
+  handleLeftPanelTabChange(tab: ChartLeftPanelTab) {
+    this.leftPanelTab.set(tab);
+  }
+
+  handleAisSortChange(sortBy: 'distance' | 'cpa' | 'name') {
+    this.aisSortBy.set(sortBy);
+  }
+
+  handleToggleFullscreen() {
+    this.fullscreenService.toggle();
+  }
+
+  handleToggleSettingsPanel() {
+    this.settingsPanelOpen.set(!this.settingsPanelOpen());
+    // Close left panel if settings panel opens to avoid overlap
+    if (this.settingsPanelOpen()) {
+      this.leftPanelOpen.set(false);
+    }
+  }
+
+  handleNavigateTo(coords: { lng: number; lat: number; zoom?: number }) {
+    this.engine.flyTo([coords.lng, coords.lat], coords.zoom ?? 10);
+    this.settingsPanelOpen.set(false);
+  }
+
+  handleOpenInstruments() {
+    this.showInstruments.set(true);
+  }
+
+  handleInstrumentReorder(event: { previousIndex: number; currentIndex: number }) {
+    const widgets = this.instrumentsFacade.snapshot;
+    const visible = widgets.filter((w) => w.visible);
+    const widget = visible[event.previousIndex];
+    if (!widget) return;
+    // Map visible index to absolute index in the full array
+    const allIndex = widgets.findIndex((w) => w.id === widget.id);
+    if (allIndex === -1) return;
+    const targetWidget = visible[event.currentIndex];
+    const targetIndex = targetWidget ? widgets.findIndex((w) => w.id === targetWidget.id) : widgets.length - 1;
+    this.instrumentsFacade.moveWidget(widget.id, targetIndex);
+  }
+
+  private readonly router = inject(Router);
+
+  handleInstrumentConfigure() {
+    this.router.navigate(['/instruments']);
+  }
+  
+  handleSelectAisTarget(mmsi: string) {
+     this.selectedAisMmsi.set(mmsi);
+  }
+
+  handleFollowAisTarget(mmsi: string) {
+    const target = this.aisTargets().find(t => t.mmsi === mmsi);
+    if (target) {
+      this.engine.flyTo([target.longitude, target.latitude], 14);
+    }
+  }
+
+  handleCloseAisDetails() {
+    this.selectedAisMmsi.set(null);
+  }
+
+  handleSelectWaypoint(id: string) {
+    this.facade.selectWaypoint(id);
+  }
+
+  handleRenameWaypoint(event: { id: string; name: string }) {
+    this.facade.renameWaypoint(event.id, event.name);
+  }
+
+  handleDeleteWaypoint(id: string) {
+    this.facade.deleteWaypoint(id);
+  }
+
+  handleDeleteActiveWaypoint() {
+    const activeId = this.activeWaypointId();
+    if (!activeId) {
+      return;
+    }
+    this.facade.deleteWaypoint(activeId);
+  }
+
+  handleClearActiveWaypoint() {
+    this.facade.clearActiveWaypoint();
+  }
+
+  handleExportWaypointsGpx() {
+    this.gpxExportService.exportWaypoints();
+  }
+
+  handleExportRouteGpx() {
+    this.gpxExportService.exportRoute();
+  }
+    
+  handleToggleAnchorWatch() {
+    const pos = this.ownPositionSignal();
+    const vesselPos: [number, number] | null =
+      pos?.value?.longitude != null && pos?.value?.latitude != null
+        ? [pos.value.longitude, pos.value.latitude]
+        : null;
+    this.anchorWatchService.toggle(vesselPos);
+  }
+
+  // ---- Playback Handlers (M8) ----
+
+  handlePlaybackToggle() {
+    const status = this.playbackState().status;
+    if (status === 'playing') {
+      this.playbackStore.pause();
+    } else {
+      this.playbackStore.play();
+    }
+  }
+
+  handlePlaybackStop() {
+    this.playbackStore.stop();
+  }
+
+  handlePlaybackSeek(timestamp: number) {
+    this.playbackStore.seek(timestamp);
+  }
+
+  handlePlaybackSpeed(speed: number) {
+    this.playbackStore.setSpeed(speed);
+  }
+
+  handlePlaybackSkipForward() {
+    const state = this.playbackState();
+    this.playbackStore.seek(state.currentTime + 30_000); // +30 seconds
+  }
+
+  handlePlaybackSkipBackward() {
+    const state = this.playbackState();
+    this.playbackStore.seek(state.currentTime - 30_000); // -30 seconds
+  }
+
+  private sortAisTargets(
+    targets: AisTarget[],
+    sortBy: 'distance' | 'cpa' | 'name',
+    ownLat: number | null,
+    ownLon: number | null,
+  ): AisTarget[] {
+    const distance = (target: AisTarget): number => {
+      if (ownLat === null || ownLon === null) {
+        return Number.POSITIVE_INFINITY;
+      }
+      return bearingDistanceNm(
+        { lat: ownLat, lon: ownLon },
+        { lat: target.latitude, lon: target.longitude },
+      ).distanceNm;
+    };
+
+    const cpa = (target: AisTarget): number =>
+      typeof target.cpa === 'number' ? target.cpa : Number.POSITIVE_INFINITY;
+
+    return [...targets]
+      .sort((left, right) => {
+        const leftDanger = left.isDangerous ? 1 : 0;
+        const rightDanger = right.isDangerous ? 1 : 0;
+        if (leftDanger !== rightDanger) {
+          return rightDanger - leftDanger;
+        }
+
+        if (sortBy === 'name') {
+          return (left.name ?? left.mmsi).localeCompare(right.name ?? right.mmsi);
+        }
+
+        if (sortBy === 'cpa') {
+          return cpa(left) - cpa(right);
+        }
+
+        return distance(left) - distance(right);
+      })
+      .slice(0, 50);
+  }
+  
 }

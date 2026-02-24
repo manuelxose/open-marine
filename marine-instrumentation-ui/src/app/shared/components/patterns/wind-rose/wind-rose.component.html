@@ -1,0 +1,57 @@
+<div class="wind-rose" [style.width.px]="size" [style.height.px]="size">
+  <!-- Dial -->
+  <div class="wind-rose__dial">
+    <!-- Boat Icon (Static Center) -->
+    <div class="wind-rose__boat">
+      <svg viewBox="0 0 24 24" fill="currentColor">
+        <path d="M12 2L4.5 20.29L5.21 21L12 18L18.79 21L19.5 20.29L12 2Z" />
+      </svg>
+    </div>
+
+    <!-- Sectors (Red/Green background arcs - simplified as gradient or css sectors) -->
+    <div class="wind-rose__sectors"></div>
+
+    <!-- Ticks -->
+    @for (tick of ticks; track tick) {
+      <div class="wind-rose__tick" 
+           [class.wind-rose__tick--major]="tick % 30 === 0"
+           [style.transform]="'rotate(' + tick + 'deg)'">
+           
+           @if (tick % 30 === 0) {
+             <span class="wind-rose__label">{{ tick === 0 ? '0' : tick }}</span>
+           }
+      </div>
+    }
+
+    <!-- Apparent Wind Pointer (Blue) -->
+    @if (awa !== undefined && awa !== null) {
+      <div class="wind-rose__pointer wind-rose__pointer--apparent"
+           [style.transform]="'rotate(' + awa + 'deg)'">
+        <div class="arrow"></div>
+      </div>
+    }
+
+    <!-- True Wind Pointer (Green) -->
+    @if (twa !== undefined && twa !== null) {
+      <div class="wind-rose__pointer wind-rose__pointer--true"
+           [style.transform]="'rotate(' + twa + 'deg)'">
+        <div class="arrow-hollow"></div>
+      </div>
+    }
+  </div>
+
+  <!-- Digital Readout (Corners or Center?) -> Let's put it in corners for visibility -->
+  <div class="wind-rose__data wind-rose__data--app">
+    <div class="label">APP</div>
+    <div class="value">{{ aws | number:'1.1-1' }}</div>
+    <div class="unit">kn</div>
+  </div>
+
+  @if (tws !== undefined) {
+    <div class="wind-rose__data wind-rose__data--true">
+      <div class="label">TRUE</div>
+      <div class="value">{{ tws | number:'1.1-1' }}</div>
+      <div class="unit">kn</div>
+    </div>
+  }
+</div>

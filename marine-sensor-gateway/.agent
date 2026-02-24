@@ -386,3 +386,107 @@ npm run format   # Code formatting
 ---
 
 **Status:** Interface only (stub) | Next: M5 implementation | Last Updated: 2026-01-28 | Agent Version: 1.0
+
+---
+
+## 2026-02-22 Update - ICM-20948 IMU Pipeline
+
+### New gateway artifacts
+
+- Adapter contract added: `src/adapters/imu.ts`
+  - `ImuConfig`, `ImuRawReading`, `ImuOrientation`, `ImuDataPacket`, `ImuAdapter`
+- Adapter export added: `src/adapters/index.ts`
+- Signal K publisher added: `src/publishers/signalkPublisher.ts`
+  - `SignalKHttpPublisher` with `connect()` and delta publish by context
+- Publisher exports added:
+  - `src/publishers/index.ts`
+  - `src/index.ts`
+
+### Raspberry Pi runtime scripts
+
+Folder: `rpi/omi-imu/`
+
+- `01_test_sensor.py`: 9-axis read test at configurable Hz.
+- `02_publish_signalk.py`: IMU read + complementary fusion + publish.
+- `setup.sh`: platform/I2C checks, dependency install, one-shot probe.
+
+### Signal K behavior observed in validated environment
+
+Validation date: 2026-02-22.
+
+- `GET /signalk/v1/api/` reachable (`HTTP 200`).
+- `POST /signalk/v1/api/` returned `404` ("Cannot POST ...").
+- `PUT /signalk/v1/api/vessels/self/...` returned `405` ("PUT not supported ...").
+- WebSocket publish to `/signalk/v1/stream?subscribe=none` succeeded.
+
+For this reason, `02_publish_signalk.py` uses publish fallbacks in order:
+
+1. Delta HTTP POST
+2. REST PUT
+3. WebSocket send (active fallback in current instance)
+
+### Verified read endpoints
+
+- `/signalk/v1/api/vessels/self/navigation/headingMagnetic`
+- `/signalk/v1/api/vessels/self/navigation/attitude`
+- `/signalk/v1/api/vessels/self/sensors/imu`
+
+---
+
+## 2026-02-22 Update - USB GPS (G-Mouse DL28U9U) Pipeline
+
+### New gateway artifacts
+
+- Adapter contract added: `src/adapters/gps.ts`
+  - `GpsChipset`, `GpsConfig`, `GpsFix`, `GpsAdapter`
+- Adapter export added in `src/adapters/index.ts`.
+
+### Raspberry Pi runtime scripts
+
+Folder: `rpi/omi-imu/`
+
+- `01_test_gps.py`: reads USB serial NMEA and prints parsed fix data.
+- `02_publish_gps_signalk.py`: parses NMEA (RMC/GGA/GSA/GSV/VTG), converts units, and publishes to Signal K.
+- `setup_gps.sh`: detects GPS serial device, installs dependencies, probes raw NMEA stream.
+
+Dependencies used on RPi:
+
+- `pyserial`
+- `pynmea2`
+- `requests`
+- `websocket-client`
+
+### Signal K paths published by GPS script
+
+- `navigation.position`
+- `navigation.speedOverGround`
+- `navigation.courseOverGroundTrue`
+- `navigation.magneticVariation`
+- `navigation.datetime`
+- `sensors.gps.fix`
+- `sensors.gps.satellitesInView`
+- `sensors.gps.horizontalDilution`
+
+### Unit conversion rules
+
+- SOG: knots -> m/s (`* 0.514444`)
+- COG true: degrees -> radians
+- Magnetic variation: degrees -> radians, East positive / West negative
+
+### Runtime behavior observed in validated environment
+
+Validation date: 2026-02-22.
+
+- USB GPS detected as `/dev/ttyACM0` on Raspberry Pi.
+- NMEA stream present and parseable.
+- HTTP write endpoints were not available in tested Signal K instance (`404/405`).
+- WebSocket publish fallback to `/signalk/v1/stream?subscribe=none` succeeded.
+
+### Verified read endpoints
+
+- `/signalk/v1/api/vessels/self/navigation/position`
+- `/signalk/v1/api/vessels/self/navigation/speedOverGround`
+- `/signalk/v1/api/vessels/self/navigation/datetime`
+- `/signalk/v1/api/vessels/self/sensors/gps`
+
+IMU and GPS publishers were validated running simultaneously.

@@ -25,7 +25,6 @@ export class AppPopoverDirective implements OnDestroy {
 
   private componentRef: ComponentRef<AppPopoverComponent> | null = null;
   private clickListenerFn: (() => void) | null = null;
-  private hoverTimeout: any;
 
   constructor(
     private element: ElementRef,

@@ -23,19 +23,19 @@ export type CodeVariant = 'inline' | 'block';
     .app-code {
       font-family: var(--font-family-mono);
       font-size: var(--text-sm);
-      background-color: var(--surface-2);
-      color: var(--text-primary);
+      background-color: var(--gb-bg-panel);
+      color: var(--gb-text-value);
       border-radius: var(--radius-sm);
     }
     .app-code--inline {
       padding: 0.125rem 0.375rem;
-      border: 1px solid var(--border-color);
+      border: 1px solid var(--gb-border-panel);
     }
     .app-code--block {
       display: block;
       padding: 1rem;
       overflow-x: auto;
-      border: 1px solid var(--border-color);
+      border: 1px solid var(--gb-border-panel);
       white-space: pre;
     }
   `],

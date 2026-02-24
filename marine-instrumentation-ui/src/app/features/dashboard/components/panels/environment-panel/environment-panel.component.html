@@ -1,0 +1,33 @@
+<app-shared-panel-card [title]="vm.title | translate" [loading]="vm.isLoading" [error]="vm.error">
+  <omi-gb-bezel class="panel-bezel" [quality]="panelQuality">
+    <div class="env-content">
+      <!-- Water Temperature Hero -->
+      <div class="env-hero" *ngIf="vm.metrics[0] as waterTempMetric">
+        <span class="env-hero-label">{{ waterTempMetric.label | translate }}</span>
+        <div class="env-hero-value-group">
+          <span class="env-hero-value">{{ displayValue(waterTempMetric.value) }}</span>
+          <span class="env-hero-unit" *ngIf="showUnit(waterTempMetric.value)">{{ waterTempMetric.unit }}</span>
+        </div>
+        <div class="env-hero-trend" *ngIf="vm.series && vm.series.length > 0">
+          <app-shared-sparkline
+            [data]="vm.series"
+            [width]="200"
+            [height]="40"
+            stroke="var(--nord-9)"
+          ></app-shared-sparkline>
+        </div>
+      </div>
+
+      <!-- Secondary Metrics Grid -->
+      <div class="env-metrics">
+        <div class="env-metric" *ngFor="let m of vm.metrics | slice:1; trackBy: trackByMetric">
+          <span class="env-metric-label">{{ m.label | translate }}</span>
+          <div class="env-metric-reading">
+            <span class="env-metric-value">{{ displayValue(m.value) }}</span>
+            <span class="env-metric-unit" *ngIf="showUnit(m.value)">{{ m.unit }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </omi-gb-bezel>
+</app-shared-panel-card>

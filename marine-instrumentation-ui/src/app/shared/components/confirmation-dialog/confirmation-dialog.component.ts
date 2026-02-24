@@ -47,25 +47,25 @@ import { AppButtonComponent } from '../app-button/app-button.component';
     }
 
     .dialog-content {
-      background: var(--surface-1);
+      background: var(--gb-bg-bezel);
       padding: 1.5rem;
       border-radius: 12px;
       width: 90%;
       max-width: 400px;
       box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
-      border: 1px solid var(--border-color);
+      border: 1px solid var(--gb-border-panel);
       animation: slideUp 0.2s ease-out;
     }
 
     .dialog-title {
       margin: 0 0 0.75rem 0;
       font-size: 1.25rem;
-      color: var(--text-primary);
+      color: var(--gb-text-value);
     }
 
     .dialog-message {
       margin: 0 0 1.5rem 0;
-      color: var(--text-secondary);
+      color: var(--gb-text-muted);
       line-height: 1.5;
     }
 

@@ -12,6 +12,7 @@
         <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
         <polyline points="22 4 12 14.01 9 11.01"></polyline>
       </svg>
+      <span class="control-btn__label">{{ 'chart.controls.track' | translate }}</span>
     </button>
 
     <!-- Vector Toggle -->
@@ -26,6 +27,7 @@
         <line x1="12" y1="19" x2="12" y2="5"></line>
         <polyline points="5 12 12 5 19 12"></polyline>
       </svg>
+      <span class="control-btn__label">{{ 'chart.controls.vector' | translate }}</span>
     </button>
 
     <!-- True Wind Toggle -->
@@ -39,6 +41,7 @@
       <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M9.59 4.59A2 2 0 1 1 11 8H2m10.59 11.41A2 2 0 1 0 14 16H2m15.73-8.27A2.5 2.5 0 1 1 19.5 12H2"></path>
       </svg>
+      <span class="control-btn__label">{{ 'chart.controls.true_wind' | translate }}</span>
     </button>
 
     <!-- Range Rings Toggle -->
@@ -54,6 +57,74 @@
          <circle cx="12" cy="12" r="6"></circle>
          <circle cx="12" cy="12" r="2"></circle>
        </svg>
+       <span class="control-btn__label">{{ 'chart.controls.range_rings' | translate }}</span>
+    </button>
+
+    <!-- OpenSeaMap Nautical Overlay Toggle -->
+    <button 
+      class="control-btn" 
+      [class.active]="vm.showOpenSeaMap" 
+      (click)="onToggleOpenSeaMap()"
+      title="{{ 'chart.controls.nautical_overlay' | translate }}"
+      [attr.aria-label]="'chart.controls.nautical_overlay' | translate"
+    >
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"></circle>
+        <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"></path>
+        <path d="M2 12h20"></path>
+      </svg>
+      <span class="control-btn__label">{{ 'chart.controls.nautical_overlay' | translate }}</span>
+    </button>
+  </div>
+
+  <!-- AIS / Display Group -->
+  <div class="control-group control-group--section">
+    <div class="section-label">AIS / Display</div>
+
+    <!-- AIS Targets Toggle -->
+    <button 
+      class="control-btn" 
+      [class.active]="vm.showAisTargets" 
+      (click)="onToggleAisTargets()"
+      title="{{ 'chart.controls.ais_targets' | translate }}"
+      [attr.aria-label]="'chart.controls.ais_targets' | translate"
+    >
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polygon points="12 2 19 21 12 17 5 21 12 2"></polygon>
+      </svg>
+      <span class="control-btn__label">{{ 'chart.controls.ais_targets' | translate }}</span>
+    </button>
+
+    <!-- AIS Labels Toggle -->
+    <button 
+      class="control-btn" 
+      [class.active]="vm.showAisLabels" 
+      (click)="onToggleAisLabels()"
+      title="{{ 'chart.controls.ais_labels' | translate }}"
+      [attr.aria-label]="'chart.controls.ais_labels' | translate"
+    >
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="4 7 4 4 20 4 20 7"></polyline>
+        <line x1="9" y1="20" x2="15" y2="20"></line>
+        <line x1="12" y1="4" x2="12" y2="20"></line>
+      </svg>
+      <span class="control-btn__label">{{ 'chart.controls.ais_labels' | translate }}</span>
+    </button>
+
+    <!-- CPA Lines Toggle -->
+    <button 
+      class="control-btn" 
+      [class.active]="vm.showCpaLines" 
+      (click)="onToggleCpaLines()"
+      title="{{ 'chart.controls.cpa_lines' | translate }}"
+      [attr.aria-label]="'chart.controls.cpa_lines' | translate"
+    >
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="5" y1="18" x2="19" y2="6"></line>
+        <circle cx="5" cy="18" r="3"></circle>
+        <circle cx="19" cy="6" r="3"></circle>
+      </svg>
+      <span class="control-btn__label">{{ 'chart.controls.cpa_lines' | translate }}</span>
     </button>
   </div>
 

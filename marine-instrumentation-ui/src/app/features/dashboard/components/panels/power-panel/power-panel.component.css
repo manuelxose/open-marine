@@ -1,73 +1,167 @@
+:host {
+  display: block;
+  height: 100%;
+}
+
+.panel-bezel {
+  display: block;
+  height: 100%;
+}
+
 .power-content {
   display: flex;
   flex-direction: column;
   height: 100%;
+  gap: var(--space-4);
 }
 
-.metrics-list {
+:host ::ng-deep .card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: var(--glass-card-radius);
+  background: var(--gradient-power);
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.6;
+}
+
+/* Battery visual bar */
+.battery-bar-container {
   display: flex;
   flex-direction: column;
-  gap: 0;
-  height: 100%;
+  gap: var(--space-2);
 }
 
-.metric-row {
+.battery-bar-track {
+  height: 10px;
+  background: linear-gradient(180deg, rgba(0,0,0,0.08), rgba(0,0,0,0.14));
+  border-radius: var(--radius-full);
+  overflow: hidden;
+  border: 1px solid var(--glass-border);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.battery-bar-fill {
+  height: 100%;
+  border-radius: var(--radius-full);
+  background: var(--success);
+  transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.5s ease, box-shadow 0.5s ease;
+  position: relative;
+}
+
+.battery-bar-fill::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 50%;
+  background: linear-gradient(180deg, rgba(255,255,255,0.25), transparent);
+  border-radius: var(--radius-full);
+}
+
+.battery-bar-fill.level-high {
+  background: linear-gradient(90deg, var(--success), color-mix(in srgb, var(--success) 80%, var(--nord-14)));
+  box-shadow: 0 0 10px rgba(163, 190, 140, 0.45);
+}
+
+.battery-bar-fill.level-mid {
+  background: linear-gradient(90deg, var(--warn), color-mix(in srgb, var(--warn) 80%, var(--nord-13)));
+  box-shadow: 0 0 8px rgba(235, 203, 139, 0.3);
+}
+
+.battery-bar-fill.level-low {
+  background: linear-gradient(90deg, var(--danger), color-mix(in srgb, var(--danger) 80%, var(--nord-11)));
+  box-shadow: 0 0 10px rgba(191, 97, 106, 0.45);
+  animation: low-battery-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes low-battery-pulse {
+  0%, 100% { box-shadow: 0 0 8px rgba(191, 97, 106, 0.35); }
+  50% { box-shadow: 0 0 20px rgba(191, 97, 106, 0.65); }
+}
+
+/* Power metrics list */
+.power-metrics {
   display: flex;
-  justify-content: space-between;
-  align-items: center; /* Center vertically for sparklines */
-  padding: 1rem 0;
-  border-bottom: 1px dashed var(--panel-border);
+  flex-direction: column;
+  gap: var(--space-2);
   flex: 1;
 }
 
-.metric-row:last-child {
-  border-bottom: none;
-}
-
-.metric-info {
+.power-metric {
   display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background: linear-gradient(145deg, rgba(0,0,0,0.04), rgba(0,0,0,0.07));
+  border: 1px solid var(--glass-border);
+  border-radius: var(--glass-card-radius-sm);
+  transition: background 0.15s ease;
+  position: relative;
 }
 
-.metric-label {
-  font-size: 0.75rem;
+.power-metric::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 10%;
+  right: 10%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--glass-shine), transparent);
+  opacity: 0.25;
+}
+
+.power-metric:hover {
+  background: rgba(0, 0, 0, 0.08);
+}
+
+.power-metric-label {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 0.65rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.1em;
-  color: var(--text-muted);
+  color: var(--text-tertiary);
+  flex-shrink: 0;
 }
 
-.metric-value-group {
+.power-metric-reading {
   display: flex;
   align-items: baseline;
-  gap: 0.5rem;
+  gap: var(--space-1);
 }
 
-.value {
+.power-metric-value {
   font-family: 'Share Tech Mono', monospace;
-  font-size: 2rem;
+  font-size: 1.7rem;
   font-weight: 500;
   color: var(--text-primary);
-  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.06);
 }
 
-.unit {
-  font-size: 0.9rem;
-  font-weight: 500;
+.power-metric-unit {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 0.75rem;
+  font-weight: 600;
   color: var(--text-muted);
+  text-transform: uppercase;
 }
 
-.metric-trend {
+.power-trend {
+  opacity: 0.55;
   flex-shrink: 0;
-  opacity: 0.7;
+  transition: opacity 0.2s ease;
 }
 
-/* Compact Overrides */
-:host-context(.compact) .metric-row {
-  padding: 0.5rem 0;
+.power-metric:hover .power-trend {
+  opacity: 0.9;
 }
 
-:host-context(.compact) .value {
-  font-size: 1.6rem;
-}
+/* Compact */
+:host-context(.compact) .power-metric { padding: var(--space-2) var(--space-3); }
+:host-context(.compact) .power-metric-value { font-size: 1.3rem; }
+:host-context(.compact) .battery-bar-track { height: 6px; }

@@ -36,8 +36,10 @@ export class HistoryService {
           path,
           timestamp: point.timestamp,
           value: point.value,
-          source,
         };
+        if (source !== undefined) {
+          record.source = source;
+        }
         store.put(record);
       }
     });

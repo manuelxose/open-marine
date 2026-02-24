@@ -1,0 +1,29 @@
+<div class="date-range-container" [class.disabled]="disabled">
+  @if (label) {
+    <label class="label">{{ label }}</label>
+  }
+  
+  <div class="pickers-row">
+    <app-date-picker
+      class="range-input"
+      [ngModel]="startValue()"
+      (ngModelChange)="onStartChange($event)"
+      [max]="endValue() || max"
+      [min]="min"
+      [disabled]="disabled"
+      placeholder="Start Date"
+    ></app-date-picker>
+    
+    <span class="separator">to</span>
+    
+    <app-date-picker
+      class="range-input"
+      [ngModel]="endValue()"
+      (ngModelChange)="onEndChange($event)"
+      [min]="startValue() || min"
+      [max]="max"
+      [disabled]="disabled"
+      placeholder="End Date"
+    ></app-date-picker>
+  </div>
+</div>

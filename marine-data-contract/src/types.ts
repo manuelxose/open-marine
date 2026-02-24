@@ -78,3 +78,29 @@ export interface Position {
   longitude: number;
   altitude?: number;
 }
+
+/** 3-axis vector (accel, gyro, mag) */
+export interface Vector3 {
+  x: number;
+  y: number;
+  z: number;
+}
+
+/** Vessel attitude (roll = heel, pitch = trim, yaw = heading) */
+export interface Attitude {
+  roll: number;
+  pitch: number;
+  yaw: number;
+}
+
+/** GPS fix quality */
+export type GpsFixType = "none" | "2d" | "3d" | "dgps";
+
+/** GPS satellite info */
+export interface GpsSatelliteInfo {
+  inView: number;
+  used: number;
+  hdop?: number;
+  pdop?: number;
+  vdop?: number;
+}

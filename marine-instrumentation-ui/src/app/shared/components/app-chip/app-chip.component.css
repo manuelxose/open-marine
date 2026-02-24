@@ -12,7 +12,7 @@
   cursor: pointer;
   transition: all 0.2s ease;
   background-color: transparent;
-  color: var(--text-primary);
+  color: var(--gb-text-value);
   user-select: none;
   gap: 0.5rem;
   -webkit-tap-highlight-color: transparent;
@@ -40,7 +40,7 @@
 .chip-neutral {
   background-color: var(--bg-surface-secondary);
   border-color: var(--border-default);
-  color: var(--text-primary);
+  color: var(--gb-text-value);
 }
 .chip-neutral:hover:not([disabled]) {
   background-color: var(--bg-surface-tertiary);
@@ -69,11 +69,11 @@
 .chip-input {
   background-color: transparent;
   border-color: var(--border-default);
-  color: var(--text-secondary);
+  color: var(--gb-text-muted);
 }
 .chip-input:hover:not([disabled]) {
-  border-color: var(--text-secondary);
-  color: var(--text-primary);
+  border-color: var(--gb-text-muted);
+  color: var(--gb-text-value);
 }
 .chip-input.chip-selected {
   background-color: var(--bg-surface-secondary);

@@ -1,332 +1,172 @@
-import { Component, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Component, ChangeDetectionStrategy, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ChartSettingsService } from '../../features/chart/services/chart-settings.service';
-import { AlarmSettingsService, AlarmSettings } from '../../state/alarms/alarm-settings.service';
-import { AppIconComponent } from '../../shared/components/app-icon/app-icon.component';
-import { PreferencesService } from '../../core/services/preferences.service';
-import { ThemeService } from '../../core/theme/theme.service';
-import { LayoutService } from '../../core/services/layout.service';
+import { AppIconComponent, type IconName } from '../../shared/components/app-icon/app-icon.component';
 import { LanguageService } from '../../core/services/language.service';
 import { TranslatePipe } from '../../shared/pipes/translate.pipe';
+import { OnboardingService } from '../../core/onboarding/onboarding.service';
+import { GuidedTourService } from '../../core/onboarding/tour/guided-tour.service';
+import { AppToastService } from '../../shared/components/app-toast/app-toast.service';
+
+// Standalone settings sub-components
+import { VesselSettingsComponent } from '../../features/settings/components/vessel-settings/vessel-settings.component';
+import { ConnectionSettingsComponent } from '../../features/settings/components/connection-settings/connection-settings.component';
+import { DisplaySettingsComponent } from '../../features/settings/components/display-settings/display-settings.component';
+import { UnitsSettingsComponent } from '../../features/settings/components/units-settings/units-settings.component';
+import { AlarmSettingsComponent } from '../../features/settings/components/alarm-settings/alarm-settings.component';
+import { ChartSettingsComponent } from '../../features/settings/components/chart-settings/chart-settings.component';
+import { DataSettingsComponent } from '../../features/settings/components/data-settings/data-settings.component';
+import { ExperimentsSettingsComponent } from '../../features/settings/components/experiments-settings/experiments-settings.component';
+import { DashboardWidgetsSettingsComponent } from '../../features/settings/components/dashboard-widgets-settings/dashboard-widgets-settings.component';
+
+type SettingsSection =
+  | 'general'
+  | 'vessel'
+  | 'display'
+  | 'units'
+  | 'chart'
+  | 'alarms'
+  | 'connection'
+  | 'dashboard'
+  | 'data'
+  | 'experiments'
+  | 'tour';
+
+interface SectionMeta {
+  id: SettingsSection;
+  label: string;
+  icon: IconName;
+}
 
 @Component({
   selector: 'app-settings-page',
   standalone: true,
-  imports: [CommonModule, TranslatePipe, AppIconComponent],
+  imports: [
+    CommonModule,
+    TranslatePipe,
+    AppIconComponent,
+    VesselSettingsComponent,
+    ConnectionSettingsComponent,
+    DisplaySettingsComponent,
+    UnitsSettingsComponent,
+    AlarmSettingsComponent,
+    ChartSettingsComponent,
+    DataSettingsComponent,
+    ExperimentsSettingsComponent,
+    DashboardWidgetsSettingsComponent,
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="settings-page">
-      <div class="page-header">
-        <h1>{{ 'settings.title' | translate }}</h1>
-        <p class="subtitle">{{ 'settings.subtitle' | translate }}</p>
-      </div>
-
-      <div class="settings-sections">
-        
-        <!-- General Section -->
-        <section class="settings-section">
-          <h2>{{ 'settings.sections.general' | translate }}</h2>
-
-          <div class="setting-item">
-            <div class="setting-info">
-              <span class="setting-label">{{ 'settings.language.label' | translate }}</span>
-              <span class="setting-description">{{ 'settings.language.description' | translate }}</span>
-            </div>
-            <select 
-              [value]="(lang.lang$ | async)" 
-              (change)="onLanguageChange($event)"
-              class="setting-select"
-            >
-              <option value="en">English</option>
-              <option value="es">Español</option>
-            </select>
-          </div>
-        </section>
-        
-        <!-- Appearance Section -->
-        <section class="settings-section">
-          <h2>{{ 'settings.sections.appearance' | translate }}</h2>
-          
-          <div class="setting-item">
-            <div class="setting-info">
-              <span class="setting-label">{{ 'settings.theme.label' | translate }}</span>
-              <span class="setting-description">{{ 'settings.theme.description' | translate }}</span>
-            </div>
-            <button (click)="theme.toggle()" class="theme-toggle">
-              {{ (theme.theme$ | async) | titlecase }}
-            </button>
-          </div>
-
-          <div class="setting-item">
-            <div class="setting-info">
-              <span class="setting-label">{{ 'settings.compact.label' | translate }}</span>
-              <span class="setting-description">{{ 'settings.compact.description' | translate }}</span>
-            </div>
-            <button 
-              (click)="toggleCompact()" 
-              class="toggle-btn"
-              [class.active]="(prefs.prefs$ | async)?.density === 'compact'"
-            >
-              <span class="toggle-slider"></span>
-            </button>
-          </div>
-        </section>
-
-        <!-- Units Section -->
-        <section class="settings-section">
-          <h2>{{ 'settings.sections.units' | translate }}</h2>
-          
-          <div class="setting-item">
-            <div class="setting-info">
-              <span class="setting-label">{{ 'settings.units.speed.label' | translate }}</span>
-              <span class="setting-description">{{ 'settings.units.speed.description' | translate }}</span>
-            </div>
-            <select 
-              [value]="(prefs.prefs$ | async)?.speedUnit" 
-              (change)="onSpeedUnitChange($event)"
-              class="setting-select"
-            >
-              <option value="kn">Knots (kn)</option>
-              <option value="m/s">Meters/sec (m/s)</option>
-              <option value="km/h">Kilometers/hour (km/h)</option>
-            </select>
-          </div>
-
-          <div class="setting-item">
-            <div class="setting-info">
-              <span class="setting-label">{{ 'settings.units.depth.label' | translate }}</span>
-              <span class="setting-description">{{ 'settings.units.depth.description' | translate }}</span>
-            </div>
-            <select 
-              [value]="(prefs.prefs$ | async)?.depthUnit" 
-              (change)="onDepthUnitChange($event)"
-              class="setting-select"
-            >
-              <option value="m">Meters (m)</option>
-              <option value="ft">Feet (ft)</option>
-            </select>
-          </div>
-        </section>
-
-        <!-- Chart Section -->
-        <section class="settings-section">
-          <h2>{{ 'settings.sections.chart' | translate }}</h2>
-
-          <div class="setting-item">
-            <div class="setting-info">
-              <span class="setting-label">Auto-center</span>
-              <span class="setting-description">Center chart on vessel position when moving</span>
-            </div>
-            <button
-              (click)="toggleChartSetting('autoCenter')"
-              class="toggle-btn"
-              [class.active]="chartSettings().autoCenter"
-            >
-              <span class="toggle-slider"></span>
-            </button>
-          </div>
-
-          <div class="setting-item">
-            <div class="setting-info">
-              <span class="setting-label">Track history</span>
-              <span class="setting-description">Show the vessel track on the chart</span>
-            </div>
-            <button
-              (click)="toggleChartSetting('showTrack')"
-              class="toggle-btn"
-              [class.active]="chartSettings().showTrack"
-            >
-              <span class="toggle-slider"></span>
-            </button>
-          </div>
-
-          <div class="setting-item">
-            <div class="setting-info">
-              <span class="setting-label">Course vector</span>
-              <span class="setting-description">Display projected course vector</span>
-            </div>
-            <button
-              (click)="toggleChartSetting('showVector')"
-              class="toggle-btn"
-              [class.active]="chartSettings().showVector"
-            >
-              <span class="toggle-slider"></span>
-            </button>
-          </div>
-
-          <div class="setting-item">
-            <div class="setting-info">
-              <span class="setting-label">True wind</span>
-              <span class="setting-description">Show true wind indicator</span>
-            </div>
-            <button
-              (click)="toggleChartSetting('showTrueWind')"
-              class="toggle-btn"
-              [class.active]="chartSettings().showTrueWind"
-            >
-              <span class="toggle-slider"></span>
-            </button>
-          </div>
-
-          <div class="setting-item">
-            <div class="setting-info">
-              <span class="setting-label">Range rings</span>
-              <span class="setting-description">Show range rings around the vessel</span>
-            </div>
-            <button
-              (click)="toggleChartSetting('showRangeRings')"
-              class="toggle-btn"
-              [class.active]="chartSettings().showRangeRings"
-            >
-              <span class="toggle-slider"></span>
-            </button>
-          </div>
-        </section>
-
-        <!-- Safety Section -->
-        <section class="settings-section">
-          <h2>{{ 'settings.sections.safety' | translate }}</h2>
-
-          <div class="setting-item">
-            <div class="setting-info">
-              <span class="setting-label">Shallow depth (m)</span>
-              <span class="setting-description">Trigger shallow water warning below this depth</span>
-            </div>
-            <input
-              type="number"
-              class="setting-input"
-              [value]="alarmSettings().shallowDepthThreshold"
-              (change)="updateAlarmSetting('shallowDepthThreshold', $event)"
-            />
-          </div>
-
-          <div class="setting-item">
-            <div class="setting-info">
-              <span class="setting-label">CPA threshold (nm)</span>
-              <span class="setting-description">Collision warning threshold</span>
-            </div>
-            <input
-              type="number"
-              class="setting-input"
-              [value]="alarmSettings().cpaThresholdNm"
-              (change)="updateAlarmSetting('cpaThresholdNm', $event)"
-            />
-          </div>
-
-          <div class="setting-item">
-            <div class="setting-info">
-              <span class="setting-label">Low battery (V)</span>
-              <span class="setting-description">Trigger battery warning below this voltage</span>
-            </div>
-            <input
-              type="number"
-              class="setting-input"
-              [value]="alarmSettings().lowBatteryThreshold"
-              (change)="updateAlarmSetting('lowBatteryThreshold', $event)"
-            />
-          </div>
-
-          <div class="setting-item">
-            <div class="setting-info">
-              <span class="setting-label">GPS lost (s)</span>
-              <span class="setting-description">Time without GPS fix before alert</span>
-            </div>
-            <input
-              type="number"
-              class="setting-input"
-              [value]="alarmSettings().gpsLostSeconds"
-              (change)="updateAlarmSetting('gpsLostSeconds', $event)"
-            />
-          </div>
-        </section>
-
-        <!-- Connections Section -->
-        <section class="settings-section">
-          <h2>{{ 'settings.sections.connections' | translate }}</h2>
-
-          <div class="setting-item">
-            <div class="setting-info">
-              <span class="setting-label">Signal K URL</span>
-              <span class="setting-description">Connection details are managed by the runtime</span>
-            </div>
-            <div class="setting-readonly">
-              ws://localhost:3000
-            </div>
-          </div>
-
-          <div class="setting-item">
-            <div class="setting-info">
-              <span class="setting-label">Connection status</span>
-              <span class="setting-description">Real-time updates from Signal K</span>
-            </div>
-            <div class="setting-pill">
-              <app-icon name="check" size="14"></app-icon>
-              Connected
-            </div>
-          </div>
-        </section>
-
-        <!-- Experiments Section -->
-        <section class="settings-section">
-          <h2>{{ 'settings.sections.experiments' | translate }}</h2>
-
-          <div class="setting-item">
-            <div class="setting-info">
-              <span class="setting-label">Night mode beta</span>
-              <span class="setting-description">Enable automatic night/day theming</span>
-            </div>
-            <button
-              (click)="toggleNightMode()"
-              class="toggle-btn"
-              [class.active]="(prefs.prefs$ | async)?.theme === 'night'"
-            >
-              <span class="toggle-slider"></span>
-            </button>
-          </div>
-
-          <div class="setting-item">
-            <div class="setting-info">
-              <span class="setting-label">Advanced instruments</span>
-              <span class="setting-description">Show experimental instrument widgets</span>
-            </div>
-            <button
-              (click)="toggleExperimentalInstruments()"
-              class="toggle-btn"
-              [class.active]="experimentalInstruments"
-            >
-              <span class="toggle-slider"></span>
-            </button>
-          </div>
-        </section>
-
-        <!-- Dashboard Section -->
-        <section class="settings-section">
-          <h2>{{ 'settings.sections.dashboard' | translate }}</h2>
-          
-          <div class="widget-list">
-            <div *ngFor="let def of widgetDefs; trackBy: trackByWidget" class="widget-item">
-              <div class="widget-info">
-                <div class="widget-header">
-                  <span class="widget-name">{{ def.title | translate }}</span>
-                  <span class="widget-size">{{ def.size }}</span>
-                </div>
-                <span class="widget-description">{{ def.description | translate }}</span>
-              </div>
-              <button 
-                (click)="toggleWidget(def.id)" 
-                class="toggle-btn"
-                [class.active]="isWidgetVisible(def.id)"
-              >
-                <span class="toggle-slider"></span>
-              </button>
-            </div>
-          </div>
-
-          <button (click)="resetLayout()" class="reset-btn">
-            {{ 'settings.widgets.reset' | translate }}
+      <!-- Sidebar -->
+      <nav class="settings-sidebar" role="tablist" aria-label="Settings sections">
+        <div class="settings-sidebar__section-label">Settings</div>
+        @for (section of sections; track section.id) {
+          <button
+            class="settings-nav-item"
+            [class.active]="activeSection() === section.id"
+            (click)="activeSection.set(section.id)"
+            role="tab"
+            [attr.aria-selected]="activeSection() === section.id"
+          >
+            <app-icon [name]="section.icon" size="18"></app-icon>
+            <span>{{ section.label }}</span>
           </button>
-        </section>
+        }
+      </nav>
 
+      <!-- Content -->
+      <div class="settings-content" role="tabpanel">
+        @switch (activeSection()) {
+          @case ('general') {
+            <h2>General</h2>
+            <p class="settings-subtitle">{{ 'settings.subtitle' | translate }}</p>
+            <div class="settings-group">
+              <div class="settings-group__title">Language</div>
+              <div class="settings-row">
+                <div>
+                  <div class="settings-row__label">{{ 'settings.language.label' | translate }}</div>
+                  <div class="settings-row__desc">{{ 'settings.language.description' | translate }}</div>
+                </div>
+                <div class="settings-row__control">
+                  <select
+                    [value]="(lang.lang$ | async)"
+                    (change)="onLanguageChange($event)"
+                    class="settings-select"
+                  >
+                    <option value="en">English</option>
+                    <option value="es">Español</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          }
+          @case ('vessel') {
+            <h2>Vessel Profile</h2>
+            <app-vessel-settings />
+          }
+          @case ('display') {
+            <h2>Display</h2>
+            <app-display-settings />
+          }
+          @case ('units') {
+            <h2>Units</h2>
+            <app-units-settings />
+          }
+          @case ('chart') {
+            <h2>Chart</h2>
+            <app-chart-settings />
+          }
+          @case ('alarms') {
+            <h2>Alarms</h2>
+            <app-alarm-settings />
+          }
+          @case ('connection') {
+            <h2>Connection</h2>
+            <app-connection-settings />
+          }
+          @case ('dashboard') {
+            <h2>Dashboard</h2>
+            <p class="settings-subtitle">Configure dashboard panel visibility, order and layout.</p>
+            <app-dashboard-widgets-settings />
+          }
+          @case ('data') {
+            <h2>Data</h2>
+            <app-data-settings />
+          }
+          @case ('experiments') {
+            <h2>Experiments</h2>
+            <app-experiments-settings />
+          }
+          @case ('tour') {
+            <h2>{{ 'settings.sections.tour' | translate }}</h2>
+            <p class="settings-subtitle">{{ 'settings.tour.replay.description' | translate }}</p>
+            <div class="settings-group">
+              <div class="settings-group__title">{{ 'settings.sections.tour' | translate }}</div>
+              <div class="settings-row">
+                <div>
+                  <div class="settings-row__label">{{ 'settings.tour.replay.label' | translate }}</div>
+                  <div class="settings-row__desc">{{ 'settings.tour.replay.description' | translate }}</div>
+                </div>
+                <div class="settings-row__control">
+                  <button class="reset-btn" style="width: auto; margin-top: 0;" (click)="startTour()">
+                    {{ 'settings.tour.replay.button' | translate }}
+                  </button>
+                </div>
+              </div>
+              <div class="settings-row">
+                <div>
+                  <div class="settings-row__label">{{ 'settings.tour.reset.label' | translate }}</div>
+                  <div class="settings-row__desc">{{ 'settings.tour.reset.description' | translate }}</div>
+                </div>
+                <div class="settings-row__control">
+                  <button class="reset-btn" style="width: auto; margin-top: 0;" (click)="resetOnboarding()">
+                    {{ 'settings.tour.reset.button' | translate }}
+                  </button>
+                </div>
+              </div>
+            </div>
+          }
+        }
       </div>
     </div>
   `,
@@ -335,176 +175,199 @@ import { TranslatePipe } from '../../shared/pipes/translate.pipe';
       display: block;
       height: 100%;
       overflow: hidden;
-      --panel-bg: var(--surface-1);
-      --panel-border: var(--border);
-      --text-main: var(--text-1);
-      --text-sec: var(--text-2);
     }
 
+    /* ── Page shell ───────────────────────────────── */
     .settings-page {
-      padding: 1.5rem;
       height: 100%;
+      display: grid;
+      grid-template-columns: 220px 1fr;
+      overflow: hidden;
+      background: var(--gb-bg-canvas);
+    }
+
+    /* ── Sidebar ──────────────────────────────────── */
+    .settings-sidebar {
+      background: var(--gb-bg-bezel);
+      border-right: 1px solid var(--gb-border-panel);
       overflow-y: auto;
-      max-width: 100%;
-      margin: 0 auto;
-      background: var(--bg);
-    }
-
-    .page-header {
-      margin-bottom: 2rem;
-      max-width: 900px;
-      margin-left: auto;
-      margin-right: auto;
-    }
-
-    h1 {
-      font-size: 1.75rem;
-      font-weight: 700;
-      color: var(--text-main);
-      margin-bottom: 0.25rem;
-    }
-
-    .subtitle {
-      color: var(--text-sec);
-      font-size: 0.875rem;
-    }
-
-    .settings-sections {
+      padding: var(--space-4, 16px) var(--space-3, 12px);
       display: flex;
       flex-direction: column;
-      gap: 1.5rem;
-      max-width: 900px;
-      margin-left: auto;
-      margin-right: auto;
+      gap: var(--space-1, 4px);
     }
 
-    /* Section Styling */
-    .settings-section {
-      background: var(--panel-bg);
-      border: 1px solid var(--panel-border);
-      border-radius: 16px;
-      padding: 1.5rem;
-      box-shadow: var(--shadow);
-    }
-
-    h2 {
-      font-size: 0.85rem;
+    .settings-sidebar__section-label {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 0.55rem;
       font-weight: 700;
       text-transform: uppercase;
-      letter-spacing: 0.1em;
-      color: var(--text-sec);
-      margin-bottom: 1.25rem;
-      padding-bottom: 0.75rem;
-      border-bottom: 1px solid var(--panel-border);
+      letter-spacing: 0.2em;
+      color: var(--gb-text-muted);
+      padding: var(--space-2, 8px) var(--space-2, 8px) var(--space-1, 4px);
+      margin-top: var(--space-2, 8px);
     }
 
-    .setting-item {
+    .settings-nav-item {
       display: flex;
-      justify-content: space-between;
       align-items: center;
-      padding: 1rem 0;
-      border-bottom: 1px dashed var(--panel-border);
-      gap: 1rem;
+      gap: var(--space-2, 8px);
+      padding: var(--space-2, 8px) var(--space-3, 12px);
+      border-radius: 10px;
+      cursor: pointer;
+      text-decoration: none;
+      color: var(--gb-text-muted);
+      transition: all 150ms ease;
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 0.8125rem;
+      font-weight: 500;
+      border: none;
+      background: transparent;
+      text-align: left;
+      white-space: nowrap;
     }
 
-    .setting-item:last-child {
-      border-bottom: none;
-      padding-bottom: 0;
+    .settings-nav-item svg,
+    .settings-nav-item app-icon {
+      width: 18px;
+      height: 18px;
+      flex-shrink: 0;
     }
 
-    .setting-info {
+    .settings-nav-item:hover {
+      background: var(--gb-bg-glass-active, rgba(255,255,255,0.04));
+      color: var(--gb-text-value);
+    }
+
+    .settings-nav-item.active {
+      background: rgba(74, 144, 217, 0.12);
+      color: #4a90d9;
+    }
+
+    /* ── Content panel ────────────────────────────── */
+    .settings-content {
+      overflow-y: auto;
+      padding: var(--space-5, 24px);
+    }
+
+    .settings-content h2 {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--gb-text-value);
+      margin: 0 0 var(--space-1, 4px) 0;
+    }
+
+    .settings-subtitle {
+      font-size: 0.8125rem;
+      color: var(--gb-text-muted);
+      margin-bottom: var(--space-5, 24px);
+    }
+
+    /* ── Settings group ───────────────────────────── */
+    .settings-group {
+      background: var(--gb-bg-panel);
+      border: 1px solid var(--gb-border-panel);
+      border-radius: 14px;
+      overflow: hidden;
+      margin-bottom: var(--space-4, 16px);
+    }
+
+    .settings-group__title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 0.65rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.18em;
+      color: var(--gb-text-muted);
+      padding: var(--space-3, 12px) var(--space-4, 16px);
+      border-bottom: 1px solid var(--gb-border-panel);
+      background: var(--gb-bg-bezel);
+    }
+
+    /* ── Settings row ─────────────────────────────── */
+    .settings-row {
       display: flex;
-      flex-direction: column;
-      gap: 0.25rem;
-      flex: 1;
-      min-width: 0; /* Prevent text overflow */
+      align-items: center;
+      justify-content: space-between;
+      padding: var(--space-3, 12px) var(--space-4, 16px);
+      gap: var(--space-4, 16px);
+      border-bottom: 1px solid var(--gb-border-panel);
     }
 
-    .setting-label {
-      font-weight: 600;
-      color: var(--text-main);
-      font-size: 0.95rem;
+    .settings-row:last-child { border-bottom: none; }
+
+    .settings-row__label {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: var(--gb-text-value);
     }
 
-    .setting-description {
-      font-size: 0.8rem;
-      color: var(--text-sec);
-      line-height: 1.3;
+    .settings-row__desc {
+      font-size: 0.75rem;
+      color: var(--gb-text-muted);
+      margin-top: 2px;
     }
 
-    /* Form Elements */
-    .setting-select {
-      background: var(--bg);
-      border: 1px solid var(--panel-border);
-      color: var(--text-main);
-      padding: 0.5rem 2rem 0.5rem 1rem;
+    .settings-row__control {
+      flex-shrink: 0;
+    }
+
+    .settings-select {
+      background: var(--gb-bg-bezel);
+      border: 1px solid var(--gb-border-panel);
+      color: var(--gb-text-value);
+      padding: 6px 28px 6px 12px;
       border-radius: 8px;
-      font-size: 0.9rem;
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 0.8rem;
       min-width: 140px;
       cursor: pointer;
       appearance: none;
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23666' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23666' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
       background-repeat: no-repeat;
-      background-position: right 0.8rem center;
-      transition: border-color 0.2s;
+      background-position: right 8px center;
+      transition: border-color 150ms ease;
     }
 
-    .setting-select:focus, .setting-select:hover {
+    .settings-select:focus,
+    .settings-select:hover {
       outline: none;
-      border-color: var(--accent);
+      border-color: var(--gb-accent, #4a90d9);
     }
 
-    .theme-toggle {
-      background: var(--bg);
-      color: var(--text-main);
-      border: 1px solid var(--panel-border);
-      padding: 0.5rem 1rem;
-      border-radius: 8px;
-      font-weight: 600;
-      font-size: 0.9rem;
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-
-    .theme-toggle:hover {
-      border-color: var(--text-sec);
-      background: var(--surface-2);
-    }
-
-    /* Refined Toggle Switch */
+    /* ── Toggle switch ────────────────────────────── */
     .toggle-btn {
       position: relative;
       width: 40px;
       height: 22px;
-      background: var(--surface-2); /* Better light mode visibility */
-      border: 1px solid var(--panel-border);
+      background: var(--gb-bg-bezel);
+      border: 1px solid var(--gb-border-panel);
       border-radius: 999px;
       cursor: pointer;
-      transition: all 0.2s ease;
-      flex-shrink: 0; 
+      transition: all 200ms ease;
+      flex-shrink: 0;
       padding: 0;
       overflow: hidden;
     }
 
-    .toggle-btn:hover {
-      border-color: var(--text-sec);
-    }
+    .toggle-btn:hover { border-color: var(--gb-text-muted); }
 
     .toggle-btn.active {
-      background: var(--accent);
-      border-color: var(--accent);
+      background: var(--gb-accent, #4a90d9);
+      border-color: var(--gb-accent, #4a90d9);
     }
-    
+
     .toggle-slider {
       position: absolute;
       top: 2px;
       left: 2px;
       width: 16px;
       height: 16px;
-      background: var(--text-sec);
+      background: var(--gb-text-muted);
       border-radius: 50%;
-      transition: transform 0.2s cubic-bezier(0.4, 0.0, 0.2, 1);
-      box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+      transition: transform 200ms cubic-bezier(0.4, 0, 0.2, 1);
     }
 
     .toggle-btn.active .toggle-slider {
@@ -512,235 +375,97 @@ import { TranslatePipe } from '../../shared/pipes/translate.pipe';
       transform: translateX(18px);
     }
 
-    .setting-input {
-      background: var(--bg);
-      border: 1px solid var(--panel-border);
-      color: var(--text-main);
-      padding: 0.45rem 0.75rem;
-      border-radius: 8px;
-      font-size: 0.9rem;
-      width: 120px;
-    }
-
-    .setting-readonly {
-      background: var(--surface-2);
-      border: 1px solid var(--panel-border);
-      color: var(--text-sec);
-      padding: 0.45rem 0.75rem;
-      border-radius: 8px;
-      font-size: 0.85rem;
-      min-width: 180px;
-    }
-
-    .setting-pill {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.35rem;
-      padding: 0.35rem 0.6rem;
-      border-radius: 999px;
-      background: rgba(34, 197, 94, 0.15);
-      color: #22c55e;
-      font-size: 0.75rem;
-      font-weight: 600;
-      border: 1px solid rgba(34, 197, 94, 0.4);
-    }
-
-    /* Widget List */
-    .widget-list {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-      gap: 1rem;
-    }
-
-    .widget-item {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 1rem;
-      background: var(--bg); /* Distinct from panel bg */
-      border: 1px solid var(--panel-border);
-      border-radius: 12px;
-      transition: border-color 0.2s;
-    }
-    
-    .widget-item:hover {
-      border-color: var(--accent);
-    }
-
-    .widget-info {
-      display: flex;
-      flex-direction: column;
-      gap: 0.25rem;
-      flex: 1;
-    }
-
-    .widget-header {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-    }
-
-    .widget-name {
-      font-weight: 600;
-      color: var(--text-main);
-      font-size: 0.95rem;
-    }
-
-    .widget-size {
-      font-size: 0.6rem;
-      padding: 0.15rem 0.4rem;
-      background: var(--panel-border);
-      color: var(--text-sec);
-      border-radius: 4px;
-      font-weight: 700;
-      text-transform: uppercase;
-    }
-
-    .widget-description {
-      font-size: 0.8rem;
-      color: var(--text-sec);
-    }
-
+    /* ── Reset button ─────────────────────────────── */
     .reset-btn {
-      margin-top: 1.5rem;
+      margin-top: var(--space-4, 16px);
       width: 100%;
       background: transparent;
-      border: 1px dashed var(--panel-border);
-      color: var(--text-sec);
-      padding: 0.8rem;
-      border-radius: 8px;
+      border: 1px dashed var(--gb-border-panel);
+      color: var(--gb-text-muted);
+      padding: 10px;
+      border-radius: 10px;
+      font-family: 'Space Grotesk', sans-serif;
       font-weight: 600;
-      font-size: 0.9rem;
+      font-size: 0.8rem;
       cursor: pointer;
-      transition: all 0.2s;
+      transition: all 150ms ease;
     }
 
     .reset-btn:hover {
-      background: rgba(240, 99, 82, 0.05);
-      color: var(--danger, #f06352);
-      border-color: var(--danger, #f06352);
+      background: rgba(240, 99, 82, 0.06);
+      color: #f06352;
+      border-color: #f06352;
     }
 
-    /* Mobile Adaptations */
-    @media (max-width: 600px) {
+    /* ── Mobile: stack sidebar horizontally ────────── */
+    @media (max-width: 768px) {
       .settings-page {
-        padding: 1rem;
-      }
-      
-      .settings-section {
-        padding: 1rem;
-      }
-
-      .setting-item {
-        flex-direction: column;
-        align-items: flex-start;
-      }
-
-      .setting-select,
-      .setting-input,
-      .setting-readonly {
-        width: 100%;
-        min-width: 0;
-      }
-      
-      .toggle-btn.active .toggle-slider {
-        transform: translateX(18px);
-      }
-      
-      .widget-list {
         grid-template-columns: 1fr;
+        grid-template-rows: auto 1fr;
+      }
+
+      .settings-sidebar {
+        flex-direction: row;
+        overflow-x: auto;
+        border-right: none;
+        border-bottom: 1px solid var(--gb-border-panel);
+        padding: var(--space-2, 8px) var(--space-3, 12px);
+        gap: 2px;
+        -webkit-overflow-scrolling: touch;
+      }
+
+      .settings-sidebar__section-label { display: none; }
+
+      .settings-nav-item {
+        font-size: 0.7rem;
+        padding: 6px 10px;
+      }
+
+      .settings-content {
+        padding: var(--space-3, 12px);
       }
     }
   `]
 })
 export class SettingsPage {
-  prefs = inject(PreferencesService);
-  theme = inject(ThemeService);
-  layout = inject(LayoutService);
-  lang = inject(LanguageService);
-  private readonly chartSettingsService = inject(ChartSettingsService);
-  private readonly alarmSettingsService = inject(AlarmSettingsService);
+  readonly lang = inject(LanguageService);
 
-  experimentalInstruments = false;
+  readonly activeSection = signal<SettingsSection>('general');
 
-  readonly chartSettings = () => this.chartSettingsService.snapshot;
-  readonly alarmSettings = () => this.alarmSettingsService.snapshot;
+  readonly sections: SectionMeta[] = [
+    { id: 'general', label: 'General', icon: 'settings' },
+    { id: 'vessel', label: 'Vessel', icon: 'anchor' },
+    { id: 'display', label: 'Display', icon: 'sun' },
+    { id: 'units', label: 'Units', icon: 'ruler' },
+    { id: 'chart', label: 'Chart', icon: 'compass' },
+    { id: 'alarms', label: 'Alarms', icon: 'alert-triangle' },
+    { id: 'connection', label: 'Connection', icon: 'satellite' },
+    { id: 'dashboard', label: 'Dashboard', icon: 'layers' },
+    { id: 'data', label: 'Data', icon: 'download' },
+    { id: 'experiments', label: 'Experiments', icon: 'activity' },
+    { id: 'tour', label: 'Tour', icon: 'compass' },
+  ];
 
-  get widgetDefs() {
-    return this.layout.getWidgetDefinitions();
-  }
-
-  isWidgetVisible(widgetId: string): boolean {
-    const config = this.layout.getSnapshot().widgets.find(w => w.id === widgetId);
-    return config?.visible ?? false;
-  }
-
-  toggleWidget(widgetId: string) {
-    this.layout.toggleWidget(widgetId);
-  }
-
-  resetLayout() {
-    this.layout.reset();
-  }
-
-  trackByWidget(index: number, def: { id: string }): string {
-    return def.id;
-  }
-
-  toggleCompact() {
-    this.prefs.toggleDensity();
-  }
-
-  onSpeedUnitChange(event: Event) {
-    const target = event.target as HTMLSelectElement;
-    this.prefs.setSpeedUnit(target.value as 'kn' | 'm/s' | 'km/h');
-  }
-
-  onDepthUnitChange(event: Event) {
-    const target = event.target as HTMLSelectElement;
-    this.prefs.setDepthUnit(target.value as 'm' | 'ft');
-  }
-
-  toggleChartSetting(key: 'autoCenter' | 'showTrack' | 'showVector' | 'showTrueWind' | 'showRangeRings'): void {
-    switch (key) {
-      case 'autoCenter':
-        this.chartSettingsService.toggleAutoCenter();
-        break;
-      case 'showTrack':
-        this.chartSettingsService.toggleTrack();
-        break;
-      case 'showVector':
-        this.chartSettingsService.toggleVector();
-        break;
-      case 'showTrueWind':
-        this.chartSettingsService.toggleTrueWind();
-        break;
-      case 'showRangeRings':
-        this.chartSettingsService.toggleRangeRings();
-        break;
-      default:
-        break;
-    }
-  }
-
-  updateAlarmSetting(key: keyof AlarmSettings, event: Event): void {
-    const target = event.target as HTMLInputElement;
-    const value = Number(target.value);
-    if (!Number.isFinite(value)) return;
-    this.alarmSettingsService.update({ [key]: value } as Partial<AlarmSettings>);
-  }
-
-  toggleNightMode(): void {
-    this.prefs.toggleTheme();
-  }
-
-  toggleExperimentalInstruments(): void {
-    this.experimentalInstruments = !this.experimentalInstruments;
-  }
+  private readonly onboardingService = inject(OnboardingService);
+  private readonly guidedTourService = inject(GuidedTourService);
+  private readonly toastService = inject(AppToastService);
 
   onLanguageChange(event: Event) {
     const target = event.target as HTMLSelectElement;
     this.lang.setLanguage(target.value as 'en' | 'es');
+  }
+
+  startTour(): void {
+    this.guidedTourService.start();
+  }
+
+  resetOnboarding(): void {
+    this.onboardingService.reset();
+    this.toastService.show({
+      message: 'Onboarding has been reset. It will show on next app reload.',
+      type: 'info',
+      duration: 3000,
+    });
   }
 }
 

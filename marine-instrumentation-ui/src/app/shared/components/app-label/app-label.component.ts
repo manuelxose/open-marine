@@ -23,7 +23,7 @@ import { CommonModule } from '@angular/common';
       font-family: var(--font-family-sans);
       font-size: var(--text-sm);
       font-weight: 500;
-      color: var(--text-secondary);
+      color: var(--gb-text-muted);
       cursor: pointer;
       display: inline-flex;
       align-items: center;

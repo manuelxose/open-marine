@@ -1,0 +1,29 @@
+<div class="card" 
+  [ngClass]="{
+    'card--default': variant === 'default',
+    'card--outlined': variant === 'outlined',
+    'card--elevated': variant === 'elevated',
+    'card--ghost': variant === 'ghost',
+    'card--hoverable': hoverable,
+    'card--selected': selected
+  }"
+  (click)="onClick()">
+ 
+ <div *ngIf="header" class="card-header">
+   {{ header }}
+ </div>
+ <div class="card-header" *ngIf="!header">
+    <ng-content select="[header]"></ng-content>
+ </div>
+
+ <div class="card-body">
+   <ng-content></ng-content>
+ </div>
+
+ <div *ngIf="footer" class="card-footer">
+   {{ footer }}
+ </div>
+ <div class="card-footer" *ngIf="!footer">
+   <ng-content select="[footer]"></ng-content>
+ </div>
+</div>

@@ -1,0 +1,24 @@
+:host {
+  display: block;
+}
+
+.tour-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 8000;
+  pointer-events: all;
+}
+
+.tour-mask {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.tour-overlay-bg {
+  pointer-events: none;
+}
+
+.tour-spotlight-hole {
+  transition: all 0.35s ease;
+}

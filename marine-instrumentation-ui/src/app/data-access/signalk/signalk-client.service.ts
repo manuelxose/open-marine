@@ -1,16 +1,10 @@
 import { Injectable, Inject, OnDestroy, PLATFORM_ID } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
-import { HttpClient } from '@angular/common/http';
 import { WebSocketSubject, webSocket } from 'rxjs/webSocket';
 import { 
-  Observable, 
-  Subject, 
   BehaviorSubject, 
-  timer, 
   retry, 
   tap, 
-  catchError, 
-  EMPTY, 
   bufferTime, 
   map,
   filter,
@@ -19,15 +13,38 @@ import {
 import { APP_ENVIRONMENT, AppEnvironment } from '../../core/config/app-environment.token';
 import { DatapointStoreService } from '../../state/datapoints/datapoint-store.service';
 import { AisStoreService } from '../../state/ais/ais-store.service';
+import { AisClass, AisNavStatus, AisTarget } from '../../core/models/ais.model';
 import { normalizeDelta } from './signalk-mapper';
 import { NormalizedDataPoint, SignalKHelloMessage, SignalKMessage } from './signalk-message.types';
+
+const AIS_STATE_ALIAS: Record<string, AisNavStatus> = {
+  underway: AisNavStatus.UnderWayUsingEngine,
+  underwayusingengine: AisNavStatus.UnderWayUsingEngine,
+  underwaysailing: AisNavStatus.UnderWaySailing,
+  sailing: AisNavStatus.UnderWaySailing,
+  atanchor: AisNavStatus.AtAnchor,
+  anchor: AisNavStatus.AtAnchor,
+  moored: AisNavStatus.Moored,
+  aground: AisNavStatus.Aground,
+  fishing: AisNavStatus.EngagedInFishing,
+  engagedinfishing: AisNavStatus.EngagedInFishing,
+  notundercommand: AisNavStatus.NotUnderCommand,
+  nuc: AisNavStatus.NotUnderCommand,
+  restrictedmaneuverability: AisNavStatus.RestrictedManeuverability,
+  restrictedmanoeuverability: AisNavStatus.RestrictedManeuverability,
+  constrainedbydraft: AisNavStatus.ConstrainedByDraft,
+  aissart: AisNavStatus.AISSART,
+  sart: AisNavStatus.AISSART,
+  notdefined: AisNavStatus.NotDefined,
+  unknown: AisNavStatus.NotDefined,
+};
 
 @Injectable({
   providedIn: 'root'
 })
 export class SignalKClientService implements OnDestroy {
-  private socket$?: WebSocketSubject<SignalKMessage>;
-  private connectionSubscription?: Subscription;
+  private socket$: WebSocketSubject<SignalKMessage> | null = null;
+  private connectionSubscription: Subscription | null = null;
   private selfContext: string | null = null;
 
   // Connection State
@@ -36,8 +53,7 @@ export class SignalKClientService implements OnDestroy {
 
   constructor(
     @Inject(APP_ENVIRONMENT) private env: AppEnvironment,
-    @Inject(PLATFORM_ID) private platformId: Object,
-    private http: HttpClient,
+    @Inject(PLATFORM_ID) private platformId: object,
     private store: DatapointStoreService,
     private aisStore: AisStoreService
   ) {}
@@ -61,7 +77,7 @@ export class SignalKClientService implements OnDestroy {
         next: () => {
           console.log('Signal K WS Closed');
           this._connected.next(false);
-          this.socket$ = undefined; // Allow reconnect
+          this.socket$ = null; // Allow reconnect
         }
       }
     });
@@ -85,7 +101,10 @@ export class SignalKClientService implements OnDestroy {
         for (const p of allPoints) {
           // Self check
           if (this.isSelfContext(p.context)) {
-             uniqueSelfUpdates.set(p.path, p);
+             // Ignore aggregate snapshots for self ("") - datapoint store is path-based.
+             if (p.path) {
+               uniqueSelfUpdates.set(p.path, p);
+             }
           } 
           // AIS check
           else if (p.context && p.context.startsWith('vessels.')) {
@@ -104,60 +123,439 @@ export class SignalKClientService implements OnDestroy {
   private processAisUpdate(point: NormalizedDataPoint): void {
     if (!point.context) return;
     if (this.isSelfContext(point.context)) return;
-    
-    // Context formats: "vessels.urn:mrn:imo:mmsi:123456789" or "vessels.123456789"
-    const parts = point.context.split(':');
-    let mmsi = parts[parts.length - 1]; // Try last part of colon sep
-    
-    if (mmsi.startsWith('vessels.')) {
-        mmsi = mmsi.replace('vessels.', '');
-    }
 
-    // Basic heuristic: MMSI is typically 9 digits
-    if (mmsi.length < 9) return; 
+    const mmsi = this.extractMmsi(point.context);
+    if (!mmsi) return;
 
-    const data: any = {};
-    const val = point.value as any;
-
-    switch (point.path) {
-      case 'navigation.position':
-        if (val && typeof val.latitude === 'number' && typeof val.longitude === 'number') {
-           data.latitude = val.latitude;
-           data.longitude = val.longitude;
-        }
-        break;
-      case 'navigation.speedOverGround':
-        data.sog = typeof val === 'number' ? val : undefined;
-        break;
-      case 'navigation.courseOverGroundTrue':
-        data.cog = typeof val === 'number' ? val : undefined;
-        break;
-      case 'navigation.headingTrue':
-        data.heading = typeof val === 'number' ? val : undefined;
-        break;
-      case 'name':
-         data.name = String(val);
-         break;
-      case 'communication.callsignVhf':
-         data.callsign = String(val);
-         break;
-      case 'navigation.destination':
-         data.destination = String(val);
-         break;
-    }
-
+    const data = this.mapAisPointToTarget(point.path, point.value);
     if (Object.keys(data).length > 0) {
       this.aisStore.updateTarget(mmsi, data, point.timestamp);
+    }
+  }
+
+  private extractMmsi(context: string): string | null {
+    const candidate = context.startsWith('vessels.') ? context.slice('vessels.'.length) : context;
+
+    const exact = candidate.match(/^\d{9}$/)?.[0];
+    if (exact) {
+      return exact;
+    }
+
+    const embedded = candidate.match(/\b\d{9}\b/)?.[0];
+    return embedded ?? null;
+  }
+
+  private mapAisPointToTarget(path: string, value: unknown): Partial<AisTarget> {
+    const data: Partial<AisTarget> = {};
+
+    switch (path) {
+      case '': {
+        this.fillFromAggregateSnapshot(this.asRecord(value), data);
+        break;
+      }
+      case 'navigation.position': {
+        const position = this.parsePosition(value);
+        if (position) {
+          data.latitude = position.latitude;
+          data.longitude = position.longitude;
+        }
+        break;
+      }
+      case 'navigation.speedOverGround': {
+        const sog = this.extractNumber(value);
+        if (sog !== undefined) data.sog = sog;
+        break;
+      }
+      case 'navigation.courseOverGroundTrue':
+      case 'navigation.courseOverGroundMagnetic': {
+        const cog = this.extractNumber(value);
+        if (cog !== undefined) data.cog = cog;
+        break;
+      }
+      case 'navigation.headingTrue':
+      case 'navigation.headingMagnetic': {
+        const heading = this.extractNumber(value);
+        if (heading !== undefined) data.heading = heading;
+        break;
+      }
+      case 'navigation.rateOfTurn': {
+        const rot = this.extractNumber(value);
+        if (rot !== undefined) data.rot = rot;
+        break;
+      }
+      case 'navigation.state': {
+        const state = this.parseAisState(value);
+        if (state !== undefined) data.state = state;
+        break;
+      }
+      case 'name': {
+        const name = this.extractString(value);
+        if (name !== undefined) data.name = name;
+        break;
+      }
+      case 'communication.callsignVhf':
+      case 'communication.callsignHf':
+      case 'communication.callsign': {
+        const callsign = this.extractString(value);
+        if (callsign !== undefined) data.callsign = callsign;
+        break;
+      }
+      case 'navigation.destination': {
+        const destination = this.parseDestination(value);
+        if (destination !== undefined) data.destination = destination;
+        break;
+      }
+      case 'navigation.destination.commonName':
+      case 'navigation.destination.name':
+      case 'navigation.destination.id':
+      case 'navigation.destination.value': {
+        const destination = this.parseDestination(value);
+        if (destination !== undefined) data.destination = destination;
+        break;
+      }
+      case 'design.length': {
+        const length = this.extractNumber(value, ['overall', 'value', 'meters', 'm']);
+        if (length !== undefined) data.length = length;
+        break;
+      }
+      case 'design.beam': {
+        const beam = this.extractNumber(value, ['overall', 'value', 'meters', 'm']);
+        if (beam !== undefined) data.beam = beam;
+        break;
+      }
+      case 'design.draft': {
+        const draft = this.extractNumber(value, ['current', 'value', 'maximum', 'meters', 'm']);
+        if (draft !== undefined) data.draft = draft;
+        break;
+      }
+      case 'design.aisShipType':
+      case 'design.aisShipType.name':
+      case 'design.aisShipType.id':
+      case 'design.vesselType':
+      case 'design.type': {
+        const vesselType = this.parseVesselType(value);
+        if (vesselType !== undefined) data.vesselType = vesselType;
+        break;
+      }
+      case 'sensors.ais.class':
+      case 'design.aisClass':
+      case 'communication.netAIS.class': {
+        const vesselClass = this.parseAisClass(value);
+        if (vesselClass !== undefined) data.class = vesselClass;
+        break;
+      }
+      case 'registrations.imo':
+      case 'registrations.imoNumber':
+      case 'registrations.imo.number': {
+        const imo = this.parseImo(value);
+        if (imo !== undefined) data.imo = imo;
+        break;
+      }
+    }
+
+    return data;
+  }
+
+  private fillFromAggregateSnapshot(snapshot: Record<string, unknown> | null, data: Partial<AisTarget>): void {
+    if (!snapshot) {
+      return;
+    }
+
+    const name = this.extractString(snapshot['name']);
+    if (name !== undefined) data.name = name;
+
+    const communication = this.asRecord(snapshot['communication']);
+    const callsign =
+      this.extractString(communication?.['callsignVhf']) ??
+      this.extractString(communication?.['callsignHf']) ??
+      this.extractString(communication?.['callsign']);
+    if (callsign !== undefined) data.callsign = callsign;
+
+    const navigation = this.asRecord(snapshot['navigation']);
+    const position = this.parsePosition(navigation?.['position']);
+    if (position) {
+      data.latitude = position.latitude;
+      data.longitude = position.longitude;
+    }
+
+    const sog = this.extractNumber(navigation?.['speedOverGround']);
+    if (sog !== undefined) data.sog = sog;
+
+    const cog =
+      this.extractNumber(navigation?.['courseOverGroundTrue']) ??
+      this.extractNumber(navigation?.['courseOverGroundMagnetic']);
+    if (cog !== undefined) data.cog = cog;
+
+    const heading =
+      this.extractNumber(navigation?.['headingTrue']) ??
+      this.extractNumber(navigation?.['headingMagnetic']);
+    if (heading !== undefined) data.heading = heading;
+
+    const rot = this.extractNumber(navigation?.['rateOfTurn']);
+    if (rot !== undefined) data.rot = rot;
+
+    const state = this.parseAisState(navigation?.['state']);
+    if (state !== undefined) data.state = state;
+
+    const destination = this.parseDestination(navigation?.['destination']);
+    if (destination !== undefined) data.destination = destination;
+
+    const registrations = this.asRecord(snapshot['registrations']);
+    const imo =
+      this.parseImo(registrations?.['imo']) ??
+      this.parseImo(registrations?.['imoNumber']);
+    if (imo !== undefined) data.imo = imo;
+
+    const design = this.asRecord(snapshot['design']);
+    const length = this.extractNumber(design?.['length'], ['overall', 'value', 'meters', 'm']);
+    if (length !== undefined) data.length = length;
+
+    const beam = this.extractNumber(design?.['beam'], ['overall', 'value', 'meters', 'm']);
+    if (beam !== undefined) data.beam = beam;
+
+    const draft = this.extractNumber(design?.['draft'], ['current', 'value', 'maximum', 'meters', 'm']);
+    if (draft !== undefined) data.draft = draft;
+
+    const vesselType =
+      this.parseVesselType(design?.['aisShipType']) ??
+      this.parseVesselType(design?.['vesselType']) ??
+      this.parseVesselType(design?.['type']);
+    if (vesselType !== undefined) data.vesselType = vesselType;
+
+    const sensors = this.asRecord(snapshot['sensors']);
+    const aisSensor = this.asRecord(sensors?.['ais']);
+    const vesselClass =
+      this.parseAisClass(aisSensor?.['class']) ??
+      this.parseAisClass(design?.['aisClass']);
+    if (vesselClass !== undefined) data.class = vesselClass;
+  }
+
+  private asRecord(value: unknown): Record<string, unknown> | null {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+      return null;
+    }
+    return value as Record<string, unknown>;
+  }
+
+  private parsePosition(value: unknown): { latitude: number; longitude: number } | null {
+    const record = this.asRecord(value);
+    if (!record) return null;
+
+    const latitude = this.extractNumber(record['latitude']);
+    const longitude = this.extractNumber(record['longitude']);
+    if (latitude === undefined || longitude === undefined) {
+      return null;
+    }
+
+    return { latitude, longitude };
+  }
+
+  private extractString(value: unknown): string | undefined {
+    if (typeof value !== 'string') {
+      return undefined;
+    }
+
+    const cleaned = value.trim();
+    if (!cleaned || cleaned === '--' || cleaned.toLowerCase() === 'unknown' || cleaned.toLowerCase() === 'n/a') {
+      return undefined;
+    }
+
+    return cleaned;
+  }
+
+  private extractNumber(value: unknown, objectKeys: string[] = ['value']): number | undefined {
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return value;
+    }
+
+    if (typeof value === 'string') {
+      const parsed = Number.parseFloat(value);
+      return Number.isFinite(parsed) ? parsed : undefined;
+    }
+
+    const record = this.asRecord(value);
+    if (!record) {
+      return undefined;
+    }
+
+    for (const key of objectKeys) {
+      const nested = this.extractNumber(record[key]);
+      if (nested !== undefined) {
+        return nested;
+      }
+    }
+
+    return undefined;
+  }
+
+  private parseDestination(value: unknown): string | undefined {
+    const asText = this.extractString(value);
+    if (asText !== undefined) {
+      return this.normalizeDestinationText(asText);
+    }
+
+    const record = this.asRecord(value);
+    if (!record) {
+      return undefined;
+    }
+
+    const parsed = (
+      this.extractString(record['commonName']) ??
+      this.extractString(record['name']) ??
+      this.extractString(record['id']) ??
+      this.extractString(record['value'])
+    );
+    return parsed ? this.normalizeDestinationText(parsed) : undefined;
+  }
+
+  private parseAisState(value: unknown): AisNavStatus | undefined {
+    const numeric = this.extractNumber(value);
+    if (numeric !== undefined) {
+      const status = Math.trunc(numeric);
+      if (status >= AisNavStatus.UnderWayUsingEngine && status <= AisNavStatus.NotDefined) {
+        return status as AisNavStatus;
+      }
+    }
+
+    const text = this.extractString(value);
+    if (!text) {
+      return undefined;
+    }
+
+    const normalized = text.toLowerCase().replace(/[\s_-]/g, '');
+    return AIS_STATE_ALIAS[normalized];
+  }
+
+  private parseAisClass(value: unknown): AisClass | undefined {
+    const text = this.extractString(value);
+    if (text) {
+      const normalized = text.toLowerCase().replace(/[\s_-]/g, '');
+      if (normalized === 'a' || normalized === 'classa') return AisClass.A;
+      if (normalized === 'b' || normalized === 'classb') return AisClass.B;
+      if (normalized === 'base' || normalized === 'basestation') return AisClass.BaseStation;
+      if (normalized === 'aton') return AisClass.AtoN;
+      if (normalized === 'sart' || normalized === 'aissart') return AisClass.SART;
+    }
+
+    const record = this.asRecord(value);
+    if (record) {
+      return this.parseAisClass(record['name'] ?? record['value'] ?? record['id']);
+    }
+
+    return undefined;
+  }
+
+  private parseVesselType(value: unknown): string | undefined {
+    const text = this.extractString(value);
+    if (text !== undefined) {
+      return text;
+    }
+
+    const record = this.asRecord(value);
+    if (record) {
+      const fromRecord =
+        this.extractString(record['name']) ??
+        this.extractString(record['description']);
+      if (fromRecord !== undefined) {
+        return fromRecord;
+      }
+    }
+
+    const numeric = this.extractNumber(value, ['id', 'value']);
+    if (numeric !== undefined) {
+      const label = this.aisShipTypeLabel(Math.trunc(numeric));
+      return label ?? undefined;
+    }
+
+    if (!record) {
+      return undefined;
+    }
+
+    return (
+      this.parseVesselType(record['id']) ??
+      this.parseVesselType(record['value'])
+    );
+  }
+
+  private parseImo(value: unknown): string | undefined {
+    const text = this.extractString(value);
+    if (text !== undefined) {
+      const directDigits = text.match(/\b\d{7}\b/)?.[0];
+      if (directDigits) {
+        return directDigits;
+      }
+
+      const normalized = text.replace(/^IMO\s*/i, '').trim();
+      if (/^\d{7}$/.test(normalized)) {
+        return normalized;
+      }
+    }
+
+    const numeric = this.extractNumber(value, ['number', 'value', 'id', 'imo']);
+    if (numeric !== undefined) {
+      const imo = Math.trunc(numeric);
+      return imo > 0 ? String(imo) : undefined;
+    }
+
+    const record = this.asRecord(value);
+    if (!record) {
+      return undefined;
+    }
+
+    return this.parseImo(
+      record['number'] ??
+      record['value'] ??
+      record['id'] ??
+      record['imo'],
+    );
+  }
+
+  private normalizeDestinationText(raw: string): string {
+    const cleaned = raw.trim().replace(/\s*[-/]\s*/g, ', ');
+    if (!cleaned) {
+      return raw;
+    }
+
+    if (cleaned === cleaned.toUpperCase() && /[,\s]/.test(cleaned)) {
+      return cleaned
+        .toLowerCase()
+        .replace(/\b\w/g, (char) => char.toUpperCase());
+    }
+
+    return cleaned;
+  }
+
+  private aisShipTypeLabel(code: number): string | null {
+    if (!Number.isFinite(code) || code <= 0) return null;
+
+    if (code >= 70 && code <= 79) return 'Cargo';
+    if (code >= 80 && code <= 89) return 'Tanker';
+    if (code >= 90 && code <= 99) return 'Other';
+    if (code >= 60 && code <= 69) return 'Passenger';
+    if (code >= 40 && code <= 49) return 'High Speed Craft';
+    if (code >= 50 && code <= 59) return 'Special Craft';
+
+    switch (code) {
+      case 30: return 'Fishing';
+      case 31: return 'Towing';
+      case 32: return 'Towing (Long)';
+      case 33: return 'Dredging';
+      case 34: return 'Diving Ops';
+      case 35: return 'Military';
+      case 36: return 'Sailing';
+      case 37: return 'Pleasure Craft';
+      default: return `Type ${code}`;
     }
   }
 
   public disconnect(): void {
     if (this.connectionSubscription) {
       this.connectionSubscription.unsubscribe();
+      this.connectionSubscription = null;
     }
     if (this.socket$) {
       this.socket$.complete();
-      this.socket$ = undefined;
+      this.socket$ = null;
     }
     this._connected.next(false);
   }
