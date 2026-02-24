@@ -1,0 +1,23 @@
+{
+  "name": "open-marine",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "init": "node scripts/init-cross-platform.mjs",
+    "init:linux": "bash scripts/init.sh",
+    "init:windows": "powershell -ExecutionPolicy Bypass -File scripts/init.ps1",
+    "migrate:raspberry": "node scripts/migrate-to-raspberry-cross-platform.mjs",
+    "migrate:raspberry:windows": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/migrate-to-raspberry.ps1",
+    "migrate:raspberry:linux": "bash scripts/migrate-to-raspberry.sh",
+    "start:signalk": "cd signalk-runtime && docker compose up -d",
+    "stop:signalk": "cd signalk-runtime && docker compose down",
+    "start:simulator": "cd marine-data-simulator && npm run dev",
+    "start:ui": "cd marine-instrumentation-ui && npm run start:lan",
+    "start:ui:local": "cd marine-instrumentation-ui && npm start",
+    "start:ais": "node scripts/start-ais-cross-platform.mjs",
+    "start:all": "npm run start:signalk && npm run start:simulator & npm run start:ui",
+    "build:contract": "cd marine-data-contract && npm run build",
+    "logs:signalk": "cd signalk-runtime && docker compose logs -f signalk",
+    "status": "node scripts/status.mjs"
+  }
+}

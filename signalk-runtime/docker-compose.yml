@@ -1,6 +1,6 @@
 services:
   signalk:
-    image: signalk/signalk-server:latest
+    image: signalk/signalk-server:v2.22.1
     container_name: signalk
     entrypoint: ["/home/node/signalk/node_modules/signalk-server/bin/signalk-server"]
     ports:
