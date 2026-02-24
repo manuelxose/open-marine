@@ -1,25 +1,54 @@
-# Signal K Runtime
+﻿# Signal K Runtime
 
-Dockerized Signal K server for local development.
+Runtime local de Signal K para desarrollo de `open-marine`.
 
-## Prerequisites
+Estado: 2026-02-19.
 
-- Docker Desktop (Windows) or Docker Engine + Docker Compose (Ubuntu)
+## Objetivo
 
-## Commands
+Levantar un servidor Signal K reproducible en Docker para conectar UI, simulator y gateway.
 
-```bash
+## Archivos clave
+
+- `docker-compose.yml`
+- `data/` (persistencia de configuracion de Signal K)
+
+## Arranque
+
+```powershell
 docker compose up -d
 docker logs -f signalk
 ```
 
-Open http://localhost:3000
+Abrir:
 
-## Security (local dev)
+- `http://localhost:3000`
 
-Security is disabled in `docker-compose.yml` so local writes are open without tokens. To re-enable security, remove the `entrypoint` override (and optional `IS_IN_DOCKER` env var) and restart the container.
+## Parada
 
-## Troubleshooting
+```powershell
+docker compose down
+```
 
-- Port 3000 already in use: stop the conflicting process or change the host port mapping in `docker-compose.yml`.
-- Container fails to start: inspect logs with `docker logs signalk` and confirm Docker has access to the drive.
+## Notas de configuracion
+
+- El compose actual usa `entrypoint` directo al binario de Signal K.
+- Puerto publicado: `3000:3000`.
+- TZ actual: `Europe/Madrid`.
+
+## Problemas frecuentes
+
+## Puerto ocupado
+
+- Cambiar mapeo en `docker-compose.yml` o liberar el puerto 3000.
+
+## No responde la UI de Signal K
+
+- Revisar logs con `docker logs signalk`.
+- Verificar que Docker tenga permisos de volumen en `./data`.
+
+## Integracion con el resto del stack
+
+- UI consume REST/WS desde este runtime.
+- Simulator publica deltas al stream de este runtime.
+- Gateway AIS reenvia NMEA para ingestion en este runtime.

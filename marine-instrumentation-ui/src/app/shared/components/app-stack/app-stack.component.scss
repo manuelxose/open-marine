@@ -35,7 +35,7 @@
   // Divider
   &.app-stack--divider {
     // Determine border color based on theme context or default border color
-    --stack-divider-color: var(--border-color);
+    --stack-divider-color: var(--gb-border-panel);
 
     // Apply separator to children except the first one
     &.app-stack--column > ::ng-deep * + * {

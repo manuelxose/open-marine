@@ -1,0 +1,64 @@
+:host {
+  display: inline-block;
+  line-height: 0;
+}
+
+.gb-instrument-svg {
+  display: block;
+  filter: drop-shadow(0 2px 6px color-mix(in srgb, var(--gb-bg-canvas) 70%, var(--gb-bg-bezel)));
+}
+
+.gb-bezel,
+.gb-face,
+.gb-glass-overlay,
+.gb-center-pin {
+  transition:
+    fill var(--gb-anim-theme) ease,
+    stroke var(--gb-anim-theme) ease,
+    opacity var(--gb-anim-theme) ease;
+}
+
+.gb-ticks-group line {
+  vector-effect: non-scaling-stroke;
+}
+
+.gb-cardinal-n {
+  fill: var(--gb-needle-primary);
+}
+
+.gb-svg-degree-label {
+  font-family: var(--font-mono);
+  font-size: 6px;
+  font-weight: 500;
+  fill: var(--gb-text-muted);
+  text-anchor: middle;
+  dominant-baseline: middle;
+  font-variant-numeric: tabular-nums;
+}
+
+.gb-display-group rect {
+  stroke: var(--gb-border-panel);
+  stroke-width: 0.75;
+}
+
+.gb-display-group.gb-quality--warn rect {
+  stroke: rgba(var(--gb-data-warn-rgb), 0.7);
+}
+
+.gb-display-group.gb-quality--stale rect,
+.gb-display-group.gb-quality--missing rect {
+  stroke: rgba(var(--gb-data-stale-rgb), 0.75);
+}
+
+.gb-needle-shape {
+  stroke: color-mix(in srgb, var(--gb-needle-primary) 70%, var(--gb-bg-canvas));
+  stroke-width: 0.5;
+}
+
+:host-context([data-theme='day']) .gb-glass-overlay {
+  opacity: 0.015;
+}
+
+:host-context([data-theme='night']) .gb-glass-overlay {
+  opacity: 0.04;
+}

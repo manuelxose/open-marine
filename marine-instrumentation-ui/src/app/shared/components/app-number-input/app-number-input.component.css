@@ -6,7 +6,7 @@
 .number-input-container {
   display: flex;
   align-items: center;
-  background-color: var(--bg-surface);
+  background-color: var(--gb-bg-panel);
   border: 1px solid var(--border-default);
   border-radius: var(--radius-md);
   overflow: hidden;
@@ -20,7 +20,7 @@
 
 .number-input-container:focus-within {
   border-color: var(--primary-500);
-  box-shadow: 0 0 0 2px var(--bg-surface), 0 0 0 4px var(--primary-500);
+  box-shadow: 0 0 0 2px var(--gb-bg-panel), 0 0 0 4px var(--primary-500);
 }
 
 .stepper-btn {
@@ -31,7 +31,7 @@
   height: 2.5rem;
   border: none;
   background: transparent;
-  color: var(--text-secondary);
+  color: var(--gb-text-muted);
   cursor: pointer;
   transition: background-color 0.2s, color 0.2s;
   padding: 0;
@@ -47,7 +47,7 @@
 
 .stepper-btn:hover:not(:disabled) {
   background-color: var(--bg-surface-secondary);
-  color: var(--text-primary);
+  color: var(--gb-text-value);
 }
 
 .stepper-btn:active:not(:disabled) {
@@ -65,7 +65,7 @@
   text-align: center;
   border: none;
   background: transparent;
-  color: var(--text-primary);
+  color: var(--gb-text-value);
   font-family: var(--font-body);
   font-variant-numeric: tabular-nums;
   font-size: var(--text-md);

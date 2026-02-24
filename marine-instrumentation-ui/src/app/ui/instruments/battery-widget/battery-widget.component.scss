@@ -1,0 +1,121 @@
+:host {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.marine-card {
+  display: block;
+  height: 100%;
+}
+
+.battery-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  width: 100%;
+  padding: 10px;
+  background: radial-gradient(
+    circle at 50% 40%,
+    color-mix(in srgb, var(--gb-data-good) 3%, transparent) 0%,
+    transparent 55%
+  );
+}
+
+.main-gauge {
+  width: 165px;
+  height: 165px;
+  position: relative;
+  flex-grow: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  .gauge-svg {
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+    filter: drop-shadow(0 2px 6px color-mix(in srgb, var(--gb-bg-canvas) 30%, transparent));
+  }
+
+  .track-ring {
+    stroke: color-mix(in srgb, var(--gb-text-unit) 14%, transparent);
+  }
+
+  .value-ring {
+    transition:
+      stroke-dashoffset var(--gb-anim-needle) var(--gb-ease-data),
+      stroke var(--gb-anim-theme) var(--gb-ease-data);
+    filter: drop-shadow(0 0 4px color-mix(in srgb, var(--gb-data-good) 30%, transparent));
+  }
+
+  .value-main {
+    font-family: 'JetBrains Mono', 'Courier New', monospace;
+    font-size: 2.5rem;
+    font-weight: 700;
+    text-anchor: middle;
+    filter: drop-shadow(0 0 6px color-mix(in srgb, var(--gb-bg-canvas) 65%, transparent));
+    font-variant-numeric: tabular-nums;
+  }
+
+  .unit-label {
+    font-size: 0.7rem;
+    fill: var(--gb-text-unit);
+    text-anchor: middle;
+    font-weight: 600;
+    font-family: 'Space Grotesk', system-ui, sans-serif;
+    letter-spacing: 1.5px;
+  }
+}
+
+.bottom-stats {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  width: 100%;
+  padding: 0 10px;
+  margin-top: 6px;
+  border-top: 1px solid color-mix(in srgb, var(--gb-border-panel) 30%, transparent);
+  padding-top: 10px;
+
+  .stat-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 2px 8px;
+    background: color-mix(in srgb, var(--gb-bg-glass) 35%, transparent);
+    border-radius: 6px;
+    border: 1px solid color-mix(in srgb, var(--gb-border-panel) 18%, transparent);
+
+    .label {
+      margin-bottom: 2px;
+      font-size: 0.55rem;
+      letter-spacing: 0.1em;
+    }
+
+    .val {
+      color: var(--gb-text-value);
+      line-height: 1;
+
+      &.charging {
+        color: var(--gb-data-good);
+        text-shadow: 0 0 8px color-mix(in srgb, var(--gb-data-good) 45%, transparent);
+      }
+
+      &.discharging {
+        color: var(--gb-data-warn);
+        text-shadow: 0 0 4px color-mix(in srgb, var(--gb-data-warn) 25%, transparent);
+      }
+    }
+  }
+}
+
+.meta-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 0.35rem;
+}

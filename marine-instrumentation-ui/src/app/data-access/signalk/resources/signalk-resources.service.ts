@@ -1,6 +1,6 @@
 import { Injectable, Inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, catchError, map, of, throwError } from 'rxjs';
+import { Observable, catchError, of, throwError } from 'rxjs';
 import { APP_ENVIRONMENT, AppEnvironment } from '../../../core/config/app-environment.token';
 import { ResourceMap, ResourceType } from './resource.models';
 
@@ -88,7 +88,11 @@ export class SignalKResourcesService {
     request: (base: string) => Observable<T>,
     finalErrorHandler: (err: unknown) => Observable<T>
   ): Observable<T> {
-    const [primary, fallback] = this.resourcesBases;
+    const primary = this.resourcesBases[0];
+    const fallback = this.resourcesBases[1];
+    if (!primary) {
+      return finalErrorHandler(new Error('SignalK resources base URL not configured'));
+    }
     return request(primary).pipe(
       catchError(err => {
         if (fallback && this.isNotFound(err)) {

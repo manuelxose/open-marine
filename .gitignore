@@ -79,3 +79,11 @@ lerna-debug.log*
 
 # Generated files
 .generated/
+
+# Local tooling binaries
+tools/*
+!tools/.gitkeep
+
+# Raspberry migration local config (contains credentials)
+config/raspberry.env
+config/omi.env

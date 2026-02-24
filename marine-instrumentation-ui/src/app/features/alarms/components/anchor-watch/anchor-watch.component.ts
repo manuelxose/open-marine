@@ -42,9 +42,9 @@ export class AnchorWatchComponent implements OnInit, OnDestroy {
         const anchorAlarm = alarms.find(a => a.type === 'anchor-watch');
         if (anchorAlarm && anchorAlarm.data && (anchorAlarm.state !== AlarmState.Cleared && anchorAlarm.state !== AlarmState.Inactive)) {
           this.isSet = true;
-          this.anchorPosition = anchorAlarm.data.anchorPosition;
-          this.radius = anchorAlarm.data.radius || 40;
-          this.anchorSetAt = anchorAlarm.data.setAt ?? anchorAlarm.timestamp;
+          this.anchorPosition = anchorAlarm.data['anchorPosition'] as { lat: number; lon: number };
+          this.radius = (anchorAlarm.data['radius'] as number) || 40;
+          this.anchorSetAt = (anchorAlarm.data['setAt'] as number) ?? anchorAlarm.timestamp;
           this.updateDistance();
         } else {
             // Only reset if we think it should be cleared externally

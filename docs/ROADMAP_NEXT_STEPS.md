@@ -1,0 +1,146 @@
+﻿# Roadmap Next Steps
+
+Plan de ejecucion pendiente con prioridad tecnica real.
+
+Fecha base: 2026-02-20.
+
+## 1. Prioridad global
+
+Orden de trabajo obligatorio:
+
+1. Dejar todos los builds en verde.
+2. Garantizar smoke test funcional extremo a extremo.
+3. Subir cobertura minima de pruebas en paquetes criticos.
+4. Optimizar peso inicial de UI.
+
+## 2. Fase P0 - Build Verde en Todo el Monorepo
+
+Estado: `✅` completada.
+
+Resultados:
+
+- `✅` `marine-data-simulator` compila en verde.
+- `✅` `marine-sensor-gateway` compila en verde.
+
+Cambios aplicados:
+
+- Simulator:
+- `src/index.ts`: guardas de indices en parseo posicional CLI.
+- `src/scenarios/busyShippingLane.ts`: fallback para tipo de buque.
+
+- Gateway:
+- `src/ais/rtlAisGateway.ts`: tipo de proceso hijo corregido para `spawn` con `stdin: ignore`.
+- `src/ais/rtlAisGateway.ts`: manejo de `pid` con `delete` para cumplir `exactOptionalPropertyTypes`.
+
+## 3. Fase P1 - Smoke E2E reproducible
+
+Estado: `[IN_PROGRESS]`.
+
+Objetivo:
+
+- Validar flujo completo con Signal K + simulator + UI (+ gateway opcional).
+
+Tareas:
+
+- Ejecutar runbook completo (`docs/SETUP_RUNBOOK.md`).
+- Registrar checklist de verificacion funcional.
+- Dejar procedimiento de smoke test en un bloque reutilizable de comandos.
+
+Criterio de aceptacion:
+
+- Checklist funcional completado sin bloqueos criticos.
+
+Avance 2026-02-22:
+
+- `✅` Sub-flujo IMU (Raspberry Pi -> Signal K -> API lectura) validado en entorno real.
+- `✅` Publicacion IMU estabilizada con fallback WebSocket cuando HTTP write no esta disponible.
+- `[PENDING]` Mantener pendiente smoke global completo con todos los subsistemas en simultaneo.
+
+## 4. Fase P2 - Calidad de codigo
+
+Estado: `[IN_PROGRESS]`.
+
+Objetivos:
+
+- Aumentar confianza en cambios.
+
+Tareas:
+
+- Anadir tests unitarios en simulator para escenarios criticos.
+- Anadir tests unitarios en gateway para parseo/restart logic de AIS.
+- Anadir tests minimos en UI para rutas y store integration.
+
+Criterio de aceptacion:
+
+- Cada paquete critico con al menos una bateria minima de tests automatizados ejecutables en CI local.
+
+Avance 2026-02-22:
+
+- `✅` `marine-sensor-gateway` incorpora test IMU ejecutable por `npm run test`.
+- `✅` Cobertura minima inicial para contrato IMU/publisher Signal K (4 casos verdes).
+
+## 5. Fase P3 - Performance y deuda UI
+
+Estado: `[PENDING]`.
+
+Objetivos:
+
+- Reducir warnings de budgets en build UI.
+
+Tareas:
+
+- Revisar SCSS de componentes que exceden budget.
+- Reducir tamano de `styleguide-page` donde sea viable.
+- Evaluar split adicional de chunks pesados.
+
+Criterio de aceptacion:
+
+- Warning de presupuesto inicial reducido o justificado documentalmente.
+
+## 6. Fase P4 - Mantenimiento documental
+
+Estado: `[IN_PROGRESS]`.
+
+Objetivo:
+
+- Sostener solo el set canonico de documentos.
+
+Tareas:
+
+- Mantener sincronizados: `README.md`, `docs/IMPLEMENTATION_STATUS.md`, `docs/ROADMAP_NEXT_STEPS.md`.
+- No reintroducir `*_PROMPT.md` como fuente de estado operativo.
+
+Criterio de aceptacion:
+
+- Sin duplicidades documentales en revisiones futuras.
+
+## 7. Backlog secundario
+
+Estado: `[PENDING]`.
+
+- Script unico para levantar stack completo en desarrollo.
+- Plantilla de reporte de regresiones visuales para `/styleguide` y `/widgets`.
+- Definir baseline de metricas (build time, bundle size, memoria en chart).
+
+## 7.1 DOC_3 — Commercial App Restructuring (pendiente)
+
+Estado: `[IN_PROGRESS]` — Fases A/B/D/E/H/I parcialmente completadas. Ver `docs/IMPLEMENTATION_STATUS.md` seccion 9.
+
+Trabajo restante por prioridad:
+
+1. **Integrar settings sub-components** en settings page o sub-rutas.
+2. **Fase C — Instrument system**: Registrar 54 instrumentos, crear InstrumentWidgetComponent generico.
+3. **Fase B — Dashboard grid configurable**: DashboardLayout con columnas/filas configurables.
+4. **Fase F — Performance sailing**: Polar diagram, laylines, VMG optimizer.
+5. **Fase G — Autopilot console**: Modos extendidos, dodge buttons, rudder indicator.
+6. **Fase I.2 — IDB storage**: IdbStoreService para posiciones, datapoints, historial de alarmas.
+7. **Fase J — Testing**: Tests unitarios para XTE, CPA, anchor watch, true wind.
+8. **Fase K — User docs**: docs-user/ structure, help overlay in-app.
+
+## 8. Cierre de cada iteracion
+
+Para cerrar una iteracion como completada:
+
+- Actualizar `docs/IMPLEMENTATION_STATUS.md` con resultados reales.
+- Marcar cada bloque con `✅`, `[IN_PROGRESS]`, `[BLOCKED]` o `[PENDING]`.
+- Registrar comandos de verificacion ejecutados.

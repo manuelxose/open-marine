@@ -4,8 +4,8 @@
   left: 0;
   width: 100vw;
   height: 100vh;
-  background-color: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(4px);
+  background-color: var(--overlay-backdrop);
+  backdrop-filter: var(--overlay-blur);
   z-index: 5000;
   display: flex;
   align-items: center;
@@ -14,7 +14,7 @@
 }
 
 .modal-content {
-  background-color: var(--bg-surface);
+  background-color: var(--gb-bg-panel);
   border: 1px solid var(--border-default);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-xl);
@@ -22,7 +22,7 @@
   flex-direction: column;
   max-height: 90vh;
   width: 100%;
-  color: var(--text-primary);
+  color: var(--gb-text-value);
   position: relative;
   outline: none;
 }
@@ -45,6 +45,7 @@
   justify-content: space-between;
   align-items: center;
   flex-shrink: 0;
+  background-color: var(--bg-surface-secondary);
 }
 
 .modal-header h2 {
@@ -57,7 +58,7 @@
 .close-btn {
   background: transparent;
   border: none;
-  color: var(--text-secondary);
+  color: var(--gb-text-muted);
   cursor: pointer;
   padding: 4px;
   border-radius: var(--radius-sm);
@@ -68,8 +69,8 @@
 }
 
 .close-btn:hover {
-  color: var(--text-primary);
-  background-color: var(--bg-surface-secondary);
+  color: var(--gb-text-value);
+  background-color: var(--bg-hover);
 }
 
 .modal-body {

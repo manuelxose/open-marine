@@ -1,5 +1,24 @@
 {
-  "pipedProviders": [],
+  "pipedProviders": [
+    {
+      "id": "ais-catcher-udp",
+      "pipeElements": [
+        {
+          "type": "providers/udp",
+          "options": {
+            "port": 10110
+          }
+        },
+        {
+          "type": "providers/nmea0183-signalk",
+          "options": {
+            "validateChecksum": false
+          }
+        }
+      ],
+      "enabled": true
+    }
+  ],
   "interfaces": {},
   "resourcesApi": {
     "defaultProviders": {

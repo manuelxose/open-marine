@@ -7,11 +7,18 @@ import { haversineDistanceMeters } from '../calculations/navigation';
 import { HistoryService } from '../../core/services/history.service';
 import { PLAYBACK_POSITION_LAT_PATH, PLAYBACK_POSITION_LON_PATH } from '../playback/playback.models';
 import { DataPoint, DataPointMap, HistoryPoint, TrackPoint } from './datapoint.models';
+import { AlarmSettingsService } from '../alarms/alarm-settings.service';
 
 const MAX_TRACK_POINTS = 1000;
 const TRACK_WINDOW_MS = 30 * 60 * 1000;
 const TRACK_MIN_TIME_MS = 1000;
 const TRACK_MIN_DISTANCE_METERS = 10;
+const DEFAULT_POSITION_MAX_SPEED_MPS = 35; // ~68 kn
+const DEFAULT_POSITION_STATIONARY_SOG_MPS = 0.7; // ~1.4 kn
+const DEFAULT_POSITION_MAX_DRIFT_METERS_WHEN_STATIONARY = 150;
+const DEFAULT_POSITION_STATIONARY_WINDOW_SECONDS = 30;
+const DEFAULT_POSITION_MIN_JUMP_FILTER_METERS = 50;
+const DERIVED_HEADING_SOURCE = "derived:headingMagneticFallback";
 const PERSISTED_HISTORY_PATHS = new Set<string>([
   PATHS.navigation.speedOverGround,
   PATHS.navigation.courseOverGroundTrue,
@@ -55,6 +62,7 @@ export class DatapointStoreService {
   public readonly track$ = this._trackPoints$.asObservable();
   public readonly trackPoints$ = this.track$;
   private lastTrackSample: TrackPoint | null = null;
+  private lastAcceptedPositionSample: TrackPoint | null = null;
 
   private readonly _lastUpdate = new BehaviorSubject<number | null>(null);
   public readonly lastUpdate$ = this._lastUpdate.asObservable();
@@ -71,10 +79,16 @@ export class DatapointStoreService {
 
   public readonly state$ = this._state.asObservable();
 
-  constructor(private historyService: HistoryService) {
+  constructor(
+    private historyService: HistoryService,
+    private alarmSettings: AlarmSettingsService,
+  ) {
     for (const path of Object.keys(this.HISTORY_CONFIG)) {
-      this._history.set(path, new RingBuffer<HistoryPoint>(this.HISTORY_CONFIG[path]));
-      this._historySubjects.set(path, new BehaviorSubject<HistoryPoint[]>([]));
+      const size = this.HISTORY_CONFIG[path];
+      if (size !== undefined) {
+        this._history.set(path, new RingBuffer<HistoryPoint>(size));
+        this._historySubjects.set(path, new BehaviorSubject<HistoryPoint[]>([]));
+      }
     }
   }
 
@@ -91,6 +105,16 @@ export class DatapointStoreService {
     let latestTimestamp = this._lastUpdate.value ?? 0;
 
     for (const point of points) {
+      if (point.path === PATHS.navigation.position && point.value && typeof point.value === 'object') {
+        const pos = point.value as { latitude?: number; longitude?: number };
+        if (typeof pos.latitude === 'number' && typeof pos.longitude === 'number') {
+          const sample: TrackPoint = { lat: pos.latitude, lon: pos.longitude, ts: point.timestamp };
+          if (!this.shouldAcceptPositionSample(sample, next)) {
+            continue;
+          }
+        }
+      }
+
       next.set(point.path, point);
       if (point.timestamp > latestTimestamp) {
         latestTimestamp = point.timestamp;
@@ -135,10 +159,59 @@ export class DatapointStoreService {
       }
     }
 
+    this.deriveHeadingFallback(next);
     this.deriveTrueWind(next, latestTimestamp || Date.now());
 
     this._state.next(next);
     this._lastUpdate.next(latestTimestamp || Date.now());
+  }
+
+  private deriveHeadingFallback(state: DataPointMap): void {
+    const trueHeadingPoint = state.get(PATHS.navigation.headingTrue);
+    const magneticHeadingPoint = state.get(PATHS.navigation.headingMagnetic);
+    const attitudePoint = state.get(PATHS.navigation.attitude);
+
+    let fallbackHeading: number | null = null;
+    let fallbackTimestamp = 0;
+    let fallbackSource = DERIVED_HEADING_SOURCE;
+
+    if (magneticHeadingPoint && typeof magneticHeadingPoint.value === "number") {
+      fallbackHeading = magneticHeadingPoint.value;
+      fallbackTimestamp = magneticHeadingPoint.timestamp;
+      fallbackSource = magneticHeadingPoint.source || DERIVED_HEADING_SOURCE;
+    }
+
+    const yaw = this.extractAttitudeYaw(attitudePoint?.value);
+    if (
+      yaw !== null
+      && attitudePoint
+      && attitudePoint.timestamp > fallbackTimestamp
+    ) {
+      fallbackHeading = yaw;
+      fallbackTimestamp = attitudePoint.timestamp;
+      fallbackSource = attitudePoint.source || DERIVED_HEADING_SOURCE;
+    }
+
+    if (fallbackHeading === null) {
+      return;
+    }
+
+    const shouldOverride =
+      !trueHeadingPoint
+      || typeof trueHeadingPoint.value !== "number"
+      || trueHeadingPoint.source === DERIVED_HEADING_SOURCE
+      || trueHeadingPoint.timestamp <= fallbackTimestamp;
+
+    if (!shouldOverride) {
+      return;
+    }
+
+    state.set(PATHS.navigation.headingTrue, {
+      path: PATHS.navigation.headingTrue,
+      value: fallbackHeading,
+      timestamp: fallbackTimestamp || Date.now(),
+      source: fallbackSource || DERIVED_HEADING_SOURCE,
+    });
   }
 
   private deriveTrueWind(state: DataPointMap, timestamp: number): void {
@@ -210,6 +283,17 @@ export class DatapointStoreService {
     });
   }
 
+  private extractAttitudeYaw(value: unknown): number | null {
+    if (!value || typeof value !== "object") {
+      return null;
+    }
+    const yaw = (value as { yaw?: unknown }).yaw;
+    if (typeof yaw !== "number" || !Number.isFinite(yaw)) {
+      return null;
+    }
+    return yaw;
+  }
+
   observe<T>(path: string): Observable<DataPoint<T> | undefined> {
     return this.state$.pipe(
       map((state) => state.get(path) as DataPoint<T> | undefined),
@@ -240,6 +324,86 @@ export class DatapointStoreService {
 
   getAll(): DataPoint[] {
     return Array.from(this._state.value.values());
+  }
+
+  private shouldAcceptPositionSample(sample: TrackPoint, state: DataPointMap): boolean {
+    const safety = this.alarmSettings.snapshot;
+    const maxSpeedMps = this.positiveOr(safety.gpsOutlierMaxSpeedMps, DEFAULT_POSITION_MAX_SPEED_MPS);
+    const minJumpDistanceMeters = this.positiveOr(
+      safety.gpsOutlierMinJumpDistanceMeters,
+      DEFAULT_POSITION_MIN_JUMP_FILTER_METERS,
+    );
+    const stationarySogMps = this.nonNegativeOr(
+      safety.gpsOutlierStationarySogMps,
+      DEFAULT_POSITION_STATIONARY_SOG_MPS,
+    );
+    const maxStationaryDriftMeters = this.positiveOr(
+      safety.gpsOutlierMaxDriftMeters,
+      DEFAULT_POSITION_MAX_DRIFT_METERS_WHEN_STATIONARY,
+    );
+    const stationaryWindowMs =
+      this.positiveOr(
+        safety.gpsOutlierStationaryWindowSeconds,
+        DEFAULT_POSITION_STATIONARY_WINDOW_SECONDS,
+      ) * 1000;
+
+    if (
+      !Number.isFinite(sample.lat) ||
+      !Number.isFinite(sample.lon) ||
+      sample.lat < -90 ||
+      sample.lat > 90 ||
+      sample.lon < -180 ||
+      sample.lon > 180
+    ) {
+      return false;
+    }
+
+    if (!this.lastAcceptedPositionSample) {
+      this.lastAcceptedPositionSample = sample;
+      return true;
+    }
+
+    const previous = this.lastAcceptedPositionSample;
+    const distance = haversineDistanceMeters(
+      { lat: previous.lat, lon: previous.lon },
+      { lat: sample.lat, lon: sample.lon },
+    );
+    const timeDeltaMs = sample.ts - previous.ts;
+
+    if (timeDeltaMs <= 0) {
+      if (distance > minJumpDistanceMeters) {
+        return false;
+      }
+      this.lastAcceptedPositionSample = sample;
+      return true;
+    }
+
+    const impliedSpeedMps = distance / (timeDeltaMs / 1000);
+    if (distance > minJumpDistanceMeters && impliedSpeedMps > maxSpeedMps) {
+      return false;
+    }
+
+    const sogPoint = state.get(PATHS.navigation.speedOverGround);
+    const sogValue = typeof sogPoint?.value === 'number' ? sogPoint.value : null;
+    if (
+      sogValue !== null &&
+      sogValue <= stationarySogMps &&
+      timeDeltaMs <= stationaryWindowMs &&
+      distance > maxStationaryDriftMeters
+    ) {
+      return false;
+    }
+
+    this.lastAcceptedPositionSample = sample;
+    return true;
+  }
+
+  private positiveOr(value: number, fallback: number): number {
+    return Number.isFinite(value) && value > 0 ? value : fallback;
+  }
+
+  private nonNegativeOr(value: number, fallback: number): number {
+    return Number.isFinite(value) && value >= 0 ? value : fallback;
   }
 
   private shouldAppendTrack(sample: TrackPoint): boolean {

@@ -1,11 +1,11 @@
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { AlarmStoreService } from '../../../../state/alarms/alarm-store.service';
-import { AlarmSeverity, AlarmType } from '../../../../state/alarms/alarm.models';
+import { AlarmSeverity } from '../../../../state/alarms/alarm.models';
 import { AudioService } from '../../../../core/services/audio.service';
 import { DatapointStoreService } from '../../../../state/datapoints/datapoint-store.service';
 import { PATHS } from '@omi/marine-data-contract';
-import { interval, map, Subscription, take } from 'rxjs';
+import { interval, map, Subscription } from 'rxjs';
 import { AppButtonComponent } from '../../../../shared/components/app-button/app-button.component';
 
 @Component({
@@ -20,7 +20,7 @@ export class MOBAlertComponent implements OnInit, OnDestroy {
   confirming = false;
   elapsedTime = '00:00';
   
-  private timerSub?: Subscription;
+  private timerSub: Subscription | null = null;
   private mobTimestamp: number | null = null;
   private currentPosition: { lat: number, lon: number } | null = null;
 
@@ -110,7 +110,7 @@ export class MOBAlertComponent implements OnInit, OnDestroy {
   private stopTimer(): void {
     if (this.timerSub) {
         this.timerSub.unsubscribe();
-        this.timerSub = undefined;
+        this.timerSub = null;
     }
   }
 

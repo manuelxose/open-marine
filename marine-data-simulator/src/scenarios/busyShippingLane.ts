@@ -60,7 +60,7 @@ const generateTargets = (count: number): AisVessel[] => {
     let sog = randomInRange(2, 12);
     
     // Cargo ships are fast and straight
-    const type = types[Math.floor(Math.random() * types.length)];
+    const type = types[Math.floor(Math.random() * types.length)] ?? "cargo";
     if (type === 'cargo' || type === 'passenger') {
       sog = randomInRange(10, 22);
     }

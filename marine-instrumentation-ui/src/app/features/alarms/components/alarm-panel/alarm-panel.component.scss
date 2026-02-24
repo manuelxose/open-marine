@@ -33,7 +33,7 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    color: var(--text-secondary);
+    color: var(--gb-text-muted);
     gap: 16px;
     
     .icon {
@@ -104,14 +104,14 @@
         
         .timestamp {
           font-family: monospace;
-          color: var(--text-secondary);
+          color: var(--gb-text-muted);
           font-size: 0.9rem;
         }
       }
       
       .meta {
         font-size: 0.85rem;
-        color: var(--text-secondary);
+        color: var(--gb-text-muted);
         text-transform: uppercase;
         font-weight: 600;
       }

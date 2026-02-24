@@ -3,6 +3,12 @@ import type { FeatureCollection, LineString, Point, Polygon, Position } from 'ge
 import type { WaypointFeatureCollection } from '../types/chart-geojson';
 import type { MapOrientation } from '../types/chart-vm';
 import { METERS_PER_NM, projectDestination } from '../../../state/calculations/navigation';
+import {
+  DEFAULT_VESSEL_TYPE_COLORS,
+  VESSEL_TYPE_KEYS,
+  getAisVesselIconId,
+  type VesselTypeColors,
+} from './chart-vessel-types';
 
 export interface MapLibreInitView {
   center: [number, number];
@@ -45,6 +51,10 @@ const TRACK_SOURCE_ID = 'chart-track-source';
 const TRACK_LAYER_ID = 'chart-track-layer';
 const VECTOR_SOURCE_ID = 'chart-vector-source';
 const VECTOR_LAYER_ID = 'chart-vector-layer';
+const HEADING_LINE_SOURCE_ID = 'chart-heading-line-source';
+const HEADING_LINE_LAYER_ID = 'chart-heading-line-layer';
+const LAYLINES_SOURCE_ID = 'chart-laylines-source';
+const LAYLINES_LAYER_ID = 'chart-laylines-layer';
 const WAYPOINT_SOURCE_ID = 'chart-waypoints-source';
 const WAYPOINT_LAYER_ID = 'chart-waypoints-layer';
 const ROUTE_SOURCE_ID = 'chart-route-source';
@@ -57,10 +67,24 @@ const BEARING_LINE_SOURCE_ID = 'chart-bearing-line-source';
 const BEARING_LINE_LAYER_ID = 'chart-bearing-line-layer';
 const AIS_SOURCE_ID = 'chart-ais-source';
 const AIS_LAYER_ID = 'chart-ais-layer';
-const AIS_ICON_ID = 'chart-ais-icon';
-const AIS_ICON_DANGEROUS_ID = 'chart-ais-icon-dangerous';
+const AIS_FALLBACK_ICON_ID = getAisVesselIconId('other');
+const AIS_TRACKS_SOURCE_ID = 'chart-ais-tracks-source';
+const AIS_TRACKS_LAYER_ID = 'chart-ais-tracks-layer';
+const AIS_PREDICT_SOURCE_ID = 'chart-ais-predict-source';
+const AIS_PREDICT_LAYER_ID = 'chart-ais-predict-layer';
 const CPA_LINE_SOURCE_ID = 'chart-cpa-line-source';
 const CPA_LINE_LAYER_ID = 'chart-cpa-line-layer';
+const ANCHOR_SOURCE_ID = 'chart-anchor-source';
+const ANCHOR_CIRCLE_LAYER_ID = 'chart-anchor-circle';
+const ANCHOR_BORDER_LAYER_ID = 'chart-anchor-border';
+const ANCHOR_CENTER_LAYER_ID = 'chart-anchor-center';
+const OPENSEAMAP_SOURCE_ID = 'openseamap-overlay';
+const OPENSEAMAP_LAYER_ID = 'openseamap-overlay-layer';
+const MEASURE_SOURCE_ID = 'chart-measure-source';
+const MEASURE_LINE_LAYER_ID = 'chart-measure-line';
+const MEASURE_POINTS_SOURCE_ID = 'chart-measure-points-source';
+const MEASURE_POINTS_LAYER_ID = 'chart-measure-points';
+const MEASURE_LABEL_LAYER_ID = 'chart-measure-label';
 
 const EMPTY_POINTS: FeatureCollection<Point> = {
   type: 'FeatureCollection',
@@ -81,23 +105,35 @@ export class MapLibreEngineService {
   private pendingCenter: [number, number] | null = null;
   private appliedCenter: [number, number] | null = null;
   private orientation: MapOrientation = 'north-up';
+  private resizeObserver: ResizeObserver | null = null;
 
   private readonly handleMapClick = (event: maplibregl.MapMouseEvent): void => {
     if (!this.clickHandler) {
       return;
     }
-    // Check if we clicked a feature (AIS layer for now)
+    // Check if we clicked an interactive feature first (waypoints / AIS).
     if (this.map && this.featureClickHandler) {
-        const features = this.map.queryRenderedFeatures(event.point, { layers: [AIS_LAYER_ID] });
-        if (features.length > 0) {
-            const feature = features[0];
-            this.featureClickHandler({
-                featureId: feature.id as string,
-                properties: feature.properties,
-                layerId: AIS_LAYER_ID
-            });
-            return; // Stop propagation to map click (centering)
+      const features = this.map.queryRenderedFeatures(event.point, {
+        layers: [WAYPOINT_LAYER_ID, AIS_LAYER_ID],
+      });
+      if (features.length > 0) {
+        const feature = features[0];
+        if (feature?.layer?.id) {
+          const featurePropertyId = feature.properties?.['id'];
+          const featureId =
+            typeof feature.id === 'string'
+              ? feature.id
+              : typeof featurePropertyId === 'string'
+                ? featurePropertyId
+                : undefined;
+          this.featureClickHandler({
+            ...(featureId ? { featureId } : {}),
+            properties: feature.properties,
+            layerId: feature.layer.id,
+          });
+          return; // Stop propagation to plain map click.
         }
+      }
     }
 
     this.clickHandler([event.lngLat.lng, event.lngLat.lat]);
@@ -113,6 +149,14 @@ export class MapLibreEngineService {
     coords: [],
     visible: false,
   };
+  private lastHeadingLine: { coords: [number, number][]; visible: boolean } = {
+    coords: [],
+    visible: false,
+  };
+  private lastLaylines: { lines: [number, number][][]; visible: boolean } = {
+    lines: [],
+    visible: false,
+  };
   private lastWaypoints: WaypointFeatureCollection = EMPTY_POINTS as unknown as WaypointFeatureCollection;
   private lastRoute: FeatureCollection<LineString> = EMPTY_LINE;
   private lastTrueWind: { coords: [number, number][]; visible: boolean } = {
@@ -125,7 +169,18 @@ export class MapLibreEngineService {
     visible: false,
   };
   private lastAisTargets: FeatureCollection<Point> = { type: 'FeatureCollection', features: [] };
+  private lastAisTracks: FeatureCollection<LineString> = { type: 'FeatureCollection', features: [] };
+  private lastAisPredictions: FeatureCollection<LineString> = { type: 'FeatureCollection', features: [] };
   private lastCpaLines: FeatureCollection<LineString> = { type: 'FeatureCollection', features: [] };
+  private aisVesselTypeColors: VesselTypeColors = { ...DEFAULT_VESSEL_TYPE_COLORS };
+  private ownVesselIconScale = 1.15;
+  private aisTargetIconScale = 0.8;
+  private windTrackMinZoom = 15;
+  private rangeRingsMinZoom = 8;
+  private showOpenSeaMap = false;
+  private aisTargetsVisible = true;
+  private aisLabelsVisible = true;
+  private cpaLinesVisible = true;
 
   init(containerEl: HTMLElement, initialView: MapLibreInitView): void {
     if (this.map) {
@@ -151,9 +206,19 @@ export class MapLibreEngineService {
 
     this.map.addControl(new maplibregl.AttributionControl({ compact: true }), 'bottom-right');
 
-    this.map.on('load', () => this.onStyleReady());
+    this.map.on('load', () => {
+      this.onStyleReady();
+      // Ensure map fills container after CSS transitions complete
+      setTimeout(() => this.map?.resize(), 400);
+    });
     this.map.on('style.load', () => this.onStyleReady());
     this.map.on('click', this.handleMapClick);
+
+    // Watch for container size changes (grid transitions, sidenav toggle)
+    this.resizeObserver = new ResizeObserver(() => {
+      this.map?.resize();
+    });
+    this.resizeObserver.observe(containerEl);
   }
 
   setBaseSource(chartSourceConfig: ChartSourceConfig): void {
@@ -163,6 +228,11 @@ export class MapLibreEngineService {
     }
     this.mapReady = false;
     this.map.setStyle(chartSourceConfig.style);
+  }
+
+  flyTo(center: [number, number], zoom?: number): void {
+    if (!this.map) return;
+    this.map.flyTo({ center, zoom: zoom ?? this.map.getZoom(), duration: 1200 });
   }
 
   updateVesselPosition(lngLat: [number, number] | null, rotationDeg: number | null, state: 'fix' | 'stale' | 'no-fix' = 'fix'): void {
@@ -188,6 +258,22 @@ export class MapLibreEngineService {
       return;
     }
     this.applyVector();
+  }
+
+  updateHeadingLine(lineStringCoords: [number, number][], visible: boolean): void {
+    this.lastHeadingLine = { coords: lineStringCoords, visible };
+    if (!this.mapReady) {
+      return;
+    }
+    this.applyHeadingLine();
+  }
+
+  updateLaylines(lines: [number, number][][], visible: boolean): void {
+    this.lastLaylines = { lines, visible };
+    if (!this.mapReady) {
+      return;
+    }
+    this.applyLaylines();
   }
 
   updateWaypoints(geojson: WaypointFeatureCollection): void {
@@ -242,6 +328,40 @@ export class MapLibreEngineService {
     }
   }
 
+  setOwnVesselIconScale(scale: number): void {
+    this.ownVesselIconScale = this.clamp(scale, 0.5, 2.5);
+    const effectiveScale = this.getEffectiveOwnVesselScale(this.ownVesselIconScale);
+    if (!this.map || !this.mapReady || !this.map.getLayer(VESSEL_LAYER_ID)) {
+      return;
+    }
+    this.map.setLayoutProperty(VESSEL_LAYER_ID, 'icon-size', effectiveScale);
+  }
+
+  setAisTargetIconScale(scale: number): void {
+    this.aisTargetIconScale = this.clamp(scale, 0.4, 2.0);
+    const effectiveScale = this.getEffectiveAisTargetScale(this.aisTargetIconScale);
+    if (!this.map || !this.mapReady || !this.map.getLayer(AIS_LAYER_ID)) {
+      return;
+    }
+    this.map.setLayoutProperty(AIS_LAYER_ID, 'icon-size', effectiveScale);
+  }
+
+  setWindTrackMinZoom(minZoom: number): void {
+    this.windTrackMinZoom = this.clamp(minZoom, 0, 24);
+    if (!this.map || !this.mapReady) {
+      return;
+    }
+    this.applyWindTrackZoomRanges();
+  }
+
+  setRangeRingsMinZoom(minZoom: number): void {
+    this.rangeRingsMinZoom = this.clamp(minZoom, 0, 24);
+    if (!this.map || !this.mapReady) {
+      return;
+    }
+    this.applyRangeRingZoomRange();
+  }
+
   updateView(center: [number, number] | null): void {
     this.pendingCenter = center;
     if (!this.mapReady || !this.map || !center) {
@@ -258,8 +378,184 @@ export class MapLibreEngineService {
     this.featureClickHandler = handler;
   }
 
+  // ---- Anchor Watch Layer ----
+
+  /**
+   * Update anchor watch circle on the map.
+   * Pass null position to clear.
+   */
+  updateAnchorWatch(
+    position: [number, number] | null,
+    radiusMeters: number,
+    isAlarming: boolean,
+  ): void {
+    if (!this.map || !this.mapReady) return;
+
+    if (!position) {
+      this.clearAnchorWatch();
+      return;
+    }
+
+    this.ensureAnchorLayers();
+
+    const circleGeoJson = this.createCircleMeters(position, radiusMeters);
+    const centerGeoJson: FeatureCollection<Point> = {
+      type: 'FeatureCollection',
+      features: [
+        {
+          type: 'Feature',
+          geometry: { type: 'Point', coordinates: position },
+          properties: {},
+        },
+      ],
+    };
+
+    const fillColor = isAlarming ? '#ff1744' : '#4a90d9';
+    const fillOpacity = isAlarming ? 0.25 : 0.12;
+    const borderColor = isAlarming ? '#ff1744' : '#4a90d9';
+    const borderOpacity = isAlarming ? 0.8 : 0.5;
+
+    // Update sources
+    const circleSource = this.map.getSource(ANCHOR_SOURCE_ID) as maplibregl.GeoJSONSource | undefined;
+    circleSource?.setData(circleGeoJson);
+
+    const centerSource = this.map.getSource(ANCHOR_CENTER_LAYER_ID + '-src') as maplibregl.GeoJSONSource | undefined;
+    centerSource?.setData(centerGeoJson);
+
+    // Update paint properties
+    this.map.setPaintProperty(ANCHOR_CIRCLE_LAYER_ID, 'fill-color', fillColor);
+    this.map.setPaintProperty(ANCHOR_CIRCLE_LAYER_ID, 'fill-opacity', fillOpacity);
+    this.map.setPaintProperty(ANCHOR_BORDER_LAYER_ID, 'line-color', borderColor);
+    this.map.setPaintProperty(ANCHOR_BORDER_LAYER_ID, 'line-opacity', borderOpacity);
+    this.map.setPaintProperty(ANCHOR_CENTER_LAYER_ID, 'circle-color', borderColor);
+  }
+
+  clearAnchorWatch(): void {
+    if (!this.map || !this.mapReady) return;
+
+    const circleSource = this.map.getSource(ANCHOR_SOURCE_ID) as maplibregl.GeoJSONSource | undefined;
+    if (circleSource) {
+      circleSource.setData({ type: 'FeatureCollection', features: [] });
+    }
+
+    const centerSource = this.map.getSource(ANCHOR_CENTER_LAYER_ID + '-src') as maplibregl.GeoJSONSource | undefined;
+    if (centerSource) {
+      centerSource.setData({ type: 'FeatureCollection', features: [] } as FeatureCollection<Point>);
+    }
+  }
+
+  setOpenSeaMapVisible(visible: boolean): void {
+    this.showOpenSeaMap = visible;
+    if (!this.map || !this.mapReady) return;
+    this.applyOpenSeaMapOverlay();
+  }
+
+  updateMeasurement(
+    pointA: [number, number] | null,
+    pointB: [number, number] | null,
+    bearingDeg: number | null,
+    distanceNm: number | null,
+  ): void {
+    if (!this.map || !this.mapReady) return;
+    this.ensureMeasurementLayers();
+    this.applyMeasurement(pointA, pointB, bearingDeg, distanceNm);
+  }
+
+  clearMeasurement(): void {
+    if (!this.map || !this.mapReady) return;
+    this.applyMeasurement(null, null, null, null);
+  }
+
+  private ensureAnchorLayers(): void {
+    if (!this.map) return;
+
+    // Circle fill source + layer
+    if (!this.map.getSource(ANCHOR_SOURCE_ID)) {
+      this.map.addSource(ANCHOR_SOURCE_ID, {
+        type: 'geojson',
+        data: { type: 'FeatureCollection', features: [] },
+      });
+    }
+    if (!this.map.getLayer(ANCHOR_CIRCLE_LAYER_ID)) {
+      this.map.addLayer({
+        id: ANCHOR_CIRCLE_LAYER_ID,
+        type: 'fill',
+        source: ANCHOR_SOURCE_ID,
+        paint: {
+          'fill-color': '#4a90d9',
+          'fill-opacity': 0.12,
+        },
+      });
+    }
+    if (!this.map.getLayer(ANCHOR_BORDER_LAYER_ID)) {
+      this.map.addLayer({
+        id: ANCHOR_BORDER_LAYER_ID,
+        type: 'line',
+        source: ANCHOR_SOURCE_ID,
+        paint: {
+          'line-color': '#4a90d9',
+          'line-width': 2,
+          'line-opacity': 0.5,
+          'line-dasharray': [4, 4],
+        },
+      });
+    }
+
+    // Anchor center point source + layer
+    const centerSourceId = ANCHOR_CENTER_LAYER_ID + '-src';
+    if (!this.map.getSource(centerSourceId)) {
+      this.map.addSource(centerSourceId, {
+        type: 'geojson',
+        data: { type: 'FeatureCollection', features: [] } as FeatureCollection<Point>,
+      });
+    }
+    if (!this.map.getLayer(ANCHOR_CENTER_LAYER_ID)) {
+      this.map.addLayer({
+        id: ANCHOR_CENTER_LAYER_ID,
+        type: 'circle',
+        source: centerSourceId,
+        paint: {
+          'circle-radius': 6,
+          'circle-color': '#4a90d9',
+          'circle-stroke-color': '#ffffff',
+          'circle-stroke-width': 2,
+        },
+      });
+    }
+  }
+
+  private createCircleMeters(center: [number, number], radiusMeters: number, points = 64): any {
+    const coords: Position[] = [];
+    for (let i = 0; i < points; i++) {
+      const bearing = (i / points) * 360;
+      const point = projectDestination(
+        { lat: center[1], lon: center[0] },
+        bearing,
+        radiusMeters,
+      );
+      coords.push([point.lon, point.lat]);
+    }
+    if (coords.length > 0 && coords[0]) {
+      coords.push(coords[0]); // Close polygon
+    }
+    return {
+      type: 'FeatureCollection',
+      features: [
+        {
+          type: 'Feature',
+          geometry: { type: 'Polygon', coordinates: [coords] },
+          properties: {},
+        },
+      ],
+    };
+  }
+
 
   destroy(): void {
+    if (this.resizeObserver) {
+      this.resizeObserver.disconnect();
+      this.resizeObserver = null;
+    }
     if (this.map) {
       this.map.off('click', this.handleMapClick);
       this.map.remove();
@@ -269,6 +565,11 @@ export class MapLibreEngineService {
     this.clickHandler = null;
     this.pendingCenter = null;
     this.appliedCenter = null;
+  }
+
+  /** Force the map to recalculate its container dimensions. */
+  resize(): void {
+    this.map?.resize();
   }
 
   setOrientation(orientation: MapOrientation): void {
@@ -292,6 +593,20 @@ export class MapLibreEngineService {
     }
   }
 
+  updateAisTracks(geojson: FeatureCollection<LineString>): void {
+    this.lastAisTracks = geojson;
+    if (this.mapReady) {
+      this.applyAisTracks();
+    }
+  }
+
+  updateAisPredictions(geojson: FeatureCollection<LineString>): void {
+    this.lastAisPredictions = geojson;
+    if (this.mapReady) {
+      this.applyAisPredictions();
+    }
+  }
+
   updateCpaLines(geojson: FeatureCollection<LineString>): void {
     this.lastCpaLines = geojson;
     if (this.mapReady) {
@@ -299,15 +614,127 @@ export class MapLibreEngineService {
     }
   }
 
+  setAisVesselTypeColors(colors: VesselTypeColors): void {
+    this.aisVesselTypeColors = { ...DEFAULT_VESSEL_TYPE_COLORS, ...colors };
+    if (!this.map || !this.mapReady) return;
+    this.ensureAisIcons();
+  }
+
+  setAisTargetsVisible(visible: boolean): void {
+    this.aisTargetsVisible = visible;
+    if (!this.map || !this.mapReady) return;
+    const layer = this.map.getLayer(AIS_LAYER_ID);
+    if (layer) {
+      this.map.setLayoutProperty(AIS_LAYER_ID, 'visibility', visible ? 'visible' : 'none');
+    }
+  }
+
+  setAisLabelsVisible(visible: boolean): void {
+    this.aisLabelsVisible = visible;
+    if (!this.map || !this.mapReady) return;
+    const layer = this.map.getLayer(AIS_LAYER_ID);
+    if (layer) {
+      if (visible) {
+        this.map.setLayoutProperty(AIS_LAYER_ID, 'text-field', ['get', 'name']);
+        this.map.setLayoutProperty(AIS_LAYER_ID, 'text-offset', [0, 1.8]);
+        this.map.setLayoutProperty(AIS_LAYER_ID, 'text-size', 11);
+        this.map.setLayoutProperty(AIS_LAYER_ID, 'text-optional', true);
+        this.map.setPaintProperty(AIS_LAYER_ID, 'text-color', '#e2e8f0');
+        this.map.setPaintProperty(AIS_LAYER_ID, 'text-halo-color', '#0f172a');
+        this.map.setPaintProperty(AIS_LAYER_ID, 'text-halo-width', 1);
+      } else {
+        this.map.setLayoutProperty(AIS_LAYER_ID, 'text-field', '');
+      }
+    }
+  }
+
+  setCpaLinesVisible(visible: boolean): void {
+    this.cpaLinesVisible = visible;
+    if (!this.map || !this.mapReady) return;
+    const layer = this.map.getLayer(CPA_LINE_LAYER_ID);
+    if (layer) {
+      this.map.setLayoutProperty(CPA_LINE_LAYER_ID, 'visibility', visible ? 'visible' : 'none');
+    }
+  }
+
+  private ensureAisTracksLayer(): void {
+    if (!this.map) return;
+
+    if (!this.map.getSource(AIS_TRACKS_SOURCE_ID)) {
+      this.map.addSource(AIS_TRACKS_SOURCE_ID, {
+        type: 'geojson',
+        data: { type: 'FeatureCollection', features: [] },
+      });
+    }
+
+    if (!this.map.getLayer(AIS_TRACKS_LAYER_ID)) {
+      this.map.addLayer({
+        id: AIS_TRACKS_LAYER_ID,
+        type: 'line',
+        source: AIS_TRACKS_SOURCE_ID,
+        layout: {
+          'line-cap': 'round',
+          'line-join': 'round',
+        },
+        paint: {
+          'line-color': [
+            'case',
+            ['boolean', ['get', 'isDangerous'], false],
+            '#ef4444',
+            '#9ca3af',
+          ],
+          'line-width': 1.5,
+          'line-opacity': [
+            'interpolate',
+            ['linear'],
+            ['get', 'age'],
+            0, 0.75,
+            1, 0.05,
+          ],
+        },
+      });
+    }
+  }
+
+  private ensureAisPredictionsLayer(): void {
+    if (!this.map) return;
+
+    if (!this.map.getSource(AIS_PREDICT_SOURCE_ID)) {
+      this.map.addSource(AIS_PREDICT_SOURCE_ID, {
+        type: 'geojson',
+        data: { type: 'FeatureCollection', features: [] },
+      });
+    }
+
+    if (!this.map.getLayer(AIS_PREDICT_LAYER_ID)) {
+      this.map.addLayer({
+        id: AIS_PREDICT_LAYER_ID,
+        type: 'line',
+        source: AIS_PREDICT_SOURCE_ID,
+        layout: {
+          'line-cap': 'round',
+          'line-join': 'round',
+        },
+        paint: {
+          'line-color': [
+            'case',
+            ['boolean', ['get', 'isDangerous'], false],
+            '#ef4444',
+            '#f59e0b',
+          ],
+          'line-width': 1.5,
+          'line-opacity': 0.6,
+          'line-dasharray': [2, 3],
+        },
+      });
+    }
+  }
+
   private ensureAisLayer(): void {
     if (!this.map) return;
 
-    if (!this.map.hasImage(AIS_ICON_ID)) {
-      this.map.addImage(AIS_ICON_ID, this.createAisIcon('#9ca3af', '#4b5563')); // Gray
-    }
-    if (!this.map.hasImage(AIS_ICON_DANGEROUS_ID)) {
-      this.map.addImage(AIS_ICON_DANGEROUS_ID, this.createAisIcon('#ef4444', '#b91c1c')); // Red
-    }
+    this.ensureAisIcons();
+    const effectiveScale = this.getEffectiveAisTargetScale(this.aisTargetIconScale);
 
     if (!this.map.getSource(AIS_SOURCE_ID)) {
       this.map.addSource(AIS_SOURCE_ID, {
@@ -322,18 +749,15 @@ export class MapLibreEngineService {
         type: 'symbol',
         source: AIS_SOURCE_ID,
         layout: {
-          'icon-image': [
-            'match',
-            ['get', 'status'], // 'dangerous' or 'normal'
-            'dangerous',
-            AIS_ICON_DANGEROUS_ID,
-            // default
-            AIS_ICON_ID,
-          ],
-          'icon-size': 0.8, // Slightly smaller than own vessel (which is effectively 1.0 logic size if we consider ratio)
+          'icon-image': ['case', ['has', 'iconId'], ['get', 'iconId'], AIS_FALLBACK_ICON_ID],
+          'icon-size': effectiveScale,
           'icon-allow-overlap': true,
           'icon-rotation-alignment': 'map',
           'icon-rotate': ['get', 'heading'],
+        },
+        paint: {
+          'icon-opacity': ['case', ['boolean', ['get', 'inactive'], false], 0.55, 1],
+          'text-opacity': ['case', ['boolean', ['get', 'inactive'], false], 0.6, 1],
         },
       });
     }
@@ -374,25 +798,61 @@ export class MapLibreEngineService {
     source?.setData(this.lastAisTargets);
   }
 
+  private applyAisTracks(): void {
+    if (!this.map) return;
+    const source = this.map.getSource(AIS_TRACKS_SOURCE_ID) as maplibregl.GeoJSONSource | undefined;
+    source?.setData(this.lastAisTracks);
+  }
+
+  private applyAisPredictions(): void {
+    if (!this.map) return;
+    const source = this.map.getSource(AIS_PREDICT_SOURCE_ID) as maplibregl.GeoJSONSource | undefined;
+    source?.setData(this.lastAisPredictions);
+  }
+
   private applyCpaLines(): void {
     if (!this.map) return;
     const source = this.map.getSource(CPA_LINE_SOURCE_ID) as maplibregl.GeoJSONSource | undefined;
     source?.setData(this.lastCpaLines);
   }
 
-  private createAisIcon(fillColor: string, strokeColor: string): ImageData {
-    // Reuse the detailed vessel shape for AIS targets
-    // We pass strokeColor as the "lighter" color for gradient if we want, 
-    // or just use the same logic. 
-    // Let's call createVesselIcon directly but we need to ensure colors make sense.
-    // createVesselIcon uses (color1, color2) for gradient.
-    // We can pass (strokeColor, fillColor) or similar.
-    return this.createVesselIcon(strokeColor, fillColor);
+  private ensureAisIcons(): void {
+    if (!this.map) return;
+
+    for (const type of VESSEL_TYPE_KEYS) {
+      const color = this.aisVesselTypeColors[type] ?? DEFAULT_VESSEL_TYPE_COLORS[type];
+      const normalId = getAisVesselIconId(type);
+      const dangerousId = getAisVesselIconId(type, true);
+
+      this.upsertAisIcon(normalId, this.createAisIcon(color, this.adjustHexColor(color, -0.35)));
+      this.upsertAisIcon(dangerousId, this.createDangerousAisIcon(color));
+    }
   }
 
-  private updateMapBearing(): void {
-    // Legacy support or alias
-    this.updateCamera();
+  private upsertAisIcon(iconId: string, image: ImageData): void {
+    this.upsertIcon(iconId, image);
+  }
+
+  private upsertIcon(iconId: string, image: ImageData, pixelRatio = 1): void {
+    if (!this.map) return;
+
+    if (this.map.hasImage(iconId)) {
+      this.map.updateImage(iconId, image);
+      return;
+    }
+
+    this.map.addImage(iconId, image, { pixelRatio });
+  }
+
+  private createDangerousAisIcon(baseColor: string): ImageData {
+    return this.createAisIcon(
+      this.adjustHexColor(baseColor, 0.12),
+      '#dc2626',
+    );
+  }
+
+  private createAisIcon(fillColor: string, strokeColor: string): ImageData {
+    return this.createVesselIcon(strokeColor, fillColor, false);
   }
 
   private updateCamera(): void {
@@ -427,7 +887,6 @@ export class MapLibreEngineService {
     
     if (Object.keys(options).length > 0) {
         // Use easeTo for smooth tracking for both center and bearing
-        console.log('[MapLibreEngine] updateCamera easing to:', options, 'Orientation:', this.orientation);
         this.map.easeTo({ 
             ...options,
             duration: 250, // slightly longer for smoothness
@@ -437,30 +896,203 @@ export class MapLibreEngineService {
   }
 
   private onStyleReady(): void {
+    this.applyOpenSeaMapOverlay();
     this.ensureVesselLayer();
     this.ensureTrackLayer();
     this.ensureVectorLayer();
+    this.ensureHeadingLineLayer();
+    this.ensureLaylinesLayer();
     this.ensureTrueWindLayer();
     this.ensureWaypointsLayer();
     this.ensureRouteLayer();
     this.ensureRangeRingsLayer();
     this.ensureBearingLineLayer();
+    this.ensureAisTracksLayer();
+    this.ensureAisPredictionsLayer();
     this.ensureAisLayer();
     this.ensureCpaLinesLayer();
 
     this.applyVessel();
     this.applyTrack();
     this.applyVector();
+    this.applyHeadingLine();
+    this.applyLaylines();
     this.applyTrueWind();
     this.applyWaypoints();
     this.applyRoute();
     this.applyRangeRings();
     this.applyBearingLine();
+    this.applyAisTracks();
+    this.applyAisPredictions();
     this.applyAisTargets();
     this.applyCpaLines();
     this.updateCamera();
 
     this.mapReady = true;
+
+    // Re-apply visibility state after style swap
+    this.setOwnVesselIconScale(this.ownVesselIconScale);
+    this.setAisTargetIconScale(this.aisTargetIconScale);
+    this.applyWindTrackZoomRanges();
+    this.applyRangeRingZoomRange();
+    this.setAisTargetsVisible(this.aisTargetsVisible);
+    this.setAisLabelsVisible(this.aisLabelsVisible);
+    this.setCpaLinesVisible(this.cpaLinesVisible);
+  }
+
+  private applyOpenSeaMapOverlay(): void {
+    if (!this.map) return;
+
+    const nauticalBaseActive = this.baseSource?.id === 'nautical';
+    const shouldShowOverlay = nauticalBaseActive || this.showOpenSeaMap;
+
+    if (shouldShowOverlay) {
+      if (!this.map.getSource(OPENSEAMAP_SOURCE_ID)) {
+        this.map.addSource(OPENSEAMAP_SOURCE_ID, {
+          type: 'raster',
+          tiles: ['https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png'],
+          tileSize: 256,
+          minzoom: 8,
+          maxzoom: 18,
+          attribution: '&copy; <a href="https://www.openseamap.org">OpenSeaMap</a> contributors',
+        });
+      }
+      if (!this.map.getLayer(OPENSEAMAP_LAYER_ID)) {
+        // Insert as first overlay, before all GeoJSON layers
+        this.map.addLayer({
+          id: OPENSEAMAP_LAYER_ID,
+          type: 'raster',
+          source: OPENSEAMAP_SOURCE_ID,
+          paint: {
+            'raster-opacity': nauticalBaseActive ? 0.9 : 0.85,
+            'raster-fade-duration': 200,
+          },
+          minzoom: 8,
+        });
+      } else {
+        this.map.setPaintProperty(OPENSEAMAP_LAYER_ID, 'raster-opacity', nauticalBaseActive ? 0.9 : 0.85);
+        this.map.setPaintProperty(OPENSEAMAP_LAYER_ID, 'raster-fade-duration', 200);
+      }
+      this.map.setLayerZoomRange(OPENSEAMAP_LAYER_ID, 8, 24);
+    } else {
+      if (this.map.getLayer(OPENSEAMAP_LAYER_ID)) {
+        this.map.removeLayer(OPENSEAMAP_LAYER_ID);
+      }
+      if (this.map.getSource(OPENSEAMAP_SOURCE_ID)) {
+        this.map.removeSource(OPENSEAMAP_SOURCE_ID);
+      }
+    }
+  }
+
+  private ensureMeasurementLayers(): void {
+    if (!this.map) return;
+
+    // Line source
+    if (!this.map.getSource(MEASURE_SOURCE_ID)) {
+      this.map.addSource(MEASURE_SOURCE_ID, {
+        type: 'geojson',
+        data: EMPTY_LINE,
+      });
+    }
+    // Line layer — dashed orange
+    if (!this.map.getLayer(MEASURE_LINE_LAYER_ID)) {
+      this.map.addLayer({
+        id: MEASURE_LINE_LAYER_ID,
+        type: 'line',
+        source: MEASURE_SOURCE_ID,
+        paint: {
+          'line-color': '#f59e0b',
+          'line-width': 2.5,
+          'line-dasharray': [4, 3],
+        },
+        layout: {
+          'line-cap': 'round',
+          'line-join': 'round',
+        },
+      });
+    }
+    // Label layer — text along line midpoint
+    if (!this.map.getLayer(MEASURE_LABEL_LAYER_ID)) {
+      this.map.addLayer({
+        id: MEASURE_LABEL_LAYER_ID,
+        type: 'symbol',
+        source: MEASURE_SOURCE_ID,
+        layout: {
+          'symbol-placement': 'line-center',
+          'text-field': ['get', 'label'],
+          'text-size': 13,
+          'text-font': ['Open Sans Regular'],
+          'text-offset': [0, -1],
+          'text-allow-overlap': true,
+        },
+        paint: {
+          'text-color': '#f59e0b',
+          'text-halo-color': 'rgba(0,0,0,0.8)',
+          'text-halo-width': 2,
+        },
+      });
+    }
+
+    // Points source
+    if (!this.map.getSource(MEASURE_POINTS_SOURCE_ID)) {
+      this.map.addSource(MEASURE_POINTS_SOURCE_ID, {
+        type: 'geojson',
+        data: EMPTY_POINTS,
+      });
+    }
+    // Points layer — circle markers
+    if (!this.map.getLayer(MEASURE_POINTS_LAYER_ID)) {
+      this.map.addLayer({
+        id: MEASURE_POINTS_LAYER_ID,
+        type: 'circle',
+        source: MEASURE_POINTS_SOURCE_ID,
+        paint: {
+          'circle-radius': 5,
+          'circle-color': '#f59e0b',
+          'circle-stroke-color': '#000',
+          'circle-stroke-width': 1.5,
+        },
+      });
+    }
+  }
+
+  private applyMeasurement(
+    pointA: [number, number] | null,
+    pointB: [number, number] | null,
+    bearingDeg: number | null,
+    distanceNm: number | null,
+  ): void {
+    if (!this.map) return;
+
+    // Build points
+    const pointFeatures: Array<GeoJSON.Feature<GeoJSON.Point>> = [];
+    if (pointA) {
+      pointFeatures.push({ type: 'Feature', geometry: { type: 'Point', coordinates: pointA }, properties: {} });
+    }
+    if (pointB) {
+      pointFeatures.push({ type: 'Feature', geometry: { type: 'Point', coordinates: pointB }, properties: {} });
+    }
+
+    const pointsSource = this.map.getSource(MEASURE_POINTS_SOURCE_ID) as maplibregl.GeoJSONSource | undefined;
+    if (pointsSource) {
+      pointsSource.setData({ type: 'FeatureCollection', features: pointFeatures });
+    }
+
+    // Build line
+    const lineFeatures: Array<GeoJSON.Feature<GeoJSON.LineString>> = [];
+    if (pointA && pointB) {
+      const label = `${bearingDeg !== null ? bearingDeg.toFixed(0) : '--'}° · ${distanceNm !== null ? distanceNm.toFixed(2) : '--'} NM`;
+      lineFeatures.push({
+        type: 'Feature',
+        geometry: { type: 'LineString', coordinates: [pointA, pointB] },
+        properties: { label },
+      });
+    }
+
+    const lineSource = this.map.getSource(MEASURE_SOURCE_ID) as maplibregl.GeoJSONSource | undefined;
+    if (lineSource) {
+      lineSource.setData({ type: 'FeatureCollection', features: lineFeatures });
+    }
   }
 
   private ensureVesselLayer(): void {
@@ -468,15 +1100,11 @@ export class MapLibreEngineService {
       return;
     }
 
-    if (!this.map.hasImage(VESSEL_ICON_ID)) {
-      this.map.addImage(VESSEL_ICON_ID, this.createVesselIcon('#0284c7', '#38bdf8'), { pixelRatio: 2 });
-    }
-    if (!this.map.hasImage(VESSEL_ICON_STALE_ID)) {
-      this.map.addImage(VESSEL_ICON_STALE_ID, this.createVesselIcon('#eab308', '#fde047'), { pixelRatio: 2 });
-    }
-    if (!this.map.hasImage(VESSEL_ICON_NO_FIX_ID)) {
-      this.map.addImage(VESSEL_ICON_NO_FIX_ID, this.createVesselIcon('#6b7280', '#9ca3af'), { pixelRatio: 2 });
-    }
+    const effectiveScale = this.getEffectiveOwnVesselScale(this.ownVesselIconScale);
+
+    this.upsertIcon(VESSEL_ICON_ID, this.createVesselIcon('#0284c7', '#38bdf8'), 2);
+    this.upsertIcon(VESSEL_ICON_STALE_ID, this.createVesselIcon('#eab308', '#fde047'), 2);
+    this.upsertIcon(VESSEL_ICON_NO_FIX_ID, this.createVesselIcon('#6b7280', '#9ca3af'), 2);
 
     if (!this.map.getSource(VESSEL_SOURCE_ID)) {
       this.map.addSource(VESSEL_SOURCE_ID, {
@@ -501,7 +1129,7 @@ export class MapLibreEngineService {
             // default
             VESSEL_ICON_ID,
           ],
-          'icon-size': 0.8, // Increased from 0.5 to match larger canvas (96px)
+          'icon-size': effectiveScale,
           'icon-allow-overlap': true,
           'icon-rotation-alignment': 'map',
           'icon-rotate': ['get', 'heading'],
@@ -567,6 +1195,70 @@ export class MapLibreEngineService {
           'line-width': 2,
           'line-opacity': 0.85,
           'line-dasharray': [1.5, 1.5],
+        },
+      });
+    }
+  }
+
+  private ensureHeadingLineLayer(): void {
+    if (!this.map) {
+      return;
+    }
+
+    if (!this.map.getSource(HEADING_LINE_SOURCE_ID)) {
+      this.map.addSource(HEADING_LINE_SOURCE_ID, {
+        type: 'geojson',
+        data: EMPTY_LINE,
+      });
+    }
+
+    if (!this.map.getLayer(HEADING_LINE_LAYER_ID)) {
+      this.map.addLayer({
+        id: HEADING_LINE_LAYER_ID,
+        type: 'line',
+        source: HEADING_LINE_SOURCE_ID,
+        layout: {
+          'line-cap': 'round',
+          'line-join': 'round',
+          visibility: 'none',
+        },
+        paint: {
+          'line-color': '#0ea5e9',
+          'line-width': 2.25,
+          'line-opacity': 0.9,
+          'line-dasharray': [4, 2],
+        },
+      });
+    }
+  }
+
+  private ensureLaylinesLayer(): void {
+    if (!this.map) {
+      return;
+    }
+
+    if (!this.map.getSource(LAYLINES_SOURCE_ID)) {
+      this.map.addSource(LAYLINES_SOURCE_ID, {
+        type: 'geojson',
+        data: EMPTY_LINE,
+      });
+    }
+
+    if (!this.map.getLayer(LAYLINES_LAYER_ID)) {
+      this.map.addLayer({
+        id: LAYLINES_LAYER_ID,
+        type: 'line',
+        source: LAYLINES_SOURCE_ID,
+        layout: {
+          'line-cap': 'round',
+          'line-join': 'round',
+          visibility: 'none',
+        },
+        paint: {
+          'line-color': '#a855f7',
+          'line-width': 1.8,
+          'line-opacity': 0.8,
+          'line-dasharray': [2, 2],
         },
       });
     }
@@ -801,6 +1493,84 @@ export class MapLibreEngineService {
     this.map.setLayoutProperty(VECTOR_LAYER_ID, 'visibility', 'visible');
   }
 
+  private applyHeadingLine(): void {
+    if (!this.map) {
+      return;
+    }
+
+    const source = this.map.getSource(HEADING_LINE_SOURCE_ID) as maplibregl.GeoJSONSource | undefined;
+    if (!source || !this.map.getLayer(HEADING_LINE_LAYER_ID)) {
+      return;
+    }
+
+    if (!this.lastHeadingLine.visible || this.lastHeadingLine.coords.length < 2) {
+      source.setData(EMPTY_LINE);
+      this.map.setLayoutProperty(HEADING_LINE_LAYER_ID, 'visibility', 'none');
+      return;
+    }
+
+    const data: FeatureCollection<LineString> = {
+      type: 'FeatureCollection',
+      features: [
+        {
+          type: 'Feature',
+          geometry: {
+            type: 'LineString',
+            coordinates: this.lastHeadingLine.coords,
+          },
+          properties: {},
+        },
+      ],
+    };
+
+    source.setData(data);
+    this.map.setLayoutProperty(HEADING_LINE_LAYER_ID, 'visibility', 'visible');
+  }
+
+  private applyLaylines(): void {
+    if (!this.map) {
+      return;
+    }
+
+    const source = this.map.getSource(LAYLINES_SOURCE_ID) as maplibregl.GeoJSONSource | undefined;
+    if (!source || !this.map.getLayer(LAYLINES_LAYER_ID)) {
+      return;
+    }
+
+    if (!this.lastLaylines.visible || this.lastLaylines.lines.length === 0) {
+      source.setData(EMPTY_LINE);
+      this.map.setLayoutProperty(LAYLINES_LAYER_ID, 'visibility', 'none');
+      return;
+    }
+
+    const features: FeatureCollection<LineString>['features'] = [];
+    for (const line of this.lastLaylines.lines) {
+      if (line.length < 2) {
+        continue;
+      }
+      features.push({
+        type: 'Feature',
+        geometry: {
+          type: 'LineString',
+          coordinates: line,
+        },
+        properties: {},
+      });
+    }
+
+    if (features.length === 0) {
+      source.setData(EMPTY_LINE);
+      this.map.setLayoutProperty(LAYLINES_LAYER_ID, 'visibility', 'none');
+      return;
+    }
+
+    source.setData({
+      type: 'FeatureCollection',
+      features,
+    });
+    this.map.setLayoutProperty(LAYLINES_LAYER_ID, 'visibility', 'visible');
+  }
+
   private applyWaypoints(): void {
     if (!this.map) {
       return;
@@ -817,17 +1587,6 @@ export class MapLibreEngineService {
 
     const source = this.map.getSource(ROUTE_SOURCE_ID) as maplibregl.GeoJSONSource | undefined;
     source?.setData(this.lastRoute ?? EMPTY_LINE);
-  }
-
-  private applyView(): void {
-    if (!this.map || !this.pendingCenter) {
-      return;
-    }
-    if (this.appliedCenter && this.isSameCenter(this.appliedCenter, this.pendingCenter)) {
-      return;
-    }
-    this.map.jumpTo({ center: this.pendingCenter });
-    this.appliedCenter = [...this.pendingCenter];
   }
 
   private ensureRangeRingsLayer(): void {
@@ -934,6 +1693,33 @@ export class MapLibreEngineService {
     this.map.setLayoutProperty(BEARING_LINE_LAYER_ID, 'visibility', 'visible');
   }
 
+  private applyWindTrackZoomRanges(): void {
+    if (!this.map) {
+      return;
+    }
+    const minZoom = this.windTrackMinZoom;
+    for (const layerId of [
+      TRACK_LAYER_ID,
+      VECTOR_LAYER_ID,
+      HEADING_LINE_LAYER_ID,
+      LAYLINES_LAYER_ID,
+      TRUE_WIND_LAYER_ID,
+    ]) {
+      if (this.map.getLayer(layerId)) {
+        this.map.setLayerZoomRange(layerId, minZoom, 24);
+      }
+    }
+  }
+
+  private applyRangeRingZoomRange(): void {
+    if (!this.map) {
+      return;
+    }
+    if (this.map.getLayer(RANGE_RINGS_LAYER_ID)) {
+      this.map.setLayerZoomRange(RANGE_RINGS_LAYER_ID, this.rangeRingsMinZoom, 24);
+    }
+  }
+
   private createCircle(center: [number, number], radiusNm: number, points = 64): any {
     const coords: Position[] = [];
     const radiusMeters = radiusNm * METERS_PER_NM;
@@ -948,7 +1734,9 @@ export class MapLibreEngineService {
       );
       coords.push([point.lon, point.lat]);
     }
-    coords.push(coords[0]); // Close the polygon
+    if (coords.length > 0 && coords[0]) {
+      coords.push(coords[0]); // Close the polygon
+    }
 
     return {
       type: 'Feature',
@@ -964,8 +1752,78 @@ export class MapLibreEngineService {
     return Math.abs(left[0] - right[0]) < 1e-7 && Math.abs(left[1] - right[1]) < 1e-7;
   }
 
-  private createVesselIcon(color1: string, color2: string): ImageData {
-    const size = 96; // Increased from 64
+  private clamp(value: number, min: number, max: number): number {
+    if (!Number.isFinite(value)) {
+      return min;
+    }
+    return Math.min(max, Math.max(min, value));
+  }
+
+  private isEncBaseStyleActive(): boolean {
+    return this.baseSource?.id === 'enc';
+  }
+
+  private getEffectiveOwnVesselScale(scale: number): number {
+    const adjusted = this.isEncBaseStyleActive() ? scale * 0.55 : scale;
+    return this.clamp(adjusted, 0.3, 2.5);
+  }
+
+  private getEffectiveAisTargetScale(scale: number): number {
+    const adjusted = this.isEncBaseStyleActive() ? scale * 0.42 : scale;
+    return this.clamp(adjusted, 0.2, 2.0);
+  }
+
+  private adjustHexColor(hex: string, factor: number): string {
+    const rgb = this.parseHexColor(hex);
+    if (!rgb) {
+      return hex;
+    }
+
+    const apply = (channel: number): number => {
+      if (factor >= 0) {
+        return Math.round(channel + (255 - channel) * factor);
+      }
+      return Math.round(channel * (1 + factor));
+    };
+
+    return this.toHexColor({
+      r: apply(rgb.r),
+      g: apply(rgb.g),
+      b: apply(rgb.b),
+    });
+  }
+
+  private parseHexColor(hex: string): { r: number; g: number; b: number } | null {
+    const value = hex.trim().replace('#', '');
+    if (/^[0-9a-fA-F]{3}$/.test(value)) {
+      const rDigit = value.slice(0, 1);
+      const gDigit = value.slice(1, 2);
+      const bDigit = value.slice(2, 3);
+      const r = Number.parseInt(rDigit + rDigit, 16);
+      const g = Number.parseInt(gDigit + gDigit, 16);
+      const b = Number.parseInt(bDigit + bDigit, 16);
+      return { r, g, b };
+    }
+
+    if (/^[0-9a-fA-F]{6}$/.test(value)) {
+      const r = Number.parseInt(value.slice(0, 2), 16);
+      const g = Number.parseInt(value.slice(2, 4), 16);
+      const b = Number.parseInt(value.slice(4, 6), 16);
+      return { r, g, b };
+    }
+
+    return null;
+  }
+
+  private toHexColor(rgb: { r: number; g: number; b: number }): string {
+    const clamp = (value: number): number => Math.max(0, Math.min(255, value));
+    return `#${[rgb.r, rgb.g, rgb.b]
+      .map((channel) => clamp(channel).toString(16).padStart(2, '0'))
+      .join('')}`;
+  }
+
+  private createVesselIcon(color1: string, color2: string, withSails = true): ImageData {
+    const size = 128;
     const canvas = document.createElement('canvas');
     canvas.width = size;
     canvas.height = size;
@@ -976,52 +1834,72 @@ export class MapLibreEngineService {
 
     ctx.clearRect(0, 0, size, size);
     ctx.shadowColor = 'rgba(0, 0, 0, 0.35)';
-    ctx.shadowBlur = 8;
+    ctx.shadowBlur = 10;
 
-    // Modern Ship Shape (Boat outline)
-    // Center is size/2, size/2
     const cx = size / 2;
     const cy = size / 2;
-    
-    // Scale factor to fit in 96x96
-    // Previous target fit in ~64. Now we have 50% more space.
-    // Let's scale up properly.
-    const scale = 1.5;
-    
-    const tipY = cy - (20 * scale);
-    const rearY = cy + (20 * scale);
-    const widthHalf = 10 * scale;
 
-    const gradient = ctx.createLinearGradient(0, tipY, 0, rearY);
-    gradient.addColorStop(0, color2);
-    gradient.addColorStop(1, color1);
-    ctx.fillStyle = gradient;
-    ctx.strokeStyle = color1;
-    ctx.lineWidth = 3;
+    // Hull
+    const bowY = cy - 36;
+    const sternY = cy + 34;
+    const beamHalf = 18;
+    const hullGradient = ctx.createLinearGradient(0, bowY, 0, sternY);
+    hullGradient.addColorStop(0, color2);
+    hullGradient.addColorStop(1, color1);
+    ctx.fillStyle = hullGradient;
+    ctx.strokeStyle = this.adjustHexColor(color1, -0.15);
+    ctx.lineWidth = 4;
     ctx.lineJoin = 'round';
 
     ctx.beginPath();
-    // Bow (Tip)
-    ctx.moveTo(cx, tipY);
-    
-    // Starboard side curve
-    ctx.bezierCurveTo(cx + widthHalf * 1.5, tipY + (10 * scale), cx + widthHalf, rearY, cx + widthHalf, rearY);
-    
-    // Stern (Rear)
-    ctx.lineTo(cx - widthHalf, rearY);
-    
-    // Port side curve
-    ctx.bezierCurveTo(cx - widthHalf, rearY, cx - widthHalf * 1.5, tipY + (10 * scale), cx, tipY);
-    
+    ctx.moveTo(cx, bowY);
+    ctx.bezierCurveTo(cx + 24, bowY + 18, cx + beamHalf, sternY - 8, cx + beamHalf, sternY);
+    ctx.lineTo(cx - beamHalf, sternY);
+    ctx.bezierCurveTo(cx - beamHalf, sternY - 8, cx - 24, bowY + 18, cx, bowY);
     ctx.closePath();
     ctx.fill();
     ctx.stroke();
 
-    // Add a center dot or cockpit
-    ctx.fillStyle = 'rgba(255,255,255,0.4)';
-    ctx.beginPath();
-    ctx.arc(cx, cy + (5 * scale), 4, 0, Math.PI * 2);
-    ctx.fill();
+    ctx.shadowBlur = 0;
+    if (withSails) {
+      const sailFill = this.adjustHexColor(color2, 0.52);
+      const sailStroke = this.adjustHexColor(color1, 0.12);
+
+      // Mast
+      ctx.strokeStyle = this.adjustHexColor(color1, -0.3);
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(cx, cy + 20);
+      ctx.lineTo(cx, cy - 26);
+      ctx.stroke();
+
+      // Main sail
+      ctx.fillStyle = sailFill;
+      ctx.strokeStyle = sailStroke;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(cx, cy - 24);
+      ctx.lineTo(cx + 18, cy + 12);
+      ctx.lineTo(cx, cy + 12);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      // Jib sail
+      ctx.beginPath();
+      ctx.moveTo(cx, cy - 22);
+      ctx.lineTo(cx - 15, cy + 2);
+      ctx.lineTo(cx, cy + 4);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      // Cockpit dot
+      ctx.fillStyle = this.adjustHexColor(color2, 0.3);
+      ctx.beginPath();
+      ctx.arc(cx, cy + 12, 4.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
 
     return ctx.getImageData(0, 0, size, size);
   }

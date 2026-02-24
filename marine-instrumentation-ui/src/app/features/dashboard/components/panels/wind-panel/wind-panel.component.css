@@ -1,82 +1,188 @@
+:host {
+  display: block;
+  height: 100%;
+}
+
+.panel-bezel {
+  display: block;
+  height: 100%;
+}
+
 .wind-content {
   display: flex;
   flex-direction: column;
   height: 100%;
+  gap: var(--space-4);
 }
 
-.metrics-list {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 1rem;
+:host ::ng-deep .card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: var(--glass-card-radius);
+  background: var(--gradient-wind);
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.6;
 }
 
-.metric-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-end;
-  padding-bottom: 0.5rem;
-  border-bottom: 1px dashed var(--panel-border);
-}
-
-.metric-row:last-child {
-  border-bottom: none;
-  padding-bottom: 0;
-}
-
-.metric-info {
+/* Primary wind speed display */
+.aws-display {
   display: flex;
   flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  gap: var(--space-2);
+  text-align: center;
+  min-height: 0;
 }
 
-.metric-label {
-  font-size: 0.75rem;
+.aws-value-group {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+
+.aws-value {
+  font-family: 'Share Tech Mono', 'JetBrains Mono', monospace;
+  font-size: clamp(3rem, 8vw, 4.5rem);
+  font-weight: 500;
+  color: var(--nord-7);
+  line-height: 1;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+  text-shadow:
+    0 0 28px rgba(143, 188, 187, 0.35),
+    0 2px 12px rgba(0, 0, 0, 0.08);
+  transition: color 0.3s ease, text-shadow 0.3s ease;
+}
+
+.aws-unit {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  align-self: flex-end;
+  padding-bottom: 0.4rem;
+  letter-spacing: 0.05em;
+}
+
+.aws-trend {
+  opacity: 0.6;
+  transition: opacity 0.2s ease;
+}
+
+.aws-display:hover .aws-trend {
+  opacity: 0.9;
+}
+
+/* AWA section — glass sub-panel */
+.awa-section {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-3) var(--space-4);
+  background: linear-gradient(145deg, rgba(0,0,0,0.05), rgba(0,0,0,0.08));
+  border: 1px solid var(--glass-border);
+  border-radius: var(--glass-card-radius-sm);
+  position: relative;
+}
+
+.awa-section::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 15%;
+  right: 15%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--glass-shine), transparent);
+  opacity: 0.35;
+}
+
+.awa-label {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--text-tertiary);
+}
+
+.awa-value-group {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-1);
+}
+
+.awa-value {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 1.7rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.awa-unit {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+/* Secondary wind metrics */
+.wind-secondary {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-2);
+}
+
+.secondary-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: var(--space-2) var(--space-3);
+  background: rgba(0, 0, 0, 0.03);
+  border: 1px solid color-mix(in srgb, var(--glass-border) 60%, transparent);
+  border-radius: var(--radius-md);
+  transition: background 0.15s ease;
+}
+
+.secondary-row:hover {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.secondary-label {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 0.62rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.1em;
-  color: var(--text-muted);
-  margin-bottom: 0.25rem;
+  color: var(--text-tertiary);
 }
 
-.metric-value-group {
+.secondary-value-group {
   display: flex;
   align-items: baseline;
-  gap: 0.5rem;
+  gap: var(--space-1);
 }
 
-.value {
+.secondary-value {
   font-family: 'Share Tech Mono', monospace;
-  font-size: 2.5rem;
-  font-weight: 500;
-  color: var(--text-primary);
-  line-height: 0.9;
-}
-
-/* Emphasize AWS */
-.metric-row:first-child .value {
-  font-size: 4rem;
-  letter-spacing: -0.04em;
-}
-
-.value--large {
-  /* Handled by nth-child above, but kept if class is used dynamically */
-}
-
-.unit {
   font-size: 1rem;
-  font-weight: 500;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.secondary-unit {
+  font-size: 0.65rem;
   color: var(--text-muted);
+  text-transform: uppercase;
+  font-weight: 600;
 }
 
-.metric-trend {
-  margin-bottom: 6px;
-  opacity: 0.5;
-}
-
-/* Compact Overrides */
-:host-context(.compact) .value {
-  font-size: 1.8rem;
-}
-
-:host-context(.compact) .metric-row:first-child .value {
-  font-size: 2.5rem;
-}
+/* Compact */
+:host-context(.compact) .aws-value { font-size: 2.5rem; }
+:host-context(.compact) .awa-value { font-size: 1.3rem; }
+:host-context(.compact) .awa-section { padding: var(--space-2) var(--space-3); }

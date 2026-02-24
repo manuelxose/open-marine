@@ -48,8 +48,9 @@ export class AppSpacerComponent {
     };
     
     // Check if predefined token
-    if (spacingMap[this.size]) {
-      return spacingMap[this.size];
+    const token = spacingMap[this.size];
+    if (token) {
+      return token;
     }
     
     // Check if it's a number-like string or just a raw CSS value

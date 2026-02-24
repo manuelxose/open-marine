@@ -1,53 +1,64 @@
-# Marine Data Contract
+﻿# Marine Data Contract
 
-Type-safe shared contract for Signal K paths, units, and data structures.
+Contrato compartido para tipos y rutas Signal K usados en todo el monorepo.
 
-## Requirements
+Estado: 2026-02-19.
 
-- Node.js 20 LTS
+## Objetivo
 
-## Install
+Este paquete evita strings sueltos y discrepancias de unidades entre UI, simulator y gateway.
 
-```bash
+## Scripts
+
+```powershell
 npm install
 npm run build
+npm run test:run
+npm run lint
 ```
 
-## Paths (MVP)
+## API principal
 
-- name
-- navigation.position
-- navigation.speedOverGround
-- navigation.courseOverGroundTrue
-- navigation.headingTrue
-- navigation.destination
-- communication.callsignVhf
-- environment.depth.belowTransducer
-- environment.wind.angleApparent
-- environment.wind.speedApparent
-- electrical.batteries.house.voltage
-- electrical.batteries.house.current
+- `PATHS`: arbol tipado de rutas Signal K.
+- `SignalKPath`: union tipada de rutas validas.
+- Tipos de dominio compartidos (`DataPoint`, calidad, etc.).
 
-## Units
+## Rutas destacadas
 
-- Angles: radians
-- Speed: m/s
-- Depth: m
-- Voltage: V
-- Current: A
+- `PATHS.navigation.position`
+- `PATHS.navigation.speedOverGround`
+- `PATHS.navigation.courseOverGroundTrue`
+- `PATHS.navigation.headingTrue`
+- `PATHS.navigation.headingMagnetic`
+- `PATHS.environment.depth.belowTransducer`
+- `PATHS.environment.wind.angleApparent`
+- `PATHS.environment.wind.speedApparent`
+- `PATHS.steering.autopilot.state`
+- `PATHS.electrical.batteries.house.voltage`
 
-## Example DataPoint
+## Regla de uso
 
-```json
-{
-  "context": "vessels.self",
-  "path": "navigation.headingTrue",
-  "value": 1.57,
-  "timestamp": "2026-01-24T22:10:00.000Z",
-  "source": {
-    "label": "simulator",
-    "type": "nmea0183"
-  },
-  "quality": "good"
-}
+En paquetes consumidores:
+
+- No hardcodear rutas (`"navigation.*"`).
+- Importar siempre desde `@omi/marine-data-contract`.
+
+Ejemplo:
+
+```ts
+import { PATHS } from '@omi/marine-data-contract';
+
+const path = PATHS.navigation.headingTrue;
 ```
+
+## Flujo de cambios recomendado
+
+1. Modificar tipos/rutas en `src/`.
+2. Ejecutar `npm run build`.
+3. Ejecutar `npm run test:run`.
+4. Reinstalar/rebuild en paquetes consumidores si hace falta.
+
+## Estado de calidad
+
+- Tests existentes: `src/types.spec.ts`.
+- Snapshot 2026-02-19: `3/3` tests en verde.

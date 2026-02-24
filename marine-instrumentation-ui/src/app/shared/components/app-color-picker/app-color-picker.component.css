@@ -8,7 +8,7 @@
   align-items: center;
   gap: 0.75rem;
   padding: 0.5rem;
-  background-color: var(--bg-surface);
+  background-color: var(--gb-bg-panel);
   border: 1px solid var(--border-default);
   border-radius: var(--radius-md);
   position: relative;
@@ -23,7 +23,7 @@
 
 .color-picker-container:focus-within {
   border-color: var(--primary-500);
-  box-shadow: 0 0 0 2px var(--bg-surface), 0 0 0 4px var(--primary-500);
+  box-shadow: 0 0 0 2px var(--gb-bg-panel), 0 0 0 4px var(--primary-500);
 }
 
 .swatch {
@@ -37,7 +37,7 @@
 .color-code {
   font-family: var(--font-body); /* Using font-body to match other inputs, could be binary/mono */
   font-size: var(--text-sm);
-  color: var(--text-primary);
+  color: var(--gb-text-value);
   text-transform: uppercase;
 }
 

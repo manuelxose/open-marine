@@ -42,7 +42,7 @@ export class TrackStoreService implements OnDestroy {
   private readonly _loading = new BehaviorSubject<boolean>(false);
   public readonly loading$ = this._loading.asObservable();
 
-  private sub?: Subscription;
+  private sub: Subscription | null = null;
 
   constructor(
     private datapointStore: DatapointStoreService,
@@ -94,12 +94,15 @@ export class TrackStoreService implements OnDestroy {
      this._recording.next(false);
      if (this.sub) {
          this.sub.unsubscribe();
-         this.sub = undefined;
+         this.sub = null;
      }
   }
 
   public saveTrack(name: string): void {
       if (this._currentTrack.length < 2) return;
+      const first = this._currentTrack[0];
+      const last = this._currentTrack[this._currentTrack.length - 1];
+      if (!first || !last) return;
 
       // Convert to Signal K Track format
       // Usually GeoJSON MultiLineString or LineString
@@ -117,8 +120,8 @@ export class TrackStoreService implements OnDestroy {
                   coordinates
               },
               properties: {
-                  startTime: new Date(this._currentTrack[0].ts).toISOString(),
-                  endTime: new Date(this._currentTrack[this._currentTrack.length-1].ts).toISOString(),
+                  startTime: new Date(first.ts).toISOString(),
+                  endTime: new Date(last.ts).toISOString(),
               }
           }
       };
@@ -205,11 +208,14 @@ export class TrackStoreService implements OnDestroy {
     const sampled: [number, number][] = [];
     for (let i = 0; i < points.length; i += step) {
       const pt = points[i];
+      if (!pt) continue;
       sampled.push([pt.lon, pt.lat]);
     }
     const last = points[points.length - 1];
-    if (sampled[sampled.length - 1]?.[0] !== last.lon || sampled[sampled.length - 1]?.[1] !== last.lat) {
-      sampled.push([last.lon, last.lat]);
+    if (last) {
+      if (sampled[sampled.length - 1]?.[0] !== last.lon || sampled[sampled.length - 1]?.[1] !== last.lat) {
+        sampled.push([last.lon, last.lat]);
+      }
     }
     return sampled;
   }

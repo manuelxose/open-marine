@@ -13,6 +13,7 @@ export class AudioService {
 
   // Map severity to sound file
   private readonly SOUND_FILES: Record<AlarmSeverity, string> = {
+    [AlarmSeverity.Info]: '',
     [AlarmSeverity.Warning]: 'assets/sounds/alarm-warning.wav',
     [AlarmSeverity.Critical]: 'assets/sounds/alarm-critical.wav',
     [AlarmSeverity.Emergency]: 'assets/sounds/alarm-mob.wav'

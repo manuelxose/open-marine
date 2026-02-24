@@ -1,5 +1,4 @@
 import { Injectable, inject } from '@angular/core';
-import { Observable } from 'rxjs';
 import { AUTOPILOT_PATHS, AutopilotStoreService, AutopilotState } from '../../state/autopilot/autopilot-store.service';
 import { SignalKAutopilotService } from '../../data-access/signalk/autopilot/signalk-autopilot.service';
 

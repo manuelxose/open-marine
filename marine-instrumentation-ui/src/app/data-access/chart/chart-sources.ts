@@ -1,4 +1,5 @@
 import type { StyleSpecification } from 'maplibre-gl';
+import { buildEncStyle } from '../../features/chart/layers/enc-style';
 
 export type ChartSourceKind = 'raster' | 'vector';
 
@@ -13,6 +14,8 @@ export interface ChartSourceDefinition {
 }
 
 export const DEFAULT_CHART_SOURCE_ID = 'osm-raster';
+export const NAUTICAL_CHART_SOURCE_ID = 'nautical';
+export const ENC_CHART_SOURCE_ID = 'enc';
 
 const OSM_RASTER_STYLE: StyleSpecification = {
   version: 8,
@@ -33,38 +36,97 @@ const OSM_RASTER_STYLE: StyleSpecification = {
   ],
 };
 
+export const NAUTICAL_RASTER_STYLE: StyleSpecification = {
+  version: 8,
+  sources: {
+    'osm-base': {
+      type: 'raster',
+      tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
+      tileSize: 256,
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    },
+    'openseamap-overlay': {
+      type: 'raster',
+      tiles: ['https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png'],
+      tileSize: 256,
+      attribution: '&copy; <a href="https://www.openseamap.org">OpenSeaMap</a> contributors',
+      minzoom: 8,
+      maxzoom: 18,
+    },
+  },
+  layers: [
+    {
+      id: 'osm-base-layer',
+      type: 'raster',
+      source: 'osm-base',
+    },
+    {
+      id: 'openseamap-overlay-layer',
+      type: 'raster',
+      source: 'openseamap-overlay',
+      paint: {
+        'raster-opacity': 0.9,
+        'raster-fade-duration': 200,
+      },
+      minzoom: 8,
+    },
+  ],
+};
+
+const ENC_DEFAULT_STYLE: StyleSpecification = buildEncStyle(
+  {
+    showDepthAreas: true,
+    showDepthContours: true,
+    showBuoys: true,
+    showHazards: true,
+    showAnchorages: true,
+    showTSS: true,
+    showLights: true,
+  },
+  2.0,
+);
+
 export const CHART_SOURCES: ChartSourceDefinition[] = [
   {
     id: DEFAULT_CHART_SOURCE_ID,
-    label: 'OpenStreetMap (Raster)',
+    label: 'Map',
     kind: 'raster',
     style: OSM_RASTER_STYLE,
-    description: 'Development raster tiles over HTTPS.',
+    description: 'OpenStreetMap base map.',
     available: true,
   },
   {
-    id: 'nautical-raster',
-    label: 'Nautical Raster (Placeholder)',
+    id: 'satellite',
+    label: 'Satellite',
     kind: 'raster',
-    styleUrl: 'https://charts.example.com/tiles/{z}/{x}/{y}.png',
-    description: 'XYZ raster charts (configure local tile server).',
-    available: false,
+    description: 'ESRI World Imagery satellite tiles.',
+    available: true,
   },
   {
-    id: 'nautical-vector',
-    label: 'Nautical Vector (Placeholder)',
+    id: NAUTICAL_CHART_SOURCE_ID,
+    label: 'Nautical',
+    kind: 'raster',
+    style: NAUTICAL_RASTER_STYLE,
+    description: 'OpenStreetMap + OpenSeaMap nautical overlay with buoys, lights, hazards.',
+    available: true,
+  },
+  {
+    id: ENC_CHART_SOURCE_ID,
+    label: 'ENC',
     kind: 'vector',
-    styleUrl: 'https://charts.example.com/style.json',
-    description: 'MVT + style.json (configure local style service).',
-    available: false,
+    style: ENC_DEFAULT_STYLE,
+    description: 'Vector ENC chart style with semantic nautical layers.',
+    available: true,
   },
 ];
 
+const DEFAULT_CHART_SOURCE = CHART_SOURCES[0]!;
+
 export const resolveChartSource = (id?: string): ChartSourceDefinition => {
   if (!id) {
-    return CHART_SOURCES[0];
+    return DEFAULT_CHART_SOURCE;
   }
-  return CHART_SOURCES.find((source) => source.id === id) ?? CHART_SOURCES[0];
+  return CHART_SOURCES.find((source) => source.id === id) ?? DEFAULT_CHART_SOURCE;
 };
 
 export const resolveChartStyle = (id?: string): StyleSpecification | string => {
@@ -75,5 +137,5 @@ export const resolveChartStyle = (id?: string): StyleSpecification | string => {
   if (source.styleUrl) {
     return source.styleUrl;
   }
-  return CHART_SOURCES[0].style ?? OSM_RASTER_STYLE;
+  return DEFAULT_CHART_SOURCE.style ?? OSM_RASTER_STYLE;
 };

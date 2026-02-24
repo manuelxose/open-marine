@@ -49,8 +49,6 @@ export class AppRadioComponent implements ControlValueAccessor {
   // Standard Angular radio behavior: the ControlValueAccessor receives the selected value of the *group*.
   // We check if that value matches *this* radio's value.
 
-  private controlValue: any = null;
-
   @Output() change = new EventEmitter<any>();
 
   onChangeFn: (value: any) => void = () => {};
@@ -68,7 +66,6 @@ export class AppRadioComponent implements ControlValueAccessor {
 
   // ControlValueAccessor
   writeValue(obj: any): void {
-    this.controlValue = obj;
     // Simple strict equality check, can be improved for objects
     this.checked.set(obj === this.value);
   }

@@ -29,7 +29,7 @@
 /* Variants using official tokens */
 .badge-neutral {
   background-color: var(--bg-surface-secondary);
-  color: var(--text-primary);
+  color: var(--gb-text-value);
   border: 1px solid var(--border-default);
 }
 

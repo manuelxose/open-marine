@@ -1,10 +1,3 @@
-import {
-  type DataPoint,
-  PATHS,
-  QualityFlag,
-  type SignalKPath,
-} from '@omi/marine-data-contract';
-
 export interface TrueWindResult {
   tws: number; // m/s
   twd: number; // radians (North=0, CW)

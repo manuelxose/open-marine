@@ -118,20 +118,20 @@ export interface WaypointFormValue {
     }
     label {
       font-size: 0.875rem;
-      color: var(--text-secondary);
+      color: var(--gb-text-muted);
       font-weight: 500;
     }
     .input-control {
       padding: 0.75rem;
       border: 1px solid var(--border);
-      background: var(--surface-2);
-      color: var(--text-primary);
+      background: var(--gb-bg-panel);
+      color: var(--gb-text-value);
       border-radius: 4px;
       font-family: inherit;
     }
     .input-control:focus {
         outline: none;
-        border-color: var(--primary);
+        border-color: var(--gb-needle-secondary);
     }
     textarea.input-control {
         resize: vertical;

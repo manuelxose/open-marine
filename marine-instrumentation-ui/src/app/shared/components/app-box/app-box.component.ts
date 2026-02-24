@@ -1,4 +1,4 @@
-import { Component, Input, ChangeDetectionStrategy } from '@angular/core';
+import { Component, Input, ChangeDetectionStrategy, Attribute } from '@angular/core';
 import { CommonModule } from '@angular/common';
 
 @Component({
@@ -15,6 +15,12 @@ import { CommonModule } from '@angular/common';
   }
 })
 export class AppBoxComponent {
+  private readonly hostClassAttr: string | null;
+
+  constructor(@Attribute('class') hostClassAttr: string | null) {
+    this.hostClassAttr = hostClassAttr;
+  }
+
   @Input() padding: string = '';
   @Input() margin: string = '';
   @Input() bg: string = '';
@@ -25,6 +31,9 @@ export class AppBoxComponent {
 
   get hostClass(): string {
     const classes = ['app-box'];
+    if (this.hostClassAttr) {
+      classes.unshift(this.hostClassAttr);
+    }
 
     // Padding
     if (this.padding) classes.push(`p-${this.padding}`);

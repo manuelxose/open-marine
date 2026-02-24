@@ -1,67 +1,74 @@
-# Marine Instrumentation UI
+﻿# Marine Instrumentation UI
 
-Angular dashboard that consumes Signal K REST + WebSocket updates.
+Frontend Angular para visualizacion marina en tiempo real.
 
-## Requirements
+Estado: 2026-02-19.
+
+## Objetivo
+
+Mostrar datos de navegacion, entorno, alarmas, recursos y autopiloto consumiendo Signal K.
+
+## Requisitos
 
 - Node.js 20 LTS
+- Signal K activo en `http://localhost:3000`
 
-## Install
+## Scripts
 
-```bash
+```powershell
 npm install
-```
-
-## Run
-
-```bash
 npm start
+npm run build
+npm run lint
+npm test
 ```
 
-## Chart (MapLibre)
+## Configuracion de entorno
 
-- Chart route: `http://localhost:4200/chart`
-- Base map: OpenStreetMap raster tiles over HTTPS (development default).
-- Map engine: MapLibre GL JS with WebGL-accelerated pan/zoom/rotate.
+Archivo base:
 
-### Adding nautical chart sources later
+- `src/app/core/config/app-environment.token.ts`
 
-1. Add a new source entry in `src/app/data-access/chart/chart-sources.ts` (XYZ raster tiles or a vector style URL).
-2. Wire the selected `sourceId` into `ChartMapService.setChartSource(...)` (e.g., from a preferences setting).
-3. If serving MBTiles locally, expose them via a tileserver that supports HTTPS and point the style/tiles URL at it.
+Valores por defecto:
 
-## Configuration
+- REST: `http://localhost:3000/signalk/v1/api`
+- WS: `ws://localhost:3000/signalk/v1/stream?subscribe=all`
 
-Edit `src/environments/environment.ts`:
+## Rutas activas
 
-```ts
-export const environment = {
-  baseUrl: "http://localhost:3000",
-};
-```
+- `/dashboard`
+- `/chart`
+- `/instruments`
+- `/alarms`
+- `/diagnostics`
+- `/settings`
+- `/widgets`
+- `/styleguide`
+- `/resources`
+- `/autopilot`
 
-## Expected URLs
+## Flujo de datos
 
-- Signal K REST: http://localhost:3000/signalk/v1/api/
-- Signal K stream: ws://localhost:3000/signalk/v1/stream
+- `SignalKClientService` recibe stream WS.
+- `DatapointStoreService` mantiene estado principal.
+- `AisStoreService` mantiene targets AIS.
+- Features y widgets renderizan a partir de stores.
 
-## Screenshots
+## Validacion visual obligatoria
 
-- [Navigation dashboard](../docs/screenshots/navigation-dashboard.png)
-- [GPS fix loss](../docs/screenshots/gps-fix-loss.png)
-- [Depth alarm](../docs/screenshots/depth-alarm.png)
+Tras cambios de componentes:
 
-(Placeholders only; images not included.)
+- revisar `/styleguide`
+- revisar `/widgets`
+- confirmar que no hay doble borde/caja solapada
 
-## Usage notes
+Reglas detalladas en `../docs/AI_PLAYBOOK.md`.
 
-- The simulator periodically pauses GPS updates to simulate fix loss.
-- Depth is simulated with a seabed profile and shallow-water events.
-- Fix quality is derived from the age of the last position update:
-  - Good: <= 2 seconds
-  - Warn: <= 10 seconds
-  - Bad: > 10 seconds
-- Low depth alarms trigger below 3.0 m and clear above 3.5 m.
-- Acknowledged alarms remain visible until depth clears the hysteresis band.
-- Ownship updates are detected using the Signal K `self` context (hello message). Contexts
-  that match `self`, `vessels.self`, or the server-provided self id are treated as ownship.
+## Estado de compilacion
+
+Snapshot 2026-02-19:
+
+- `npm run build` -> `✅`
+- Hay warnings de budget en bundle inicial y SCSS de algunos composites.
+
+Detalle en `../docs/IMPLEMENTATION_STATUS.md`.

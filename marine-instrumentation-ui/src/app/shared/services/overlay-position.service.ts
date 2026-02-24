@@ -1,4 +1,4 @@
-import { Injectable, ElementRef } from '@angular/core';
+import { Injectable } from '@angular/core';
 
 export type OverlayPlacement = 'top' | 'bottom' | 'left' | 'right';
 

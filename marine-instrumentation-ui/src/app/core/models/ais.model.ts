@@ -1,3 +1,5 @@
+import type { VesselInfo } from '../../data-access/vessel-enrichment/vessel-enrichment.models';
+
 export enum AisNavStatus {
   UnderWayUsingEngine = 0,
   AtAnchor = 1,
@@ -42,10 +44,12 @@ export interface AisTarget {
 
   // Static Data
   destination?: string;
+  imo?: string;
   vesselType?: string;
   length?: number;
   beam?: number;
   draft?: number;
+  enrichedInfo?: VesselInfo;
 
   // Meta
   lastUpdated: number; // Timestamp ms
@@ -54,10 +58,23 @@ export interface AisTarget {
   cpa?: number; // Closest Point of Approach (meters)
   tcpa?: number; // Time to CPA (seconds)
   isDangerous?: boolean; // If CPA < threshold && TCPA < threshold
+  riskEligible?: boolean; // Risk computation is valid for own-ship collision logic
 }
 
 export interface AisState {
   targets: Map<string, AisTarget>; // Keyed by MMSI
   closestTargetId?: string;
   dangerousTargetIds: string[];
+}
+
+/**
+ * A single recorded position point for an AIS target historical trail.
+ * Stored separately from AisTarget to keep target signal payload compact.
+ */
+export interface AisTrackPoint {
+  latitude: number;
+  longitude: number;
+  timestamp: number; // ms since epoch
+  sog?: number; // m/s
+  cog?: number; // radians
 }

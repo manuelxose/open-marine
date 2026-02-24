@@ -1,95 +1,165 @@
-.wind-rose {
-  position: relative;
-  display: grid;
-  place-items: center;
+:host {
+  display: block;
   width: 100%;
-  min-height: 180px;
+  height: 100%;
 }
 
-.rose-ring {
-  width: 160px;
-  height: 160px;
-  border-radius: 50%;
-  border: 2px solid var(--border);
-  background: radial-gradient(circle at center, var(--surface-1) 40%, var(--surface-2));
-  box-shadow: inset 0 0 0 6px rgba(0, 0, 0, 0.05);
+.marine-card {
+  display: block;
+  height: 100%;
 }
 
-.rose-label {
-  position: absolute;
-  font-size: 0.7rem;
-  font-weight: 700;
-  color: var(--text-secondary);
-}
-
-.rose-label.north { top: 6px; }
-.rose-label.south { bottom: 6px; }
-.rose-label.east { right: 8px; }
-.rose-label.west { left: 8px; }
-
-.needle {
-  position: absolute;
-  width: 2px;
-  height: 70px;
-  transform-origin: 50% 90%;
-  transition: transform 200ms ease;
-}
-
-.needle.apparent {
-  background: var(--primary-500);
-}
-
-.needle.true {
-  background: var(--warn);
-  height: 58px;
-}
-
-.rose-center {
-  position: absolute;
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: var(--text-primary);
-  box-shadow: 0 0 0 3px var(--surface-1);
-}
-
-.wind-readouts {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.5rem 1rem;
-  margin-top: 0.75rem;
-}
-
-.readout {
+.wind-container {
+  position: relative;
   display: flex;
   flex-direction: column;
-  gap: 0.1rem;
-  font-family: var(--font-mono);
-  color: var(--text-primary);
+  align-items: center;
+  justify-content: center;
+  min-height: 240px;
+  height: 100%;
+  width: 100%;
+  background: radial-gradient(
+    circle at 50% 45%,
+    color-mix(in srgb, var(--gb-needle-secondary) 5%, transparent) 0%,
+    transparent 60%
+  );
 }
 
-.readout .label {
-  font-size: 0.7rem;
-  color: var(--text-secondary);
-  letter-spacing: 0.08em;
+.corner-data {
+  position: absolute;
+  top: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  z-index: 2;
+  padding: 4px 10px;
+  background: color-mix(in srgb, var(--gb-bg-glass) 55%, transparent);
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--gb-border-panel) 30%, transparent);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+
+  &.top-left {
+    left: 8px;
+  }
+
+  &.top-right {
+    right: 8px;
+  }
+
+  .label {
+    margin-bottom: 2px;
+    font-size: 0.58rem;
+    letter-spacing: 0.1em;
+  }
+
+  .value {
+    line-height: 1;
+    text-shadow: 0 2px 4px color-mix(in srgb, var(--gb-bg-canvas) 60%, transparent);
+  }
+
+  .unit {
+    color: var(--gb-text-unit);
+  }
+
+  &.app-wind {
+    .label {
+      color: var(--gb-needle-secondary);
+    }
+
+    .value {
+      color: var(--gb-needle-secondary);
+      text-shadow:
+        0 0 8px color-mix(in srgb, var(--gb-needle-secondary) 30%, transparent);
+    }
+  }
+
+  &.true-wind {
+    .label {
+      color: var(--gb-needle-primary);
+    }
+
+    .value {
+      color: var(--gb-needle-primary);
+    }
+  }
 }
 
-.readout .value {
-  font-size: 1rem;
-  font-weight: 700;
+.wind-svg {
+  width: 100%;
+  max-width: 260px;
+  height: auto;
+  overflow: visible;
+  filter: drop-shadow(0 2px 6px color-mix(in srgb, var(--gb-bg-canvas) 35%, transparent));
+
+  .tick-mark {
+    stroke: var(--gb-tick-minor);
+    stroke-linecap: round;
+    stroke-width: 1px;
+    opacity: 0.3;
+
+    &.major {
+      stroke: var(--gb-tick-major);
+      stroke-width: 2.5px;
+      opacity: 0.85;
+    }
+  }
+
+  .angle-label {
+    font-family: 'JetBrains Mono', 'Courier New', monospace;
+    font-size: 10px;
+    font-weight: 600;
+    fill: var(--gb-text-unit);
+    text-anchor: middle;
+    dominant-baseline: middle;
+  }
+
+  .needle-wrapper {
+    transform-origin: 120px 120px;
+    transition: transform var(--gb-anim-needle) var(--gb-ease-mechanical);
+  }
 }
 
-@media (max-width: 720px) {
-  .rose-ring {
-    width: 140px;
-    height: 140px;
-  }
+.legend {
+  position: absolute;
+  bottom: 28px;
+  display: flex;
+  gap: 16px;
+  color: var(--gb-text-unit);
+  font-size: 0.6rem;
+  letter-spacing: 0.06em;
+  padding: 3px 10px;
+  background: color-mix(in srgb, var(--gb-bg-glass) 40%, transparent);
+  border-radius: 6px;
+  border: 1px solid color-mix(in srgb, var(--gb-border-panel) 20%, transparent);
 
-  .needle {
-    height: 60px;
-  }
+  .dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-right: 4px;
+    vertical-align: middle;
 
-  .needle.true {
-    height: 50px;
+    &.app {
+      background-color: var(--gb-needle-secondary);
+      box-shadow: 0 0 8px color-mix(in srgb, var(--gb-needle-secondary) 75%, transparent);
+    }
+
+    &.true {
+      background-color: var(--gb-needle-primary);
+      box-shadow: 0 0 4px color-mix(in srgb, var(--gb-needle-primary) 40%, transparent);
+    }
   }
+}
+
+.meta-row {
+  position: absolute;
+  bottom: 4px;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-inline: 0.5rem;
 }

@@ -41,7 +41,9 @@ export class GpxParser {
     // Parse Waypoints
     const wpts = doc.getElementsByTagName('wpt');
     for (let i = 0; i < wpts.length; i++) {
-        const point = this.parsePoint(wpts[i]);
+        const wpt = wpts[i];
+        if (!wpt) continue;
+        const point = this.parsePoint(wpt);
         if (point) {
             waypoints.push(point);
         }
@@ -51,36 +53,49 @@ export class GpxParser {
     const rtes = doc.getElementsByTagName('rte');
     for (let i = 0; i < rtes.length; i++) {
         const rte = rtes[i];
+        if (!rte) continue;
         const name = this.getChildText(rte, 'name');
         const desc = this.getChildText(rte, 'desc');
         const points: ParsedWaypoint[] = [];
         const rtepts = rte.getElementsByTagName('rtept');
         for (let j = 0; j < rtepts.length; j++) {
-            const point = this.parsePoint(rtepts[j]);
+            const rtept = rtepts[j];
+            if (!rtept) continue;
+            const point = this.parsePoint(rtept);
             if (point) {
                 points.push(point);
             }
         }
-        routes.push({ name, desc, points });
+        const route: ParsedRoute = { points };
+        if (name !== undefined) route.name = name;
+        if (desc !== undefined) route.desc = desc;
+        routes.push(route);
     }
 
     // Parse Tracks (Simplified flat track)
     const trks = doc.getElementsByTagName('trk');
     for (let i = 0; i < trks.length; i++) {
         const trk = trks[i];
+        if (!trk) continue;
         const name = this.getChildText(trk, 'name');
         const points: ParsedWaypoint[] = [];
         const trksegs = trk.getElementsByTagName('trkseg');
         for (let j = 0; j < trksegs.length; j++) {
-            const trkpts = trksegs[j].getElementsByTagName('trkpt');
+            const trkseg = trksegs[j];
+            if (!trkseg) continue;
+            const trkpts = trkseg.getElementsByTagName('trkpt');
             for (let k = 0; k < trkpts.length; k++) {
-                 const point = this.parsePoint(trkpts[k]);
+                 const trkpt = trkpts[k];
+                 if (!trkpt) continue;
+                 const point = this.parsePoint(trkpt);
                  if (point) {
                      points.push(point);
                  }
             }
         }
-        tracks.push({ name, points });
+        const track: ParsedTrack = { points };
+        if (name !== undefined) track.name = name;
+        tracks.push(track);
     }
 
     return { waypoints, routes, tracks };
@@ -99,18 +114,23 @@ export class GpxParser {
       const name = this.getChildText(el, 'name');
       const desc = this.getChildText(el, 'desc');
 
-      return {
-          lat,
-          lon,
-          ele: eleStr ? parseFloat(eleStr) : undefined,
-          time,
-          name,
-          desc
-      };
+      const waypoint: ParsedWaypoint = { lat, lon };
+      if (eleStr) {
+          const ele = parseFloat(eleStr);
+          if (Number.isFinite(ele)) {
+              waypoint.ele = ele;
+          }
+      }
+      if (time !== undefined) waypoint.time = time;
+      if (name !== undefined) waypoint.name = name;
+      if (desc !== undefined) waypoint.desc = desc;
+      return waypoint;
   }
 
   private static getChildText(parent: Element, tagName: string): string | undefined {
       const child = parent.getElementsByTagName(tagName)[0];
-      return child?.textContent || undefined;
+      if (!child || child.textContent === null) return undefined;
+      const text = child.textContent.trim();
+      return text.length > 0 ? text : undefined;
   }
 }

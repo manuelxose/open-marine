@@ -149,7 +149,11 @@ export class WaypointService {
     if (!feature || typeof feature !== 'object') return null;
     const geometry = (feature as { geometry?: { type?: string; coordinates?: unknown } }).geometry;
     if (!geometry || geometry.type !== 'Point' || !Array.isArray(geometry.coordinates)) return null;
-    const [longitude, latitude] = geometry.coordinates as number[];
+    const coords = geometry.coordinates as number[];
+    if (coords.length < 2) return null;
+    const longitude = coords[0];
+    const latitude = coords[1];
+    if (typeof latitude !== 'number' || typeof longitude !== 'number') return null;
     if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
     return { latitude, longitude };
   }

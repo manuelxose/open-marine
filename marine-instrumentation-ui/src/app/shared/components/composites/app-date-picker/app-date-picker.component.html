@@ -1,0 +1,20 @@
+<div class="date-picker-container" [class.disabled]="disabled">
+  @if (label) {
+    <label class="label">{{ label }}</label>
+  }
+  
+  <div class="input-wrapper">
+    <app-icon name="calendar_today" size="sm" class="input-icon"></app-icon>
+    <input
+      type="date"
+      [value]="value()"
+      [min]="min"
+      [max]="max"
+      [disabled]="disabled"
+      [placeholder]="placeholder"
+      (input)="onInput($event)"
+      (blur)="onTouched()"
+      class="native-input"
+    />
+  </div>
+</div>

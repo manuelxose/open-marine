@@ -43,14 +43,22 @@ export function calculateTrend(points: HistoryPoint[], thresholdPerSecond = 0.05
   const n = points.length;
   
   // Normalize timestamps to seconds from first point for numerical stability
-  const t0 = points[0].timestamp;
-  const xs = points.map(p => (p.timestamp - t0) / 1000);
-  const ys = points.map(p => p.value);
-  
-  const sumX = xs.reduce((a, b) => a + b, 0);
-  const sumY = ys.reduce((a, b) => a + b, 0);
-  const sumXY = xs.reduce((acc, x, i) => acc + x * ys[i], 0);
-  const sumX2 = xs.reduce((acc, x) => acc + x * x, 0);
+  const t0 = points[0]?.timestamp;
+  if (t0 === undefined) return 'unknown';
+
+  let sumX = 0;
+  let sumY = 0;
+  let sumXY = 0;
+  let sumX2 = 0;
+
+  for (const point of points) {
+    const x = (point.timestamp - t0) / 1000;
+    const y = point.value;
+    sumX += x;
+    sumY += y;
+    sumXY += x * y;
+    sumX2 += x * x;
+  }
   
   const denom = n * sumX2 - sumX * sumX;
   if (Math.abs(denom) < 0.0001) return 'stable';
