@@ -868,7 +868,7 @@ try {
   if ($skipInteractiveAuthPrecheck) {
     Warn "OpenSSH con password interactiva: se omite pre-check SSH para reducir prompts."
     if (-not (Test-TcpPort -HostName $TargetHost -Port $parsedPort -TimeoutMs 1200)) {
-      Warn "Host primario no reachable por TCP ($TargetHost:$TargetPort). Buscando alternativa..."
+      Warn "Host primario no reachable por TCP (${TargetHost}:${TargetPort}). Buscando alternativa..."
       $hostCandidates = @(Get-RaspberryHostCandidates -PrimaryHost $TargetHost -Port $parsedPort | Where-Object { $_ -ne $TargetHost })
       foreach ($candidateHost in $hostCandidates) {
         if (Test-TcpPort -HostName $candidateHost -Port $parsedPort -TimeoutMs 1200) {
