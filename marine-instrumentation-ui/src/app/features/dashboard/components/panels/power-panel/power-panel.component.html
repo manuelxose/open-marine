@@ -1,18 +1,31 @@
-<app-shared-panel-card [title]="vm.title">
-  <div class="power-content">
-    <div class="metrics-list">
-      <div class="metric-row" *ngFor="let m of vm.metrics">
-        <div class="metric-info">
-          <span class="metric-label">{{ m.label }}</span>
-          <div class="metric-value-group">
-            <span class="value">{{ m.value }}</span>
-            <span class="unit">{{ m.unit }}</span>
-          </div>
+<app-shared-panel-card [title]="vm.title | translate" [loading]="vm.isLoading" [error]="vm.error">
+  <omi-gb-bezel class="panel-bezel" [quality]="panelQuality">
+    <div class="power-content">
+      <div class="battery-bar-container" *ngIf="vm.metrics[0] as voltageMetric">
+        <span class="power-metric-label">{{ voltageMetric.label | translate }}</span>
+        <div class="battery-bar-track">
+          <div
+            class="battery-bar-fill"
+            [style.width.%]="(+voltageMetric.value || 0) >= 12.6 ? 100 : ((+voltageMetric.value || 0) <= 11.4 ? 5 : (((+voltageMetric.value || 0) - 11.4) * 100) / 1.2)"
+            [class.level-high]="(+voltageMetric.value || 0) >= 12.4"
+            [class.level-mid]="(+voltageMetric.value || 0) >= 11.8 && (+voltageMetric.value || 0) < 12.4"
+            [class.level-low]="(+voltageMetric.value || 0) < 11.8"
+          ></div>
         </div>
-        <div class="metric-trend" *ngIf="m.series && m.series.length > 0">
-          <app-shared-sparkline [data]="m.series" [width]="80" [height]="24"></app-shared-sparkline>
+      </div>
+
+      <div class="power-metrics">
+        <div class="power-metric" *ngFor="let m of vm.metrics; trackBy: trackByMetric">
+          <span class="power-metric-label">{{ m.label | translate }}</span>
+          <div class="power-metric-reading">
+            <span class="power-metric-value">{{ displayValue(m.value) }}</span>
+            <span class="power-metric-unit" *ngIf="showUnit(m.value)">{{ m.unit }}</span>
+          </div>
+          <div class="power-trend" *ngIf="m.series && m.series.length > 0">
+            <app-shared-sparkline [data]="m.series" [width]="80" [height]="24"></app-shared-sparkline>
+          </div>
         </div>
       </div>
     </div>
-  </div>
+  </omi-gb-bezel>
 </app-shared-panel-card>

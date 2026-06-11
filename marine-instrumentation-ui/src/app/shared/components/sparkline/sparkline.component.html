@@ -1,27 +1,20 @@
-<svg
-  *ngIf="hasPoints"
-  [attr.viewBox]="viewBox"
-  [attr.width]="width"
-  [attr.height]="height"
-  preserveAspectRatio="none"
-  class="sparkline-svg"
->
+<svg *ngIf="hasPoints" [attr.viewBox]="viewBox" preserveAspectRatio="none" class="sparkline-svg">
   <polyline
+    [attr.points]="points"
     fill="none"
     [attr.stroke]="stroke"
     stroke-width="2"
-    stroke-linecap="round"
-    stroke-linejoin="round"
-    [attr.points]="points"
+    vector-effect="non-scaling-stroke"
   />
   <line
     *ngIf="thresholdY !== null"
-    x1="0"
-    [attr.y1]="thresholdY"
+    [attr.x1]="0"
     [attr.x2]="width"
+    [attr.y1]="thresholdY"
     [attr.y2]="thresholdY"
-    stroke="rgba(255,255,255,0.2)"
-    stroke-width="1"
-    stroke-dasharray="2,2"
+    class="sparkline-threshold"
   />
 </svg>
+<div *ngIf="!hasPoints" class="sparkline-empty">
+  —
+</div>  

@@ -1,0 +1,32 @@
+<div class="card" [ngClass]="statusClass">
+  
+  <div class="card-header">
+    <span class="label">{{ label }}</span>
+    <div class="icon-wrapper" *ngIf="icon">
+      <app-icon [name]="icon" size="sm"></app-icon>
+    </div>
+  </div>
+
+  <div class="card-body">
+    <div class="main-value-group">
+      <span class="value">{{ value }}</span>
+      <span class="unit" *ngIf="unit">{{ unit }}</span>
+    </div>
+    
+    <div class="sparkline-wrapper" *ngIf="showSparkline && historyData.length > 0">
+      <app-shared-sparkline 
+        [data]="historyData" 
+        [height]="24" 
+        [width]="80"
+      ></app-shared-sparkline>
+    </div>
+  </div>
+
+  <div class="card-footer" *ngIf="secondaryValue || secondaryLabel">
+    <div class="secondary-info" *ngIf="secondaryValue">
+      <span class="sec-label" *ngIf="secondaryLabel">{{ secondaryLabel }}</span>
+      <span class="sec-value">{{ secondaryValue }}</span>
+    </div>
+  </div>
+
+</div>

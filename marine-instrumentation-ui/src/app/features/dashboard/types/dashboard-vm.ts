@@ -15,38 +15,90 @@ export interface CriticalStripItemVm extends DashboardMetricVm {
 
 export interface CriticalStripVm {
   items: CriticalStripItemVm[];
+  isLoading: boolean;
+  error?: string;
 }
 
 export interface NavigationPanelVm {
   title: string;
   fixLabel: string;
+  statusTone: StatusTone;
   position: {
     lat: string;
     lon: string;
   };
   metrics: DashboardMetricVm[];
+  isLoading: boolean;
+  error?: string;
 }
 
 export interface WindPanelVm {
   title: string;
   metrics: DashboardMetricVm[];
   primarySeries?: HistoryPoint[];
+  updatedAt?: number | null;
+  isLoading: boolean;
+  error?: string;
 }
 
 export interface DepthPanelVm {
   title: string;
   metrics: DashboardMetricVm[];
   series?: HistoryPoint[];
+  updatedAt?: number | null;
+  isLoading: boolean;
+  error?: string;
 }
 
 export interface PowerPanelVm {
   title: string;
   metrics: DashboardMetricVm[];
   series?: HistoryPoint[];
+  updatedAt?: number | null;
+  isLoading: boolean;
+  error?: string;
+}
+
+export interface SystemPanelLine {
+  labelKey: string;
+  value: string;
 }
 
 export interface SystemPanelVm {
   title: string;
   status: string;
-  lines: string[];
+  statusTone: StatusTone;
+  lines: SystemPanelLine[];
+  isLoading: boolean;
+  error?: string;
+}
+
+export interface EnginePanelVm {
+  title: string;
+  metrics: DashboardMetricVm[];
+  fuelLevel: number | null;  // 0-1 ratio for fuel bar
+  series?: HistoryPoint[];
+  updatedAt?: number | null;
+  isLoading: boolean;
+  error?: string;
+}
+
+export interface EnvironmentPanelVm {
+  title: string;
+  metrics: DashboardMetricVm[];
+  series?: HistoryPoint[];
+  updatedAt?: number | null;
+  isLoading: boolean;
+  error?: string;
+}
+
+export interface DashboardStatusVm {
+  label: string;
+  detail: string;
+  tone: StatusTone;
+  isOffline: boolean;
+  isStale: boolean;
+  isLoading: boolean;
+  isVisible: boolean;
+  error?: string;
 }

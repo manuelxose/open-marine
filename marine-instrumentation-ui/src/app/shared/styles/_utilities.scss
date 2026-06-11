@@ -1,0 +1,141 @@
+// Utility Classes
+
+// Text Colors
+.text-muted { color: var(--text-muted) !important; }
+.text-primary { color: var(--gb-text-value) !important; }
+.text-secondary { color: var(--gb-text-muted) !important; }
+.text-tertiary { color: var(--gb-text-muted) !important; }
+.text-accent { color: var(--gb-needle-secondary) !important; }
+.text-danger { color: var(--danger) !important; }
+.text-warn { color: var(--warn) !important; }
+.text-success { color: var(--success) !important; }
+
+// Backgrounds
+.bg-surface-1 { background-color: var(--gb-bg-panel); }
+.bg-surface-2 { background-color: var(--bg-surface-secondary); }
+
+// Layout
+.flex { display: flex; }
+.flex-col { display: flex; flex-direction: column; }
+.justify-between { justify-content: space-between; }
+.justify-center { justify-content: center; }
+.items-center { align-items: center; }
+.grow { flex-grow: 1; }
+
+.w-full { width: 100%; }
+.h-full { height: 100%; }
+
+.grid { display: grid; }
+.grid-cols-2 { grid-template-columns: repeat(2, 1fr); }
+
+// Spacing
+.gap-1 { gap: var(--space-1); }
+.gap-2 { gap: var(--space-2); }
+.gap-3 { gap: var(--space-3); }
+.gap-4 { gap: var(--space-4); }
+.gap-6 { gap: var(--space-6); }
+
+.p-1 { padding: var(--space-1); }
+.p-2 { padding: var(--space-2); }
+.p-4 { padding: var(--space-4); }
+.p-6 { padding: var(--space-6); }
+
+.m-0 { margin: 0; }
+.mb-2 { margin-bottom: var(--space-2); }
+.mb-4 { margin-bottom: var(--space-4); }
+.mb-6 { margin-bottom: var(--space-6); }
+
+.py-2 { padding-top: var(--space-2); padding-bottom: var(--space-2); }
+.py-4 { padding-top: var(--space-4); padding-bottom: var(--space-4); }
+.px-2 { padding-left: var(--space-2); padding-right: var(--space-2); }
+.px-4 { padding-left: var(--space-4); padding-right: var(--space-4); }
+
+.text-center { text-align: center; }
+
+// Shadows
+.shadow-none { box-shadow: var(--shadow-none); }
+.shadow-sm { box-shadow: var(--shadow-sm); }
+.shadow-md { box-shadow: var(--shadow-md); }
+.shadow-lg { box-shadow: var(--shadow-lg); }
+.shadow-xl { box-shadow: var(--shadow-xl); }
+.shadow-2xl { box-shadow: var(--shadow-2xl); }
+.shadow-inner { box-shadow: var(--shadow-inner); }
+
+// Borders
+.border { border: 1px solid var(--border-default); }
+.border-b { border-bottom: 1px solid var(--border-default); }
+.border-t { border-top: 1px solid var(--border-default); }
+
+.rounded-none { border-radius: var(--radius-none); }
+.rounded-sm { border-radius: var(--radius-sm); }
+.rounded { border-radius: var(--radius-md); }
+.rounded-md { border-radius: var(--radius-md); }
+.rounded-lg { border-radius: var(--radius-lg); }
+.rounded-full { border-radius: var(--radius-full); }
+
+// Card Pattern
+.card {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-md); // Updated to token
+  box-shadow: var(--shadow-md); 
+  overflow: hidden;
+}
+
+// Interactive
+button, a {
+  cursor: pointer;
+  // Touch Target Size minimum
+  min-height: 44px;
+  min-width: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+// ═══════════════════════════════════════════════════════════
+// DOC_4 — Accessibility (WCAG AA)
+// ═══════════════════════════════════════════════════════════
+
+// Focus-visible indicator for keyboard navigation
+:focus-visible {
+  outline: 2px solid var(--gb-accent, #4a90d9);
+  outline-offset: 2px;
+  border-radius: inherit;
+}
+
+// Remove default focus for mouse users
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+// Critical controls need 48×48px touch targets
+.touch-target-critical {
+  min-height: 48px;
+  min-width: 48px;
+}
+
+// Screen-reader only (visually hidden)
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+// Reduced motion preference
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

@@ -1,0 +1,46 @@
+:host {
+  display: block;
+  height: 100%;
+}
+
+.compass-widget-bezel {
+  display: block;
+  height: 100%;
+}
+
+.compass-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(
+    circle at 50% 45%,
+    color-mix(in srgb, var(--gb-needle-secondary) 4%, transparent) 0%,
+    transparent 55%
+  );
+}
+
+.compass-figure {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  filter: drop-shadow(0 2px 8px color-mix(in srgb, var(--gb-bg-canvas) 35%, transparent));
+}
+
+.compass-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-inline: 0.35rem;
+  padding-top: 0.25rem;
+  border-top: 1px solid color-mix(in srgb, var(--gb-border-panel) 20%, transparent);
+}
+
+.compass-source {
+  text-align: center;
+  color: var(--gb-text-muted);
+  font-size: 0.6rem;
+  letter-spacing: 0.06em;
+}

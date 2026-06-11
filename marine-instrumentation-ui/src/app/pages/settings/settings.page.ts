@@ -1,441 +1,471 @@
-import { Component, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Component, ChangeDetectionStrategy, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { PreferencesService } from '../../core/services/preferences.service';
-import { ThemeService } from '../../core/theme/theme.service';
-import { LayoutService } from '../../core/services/layout.service';
-import { ChartSourceRegistryService } from '../../core/chart-sources/chart-source.registry';
+import { AppIconComponent, type IconName } from '../../shared/components/app-icon/app-icon.component';
+import { LanguageService } from '../../core/services/language.service';
+import { TranslatePipe } from '../../shared/pipes/translate.pipe';
+import { OnboardingService } from '../../core/onboarding/onboarding.service';
+import { GuidedTourService } from '../../core/onboarding/tour/guided-tour.service';
+import { AppToastService } from '../../shared/components/app-toast/app-toast.service';
+
+// Standalone settings sub-components
+import { VesselSettingsComponent } from '../../features/settings/components/vessel-settings/vessel-settings.component';
+import { ConnectionSettingsComponent } from '../../features/settings/components/connection-settings/connection-settings.component';
+import { DisplaySettingsComponent } from '../../features/settings/components/display-settings/display-settings.component';
+import { UnitsSettingsComponent } from '../../features/settings/components/units-settings/units-settings.component';
+import { AlarmSettingsComponent } from '../../features/settings/components/alarm-settings/alarm-settings.component';
+import { ChartSettingsComponent } from '../../features/settings/components/chart-settings/chart-settings.component';
+import { DataSettingsComponent } from '../../features/settings/components/data-settings/data-settings.component';
+import { ExperimentsSettingsComponent } from '../../features/settings/components/experiments-settings/experiments-settings.component';
+import { DashboardWidgetsSettingsComponent } from '../../features/settings/components/dashboard-widgets-settings/dashboard-widgets-settings.component';
+
+type SettingsSection =
+  | 'general'
+  | 'vessel'
+  | 'display'
+  | 'units'
+  | 'chart'
+  | 'alarms'
+  | 'connection'
+  | 'dashboard'
+  | 'data'
+  | 'experiments'
+  | 'tour';
+
+interface SectionMeta {
+  id: SettingsSection;
+  label: string;
+  icon: IconName;
+}
 
 @Component({
   selector: 'app-settings-page',
   standalone: true,
-  imports: [CommonModule],
+  imports: [
+    CommonModule,
+    TranslatePipe,
+    AppIconComponent,
+    VesselSettingsComponent,
+    ConnectionSettingsComponent,
+    DisplaySettingsComponent,
+    UnitsSettingsComponent,
+    AlarmSettingsComponent,
+    ChartSettingsComponent,
+    DataSettingsComponent,
+    ExperimentsSettingsComponent,
+    DashboardWidgetsSettingsComponent,
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="settings-page">
-      <div class="page-header">
-        <h1>Settings</h1>
-        <p class="subtitle">Customize your MFD experience</p>
-      </div>
-
-      <div class="settings-sections">
-        
-        <!-- Appearance Section -->
-        <section class="settings-section">
-          <h2>Appearance</h2>
-          
-          <div class="setting-item">
-            <div class="setting-info">
-              <span class="setting-label">Theme</span>
-              <span class="setting-description">Switch between day and night mode</span>
-            </div>
-            <button (click)="theme.toggle()" class="theme-toggle">
-              {{ (theme.theme$ | async) | titlecase }}
-            </button>
-          </div>
-
-          <div class="setting-item">
-            <div class="setting-info">
-              <span class="setting-label">Compact Mode</span>
-              <span class="setting-description">Increase information density</span>
-            </div>
-            <button 
-              (click)="toggleCompact()" 
-              class="toggle-btn"
-              [class.active]="(prefs.preferences$ | async)?.density === 'compact'"
-            >
-              <span class="toggle-slider"></span>
-            </button>
-          </div>
-        </section>
-
-        <!-- Units Section -->
-        <section class="settings-section">
-          <h2>Units</h2>
-          
-          <div class="setting-item">
-            <div class="setting-info">
-              <span class="setting-label">Speed</span>
-              <span class="setting-description">Display unit for speed measurements</span>
-            </div>
-            <select 
-              [value]="(prefs.preferences$ | async)?.units?.speed" 
-              (change)="onSpeedUnitChange($event)"
-              class="setting-select"
-            >
-              <option value="kn">Knots (kn)</option>
-              <option value="m/s">Meters/sec (m/s)</option>
-              <option value="km/h">Kilometers/hour (km/h)</option>
-            </select>
-          </div>
-
-          <div class="setting-item">
-            <div class="setting-info">
-              <span class="setting-label">Depth</span>
-              <span class="setting-description">Display unit for depth measurements</span>
-            </div>
-            <select 
-              [value]="(prefs.preferences$ | async)?.units?.depth" 
-              (change)="onDepthUnitChange($event)"
-              class="setting-select"
-            >
-              <option value="m">Meters (m)</option>
-              <option value="ft">Feet (ft)</option>
-            </select>
-          </div>
-        </section>
-
-        <!-- Chart Section -->
-        <section class="settings-section">
-          <h2>Chart Defaults</h2>
-          
-          <div class="setting-item">
-            <div class="setting-info">
-              <span class="setting-label">Auto-Center</span>
-              <span class="setting-description">Keep boat in view automatically</span>
-            </div>
-            <button 
-              (click)="toggleAutoCenter()" 
-              class="toggle-btn"
-              [class.active]="(prefs.preferences$ | async)?.chart?.autoCenter"
-            >
-              <span class="toggle-slider"></span>
-            </button>
-          </div>
-
-          <div class="setting-item">
-            <div class="setting-info">
-              <span class="setting-label">Track Length</span>
-              <span class="setting-description">History to show on chart (minutes)</span>
-            </div>
-            <select 
-              [value]="(prefs.preferences$ | async)?.chart?.trackLengthMinutes" 
-              (change)="onTrackLengthChange($event)"
-              class="setting-select"
-            >
-              <option [value]="15">15 min</option>
-              <option [value]="60">1 hour</option>
-              <option [value]="240">4 hours</option>
-              <option [value]="1440">24 hours</option>
-            </select>
-          </div>
-
-          <div class="setting-item">
-            <div class="setting-info">
-              <span class="setting-label">Data Source</span>
-              <span class="setting-description">Primary signal source for chart</span>
-            </div>
-            <select 
-              [value]="(prefs.preferences$ | async)?.chart?.source" 
-              (change)="onChartSourceChange($event)"
-              class="setting-select"
-            >
-              <option value="signalk">Signal K</option>
-              <option value="mock">Internal Mock</option>
-            </select>
-          </div>
-
-          <div class="setting-item">
-            <div class="setting-info">
-              <span class="setting-label">Chart Imagery</span>
-              <span class="setting-description">Select the map layer to display</span>
-            </div>
-            <select 
-              [value]="(prefs.preferences$ | async)?.chart?.mapSourceId" 
-              (change)="onMapSourceChange($event)"
-              class="setting-select"
-            >
-              <option *ngFor="let s of chartSources" [value]="s.id">{{ s.name }}</option>
-            </select>
-          </div>
-        </section>
-
-        <!-- Dashboard Section -->
-        <section class="settings-section">
-          <h2>Dashboard Widgets</h2>
-          
-          <div class="widget-list">
-            <div *ngFor="let def of widgetDefs; trackBy: trackByWidget" class="widget-item">
-              <div class="widget-info">
-                <div class="widget-header">
-                  <span class="widget-name">{{ def.title }}</span>
-                  <span class="widget-size">{{ def.size }}</span>
-                </div>
-                <span class="widget-description">{{ def.description }}</span>
-              </div>
-              <button 
-                (click)="toggleWidget(def.id)" 
-                class="toggle-btn"
-                [class.active]="isWidgetVisible(def.id)"
-              >
-                <span class="toggle-slider"></span>
-              </button>
-            </div>
-          </div>
-
-          <button (click)="resetLayout()" class="reset-btn">
-            Reset to Default Layout
+      <!-- Sidebar -->
+      <nav class="settings-sidebar" role="tablist" aria-label="Settings sections">
+        <div class="settings-sidebar__section-label">Settings</div>
+        @for (section of sections; track section.id) {
+          <button
+            class="settings-nav-item"
+            [class.active]="activeSection() === section.id"
+            (click)="activeSection.set(section.id)"
+            role="tab"
+            [attr.aria-selected]="activeSection() === section.id"
+          >
+            <app-icon [name]="section.icon" size="18"></app-icon>
+            <span>{{ section.label }}</span>
           </button>
-        </section>
+        }
+      </nav>
 
+      <!-- Content -->
+      <div class="settings-content" role="tabpanel">
+        @switch (activeSection()) {
+          @case ('general') {
+            <h2>General</h2>
+            <p class="settings-subtitle">{{ 'settings.subtitle' | translate }}</p>
+            <div class="settings-group">
+              <div class="settings-group__title">Language</div>
+              <div class="settings-row">
+                <div>
+                  <div class="settings-row__label">{{ 'settings.language.label' | translate }}</div>
+                  <div class="settings-row__desc">{{ 'settings.language.description' | translate }}</div>
+                </div>
+                <div class="settings-row__control">
+                  <select
+                    [value]="(lang.lang$ | async)"
+                    (change)="onLanguageChange($event)"
+                    class="settings-select"
+                  >
+                    <option value="en">English</option>
+                    <option value="es">Español</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          }
+          @case ('vessel') {
+            <h2>Vessel Profile</h2>
+            <app-vessel-settings />
+          }
+          @case ('display') {
+            <h2>Display</h2>
+            <app-display-settings />
+          }
+          @case ('units') {
+            <h2>Units</h2>
+            <app-units-settings />
+          }
+          @case ('chart') {
+            <h2>Chart</h2>
+            <app-chart-settings />
+          }
+          @case ('alarms') {
+            <h2>Alarms</h2>
+            <app-alarm-settings />
+          }
+          @case ('connection') {
+            <h2>Connection</h2>
+            <app-connection-settings />
+          }
+          @case ('dashboard') {
+            <h2>Dashboard</h2>
+            <p class="settings-subtitle">Configure dashboard panel visibility, order and layout.</p>
+            <app-dashboard-widgets-settings />
+          }
+          @case ('data') {
+            <h2>Data</h2>
+            <app-data-settings />
+          }
+          @case ('experiments') {
+            <h2>Experiments</h2>
+            <app-experiments-settings />
+          }
+          @case ('tour') {
+            <h2>{{ 'settings.sections.tour' | translate }}</h2>
+            <p class="settings-subtitle">{{ 'settings.tour.replay.description' | translate }}</p>
+            <div class="settings-group">
+              <div class="settings-group__title">{{ 'settings.sections.tour' | translate }}</div>
+              <div class="settings-row">
+                <div>
+                  <div class="settings-row__label">{{ 'settings.tour.replay.label' | translate }}</div>
+                  <div class="settings-row__desc">{{ 'settings.tour.replay.description' | translate }}</div>
+                </div>
+                <div class="settings-row__control">
+                  <button class="reset-btn" style="width: auto; margin-top: 0;" (click)="startTour()">
+                    {{ 'settings.tour.replay.button' | translate }}
+                  </button>
+                </div>
+              </div>
+              <div class="settings-row">
+                <div>
+                  <div class="settings-row__label">{{ 'settings.tour.reset.label' | translate }}</div>
+                  <div class="settings-row__desc">{{ 'settings.tour.reset.description' | translate }}</div>
+                </div>
+                <div class="settings-row__control">
+                  <button class="reset-btn" style="width: auto; margin-top: 0;" (click)="resetOnboarding()">
+                    {{ 'settings.tour.reset.button' | translate }}
+                  </button>
+                </div>
+              </div>
+            </div>
+          }
+        }
       </div>
     </div>
   `,
   styles: [`
-    .settings-page {
-      padding: 1.5rem;
+    :host {
+      display: block;
       height: 100%;
+      overflow: hidden;
+    }
+
+    /* ── Page shell ───────────────────────────────── */
+    .settings-page {
+      height: 100%;
+      display: grid;
+      grid-template-columns: 220px 1fr;
+      overflow: hidden;
+      background: var(--gb-bg-canvas);
+    }
+
+    /* ── Sidebar ──────────────────────────────────── */
+    .settings-sidebar {
+      background: var(--gb-bg-bezel);
+      border-right: 1px solid var(--gb-border-panel);
       overflow-y: auto;
-      max-width: 900px;
+      padding: var(--space-4, 16px) var(--space-3, 12px);
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-1, 4px);
     }
 
-    .page-header {
-      margin-bottom: 2rem;
-    }
-
-    h1 {
-      font-size: 1.75rem;
+    .settings-sidebar__section-label {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 0.55rem;
       font-weight: 700;
-      color: var(--fg);
-      margin-bottom: 0.25rem;
+      text-transform: uppercase;
+      letter-spacing: 0.2em;
+      color: var(--gb-text-muted);
+      padding: var(--space-2, 8px) var(--space-2, 8px) var(--space-1, 4px);
+      margin-top: var(--space-2, 8px);
     }
 
-    .subtitle {
-      color: var(--muted);
-      font-size: 0.875rem;
-    }
-
-    .settings-sections {
+    .settings-nav-item {
       display: flex;
-      flex-direction: column;
-      gap: 2rem;
-    }
-
-    .settings-section {
-      background: var(--surface-1);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 1.5rem;
-    }
-
-    h2 {
-      font-size: 1.125rem;
-      font-weight: 600;
-      color: var(--fg);
-      margin-bottom: 1rem;
-    }
-
-    .setting-item {
-      display: flex;
-      justify-content: space-between;
       align-items: center;
-      padding: 1rem 0;
-      border-bottom: 1px solid var(--border);
-    }
-
-    .setting-item:last-child {
-      border-bottom: none;
-    }
-
-    .setting-info {
-      display: flex;
-      flex-direction: column;
-      gap: 0.25rem;
-      flex: 1;
-    }
-
-    .setting-label {
-      font-weight: 600;
-      color: var(--fg);
-    }
-
-    .setting-description {
-      font-size: 0.875rem;
-      color: var(--muted);
-    }
-
-    .setting-select {
-      background: var(--surface-2);
-      border: 1px solid var(--border);
-      color: var(--fg);
-      padding: 0.5rem 1rem;
-      border-radius: 6px;
-      font-size: 0.875rem;
-      min-width: 150px;
-    }
-
-    .theme-toggle {
-      background: var(--accent);
-      color: white;
-      border: none;
-      padding: 0.5rem 1.5rem;
-      border-radius: 6px;
-      font-weight: 600;
+      gap: var(--space-2, 8px);
+      padding: var(--space-2, 8px) var(--space-3, 12px);
+      border-radius: 10px;
       cursor: pointer;
-      transition: transform 0.2s;
+      text-decoration: none;
+      color: var(--gb-text-muted);
+      transition: all 150ms ease;
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 0.8125rem;
+      font-weight: 500;
+      border: none;
+      background: transparent;
+      text-align: left;
+      white-space: nowrap;
     }
 
-    .theme-toggle:hover {
-      transform: scale(1.05);
+    .settings-nav-item svg,
+    .settings-nav-item app-icon {
+      width: 18px;
+      height: 18px;
+      flex-shrink: 0;
     }
 
+    .settings-nav-item:hover {
+      background: var(--gb-bg-glass-active, rgba(255,255,255,0.04));
+      color: var(--gb-text-value);
+    }
+
+    .settings-nav-item.active {
+      background: rgba(74, 144, 217, 0.12);
+      color: #4a90d9;
+    }
+
+    /* ── Content panel ────────────────────────────── */
+    .settings-content {
+      overflow-y: auto;
+      padding: var(--space-5, 24px);
+    }
+
+    .settings-content h2 {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--gb-text-value);
+      margin: 0 0 var(--space-1, 4px) 0;
+    }
+
+    .settings-subtitle {
+      font-size: 0.8125rem;
+      color: var(--gb-text-muted);
+      margin-bottom: var(--space-5, 24px);
+    }
+
+    /* ── Settings group ───────────────────────────── */
+    .settings-group {
+      background: var(--gb-bg-panel);
+      border: 1px solid var(--gb-border-panel);
+      border-radius: 14px;
+      overflow: hidden;
+      margin-bottom: var(--space-4, 16px);
+    }
+
+    .settings-group__title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 0.65rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.18em;
+      color: var(--gb-text-muted);
+      padding: var(--space-3, 12px) var(--space-4, 16px);
+      border-bottom: 1px solid var(--gb-border-panel);
+      background: var(--gb-bg-bezel);
+    }
+
+    /* ── Settings row ─────────────────────────────── */
+    .settings-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: var(--space-3, 12px) var(--space-4, 16px);
+      gap: var(--space-4, 16px);
+      border-bottom: 1px solid var(--gb-border-panel);
+    }
+
+    .settings-row:last-child { border-bottom: none; }
+
+    .settings-row__label {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: var(--gb-text-value);
+    }
+
+    .settings-row__desc {
+      font-size: 0.75rem;
+      color: var(--gb-text-muted);
+      margin-top: 2px;
+    }
+
+    .settings-row__control {
+      flex-shrink: 0;
+    }
+
+    .settings-select {
+      background: var(--gb-bg-bezel);
+      border: 1px solid var(--gb-border-panel);
+      color: var(--gb-text-value);
+      padding: 6px 28px 6px 12px;
+      border-radius: 8px;
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 0.8rem;
+      min-width: 140px;
+      cursor: pointer;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23666' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 8px center;
+      transition: border-color 150ms ease;
+    }
+
+    .settings-select:focus,
+    .settings-select:hover {
+      outline: none;
+      border-color: var(--gb-accent, #4a90d9);
+    }
+
+    /* ── Toggle switch ────────────────────────────── */
     .toggle-btn {
       position: relative;
-      width: 48px;
-      height: 24px;
-      background: var(--surface-2);
-      border: 1px solid var(--border);
-      border-radius: 12px;
+      width: 40px;
+      height: 22px;
+      background: var(--gb-bg-bezel);
+      border: 1px solid var(--gb-border-panel);
+      border-radius: 999px;
       cursor: pointer;
-      transition: background 0.3s;
+      transition: all 200ms ease;
+      flex-shrink: 0;
+      padding: 0;
+      overflow: hidden;
     }
 
+    .toggle-btn:hover { border-color: var(--gb-text-muted); }
+
     .toggle-btn.active {
-      background: var(--accent);
-      border-color: var(--accent);
+      background: var(--gb-accent, #4a90d9);
+      border-color: var(--gb-accent, #4a90d9);
     }
 
     .toggle-slider {
       position: absolute;
       top: 2px;
       left: 2px;
-      width: 18px;
-      height: 18px;
-      background: white;
+      width: 16px;
+      height: 16px;
+      background: var(--gb-text-muted);
       border-radius: 50%;
-      transition: transform 0.3s;
+      transition: transform 200ms cubic-bezier(0.4, 0, 0.2, 1);
     }
 
     .toggle-btn.active .toggle-slider {
-      transform: translateX(24px);
+      background: white;
+      transform: translateX(18px);
     }
 
-    .widget-list {
-      display: flex;
-      flex-direction: column;
-      gap: 0.75rem;
-    }
-
-    .widget-item {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 0.75rem;
-      background: var(--surface-2);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-    }
-
-    .widget-info {
-      display: flex;
-      flex-direction: column;
-      gap: 0.25rem;
-      flex: 1;
-    }
-
-    .widget-header {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-    }
-
-    .widget-name {
-      font-weight: 600;
-      color: var(--fg);
-    }
-
-    .widget-size {
-      font-size: 0.7rem;
-      padding: 0.125rem 0.5rem;
-      background: var(--accent);
-      color: white;
-      border-radius: 4px;
-      font-weight: 700;
-    }
-
-    .widget-description {
-      font-size: 0.875rem;
-      color: var(--muted);
-    }
-
+    /* ── Reset button ─────────────────────────────── */
     .reset-btn {
-      margin-top: 1rem;
+      margin-top: var(--space-4, 16px);
       width: 100%;
-      background: var(--surface-2);
-      border: 1px solid var(--border);
-      color: var(--fg);
-      padding: 0.75rem;
-      border-radius: 6px;
+      background: transparent;
+      border: 1px dashed var(--gb-border-panel);
+      color: var(--gb-text-muted);
+      padding: 10px;
+      border-radius: 10px;
+      font-family: 'Space Grotesk', sans-serif;
       font-weight: 600;
+      font-size: 0.8rem;
       cursor: pointer;
-      transition: all 0.2s;
+      transition: all 150ms ease;
     }
 
     .reset-btn:hover {
-      background: var(--surface-0);
+      background: rgba(240, 99, 82, 0.06);
+      color: #f06352;
+      border-color: #f06352;
+    }
+
+    /* ── Mobile: stack sidebar horizontally ────────── */
+    @media (max-width: 768px) {
+      .settings-page {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto 1fr;
+      }
+
+      .settings-sidebar {
+        flex-direction: row;
+        overflow-x: auto;
+        border-right: none;
+        border-bottom: 1px solid var(--gb-border-panel);
+        padding: var(--space-2, 8px) var(--space-3, 12px);
+        gap: 2px;
+        -webkit-overflow-scrolling: touch;
+      }
+
+      .settings-sidebar__section-label { display: none; }
+
+      .settings-nav-item {
+        font-size: 0.7rem;
+        padding: 6px 10px;
+      }
+
+      .settings-content {
+        padding: var(--space-3, 12px);
+      }
     }
   `]
 })
 export class SettingsPage {
-  prefs = inject(PreferencesService);
-  theme = inject(ThemeService);
-  layout = inject(LayoutService);
-  chartRegistry = inject(ChartSourceRegistryService);
+  readonly lang = inject(LanguageService);
 
-  get chartSources() {
-    return this.chartRegistry.getAllSources();
-  }
+  readonly activeSection = signal<SettingsSection>('general');
 
-  get widgetDefs() {
-    return this.layout.getWidgetDefinitions();
-  }
+  readonly sections: SectionMeta[] = [
+    { id: 'general', label: 'General', icon: 'settings' },
+    { id: 'vessel', label: 'Vessel', icon: 'anchor' },
+    { id: 'display', label: 'Display', icon: 'sun' },
+    { id: 'units', label: 'Units', icon: 'ruler' },
+    { id: 'chart', label: 'Chart', icon: 'compass' },
+    { id: 'alarms', label: 'Alarms', icon: 'alert-triangle' },
+    { id: 'connection', label: 'Connection', icon: 'satellite' },
+    { id: 'dashboard', label: 'Dashboard', icon: 'layers' },
+    { id: 'data', label: 'Data', icon: 'download' },
+    { id: 'experiments', label: 'Experiments', icon: 'activity' },
+    { id: 'tour', label: 'Tour', icon: 'compass' },
+  ];
 
-  isWidgetVisible(widgetId: string): boolean {
-    const config = this.layout.getSnapshot().widgets.find(w => w.id === widgetId);
-    return config?.visible ?? false;
-  }
+  private readonly onboardingService = inject(OnboardingService);
+  private readonly guidedTourService = inject(GuidedTourService);
+  private readonly toastService = inject(AppToastService);
 
-  toggleWidget(widgetId: string) {
-    this.layout.toggleWidget(widgetId);
-  }
-
-  resetLayout() {
-    this.layout.reset();
-  }
-
-  trackByWidget(index: number, def: { id: string }): string {
-    return def.id;
-  }
-
-  toggleCompact() {
-    this.prefs.toggleDensity();
-  }
-
-  onSpeedUnitChange(event: Event) {
+  onLanguageChange(event: Event) {
     const target = event.target as HTMLSelectElement;
-    this.prefs.setSpeedUnit(target.value as 'kn' | 'm/s' | 'km/h');
+    this.lang.setLanguage(target.value as 'en' | 'es');
   }
 
-  onDepthUnitChange(event: Event) {
-    const target = event.target as HTMLSelectElement;
-    this.prefs.setDepthUnit(target.value as 'm' | 'ft');
+  startTour(): void {
+    this.guidedTourService.start();
   }
 
-  toggleAutoCenter() {
-    this.prefs.setChartAutoCenter(!this.prefs.snapshot.chart.autoCenter);
-  }
-
-  onTrackLengthChange(event: Event) {
-    const target = event.target as HTMLSelectElement;
-    this.prefs.setChartTrackLength(parseInt(target.value, 10));
-  }
-
-  onChartSourceChange(event: Event) {
-    const target = event.target as HTMLSelectElement;
-    this.prefs.setChartSource(target.value as 'signalk' | 'mock');
-  }
-
-  onMapSourceChange(event: Event) {
-    const target = event.target as HTMLSelectElement;
-    this.prefs.setMapSourceId(target.value);
+  resetOnboarding(): void {
+    this.onboardingService.reset();
+    this.toastService.show({
+      message: 'Onboarding has been reset. It will show on next app reload.',
+      type: 'info',
+      duration: 3000,
+    });
   }
 }
+

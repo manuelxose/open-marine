@@ -33,11 +33,9 @@ export function migratePreferences(data: any): UserPreferences {
   if (!data) return DEFAULT_PREFERENCES;
   
   let current = data;
-  const targetVersion = DEFAULT_PREFERENCES.version;
-
   // If no version, it's legacy - run migration 1
   if (!current.version) {
-    current = migrations[1](current);
+    current = migrations[1]?.(current) ?? DEFAULT_PREFERENCES;
   }
 
   // Future migrations would loop here from current.version + 1 to targetVersion

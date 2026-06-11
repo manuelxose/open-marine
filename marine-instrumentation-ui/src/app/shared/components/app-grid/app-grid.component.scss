@@ -1,0 +1,11 @@
+.app-grid {
+  display: grid;
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.app-grid-inline {
+  display: inline-grid;
+  box-sizing: border-box;
+  vertical-align: middle;
+}

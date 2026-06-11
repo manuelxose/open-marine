@@ -1,4 +1,4 @@
-import { Alarm, AlarmRuleInput, AlarmSeverity } from './types';
+import { Alarm, AlarmRuleInput } from './types';
 
 export class AlarmEngine {
   static evaluate(input: AlarmRuleInput): Partial<Alarm>[] {

@@ -1,16 +1,163 @@
+:host {
+  display: block;
+  height: 100%;
+}
+
+.panel-bezel {
+  display: block;
+  height: 100%;
+}
+
 .system-content {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  height: 100%;
+  gap: var(--space-3);
 }
 
-.status-line {
+:host ::ng-deep .card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: var(--glass-card-radius);
+  background: var(--gradient-system);
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.6;
+}
+
+/* Connection status indicator */
+.connection-status {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background: linear-gradient(145deg, rgba(0,0,0,0.06), rgba(0,0,0,0.1));
+  border: 1px solid var(--glass-border);
+  border-radius: var(--glass-card-radius-sm);
+  position: relative;
+}
+
+.connection-status::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 10%;
+  right: 10%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--glass-shine), transparent);
+  opacity: 0.35;
+}
+
+.status-led {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  transition: background 0.3s, box-shadow 0.3s;
+}
+
+.status-led.online {
+  background: var(--success);
+  box-shadow: 0 0 12px rgba(163, 190, 140, 0.65);
+  animation: led-pulse 2s ease-in-out infinite;
+}
+
+.status-led.offline {
+  background: var(--danger);
+  box-shadow: 0 0 10px rgba(191, 97, 106, 0.5);
+}
+
+@keyframes led-pulse {
+  0%, 100% { box-shadow: 0 0 6px rgba(163, 190, 140, 0.4); }
+  50% { box-shadow: 0 0 16px rgba(163, 190, 140, 0.75); }
+}
+
+.status-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.status-label {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.status-detail {
   font-family: 'Share Tech Mono', monospace;
-  font-size: 0.9rem;
+  font-size: 0.65rem;
   color: var(--text-muted);
+  letter-spacing: 0.03em;
 }
 
-/* Compact Overrides */
-:host-context(.compact) .status-line {
-  font-size: 0.8rem;
+/* Terminal-style log area */
+.system-log {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  overflow-y: auto;
+  padding: var(--space-3);
+  background: linear-gradient(180deg, rgba(0,0,0,0.08), rgba(0,0,0,0.12));
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.7rem;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-default) transparent;
+  position: relative;
 }
+
+.system-log::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 8%;
+  right: 8%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--glass-shine), transparent);
+  opacity: 0.25;
+}
+
+.log-entry {
+  color: var(--text-secondary);
+  line-height: 1.5;
+  padding: 2px var(--space-1);
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  transition: background 0.1s ease;
+}
+
+.log-entry::before {
+  content: '\203A';
+  color: var(--text-muted);
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.log-entry:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.log-entry.log-ok {
+  color: var(--success);
+}
+
+.log-entry.log-warn {
+  color: var(--warn);
+}
+
+.log-entry.log-error {
+  color: var(--danger);
+}
+
+/* Compact */
+:host-context(.compact) .system-log { display: none; }
+:host-context(.compact) .connection-status { padding: var(--space-2) var(--space-3); }

@@ -1,91 +1,157 @@
-import { Component, ChangeDetectionStrategy, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { InstrumentCardComponent } from '../../components/instrument-card/instrument-card.component';
-import { SparklineComponent } from '../../components/sparkline/sparkline.component';
-import { DatapointStoreService } from '../../../state/datapoints/datapoint-store.service';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { combineLatest, map, scan, startWith, timer } from 'rxjs';
 import { PATHS } from '@omi/marine-data-contract';
-import { map } from 'rxjs';
+import { DatapointStoreService } from '../../../state/datapoints/datapoint-store.service';
+import { GbInstrumentBezelComponent } from '../../../shared/components/gb-instrument-bezel/gb-instrument-bezel.component';
+import { DataQualityService, type DataQuality } from '../../../shared/services/data-quality.service';
+import { initNeedleState, updateNeedleAngle } from '../../../shared/utils/needle-rotation.utils';
 
-interface PositionValue {
-  latitude: number;
-  longitude: number;
+interface NavView {
+  latStr: string;
+  lonStr: string;
+  sog: string;
+  cog: string;
+  hdg: string;
+  driftAngle: number;
+  driftRotation: number;
+  hasDrift: boolean;
+  sogHistoryPath: string;
+  quality: DataQuality;
+  isStale: boolean;
+  age: number | null;
+  source: string;
+  ariaLabel: string;
 }
 
 @Component({
-  selector: 'app-navigation-card',
+  selector: 'app-navigation-widget',
   standalone: true,
-  imports: [CommonModule, InstrumentCardComponent, SparklineComponent],
-  template: `
-    <app-instrument-card title="Navigation" [value]="'--'" [quality]="(quality$ | async) || 'bad'">
-        <div class="grid grid-cols-2 gap-4 h-full">
-            <!-- Primary SOG -->
-            <div class="flex flex-col justify-center">
-                <span class="text-xs text-muted font-bold uppercase">SOG</span>
-                <div class="flex items-baseline gap-1">
-                    <span class="text-4xl font-bold tabular-nums">{{ (sog$ | async)?.value | number:'1.1-1' }}</span>
-                    <span class="text-sm font-semibold text-muted">kn</span>
-                </div>
-                <!-- Sparkline for SOG -->
-                <div class="h-8 w-full mt-2">
-                    <app-sparkline [data]="(sogHistory$ | async) || []"></app-sparkline>
-                </div>
-            </div>
-
-            <!-- HDG & COG -->
-            <div class="flex flex-col justify-between">
-                <div>
-                   <span class="text-xs text-muted font-bold uppercase">HDG (T)</span>
-                   <div class="flex items-baseline gap-1">
-                        <span class="text-2xl font-bold tabular-nums">{{ ((hdg$ | async)?.value | number:'1.0-0') || '--' }}</span>
-                        <span class="text-xs text-muted">°</span>
-                   </div>
-                </div>
-                <div>
-                   <span class="text-xs text-muted font-bold uppercase">COG (T)</span>
-                   <div class="flex items-baseline gap-1">
-                        <span class="text-2xl font-bold tabular-nums">{{ ((cog$ | async)?.value | number:'1.0-0') || '--' }}</span>
-                        <span class="text-xs text-muted">°</span>
-                   </div>
-                </div>
-            </div>
-            
-            <!-- Position (Full width bottom) -->
-            <div class="col-span-2 border-t border-white/10 pt-2 flex justify-between items-center text-xs text-muted">
-                <span class="font-mono">{{ (pos$ | async) || 'No Fix' }}</span>
-                <span>GPS</span>
-            </div>
-        </div>
-    </app-instrument-card>
-  `,
-  changeDetection: ChangeDetectionStrategy.OnPush
+  imports: [CommonModule, GbInstrumentBezelComponent],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  templateUrl: './navigation-card.component.html',
+  styleUrls: ['./navigation-card.component.scss'],
 })
-export class NavigationCardComponent {
-    private store = inject(DatapointStoreService);
-    
-    sog$ = this.store.observe<number>(PATHS.navigation.speedOverGround);
-    cog$ = this.store.observe<number>(PATHS.navigation.courseOverGroundTrue);
-    hdg$ = this.store.observe<number>(PATHS.navigation.headingTrue);
-    
-    // Position is special, usually an object {latitude, longitude}
-    pos$ = this.store.observe<PositionValue>(PATHS.navigation.position).pipe(
-        map(p => {
-            if (!p?.value) return null;
-            const { latitude, longitude } = p.value;
-            const latDir = latitude >= 0 ? 'N' : 'S';
-            const lonDir = longitude >= 0 ? 'E' : 'W';
-            return `${Math.abs(latitude).toFixed(4)}°${latDir}  ${Math.abs(longitude).toFixed(4)}°${lonDir}`;
-        })
-    );
+export class NavigationWidgetComponent {
+  private readonly store = inject(DatapointStoreService);
+  private readonly quality = inject(DataQualityService);
+  private readonly ticker$ = timer(0, 1000);
+  private driftRotationState = initNeedleState(0);
 
-    sogHistory$ = this.store.observeHistory(PATHS.navigation.speedOverGround);
-    
-    quality$ = this.sog$.pipe(
-        map(p => {
-             if (!p) return 'bad';
-             const age =( Date.now() - p.timestamp ) / 1000;
-             if (age < 2) return 'good';
-             if (age < 5) return 'warn';
-             return 'bad';
-        })
-    );
+  private readonly pos$ = this.store
+    .observe<{ latitude: number; longitude: number }>(PATHS.navigation.position)
+    .pipe(startWith(undefined));
+  private readonly sog$ = this.store.observe<number>(PATHS.navigation.speedOverGround).pipe(startWith(undefined));
+  private readonly cog$ = this.store.observe<number>(PATHS.navigation.courseOverGroundTrue).pipe(startWith(undefined));
+  private readonly hdg$ = this.store.observe<number>(PATHS.navigation.headingTrue).pipe(startWith(undefined));
+
+  private readonly sogHistory$ = this.sog$.pipe(
+    map((point) => point?.value ?? 0),
+    scan((acc: number[], current: number) => [...acc, current].slice(-50), [] as number[]),
+    startWith([] as number[]),
+  );
+
+  private readonly vm$ = combineLatest([
+    this.pos$,
+    this.sog$,
+    this.cog$,
+    this.hdg$,
+    this.sogHistory$,
+    this.ticker$,
+  ]).pipe(
+    map(([pos, sog, cog, hdg, history]) => {
+      const formatCoord = (value: number, type: 'lat' | 'lon'): string => {
+        const abs = Math.abs(value);
+        const deg = Math.floor(abs);
+        const min = (abs - deg) * 60;
+        const dir = type === 'lat' ? (value >= 0 ? 'N' : 'S') : value >= 0 ? 'E' : 'W';
+        const degStr = deg.toString().padStart(type === 'lat' ? 2 : 3, '0');
+        const minStr = min.toFixed(3).padStart(6, '0');
+        return `${degStr}${String.fromCharCode(176)} ${minStr}' ${dir}`;
+      };
+
+      const latRaw = pos?.value ? formatCoord(pos.value.latitude, 'lat') : '--' + String.fromCharCode(176) + " --.---";
+      const lonRaw = pos?.value ? formatCoord(pos.value.longitude, 'lon') : '--' + String.fromCharCode(176) + " --.---";
+
+      const sogKn = (sog?.value ?? 0) * 1.94384;
+      const cogDeg = cog && typeof cog.value === 'number' ? this.radToDeg(cog.value) : 0;
+      const hdgDeg = hdg && typeof hdg.value === 'number' ? this.radToDeg(hdg.value) : 0;
+
+      let drift = cogDeg - hdgDeg;
+      if (drift < -180) {
+        drift += 360;
+      }
+      if (drift > 180) {
+        drift -= 360;
+      }
+      const normalizedDrift = ((drift % 360) + 360) % 360;
+      this.driftRotationState = updateNeedleAngle(this.driftRotationState, normalizedDrift);
+
+      const maxSog = Math.max(...history, 0.1);
+      const stepX = history.length > 1 ? 200 / (history.length - 1) : 0;
+      const points = history.map((value, index) => {
+        const x = index * stepX;
+        const y = 120 - (value / maxSog) * 40;
+        return `${x.toFixed(1)},${y.toFixed(1)}`;
+      });
+      const sogHistoryPath = points.length > 1 ? `M ${points.join(' L ')} L 200,120 L 0,120 Z` : '';
+
+      const timestamp = Math.max(pos?.timestamp ?? 0, sog?.timestamp ?? 0, cog?.timestamp ?? 0, hdg?.timestamp ?? 0);
+      const quality = this.quality.getQuality(timestamp || null);
+      const isStale = quality === 'stale' || quality === 'missing';
+      const latStr = isStale ? '---' : latRaw;
+      const lonStr = isStale ? '---' : lonRaw;
+      const sogStr = isStale ? '---' : sogKn.toFixed(1);
+      const cogStr = isStale ? '---' : String(Math.round(cogDeg)).padStart(3, '0');
+      const hdgStr = isStale ? '---' : String(Math.round(hdgDeg)).padStart(3, '0');
+
+      return {
+        latStr,
+        lonStr,
+        sog: sogStr,
+        cog: cogStr,
+        hdg: hdgStr,
+        driftAngle: drift,
+        driftRotation: this.driftRotationState.visualAngle,
+        hasDrift: !isStale && Math.abs(drift) > 2,
+        sogHistoryPath,
+        quality,
+        isStale,
+        age: timestamp > 0 ? (Date.now() - timestamp) / 1000 : null,
+        source: pos?.source ?? sog?.source ?? cog?.source ?? hdg?.source ?? '',
+        ariaLabel: isStale
+          ? 'Navigation vector. Data stale.'
+          : `Navigation vector. SOG ${sogStr} knots, COG ${cogStr} degrees, HDG ${hdgStr} degrees.`,
+      } satisfies NavView;
+    }),
+  );
+
+  readonly view = toSignal(this.vm$, {
+    initialValue: {
+      latStr: '--',
+      lonStr: '--',
+      sog: '--',
+      cog: '--',
+      hdg: '--',
+      driftAngle: 0,
+      driftRotation: 0,
+      hasDrift: false,
+      sogHistoryPath: '',
+      quality: 'missing',
+      isStale: true,
+      age: null,
+      source: '',
+      ariaLabel: 'Navigation vector. Data unavailable.',
+    } satisfies NavView,
+  });
+
+  private radToDeg(rad: number): number {
+    let deg = (rad * 180) / Math.PI;
+    deg %= 360;
+    if (deg < 0) {
+      deg += 360;
+    }
+    return deg;
+  }
 }

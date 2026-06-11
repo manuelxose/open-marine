@@ -65,6 +65,24 @@ export const selectAwa = (
   return selectPoint<number>(store, PATHS.environment.wind.angleApparent);
 };
 
+export const selectTws = (
+  store: DatapointStoreService,
+): Observable<DataPoint<number> | undefined> => {
+  return selectPoint<number>(store, PATHS.environment.wind.speedTrue);
+};
+
+export const selectTwd = (
+  store: DatapointStoreService,
+): Observable<DataPoint<number> | undefined> => {
+  return selectPoint<number>(store, PATHS.environment.wind.angleTrueGround);
+};
+
+export const selectTwa = (
+  store: DatapointStoreService,
+): Observable<DataPoint<number> | undefined> => {
+  return selectPoint<number>(store, PATHS.environment.wind.angleTrueWater);
+};
+
 export const selectBatteryVoltage = (
   store: DatapointStoreService,
 ): Observable<DataPoint<number> | undefined> => {
@@ -75,6 +93,64 @@ export const selectBatteryCurrent = (
   store: DatapointStoreService,
 ): Observable<DataPoint<number> | undefined> => {
   return selectPoint<number>(store, PATHS.electrical.batteries.house.current);
+};
+
+// ── Engine / Propulsion selectors ──
+
+export const selectRpm = (
+  store: DatapointStoreService,
+): Observable<DataPoint<number> | undefined> => {
+  return selectPoint<number>(store, PATHS.propulsion?.main?.revolutions ?? 'propulsion.main.revolutions');
+};
+
+export const selectCoolantTemp = (
+  store: DatapointStoreService,
+): Observable<DataPoint<number> | undefined> => {
+  return selectPoint<number>(store, PATHS.propulsion?.main?.temperature ?? 'propulsion.main.temperature');
+};
+
+export const selectOilPressure = (
+  store: DatapointStoreService,
+): Observable<DataPoint<number> | undefined> => {
+  return selectPoint<number>(store, PATHS.propulsion?.main?.oilPressure ?? 'propulsion.main.oilPressure');
+};
+
+export const selectFuelRate = (
+  store: DatapointStoreService,
+): Observable<DataPoint<number> | undefined> => {
+  return selectPoint<number>(store, PATHS.propulsion?.main?.fuelRate ?? 'propulsion.main.fuel.rate');
+};
+
+export const selectFuelLevel = (
+  store: DatapointStoreService,
+): Observable<DataPoint<number> | undefined> => {
+  return selectPoint<number>(store, PATHS.tanks?.fuel?.level ?? 'tanks.fuel.0.currentLevel');
+};
+
+// ── Environment selectors ──
+
+export const selectWaterTemp = (
+  store: DatapointStoreService,
+): Observable<DataPoint<number> | undefined> => {
+  return selectPoint<number>(store, PATHS.environment?.water?.temperature ?? 'environment.water.temperature');
+};
+
+export const selectAirTemp = (
+  store: DatapointStoreService,
+): Observable<DataPoint<number> | undefined> => {
+  return selectPoint<number>(store, PATHS.environment?.outside?.temperature ?? 'environment.outside.temperature');
+};
+
+export const selectBaroPressure = (
+  store: DatapointStoreService,
+): Observable<DataPoint<number> | undefined> => {
+  return selectPoint<number>(store, PATHS.environment?.outside?.pressure ?? 'environment.outside.pressure');
+};
+
+export const selectHumidity = (
+  store: DatapointStoreService,
+): Observable<DataPoint<number> | undefined> => {
+  return selectPoint<number>(store, PATHS.environment?.outside?.humidity ?? 'environment.outside.humidity');
 };
 
 export const selectTrackPoints = (store: DatapointStoreService): Observable<TrackPoint[]> => {

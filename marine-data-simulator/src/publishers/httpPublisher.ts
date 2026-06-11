@@ -40,7 +40,7 @@ const buildDeltaSource = (
 
 export class HttpPublisher implements Publisher {
   private readonly baseUrl: string;
-  private readonly token?: string;
+  private readonly token: string | undefined;
   private deltaUnsupported = false;
 
   constructor(baseUrl: string, token?: string) {
@@ -57,8 +57,7 @@ export class HttpPublisher implements Publisher {
   }
 
   async publish(points: ScenarioPoint[]): Promise<void> {
-    const [firstPoint] = points;
-    if (!firstPoint) {
+    if (points.length === 0) {
       return;
     }
 
@@ -72,24 +71,40 @@ export class HttpPublisher implements Publisher {
       return;
     }
 
-    const timestamp = firstPoint.timestamp;
-    const source = buildDeltaSource(firstPoint.source);
-    const values: DeltaValue[] = points.map((point) => ({
-      path: point.path,
-      value: point.value,
-    }));
-
     try {
-      await this.postDelta({
-        context: "vessels.self",
-        updates: [
-          {
-            timestamp,
-            source,
-            values,
-          },
-        ],
-      });
+      const pointsByContext = new Map<string, ScenarioPoint[]>();
+      for (const point of points) {
+        const ctx = normalizeContext(point.context);
+        let list = pointsByContext.get(ctx);
+        if (!list) {
+          list = [];
+          pointsByContext.set(ctx, list);
+        }
+        list.push(point);
+      }
+
+      for (const [context, contextPoints] of pointsByContext) {
+        const [firstPoint] = contextPoints;
+        if (!firstPoint) continue;
+
+        const timestamp = firstPoint.timestamp;
+        const source = buildDeltaSource(firstPoint.source);
+        const values: DeltaValue[] = contextPoints.map((point) => ({
+          path: point.path,
+          value: point.value,
+        }));
+
+        await this.postDelta({
+          context,
+          updates: [
+            {
+              timestamp,
+              source,
+              values,
+            },
+          ],
+        });
+      }
     } catch (error) {
       if (error instanceof DeltaEndpointNotFoundError) {
         this.deltaUnsupported = true;
@@ -127,7 +142,8 @@ export class HttpPublisher implements Publisher {
 
   private async putValue(point: ScenarioPoint): Promise<void> {
     const path = point.path.split(".").join("/");
-    const url = new URL(`signalk/v1/api/vessels/self/${path}`, this.baseUrl);
+    const vesselPath = resolveVesselPath(point.context);
+    const url = new URL(`signalk/v1/api/${vesselPath}/${path}`, this.baseUrl);
     const payload = {
       value: point.value,
       timestamp: point.timestamp,
@@ -160,3 +176,22 @@ export class HttpPublisher implements Publisher {
     return headers;
   }
 }
+
+const normalizeContext = (context?: string): string => {
+  if (!context || context === "self") {
+    return "vessels.self";
+  }
+  return context;
+};
+
+const resolveVesselPath = (context?: string): string => {
+  const normalized = normalizeContext(context);
+  if (normalized === "vessels.self") {
+    return "vessels/self";
+  }
+  if (normalized.startsWith("vessels.")) {
+    const vesselId = normalized.slice("vessels.".length);
+    return `vessels/${encodeURIComponent(vesselId)}`;
+  }
+  return `vessels/${encodeURIComponent(normalized)}`;
+};

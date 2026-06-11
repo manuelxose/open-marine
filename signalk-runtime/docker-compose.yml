@@ -1,12 +1,11 @@
-
-
 services:
   signalk:
-    image: signalk/signalk-server:latest
+    image: signalk/signalk-server:v2.22.1
     container_name: signalk
     entrypoint: ["/home/node/signalk/node_modules/signalk-server/bin/signalk-server"]
     ports:
       - "3000:3000"
+      - "10110:10110/udp"
     environment:
       - TZ=Europe/Madrid
       - IS_IN_DOCKER=true
