@@ -1,0 +1,75 @@
+:host {
+  display: block;
+}
+
+.map-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  
+  &--vertical {
+    flex-direction: column;
+  }
+}
+
+.control-group {
+  display: flex;
+  flex-direction: column;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+  background-color: var(--panel-bg, #2e3440);
+  border: 1px solid var(--border-color, #4c566a);
+
+  .control-btn {
+    border-radius: 0;
+    border: none;
+    border-bottom: 1px solid var(--border-color, #4c566a);
+    box-shadow: none;
+    
+    &:last-child {
+      border-bottom: none;
+    }
+  }
+}
+
+.control-btn {
+  width: 48px;
+  height: 48px;
+  border-radius: 8px;
+  background-color: var(--panel-bg, #2e3440); /* Fallback to Nord Polar Night */
+  border: 1px solid var(--border-color, #4c566a);
+  color: var(--text-primary, #eceff4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+  transition: all 0.2s ease;
+
+  &:hover:not([disabled]) {
+    background-color: var(--panel-bg-hover, #3b4252);
+  }
+
+  &:active:not([disabled]) {
+    transform: translateY(1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  }
+  
+  &[disabled] {
+    opacity: 0.5;
+    cursor: not-allowed;
+    color: var(--text-secondary, #9ca3af);
+  }
+
+  &.active {
+    background-color: var(--accent-color, #88c0d0); /* Nord Frost */
+    color: #2e3440;
+    border-color: var(--accent-color, #88c0d0);
+  }
+
+  svg {
+    width: 24px;
+    height: 24px;
+  }
+}

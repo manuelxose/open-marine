@@ -1,91 +1,194 @@
-import { Injectable, inject } from '@angular/core';
-import { BehaviorSubject, combineLatest, map, Observable, distinctUntilChanged } from 'rxjs';
-import { Alarm, AlarmRuleInput, AlarmState } from './types';
-import { AlarmEngine } from './alarm-engine';
-import { DatapointStoreService } from '../datapoints/datapoint-store.service';
-import { PreferencesService } from '../../core/preferences/preferences.service';
-import { selectDepth, selectPosition, selectBatteryVoltage } from '../datapoints/datapoint.selectors';
+import { Injectable } from '@angular/core';
+import { BehaviorSubject, map } from 'rxjs';
+import { Alarm, AlarmCategory, AlarmSeverity, AlarmState, AlarmType, ALARM_TYPE_CATEGORY } from './alarm.models';
 
 @Injectable({
   providedIn: 'root',
 })
 export class AlarmStoreService {
-  private readonly datapoints = inject(DatapointStoreService);
-  private readonly preferences = inject(PreferencesService);
-
-  private readonly state$ = new BehaviorSubject<AlarmState>({ activeAlarms: [] });
-  private readonly acknowledgedIds = new Set<string>();
-
-  readonly alarms$ = this.state$.asObservable().pipe(map((s) => s.activeAlarms));
-  readonly activeUnacknowledgedAlarms$ = this.alarms$.pipe(
-    map((alarms) => alarms.filter((a) => !a.acknowledged))
+  // Map for O(1) access by ID
+  private readonly _alarms = new BehaviorSubject<Map<string, Alarm>>(new Map());
+  
+  public readonly alarms$ = this._alarms.asObservable().pipe(
+    map(alarmsMap => Array.from(alarmsMap.values())
+      .map(alarm => ({ ...alarm, acknowledged: alarm.state === AlarmState.Acknowledged }))
+      .sort((a, b) => b.timestamp - a.timestamp))
   );
 
-  constructor() {
-    this.initEngine();
-  }
+  public readonly activeAlarms$ = this.alarms$.pipe(
+    map(alarms => alarms.filter(a => 
+      a.state === AlarmState.Active || 
+      a.state === AlarmState.Acknowledged || 
+      a.state === AlarmState.Silenced
+    ))
+  );
 
-  private initEngine() {
-    combineLatest({
-      depth: selectDepth(this.datapoints),
-      position: selectPosition(this.datapoints),
-      voltage: selectBatteryVoltage(this.datapoints),
-      prefs: this.preferences.preferences$,
+  public readonly highestSeverity$ = this.activeAlarms$.pipe(
+    map(alarms => {
+      if (alarms.some(a => a.severity === AlarmSeverity.Emergency)) return AlarmSeverity.Emergency;
+      if (alarms.some(a => a.severity === AlarmSeverity.Critical)) return AlarmSeverity.Critical;
+      if (alarms.some(a => a.severity === AlarmSeverity.Warning)) return AlarmSeverity.Warning;
+      return null;
     })
-      .pipe(
-        map(({ depth, position, voltage, prefs }) => {
-          const now = Date.now();
-          const positionAgeS = position?.timestamp ? (now - position.timestamp) / 1000 : null;
+  );
 
-          const input: AlarmRuleInput = {
-            depthM: depth?.value ?? null,
-            voltageV: voltage?.value ?? null,
-            positionAgeS,
-            shallowThresholdM: prefs.shallowThreshold,
-            lowVoltageThresholdV: 11.5, // Default for now
-            gpsStaleThresholdS: 5,     // Default for now
-          };
+  constructor() {}
 
-          return AlarmEngine.evaluate(input);
-        }),
-        distinctUntilChanged((prev, curr) => JSON.stringify(prev) === JSON.stringify(curr))
-      )
-      .subscribe((calculatedAlarms) => {
-        const currentActive = this.state$.value.activeAlarms;
-        
-        // Merge calculated alarms with acknowledgment state
-        const nextAlarms: Alarm[] = calculatedAlarms.map((partial) => {
-          const existing = currentActive.find((a) => a.id === partial.id);
-          return {
-            ...partial,
-            timestamp: existing?.timestamp ?? Date.now(),
-            acknowledged: this.acknowledgedIds.has(partial.id!),
-          } as Alarm;
-        });
+  /**
+   * Trigger (create or update) an alarm.
+   * If alarm exists and is inactive/cleared, it reactivates it.
+   * If alarm exists and is already active/ack/silenced, it updates metadata if needed.
+   */
+  triggerAlarm(
+    id: string, 
+    type: AlarmType, 
+    severity: AlarmSeverity, 
+    message: string, 
+    data?: Record<string, unknown>
+  ): void {
+    const currentMap = this._alarms.value;
+    const existing = currentMap.get(id);
 
-        // Cleanup acknowledged IDs for alarms no longer active
-        const activeIds = new Set(nextAlarms.map((a) => a.id));
-        for (const id of this.acknowledgedIds) {
-          if (!activeIds.has(id)) {
-            this.acknowledgedIds.delete(id);
-          }
-        }
+    // If inhibited by user, skip
+    if (existing?.state === AlarmState.Inhibited) return;
+    
+    if (existing && (existing.state === AlarmState.Active || existing.state === AlarmState.Acknowledged || existing.state === AlarmState.Silenced)) {
+      if (this.isSeverityHigher(severity, existing.severity)) {
+         this.updateAlarmState(existing, AlarmState.Active, { severity, message, timestamp: Date.now(), ...(data !== undefined ? { data } : {}) });
+         return;
+      }
+      
+      if (existing.message !== message || JSON.stringify(existing.data) !== JSON.stringify(data)) {
+        const updated: Alarm = { ...existing, message, ...(data !== undefined ? { data } : {}) };
+        const nextMap = new Map(currentMap);
+        nextMap.set(id, updated);
+        this._alarms.next(nextMap);
+      }
+      return;
+    }
 
-        this.state$.next({ activeAlarms: nextAlarms });
-      });
+    const category: AlarmCategory = ALARM_TYPE_CATEGORY[type] ?? 'system';
+
+    const newAlarm: Alarm = {
+      id,
+      type,
+      category,
+      severity,
+      state: AlarmState.Active,
+      message,
+      ...(data !== undefined ? { data } : {}),
+      timestamp: Date.now()
+    };
+
+    const nextMap = new Map(currentMap);
+    nextMap.set(id, newAlarm);
+    this._alarms.next(nextMap);
   }
 
-  acknowledge(alarmId: string) {
-    this.acknowledgedIds.add(alarmId);
-    const alarms = this.state$.value.activeAlarms.map((a) =>
-      a.id === alarmId ? { ...a, acknowledged: true } : a
-    );
-    this.state$.next({ ...this.state$.value, activeAlarms: alarms });
+  acknowledgeAlarm(id: string): void {
+    const currentMap = this._alarms.value;
+    const existing = currentMap.get(id);
+    if (!existing) return;
+
+    if (existing.state === AlarmState.Active) {
+      this.updateAlarmState(existing, AlarmState.Acknowledged);
+    }
   }
 
-  acknowledgeAll() {
-    this.state$.value.activeAlarms.forEach(a => this.acknowledgedIds.add(a.id));
-    const alarms = this.state$.value.activeAlarms.map((a) => ({ ...a, acknowledged: true }));
-    this.state$.next({ ...this.state$.value, activeAlarms: alarms });
+  acknowledge(id: string): void {
+    this.acknowledgeAlarm(id);
+  }
+
+  silenceAlarm(id: string): void {
+    const currentMap = this._alarms.value;
+    const existing = currentMap.get(id);
+    if (!existing) return;
+
+    if (existing.state === AlarmState.Active || existing.state === AlarmState.Acknowledged) {
+      this.updateAlarmState(existing, AlarmState.Silenced);
+    }
+  }
+
+  clearAlarm(id: string): void {
+    const currentMap = this._alarms.value;
+    const existing = currentMap.get(id);
+    if (!existing) return;
+
+    if (existing.state !== AlarmState.Cleared && existing.state !== AlarmState.Inactive) {
+      this.updateAlarmState(existing, AlarmState.Cleared);
+    }
+  }
+
+  resolveAlarm(id: string): void {
+    const currentMap = this._alarms.value;
+    const existing = currentMap.get(id);
+    if (!existing) return;
+
+    if (existing.state === AlarmState.Active || existing.state === AlarmState.Acknowledged || existing.state === AlarmState.Silenced) {
+      this.updateAlarmState(existing, AlarmState.Resolved, { resolvedAt: Date.now() });
+    }
+  }
+
+  inhibitAlarm(id: string): void {
+    const currentMap = this._alarms.value;
+    const existing = currentMap.get(id);
+    if (!existing) return;
+    this.updateAlarmState(existing, AlarmState.Inhibited);
+  }
+
+  acknowledgeAll(): void {
+    const currentMap = this._alarms.value;
+    const nextMap = new Map(currentMap);
+    let changed = false;
+
+    for (const [key, alarm] of nextMap) {
+      if (alarm.state === AlarmState.Active) {
+        nextMap.set(key, { ...alarm, state: AlarmState.Acknowledged, acknowledgedAt: Date.now() });
+        changed = true;
+      }
+    }
+
+    if (changed) this._alarms.next(nextMap);
+  }
+
+  silenceAll(): void {
+    const currentMap = this._alarms.value;
+    const nextMap = new Map(currentMap);
+    let changed = false;
+
+    for (const [key, alarm] of nextMap) {
+      if (alarm.state === AlarmState.Active || alarm.state === AlarmState.Acknowledged) {
+        nextMap.set(key, { ...alarm, state: AlarmState.Silenced });
+        changed = true;
+      }
+    }
+
+    if (changed) this._alarms.next(nextMap);
+  }
+  
+  clearAll(): void {
+     this._alarms.next(new Map());
+  }
+
+  private updateAlarmState(alarm: Alarm, newState: AlarmState, updates: Partial<Alarm> = {}): void {
+    const currentMap = this._alarms.value;
+    const updated: Alarm = {
+      ...alarm,
+      state: newState,
+      ...updates
+    };
+    const nextMap = new Map(currentMap);
+    nextMap.set(alarm.id, updated);
+    this._alarms.next(nextMap);
+  }
+
+  private isSeverityHigher(newSev: AlarmSeverity, oldSev: AlarmSeverity): boolean {
+    const severityScore: Record<AlarmSeverity, number> = {
+      [AlarmSeverity.Info]: 0,
+      [AlarmSeverity.Warning]: 1,
+      [AlarmSeverity.Critical]: 2,
+      [AlarmSeverity.Emergency]: 3,
+    };
+    return severityScore[newSev] > severityScore[oldSev];
   }
 }

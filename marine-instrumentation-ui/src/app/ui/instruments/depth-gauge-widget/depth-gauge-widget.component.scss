@@ -1,0 +1,94 @@
+:host {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.marine-card {
+  display: block;
+  height: 100%;
+}
+
+.depth-gauge-container {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  height: 100%;
+  padding: 12px;
+  background: radial-gradient(
+    ellipse at 35% 50%,
+    color-mix(in srgb, var(--gb-needle-secondary) 5%, transparent) 0%,
+    transparent 55%
+  );
+}
+
+.digital-readout {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: center;
+
+  .value {
+    line-height: 1;
+    letter-spacing: -0.02em;
+    color: var(--gb-needle-secondary);
+    text-shadow:
+      0 0 12px color-mix(in srgb, var(--gb-needle-secondary) 35%, transparent),
+      0 2px 6px color-mix(in srgb, var(--gb-bg-canvas) 45%, transparent);
+
+    &.alarm {
+      color: var(--gb-data-stale);
+      text-shadow:
+        0 0 16px color-mix(in srgb, var(--gb-data-stale) 55%, transparent),
+        0 0 30px color-mix(in srgb, var(--gb-data-stale) 25%, transparent);
+      animation: pulse-danger var(--gb-anim-alarm-pulse) infinite alternate;
+    }
+  }
+
+  .unit {
+    margin-top: 5px;
+    color: var(--gb-text-unit);
+    font-size: 0.65rem;
+    letter-spacing: 0.1em;
+  }
+}
+
+.gauge-graphic {
+  height: 150px;
+  width: 60px;
+  display: flex;
+  justify-content: center;
+  filter: drop-shadow(0 2px 4px color-mix(in srgb, var(--gb-bg-canvas) 30%, transparent));
+}
+
+.bar-fill {
+  transition:
+    height var(--gb-anim-needle) var(--gb-ease-data),
+    fill 300ms var(--gb-ease-data);
+}
+
+.meta-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 0.35rem;
+  padding-top: 0.25rem;
+  border-top: 1px solid color-mix(in srgb, var(--gb-border-panel) 20%, transparent);
+}
+
+@keyframes pulse-danger {
+  from {
+    opacity: 1;
+    text-shadow:
+      0 0 8px color-mix(in srgb, var(--gb-data-stale) 45%, transparent);
+  }
+
+  to {
+    opacity: 0.7;
+    text-shadow:
+      0 0 22px color-mix(in srgb, var(--gb-data-stale) 90%, transparent),
+      0 0 40px color-mix(in srgb, var(--gb-data-stale) 40%, transparent);
+  }
+}

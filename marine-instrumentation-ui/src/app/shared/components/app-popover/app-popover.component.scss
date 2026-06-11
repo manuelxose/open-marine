@@ -1,0 +1,34 @@
+:host {
+  position: fixed;
+  z-index: var(--z-popover, 2000);
+  background-color: var(--bg-surface, #ffffff);
+  color: var(--text-primary, #0f172a);
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: var(--radius-md, 8px);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  min-width: 200px;
+  max-width: 320px;
+  opacity: 0;
+  transform: scale(0.95);
+  transition: opacity 0.15s ease, transform 0.15s ease;
+  pointer-events: auto; /* Allows interaction inside popover */
+  overflow: visible;
+
+  &.visible {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  /* Optional Arrow could be added here later */
+}
+
+/* Dark mode override if needed */
+:host-context([data-theme="dark"]) :host,
+:host-context(.dark) :host {
+  background-color: var(--bg-surface, #1e293b);
+  border-color: var(--border-color, #334155);
+}
+
+.app-popover__content {
+  padding: 1rem;
+}

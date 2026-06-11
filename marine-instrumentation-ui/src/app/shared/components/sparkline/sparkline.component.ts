@@ -14,7 +14,7 @@ export class SparklineComponent implements OnChanges {
   @Input() data: HistoryPoint[] = [];
   @Input() width = 120;
   @Input() height = 32;
-  @Input() stroke = 'var(--accent)';
+  @Input() stroke = 'var(--gb-needle-secondary)';
   @Input() threshold: number | null = null;
 
   viewBox = `0 0 ${this.width} ${this.height}`;

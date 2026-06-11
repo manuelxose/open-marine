@@ -156,7 +156,7 @@ export class SettingsDrawerComponent {
         this.layout.reset();
     }
 
-    trackByWidget(index: number, def: { id: string }): string {
+    trackByWidget(_index: number, def: { id: string }): string {
         return def.id;
     }
 

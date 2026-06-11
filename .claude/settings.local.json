@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(powershell -Command \"\\(Get-Content ''marine-instrumentation-ui\\\\src\\\\app\\\\features\\\\chart\\\\services\\\\maplibre-engine.service.ts'' -Raw\\) -replace ''  destroy\\\\\\(\\\\\\): void \\\\{[^}]+\\\\}'', ''  destroy\\(\\): void {\n    if \\(this.map\\) {\n      // Remove all event listeners\n      this.map.off\\(''''click'''', this.handleMapClick\\);\n      // Note: ''''load'''' and ''''style.load'''' listeners use arrow functions\n      // and are automatically cleaned up by map.remove\\(\\)\n\n      // Destroy the map instance and clean up WebGL resources\n      this.map.remove\\(\\);\n    }\n\n    // Clear all references to prevent memory leaks\n    this.map = null;\n    this.mapReady = false;\n    this.clickHandler = null;\n    this.pendingCenter = null;\n    this.appliedCenter = null;\n\n    // Clear cached state to release memory\n    this.baseSource = null;\n    this.lastVessel = { lngLat: null, rotationDeg: null };\n    this.lastTrack = [];\n    this.lastVector = { coords: [], visible: false };\n    this.lastWaypoints = EMPTY_POINTS;\n    this.lastRoute = EMPTY_LINE;\n  }'' | Set-Content ''marine-instrumentation-ui\\\\src\\\\app\\\\features\\\\chart\\\\services\\\\maplibre-engine.service.ts''\")",
+      "Bash(cmd /c echo Hello from bash)"
+    ]
+  }
+}

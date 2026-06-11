@@ -1,0 +1,90 @@
+:host {
+  display: block;
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  
+  --divider-color: var(--border-color, #e5e7eb);
+  --divider-text-color: var(--text-secondary, #6b7280);
+  --divider-gap: var(--space-sm, 0.5rem); // Space between line and label
+}
+
+// HORIZONTAL
+:host.app-divider--horizontal {
+  width: 100%;
+  min-width: 100%;
+  margin: var(--space-md, 1rem) 0;
+  display: flex;
+  align-items: center;
+  white-space: nowrap;
+  
+  &::before,
+  &::after {
+    // If generic divider without label
+    content: '';
+    width: 100%;
+    border-top-width: 1px;
+    border-top-color: var(--divider-color);
+  }
+
+  // Variants
+  &.app-divider--solid::before, &.app-divider--solid::after { border-top-style: solid; }
+  &.app-divider--dashed::before, &.app-divider--dashed::after { border-top-style: dashed; }
+  &.app-divider--dotted::before, &.app-divider--dotted::after { border-top-style: dotted; }
+
+  // With Label
+  &.app-divider--with-label {
+    // Adjust lines around label
+    &::before, &::after {
+      position: relative;
+      width: 50%;
+      top: 50%;
+    }
+    
+    .divider-label {
+      color: var(--divider-text-color);
+      font-size: var(--text-sm, 0.875rem);
+      padding: 0 var(--divider-gap);
+    }
+
+    // Label Positioning
+    &.app-divider--label-start {
+      &::before { width: 5%; flex-grow: 0; }
+      &::after { flex-grow: 1; }
+    }
+
+    &.app-divider--label-end {
+      &::before { flex-grow: 1; }
+      &::after { width: 5%; flex-grow: 0; }
+    }
+    
+    &.app-divider--label-center {
+       // Default flex behavior handles center
+    }
+  }
+}
+
+// VERTICAL
+:host.app-divider--vertical {
+  display: inline-block;
+  height: 1em; // Default height matches line-height usually
+  min-height: 100%; // Or fill parent
+  width: 1px;
+  vertical-align: middle;
+  position: relative;
+  margin: 0 var(--space-md, 1rem);
+  border-left-width: 1px;
+  border-left-color: var(--divider-color);
+
+  // Variants
+  &.app-divider--solid { border-left-style: solid; }
+  &.app-divider--dashed { border-left-style: dashed; }
+  &.app-divider--dotted { border-left-style: dotted; }
+
+  // Label not typically supported in vertical dividers in this simple implementation
+  &.app-divider--with-label {
+      // Hide label for vertical if passed by mistake or implementation complexity
+      .divider-label { display: none; } 
+  }
+}

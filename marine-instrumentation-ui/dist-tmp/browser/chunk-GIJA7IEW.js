@@ -1,0 +1,1 @@
+import{_ as n}from"./chunk-V4EMFQCR.js";var t=new n("APP_ENVIRONMENT"),r={signalKBaseUrl:"http://localhost:3000/signalk/v1/api",signalKWsUrl:"ws://localhost:3000/signalk/v1/stream?subscribe=all"};export{t as a,r as b};

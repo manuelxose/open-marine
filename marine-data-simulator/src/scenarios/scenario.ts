@@ -1,7 +1,9 @@
 import type { DataPoint, Position } from "@omi/marine-data-contract";
 
-export type ScenarioValue = number | Position;
-export type ScenarioPoint = DataPoint<ScenarioValue>;
+export type ScenarioValue = number | Position | string;
+export interface ScenarioPoint extends DataPoint<ScenarioValue> {
+  context?: string;
+}
 
 export interface Scenario<TState> {
   name: string;

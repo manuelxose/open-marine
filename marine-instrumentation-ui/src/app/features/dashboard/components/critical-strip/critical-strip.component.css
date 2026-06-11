@@ -5,17 +5,108 @@
 
 .strip {
   display: flex;
-  gap: 12px;
+  gap: var(--space-3);
   overflow-x: auto;
-  padding-bottom: 4px;
-  scrollbar-width: none; /* Hide scrollbar for clean look */
+  padding: var(--space-3) var(--space-5);
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
 }
 
 .strip::-webkit-scrollbar {
   display: none;
 }
 
-/* Compact Overrides */
-:host-context(.compact) .strip {
-  gap: 8px;
+.strip-card {
+  flex: 1 0 auto;
+  min-width: 140px;
+  max-width: 200px;
+  align-self: stretch;
 }
+
+/* Glass tiles for critical strip cards */
+:host ::ng-deep app-instrument-card.strip-card .card {
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border);
+  border-radius: var(--glass-card-radius-sm);
+  box-shadow:
+    var(--glass-highlight),
+    var(--glass-inner-shadow),
+    var(--glass-depth-shadow);
+  padding: var(--space-3) var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  transition: box-shadow 0.25s ease, border-color 0.25s ease, transform 0.25s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+:host ::ng-deep app-instrument-card.strip-card .card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 12%;
+  right: 12%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--glass-shine), transparent);
+  opacity: 0.5;
+}
+
+:host ::ng-deep app-instrument-card.strip-card .card:hover {
+  box-shadow: var(--glass-highlight), var(--glass-hover-glow), var(--shadow-lg);
+  border-color: color-mix(in srgb, var(--glass-border) 70%, var(--primary) 30%);
+  transform: translateY(-1px);
+}
+
+:host ::ng-deep app-instrument-card.strip-card .value {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 1.5rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.06);
+}
+
+:host ::ng-deep app-instrument-card.strip-card .label {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 0.6rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--text-tertiary);
+}
+
+/* Loading skeleton */
+.strip--loading {
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-5);
+}
+
+.tile-skeleton {
+  width: 140px;
+  height: 84px;
+  border-radius: var(--glass-card-radius-sm);
+  background: linear-gradient(110deg, rgba(255,255,255,0.04), rgba(255,255,255,0.12), rgba(255,255,255,0.04));
+  background-size: 200% 100%;
+  animation: shimmer 1.4s ease infinite;
+  border: 1px solid var(--glass-border);
+  flex: 0 0 auto;
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tile-skeleton { animation: none; }
+}
+
+/* Compact strip */
+:host-context(.compact) .strip { padding: var(--space-2) var(--space-3); gap: var(--space-2); }
+:host-context(.compact) .strip-card { min-width: 110px; }
+:host-context(.compact) ::ng-deep app-instrument-card.strip-card .card { padding: var(--space-2) var(--space-3); }
+:host-context(.compact) ::ng-deep app-instrument-card.strip-card .value { font-size: 1.2rem; }

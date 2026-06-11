@@ -1,0 +1,181 @@
+// Animation Tokens & Mixins
+
+:root {
+  // Easings
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-out: cubic-bezier(0.0, 0, 0.2, 1);
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --ease-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
+  
+  // Durations
+  --duration-75: 75ms;
+  --duration-100: 100ms;
+  --duration-150: 150ms;
+  --duration-200: 200ms;
+  --duration-300: 300ms;
+  --duration-500: 500ms;
+  --duration-700: 700ms;
+  --duration-1000: 1000ms;
+
+  // Semantic Durations
+  --duration-fast: var(--duration-150);   // Micro-interactions (hover, click)
+  --duration-normal: var(--duration-300); // Transitions, fades
+  --duration-slow: var(--duration-500);   // Modals, drawers, layout changes
+}
+
+@keyframes pulse-soft {
+  0% { opacity: 1; }
+  50% { opacity: 0.6; }
+  100% { opacity: 1; }
+}
+
+@keyframes pulse-alert {
+  0% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.05); opacity: 0.8; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes ping {
+  75%, 100% { transform: scale(2); opacity: 0; }
+}
+
+@keyframes flash {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+// Utility Classes
+.animate-spin { animation: spin 1s linear infinite; }
+.animate-pulse { animation: pulse-soft 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+.animate-ping { animation: ping 1s cubic-bezier(0, 0, 0.2, 1) infinite; }
+.animate-bounce { animation: pulse-alert 1s infinite; }
+.animate-flash { animation: flash 1s infinite; } // Specifically for alarms
+
+.transition-all { transition-property: all; transition-timing-function: var(--ease-in-out); transition-duration: var(--duration-normal); }
+.transition-colors { transition-property: color, background-color, border-color, text-decoration-color, fill, stroke; transition-timing-function: var(--ease-in-out); transition-duration: var(--duration-normal); }
+.transition-opacity { transition-property: opacity; transition-timing-function: var(--ease-in-out); transition-duration: var(--duration-normal); }
+.transition-transform { transition-property: transform; transition-timing-function: var(--ease-in-out); transition-duration: var(--duration-normal); }
+
+// ============================================================================
+// ANIMATION SYSTEM - MARINE GLASS BRIDGE
+// Philosophy: emulate real marine analog instrument behavior.
+//             Mechanical transitions, not digital transitions.
+// ============================================================================
+
+// --- GLASS BRIDGE ANIMATION TOKENS ---
+:root {
+  // Base duration for instrument updates
+  --gb-anim-needle: 400ms;
+
+  // Mechanical bounce (stepper motor effect)
+  --gb-ease-mechanical: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  // Smooth ease for data updates (no bounce)
+  --gb-ease-data: cubic-bezier(0.4, 0, 0.2, 1);
+
+  // Stale data fade duration
+  --gb-anim-stale-fade: 800ms;
+
+  // Alarm pulse duration
+  --gb-anim-alarm-pulse: 1200ms;
+
+  // Day/Night theme transition duration
+  --gb-anim-theme: 350ms;
+}
+
+// --- INSTRUMENT NEEDLE ANIMATION ---
+// Apply to <g class="gb-needle-wrapper"> in SVGs
+.gb-needle-wrapper {
+  will-change: transform;
+  transform-origin: center center;
+  transition: transform var(--gb-anim-needle) var(--gb-ease-mechanical);
+}
+
+// Stale state: dim needle
+.gb-needle-wrapper--stale {
+  opacity: 0.35;
+  transition: opacity var(--gb-anim-stale-fade) var(--gb-ease-data);
+}
+
+// --- DIGITAL VALUE DISPLAY ---
+.gb-value-updating {
+  transition:
+    color 150ms var(--gb-ease-data),
+    opacity 150ms var(--gb-ease-data);
+}
+
+.gb-value-updating--stale {
+  color: var(--gb-text-stale) !important;
+  opacity: 0.6;
+}
+
+// --- DATA QUALITY INDICATOR ---
+.gb-quality-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  display: inline-block;
+  transition:
+    background-color 300ms var(--gb-ease-data),
+    box-shadow 300ms var(--gb-ease-data);
+}
+
+.gb-quality-dot--good {
+  background-color: var(--gb-data-good);
+  box-shadow: 0 0 4px rgba(var(--gb-data-good-rgb), 0.6);
+}
+
+.gb-quality-dot--warn {
+  background-color: var(--gb-data-warn);
+  box-shadow: 0 0 4px rgba(var(--gb-data-warn-rgb), 0.6);
+}
+
+.gb-quality-dot--stale {
+  background-color: var(--gb-data-stale);
+  box-shadow: 0 0 4px rgba(var(--gb-data-stale-rgb), 0.6);
+  animation: gb-pulse-stale 1.5s ease-in-out infinite;
+}
+
+@keyframes gb-pulse-stale {
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.4;
+  }
+}
+
+// --- PULSING ALARM ---
+.gb-alarm-pulse {
+  animation: gb-alarm-beat var(--gb-anim-alarm-pulse) ease-in-out infinite;
+}
+
+@keyframes gb-alarm-beat {
+  0%,
+  100% {
+    opacity: 1;
+    box-shadow: 0 0 0 0 rgba(var(--gb-data-stale-rgb), 0.4);
+  }
+
+  50% {
+    opacity: 0.85;
+    box-shadow: 0 0 0 8px rgba(var(--gb-data-stale-rgb), 0);
+  }
+}
+
+// --- THEME TRANSITION ---
+// Apply on root while switching theme for smooth Day/Night transition
+[data-theme-transition] * {
+  transition:
+    background-color var(--gb-anim-theme) ease,
+    color var(--gb-anim-theme) ease,
+    border-color var(--gb-anim-theme) ease,
+    fill var(--gb-anim-theme) ease !important;
+}

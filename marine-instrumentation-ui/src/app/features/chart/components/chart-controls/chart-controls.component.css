@@ -1,75 +1,217 @@
-.controls {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
+/* Chart Controls — Layer toggles inside left panel */
+
+:host {
+  display: block;
 }
 
-.toggle-panel {
+.chart-controls {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
-  padding: 0.5rem;
-  border-radius: var(--radius-sm);
-  background: color-mix(in srgb, var(--surface-1) 92%, transparent);
-  border: 1px solid var(--border);
-  box-shadow: var(--shadow);
-  min-width: 200px;
-  backdrop-filter: blur(12px);
+  gap: var(--space-3);
+  padding: var(--space-3);
+  pointer-events: auto;
 }
 
-.toggle {
+.control-group {
+  display: flex;
+  flex-direction: column;
+  background-color: transparent;
+  border: none;
+  box-shadow: none;
+}
+
+.control-group .control-btn {
+  border-radius: 0;
+  border: none;
+  border-bottom: 1px solid color-mix(in srgb, var(--border-default) 40%, transparent);
+  box-shadow: none;
+}
+
+.control-group .control-btn:last-child {
+  border-bottom: none;
+}
+
+.control-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 44px;
+  border-radius: var(--radius-md);
+  background-color: transparent;
+  border: 1px solid color-mix(in srgb, var(--border-default) 50%, transparent);
+  color: var(--gb-text-muted);
+  cursor: pointer;
+  transition: all var(--duration-fast) var(--ease-out);
+  padding: 0;
+}
+
+.control-btn:hover {
+  background: color-mix(in srgb, var(--bg-surface-secondary) 65%, transparent);
+  color: var(--gb-text-value);
+}
+
+.control-btn:active {
+  background: color-mix(in srgb, var(--bg-surface-secondary) 90%, transparent);
+  transform: scale(0.96);
+}
+
+.control-btn svg {
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: currentColor;
+}
+
+/* Active State — subtle highlight, not full-fill primary */
+.control-btn.active {
+  background: color-mix(in srgb, var(--gb-needle-secondary) 15%, transparent);
+  color: var(--gb-needle-secondary);
+  border-color: color-mix(in srgb, var(--gb-needle-secondary) 35%, transparent);
+}
+
+.control-btn.active:hover {
+  background: color-mix(in srgb, var(--gb-needle-secondary) 25%, transparent);
+}
+
+/* Range Rings Panel */
+.range-rings-panel {
+  margin-top: var(--space-2);
+  padding: var(--space-3);
+  background: transparent;
+  border-top: 1px solid color-mix(in srgb, var(--border-default) 45%, transparent);
+  border-radius: 0;
+}
+
+.panel-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.5rem;
-  padding: 0.4rem 0.6rem;
-  border-radius: 10px;
-  border: 1px solid var(--border);
-  background: var(--surface-2);
-  color: var(--text-2);
-  font-size: 0.7rem;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.panel-title {
   font-weight: 700;
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  color: var(--gb-text-value);
+}
+
+.preset-chips {
+  display: flex;
+  gap: var(--space-1);
+}
+
+.chip {
+  border: 1px solid color-mix(in srgb, var(--border-default) 60%, transparent);
+  background: color-mix(in srgb, var(--bg-surface-secondary) 50%, transparent);
+  color: var(--gb-text-muted);
+  border-radius: var(--radius-full);
+  padding: 4px 10px;
+  font-size: 0.68rem;
+  font-weight: 600;
   cursor: pointer;
-  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+  transition: background var(--duration-fast) var(--ease-out),
+              color var(--duration-fast) var(--ease-out);
 }
 
-.toggle.active {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: #fff;
+.chip:hover {
+  background: color-mix(in srgb, var(--bg-surface-secondary) 80%, transparent);
+  color: var(--gb-text-value);
 }
 
-.toggle-label {
+.input-label {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--gb-text-muted);
+  margin-bottom: var(--space-1);
+}
+
+.input-row {
+  display: flex;
+  gap: var(--space-2);
+  align-items: stretch;
+}
+
+.input-row input {
+  flex: 1;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  border: 1px solid color-mix(in srgb, var(--border-default) 60%, transparent);
+  background: color-mix(in srgb, var(--gb-bg-panel) 60%, transparent);
+  color: var(--gb-text-value);
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  transition: border-color var(--duration-fast) var(--ease-out);
+}
+
+.input-row input:focus {
+  outline: none;
+  border-color: var(--gb-needle-secondary);
+}
+
+.apply-btn {
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--gb-needle-secondary);
+  background: color-mix(in srgb, var(--gb-needle-secondary) 15%, transparent);
+  color: var(--gb-needle-secondary);
   font-weight: 700;
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: background var(--duration-fast) var(--ease-out);
 }
 
-.toggle-state {
-  font-size: 0.65rem;
-  opacity: 0.8;
+.apply-btn:hover {
+  background: color-mix(in srgb, var(--gb-needle-secondary) 25%, transparent);
 }
 
-.center-btn {
-  padding: 0.6rem 0.9rem;
-  border-radius: 999px;
-  border: 1px solid var(--border);
-  background: color-mix(in srgb, var(--surface-1) 92%, transparent);
-  color: var(--text-1);
-  font-size: 0.75rem;
+.hint {
+  margin-top: var(--space-1);
+  font-size: 0.68rem;
+  color: var(--gb-text-muted);
+}
+
+.hint.error {
+  color: var(--danger);
+}
+
+/* Section divider for grouped controls */
+.control-group--section {
+  margin-top: var(--space-2);
+  padding-top: var(--space-2);
+  border-top: 1px solid color-mix(in srgb, var(--border-default) 35%, transparent);
+}
+
+.section-label {
+  font-size: 0.62rem;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  cursor: pointer;
-  box-shadow: var(--shadow);
-  backdrop-filter: blur(12px);
+  color: var(--gb-text-muted);
+  padding: 0 0 var(--space-1) 0;
 }
 
-.center-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+/* Labeled control buttons (icon + text) */
+.control-btn__label {
+  margin-left: var(--space-2);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
 }
 
-.center-btn:not(:disabled):hover {
-  background: var(--surface-2);
+.control-btn:has(.control-btn__label) {
+  justify-content: flex-start;
+  padding: 0 var(--space-3);
+  gap: var(--space-2);
+}
+
+.control-btn:has(.control-btn__label) svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
 }

@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "allowedMcpServers": [],
+  "disabledMcpjsonServers": [
+    "figma",
+    "figma-mcp",
+    "figma-server",
+    "figma_server"
+  ],
+  "deniedMcpServers": [
+    {
+      "serverName": "figma"
+    },
+    {
+      "serverName": "figma-mcp"
+    },
+    {
+      "serverName": "figma-server"
+    },
+    {
+      "serverName": "figma_server"
+    }
+  ]
+}

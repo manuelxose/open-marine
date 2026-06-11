@@ -1,7 +1,31 @@
-<app-shared-panel-card [title]="vm.title" [statusLabel]="vm.status" statusTone="ok">
-  <div class="system-content">
-    <div class="status-line" *ngFor="let line of vm.lines">
-      {{ line }}
+<app-shared-panel-card
+  [title]="vm.title | translate"
+  [statusLabel]="vm.status | translate"
+  [statusTone]="vm.statusTone"
+  [loading]="vm.isLoading"
+  [error]="vm.error"
+>
+  <omi-gb-bezel class="panel-bezel" [quality]="panelQuality">
+    <div class="system-content">
+      <div class="connection-status">
+        <span class="status-led" [class.online]="vm.statusTone !== 'alert'" [class.offline]="vm.statusTone === 'alert'"></span>
+        <div class="status-text">
+          <span class="status-label">{{ vm.status | translate }}</span>
+          <span class="status-detail">Signal K telemetry channel</span>
+        </div>
+      </div>
+
+      <div class="system-log">
+        <div
+          class="log-entry"
+          *ngFor="let line of vm.lines; trackBy: trackByLine"
+          [class.log-ok]="vm.statusTone === 'ok'"
+          [class.log-warn]="vm.statusTone === 'warn' || vm.statusTone === 'neutral'"
+          [class.log-error]="vm.statusTone === 'alert'"
+        >
+          {{ line.labelKey | translate }}: {{ line.value }}
+        </div>
+      </div>
     </div>
-  </div>
+  </omi-gb-bezel>
 </app-shared-panel-card>

@@ -1,0 +1,76 @@
+<div class="playback-bar" [class.playback--active]="state.status !== 'idle'">
+  <div class="playback-timeline" [class.timeline--disabled]="!isInteractive">
+    <div class="timeline-track" (click)="onTimelineClick($event)">
+      <div class="timeline-progress" [style.width.%]="progressPercent"></div>
+      <div
+        *ngFor="let event of state.events"
+        class="timeline-marker"
+        [class]="'timeline-marker marker--' + event.type"
+        [style.left.%]="getEventPosition(event)"
+        [title]="event.label"
+      ></div>
+      <div class="timeline-cursor" [style.left.%]="progressPercent"></div>
+    </div>
+
+    <div class="timeline-labels">
+      <span>{{ state.startTime | date:'HH:mm' }}</span>
+      <span class="current-time">{{ state.currentTime | date:'HH:mm:ss' }}</span>
+      <span>{{ state.endTime | date:'HH:mm' }}</span>
+    </div>
+  </div>
+
+  <div class="playback-controls">
+    <button
+      type="button"
+      class="control-btn"
+      (click)="skipBackward.emit()"
+      [disabled]="!isInteractive"
+      aria-label="Skip backward"
+    >
+      <app-icon name="backward" />
+    </button>
+
+    <button
+      type="button"
+      class="control-btn play-btn"
+      (click)="togglePlay.emit()"
+      [disabled]="!isInteractive"
+      [attr.aria-label]="state.status === 'playing' ? 'Pause' : 'Play'"
+    >
+      <app-icon [name]="state.status === 'playing' ? 'pause' : 'play'" size="32" />
+    </button>
+
+    <button
+      type="button"
+      class="control-btn"
+      (click)="skipForward.emit()"
+      [disabled]="!isInteractive"
+      aria-label="Skip forward"
+    >
+      <app-icon name="forward" />
+    </button>
+
+    <select
+      class="speed-select"
+      [value]="state.speed"
+      [disabled]="!isInteractive"
+      (change)="onSpeedChange($event)"
+    >
+      <option value="0.5">0.5x</option>
+      <option value="1">1x</option>
+      <option value="2">2x</option>
+      <option value="5">5x</option>
+      <option value="10">10x</option>
+    </select>
+
+    <button
+      type="button"
+      class="control-btn"
+      (click)="stop.emit()"
+      [disabled]="!isInteractive"
+      aria-label="Stop playback"
+    >
+      <app-icon name="stop" />
+    </button>
+  </div>
+</div>

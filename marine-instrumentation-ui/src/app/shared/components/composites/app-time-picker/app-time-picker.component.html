@@ -1,0 +1,19 @@
+<div class="time-picker-container" [class.disabled]="disabled">
+  @if (label) {
+    <label class="label">{{ label }}</label>
+  }
+  
+  <div class="input-wrapper">
+    <app-icon name="schedule" size="sm" class="input-icon"></app-icon>
+    <input
+      type="time"
+      [value]="value()"
+      [disabled]="disabled"
+      [placeholder]="placeholder"
+      [step]="step"
+      (input)="onInput($event)"
+      (blur)="onTouched()"
+      class="native-input"
+    />
+  </div>
+</div>

@@ -1,0 +1,63 @@
+<div class="angle-input" [class.disabled]="disabled">
+  <div class="input-row">
+    @if (label) {
+      <label class="label">{{ label }}</label>
+    }
+    <div class="field-wrapper">
+      <input 
+        type="number" 
+        [value]="value" 
+        [min]="min" 
+        [max]="max" 
+        [step]="step"
+        [disabled]="disabled"
+        (input)="onInputChange($event)"
+      />
+      <span class="unit">{{ unit }}</span>
+    </div>
+  </div>
+
+  @if (showDial) {
+    <div class="dial-container">
+      <svg 
+        #dialSvg
+        class="dial" 
+        viewBox="0 0 100 100" 
+        (mousedown)="onDialMouseDown($event)"
+        (touchstart)="onDialTouchStart($event)">
+        
+        <!-- Background Circle -->
+        <circle cx="50" cy="50" r="46" class="dial-bg" />
+        
+        <!-- Ticks -->
+        @for (tick of [0, 45, 90, 135, 180, 225, 270, 315]; track tick) {
+          <line 
+            x1="50" y1="6" 
+            x2="50" y2="12" 
+            class="dial-tick"
+            [style.transform]="'rotate(' + tick + 'deg)'"
+            style="transform-origin: 50px 50px"
+          />
+        }
+
+        <!-- Indicator/Needle -->
+        <!-- Rotate group based on value -->
+        <g 
+          class="dial-needle-group" 
+          [style.transform]="'rotate(' + value + 'deg)'"
+          style="transform-origin: 50px 50px">
+          
+          <!-- Needle -->
+          <line x1="50" y1="50" x2="50" y2="10" class="dial-needle" />
+          
+          <!-- Knob (Handle) -->
+          <circle cx="50" cy="10" r="6" class="dial-knob" />
+        </g>
+
+        <!-- Center Point -->
+        <circle cx="50" cy="50" r="4" class="dial-center" />
+      </svg>
+      <div class="dial-value-overlay">{{ value | number:'1.0-0' }}°</div>
+    </div>
+  }
+</div>

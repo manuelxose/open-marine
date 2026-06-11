@@ -1,0 +1,48 @@
+<app-shared-panel-card [title]="vm.title | translate" [loading]="vm.isLoading" [error]="vm.error">
+  <omi-gb-bezel class="panel-bezel" [quality]="panelQuality">
+    <div class="engine-content">
+      <!-- RPM Hero Display -->
+      <div class="rpm-hero" *ngIf="vm.metrics[0] as rpmMetric">
+        <span class="rpm-label">{{ rpmMetric.label | translate }}</span>
+        <div class="rpm-value-group">
+          <span class="rpm-value">{{ displayValue(rpmMetric.value) }}</span>
+          <span class="rpm-unit" *ngIf="showUnit(rpmMetric.value)">{{ rpmMetric.unit }}</span>
+        </div>
+        <div class="rpm-trend" *ngIf="vm.series && vm.series.length > 0">
+          <app-shared-sparkline
+            [data]="vm.series"
+            [width]="200"
+            [height]="40"
+            stroke="var(--nord-13)"
+          ></app-shared-sparkline>
+        </div>
+      </div>
+
+      <!-- Fuel Level Bar -->
+      <div class="fuel-bar-container">
+        <span class="engine-metric-label">{{ 'dashboard.metrics.fuel_level' | translate }}</span>
+        <div class="fuel-bar-track">
+          <div
+            class="fuel-bar-fill"
+            [style.width.%]="fuelPercent"
+            [class.level-high]="fuelLevelClass === 'level-high'"
+            [class.level-mid]="fuelLevelClass === 'level-mid'"
+            [class.level-low]="fuelLevelClass === 'level-low'"
+          ></div>
+        </div>
+        <span class="fuel-pct">{{ fuelPercent | number:'1.0-0' }}%</span>
+      </div>
+
+      <!-- Secondary Metrics -->
+      <div class="engine-metrics">
+        <div class="engine-metric" *ngFor="let m of vm.metrics | slice:1; trackBy: trackByMetric">
+          <span class="engine-metric-label">{{ m.label | translate }}</span>
+          <div class="engine-metric-reading">
+            <span class="engine-metric-value">{{ displayValue(m.value) }}</span>
+            <span class="engine-metric-unit" *ngIf="showUnit(m.value)">{{ m.unit }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </omi-gb-bezel>
+</app-shared-panel-card>

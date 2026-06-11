@@ -12,6 +12,8 @@ export interface SourceRef {
 }
 
 export interface DataPoint<T> {
+  // Signal K context (e.g., "vessels.self" or "vessels.urn:mrn:imo:mmsi:123456789")
+  context?: string;
   path: SignalKPath;
   value: T;
   timestamp: Timestamp;
@@ -29,32 +31,6 @@ const toTimestampMs = (input: Timestamp | Date | number): number | null => {
   }
   const ms = Date.parse(input);
   return Number.isFinite(ms) ? ms : null;
-};
-
-const parseTimestampMs = (timestamp: Timestamp): number | null => {
-  return toTimestampMs(timestamp);
-};
-
-export const DEFAULT_SOURCE_PRIORITY = 0;
-export const DEFAULT_SOURCE_VALIDITY_TIMEOUT_MS = 10_000;
-
-export const normalizeSourceRef = (
-  source: SourceRef,
-): SourceRef & { priority: number; validityTimeoutMs: number } => {
-  return {
-    ...source,
-    priority: source.priority ?? DEFAULT_SOURCE_PRIORITY,
-    validityTimeoutMs: source.validityTimeoutMs ?? DEFAULT_SOURCE_VALIDITY_TIMEOUT_MS,
-  };
-};
-
-export const isSourceValid = (timestamp: Timestamp, nowMs: number, source?: SourceRef): boolean => {
-  const ms = parseTimestampMs(timestamp);
-  if (ms === null) {
-    return false;
-  }
-  const validity = source?.validityTimeoutMs ?? DEFAULT_SOURCE_VALIDITY_TIMEOUT_MS;
-  return nowMs - ms <= validity;
 };
 
 export const DEFAULT_MAX_CLOCK_DRIFT_MS = 2_000;
@@ -97,14 +73,34 @@ export const normalizeTimestamp = (
   };
 };
 
-export type Angle = number;
-export type Speed = number;
-export type Depth = number;
-export type Voltage = number;
-export type Current = number;
-
 export interface Position {
   latitude: number;
   longitude: number;
   altitude?: number;
+}
+
+/** 3-axis vector (accel, gyro, mag) */
+export interface Vector3 {
+  x: number;
+  y: number;
+  z: number;
+}
+
+/** Vessel attitude (roll = heel, pitch = trim, yaw = heading) */
+export interface Attitude {
+  roll: number;
+  pitch: number;
+  yaw: number;
+}
+
+/** GPS fix quality */
+export type GpsFixType = "none" | "2d" | "3d" | "dgps";
+
+/** GPS satellite info */
+export interface GpsSatelliteInfo {
+  inView: number;
+  used: number;
+  hdop?: number;
+  pdop?: number;
+  vdop?: number;
 }

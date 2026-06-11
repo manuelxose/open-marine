@@ -1,0 +1,66 @@
+﻿<div class="map-controls" [class.map-controls--vertical]="vertical">
+  <!-- Zoom Group -->
+  <div class="control-group">
+    <button class="control-btn" (click)="zoomIn.emit()" aria-label="Zoom in" title="Zoom In">
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="12" y1="5" x2="12" y2="19"></line>
+        <line x1="5" y1="12" x2="19" y2="12"></line>
+      </svg>
+    </button>
+    <button class="control-btn" (click)="zoomOut.emit()" aria-label="Zoom out" title="Zoom Out">
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="5" y1="12" x2="19" y2="12"></line>
+      </svg>
+    </button>
+  </div>
+
+  <!-- Orientation -->
+  <button 
+    class="control-btn" 
+    [class.active]="orientation === 'course-up'"
+    (click)="toggleOrientation.emit()"
+    [attr.aria-label]="orientation === 'north-up' ? 'Switch to Course Up' : 'Switch to North Up'"
+    title="Toggle Orientation">
+    
+    <!-- North Up Icon -->
+    <svg *ngIf="orientation === 'north-up'" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <polygon points="12 2 20 10 12 10 12 22 12 22 12 10 4 10 12 2"></polygon>
+      <text x="16" y="22" font-size="10" font-weight="bold">N</text>
+    </svg>
+
+    <!-- Course Up Icon -->
+    <svg *ngIf="orientation === 'course-up'" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 2L2 22h20L12 2z"></path>
+      <path d="M12 12v6"></path>
+    </svg>
+  </button>
+
+  <!-- Center -->
+  <button 
+    class="control-btn" 
+    [disabled]="!canCenter"
+    (click)="centerOnVessel.emit()"
+    aria-label="Center on vessel"
+    title="Center on Vessel"
+  >
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="10"></circle>
+      <line x1="12" y1="8" x2="12" y2="16"></line>
+      <line x1="8" y1="12" x2="16" y2="12"></line>
+    </svg>
+  </button>
+
+  <!-- Layers -->
+  <button 
+    class="control-btn"
+    (click)="toggleLayers.emit()"
+    aria-label="Toggle layers"
+    title="Toggle Map Texture"
+  >
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+      <polyline points="2 17 12 22 22 17"></polyline>
+      <polyline points="2 12 12 17 22 12"></polyline>
+    </svg>
+  </button>
+</div>

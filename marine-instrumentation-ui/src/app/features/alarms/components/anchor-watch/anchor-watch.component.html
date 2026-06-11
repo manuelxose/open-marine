@@ -1,0 +1,62 @@
+<div class="anchor-watch-card">
+  <div class="card-header">
+    <h3>ANCHOR WATCH</h3>
+    <div class="status-badge" [class.active]="isSet" [class.alert]="currentDistance > radius">
+      {{ isSet ? (currentDistance > radius ? 'ALARM' : 'ACTIVE') : 'OFF' }}
+    </div>
+  </div>
+
+  <div class="visualizer">
+    <!-- Simple visual circular representation -->
+    <div class="radar-scope" [class.active]="isSet">
+      <div class="anchor-center">⚓</div>
+      <div class="vessel-dot" 
+           [style.transform]="'translate(0, -' + (currentDistance/radius * 40) + 'px)'"
+           *ngIf="isSet">
+           ⛵
+      </div>
+      <div class="radius-circle"></div>
+    </div>
+  </div>
+
+  <div class="metrics">
+    <div class="metric">
+      <label>DISTANCE</label>
+      <div class="value">{{ currentDistance | number:'1.0-1' }} <small>m</small></div>
+    </div>
+    <div class="metric">
+      <label>RADIUS</label>
+      <div class="value">{{ radius }} <small>m</small></div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <div class="slider-container" *ngIf="isSet || !isSet">
+        <app-slider 
+            [min]="10" 
+            [max]="200" 
+            [step]="5"
+            [(ngModel)]="radius"
+            (ngModelChange)="onRadiusChange($event)">
+        </app-slider>
+    </div>
+
+    <div class="actions">
+      <app-button 
+        *ngIf="!isSet" 
+        variant="primary" 
+        class="full-width"
+        (click)="dropAnchor()">
+        DROP ANCHOR
+      </app-button>
+
+      <app-button 
+        *ngIf="isSet" 
+        variant="outline" 
+        class="full-width"
+        (click)="raiseAnchor()">
+        RAISE ANCHOR
+      </app-button>
+    </div>
+  </div>
+</div>

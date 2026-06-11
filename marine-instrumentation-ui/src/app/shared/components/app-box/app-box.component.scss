@@ -1,0 +1,8 @@
+.app-box {
+  display: block;
+  box-sizing: border-box;
+}
+
+// Map utilities if they are not global, or rely on global utilities
+// Since our _utilities.scss are global (hopefully), we rely on them.
+// But we might need to verify if classes like `p-4` work on host.

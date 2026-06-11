@@ -24,6 +24,7 @@ export class PreferencesService {
    * Observe all preferences
    */
   public readonly preferences$ = this._prefs$.asObservable();
+  public readonly prefs$ = this.preferences$;
 
   constructor(@Inject(PLATFORM_ID) private platformId: object) {
     this.load();
