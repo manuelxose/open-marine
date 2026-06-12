@@ -7,8 +7,10 @@ pnpm-lock.yaml
 
 # Build outputs
 dist/
+dist-tmp/
 build/
 **/dist/
+**/dist-tmp/
 *.tsbuildinfo
 out/
 
@@ -70,6 +72,7 @@ lerna-debug.log*
 
 # IDE local files
 .vscode/settings.json.bak
+.claude/settings.local.json
 .idea/workspace.xml
 .idea/shelf
 
