@@ -69,6 +69,7 @@ const FIX_THRESHOLD_MS = 2000;
 const STALE_THRESHOLD_MS = 5000;
 const VECTOR_TIME_SECONDS = 60;
 const DEFAULT_VECTOR_NM = 0.2;
+const MIN_VECTOR_SPEED_MPS = 1.028888; // 2 kn, matches the GPS stopped filter default.
 const MIN_SPEED_FOR_ETA_KTS = 0.1;
 const AIS_TRACK_MAX_AGE_MS = 30 * 60 * 1000;
 const AIS_PREDICTION_SECONDS = 6 * 60;
@@ -82,6 +83,7 @@ const DEFAULT_BASE_SOURCE: ChartSourceConfig = {
         type: 'raster',
         tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
         tileSize: 256,
+        maxzoom: 19,
         attribution: '(c) OpenStreetMap contributors',
       },
     },
@@ -193,6 +195,7 @@ export class ChartFacadeService {
     this.settingsService.settings$,
     timer(0, 5000),
   ]).pipe(
+    auditTime(250),
     map(([targetsMap, settings]) => {
       const now = Date.now();
       const visibleTypes = new Set(settings.visibleVesselTypes);
@@ -779,6 +782,10 @@ export class ChartFacadeService {
 
       const cogDeg = normalizeDegrees(toDegrees(cogRad));
       const sogMps = coerceNumber(sog?.value) ?? 0;
+      if (sogMps < MIN_VECTOR_SPEED_MPS) {
+        return { coords: [] as [number, number][], visible: false };
+      }
+
       const vectorSeconds = Math.max(60, settings.cogLineMinutes * 60);
       const vectorMeters = Math.max(DEFAULT_VECTOR_NM * METERS_PER_NM, sogMps * vectorSeconds);
       const destination = projectDestination(

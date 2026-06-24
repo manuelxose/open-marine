@@ -76,15 +76,13 @@ export class AppTooltipDirective implements OnDestroy {
     // Initial Change Detect to update text
     this.componentRef.changeDetectorRef.detectChanges();
 
-    // Position it
-    this.updatePosition(domElem);
-
-    // Show it (add class for transition)
+    // Position and show in the same rAF so DOM reads happen after layout is committed
     requestAnimationFrame(() => {
       if (this.componentRef) {
-         this.renderer.addClass(domElem, 'visible');
-         this.componentRef.instance.visible = true; // Sync input just in case
-         this.componentRef.changeDetectorRef.detectChanges();
+        this.updatePosition(domElem);
+        this.renderer.addClass(domElem, 'visible');
+        this.componentRef.instance.visible = true;
+        this.componentRef.changeDetectorRef.detectChanges();
       }
     });
   }

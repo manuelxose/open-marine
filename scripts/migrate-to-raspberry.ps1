@@ -17,6 +17,7 @@ $ErrorActionPreference = "Stop"
 $ProjectRoot = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
 $SignalkImageRef = if ($env:OMI_SIGNALK_IMAGE) { $env:OMI_SIGNALK_IMAGE } else { "signalk/signalk-server:v2.22.1" }
 $SignalkImageArchive = Join-Path $ProjectRoot "tools\docker-images\signalk-signalk-server_latest.tar"
+$IncludeDockerImageMigration = $env:OMI_MIGRATE_INCLUDE_DOCKER_IMAGE -match '^(?i:true|1|yes|y|s|si)$'
 
 $explicitTargetHost = $PSBoundParameters.ContainsKey("TargetHost")
 $explicitTargetUser = $PSBoundParameters.ContainsKey("TargetUser")
@@ -336,7 +337,7 @@ function Export-SignalkImageForMigration {
   $daemonExit = Invoke-DockerSafe -Args @("info", "--format", "{{.ServerVersion}}") -Silent
   if ($daemonExit -ne 0) {
     Warn "Docker daemon no disponible. Se omitira exportar imagen Signal K."
-    Warn "La Raspberry descargara la imagen en init:linux."
+    Warn "La Raspberry descargara la imagen en npm run init."
     return
   }
 
@@ -350,7 +351,7 @@ function Export-SignalkImageForMigration {
     Warn "Imagen $ImageRef no encontrada localmente. Intentando docker pull..."
     $pullExit = Invoke-DockerSafe -Args @("pull", $ImageRef)
     if ($pullExit -ne 0) {
-      Warn "No se pudo obtener $ImageRef. La Raspberry descargara la imagen en init:linux."
+      Warn "No se pudo obtener $ImageRef. La Raspberry descargara la imagen en npm run init."
       return
     }
   }
@@ -697,6 +698,21 @@ if ([string]::IsNullOrWhiteSpace($TargetHost)) {
   exit 1
 }
 
+$opensshDefaultKeyWorks = $false
+if ([string]::IsNullOrWhiteSpace($SshKey) -and (Get-Command ssh -ErrorAction SilentlyContinue) -and (Get-Command scp -ErrorAction SilentlyContinue)) {
+  $quickSshArgs = @(
+    "-p", $TargetPort.ToString(),
+    "-o", "StrictHostKeyChecking=accept-new",
+    "-o", "ConnectTimeout=8",
+    "-o", "ConnectionAttempts=1",
+    "-o", "BatchMode=yes"
+  )
+  $opensshDefaultKeyWorks = Test-RemoteSshAuth -SshCommand "ssh" -SshArgs $quickSshArgs -SshTarget "$TargetUser@$TargetHost" -UsingPutty:$false -QuietFailure
+  if ($opensshDefaultKeyWorks) {
+    Log "Autenticacion SSH por clave (OpenSSH, identidad por defecto) ya disponible para $TargetUser@$TargetHost."
+  }
+}
+
 $preferPutty = $false
 if (-not [string]::IsNullOrWhiteSpace($SshClient)) {
   $clientSelection = $SshClient.Trim().ToLowerInvariant()
@@ -709,7 +725,7 @@ if (-not [string]::IsNullOrWhiteSpace($SshClient)) {
   }
 }
 
-if (-not [string]::IsNullOrWhiteSpace($SshPassword) -and [string]::IsNullOrWhiteSpace($SshKey) -and [string]::IsNullOrWhiteSpace($SshClient)) {
+if (-not $opensshDefaultKeyWorks -and -not [string]::IsNullOrWhiteSpace($SshPassword) -and [string]::IsNullOrWhiteSpace($SshKey) -and [string]::IsNullOrWhiteSpace($SshClient)) {
   $preferPutty = $true
 }
 
@@ -738,7 +754,7 @@ if (-not (Get-Command ssh -ErrorAction SilentlyContinue) -or -not (Get-Command s
   $openSshAvailable = $false
 }
 
-if (-not $usePutty -and $openSshAvailable -and [string]::IsNullOrWhiteSpace($SshKey)) {
+if (-not $usePutty -and $openSshAvailable -and [string]::IsNullOrWhiteSpace($SshKey) -and -not $opensshDefaultKeyWorks) {
   $baseOpenSshArgs = @(
     "-p", $TargetPort.ToString(),
     "-o", "StrictHostKeyChecking=accept-new",
@@ -775,6 +791,15 @@ $timestamp = Get-Date -Format "yyyyMMddHHmmss"
 $archiveName = "open-marine-migrate-$timestamp.tar.gz"
 $archivePath = Join-Path $env:TEMP $archiveName
 
+function Test-TarSupportsForceLocal {
+  try {
+    $help = & tar --help 2>&1 | Out-String
+    return $help -match "--force-local"
+  } catch {
+    return $false
+  }
+}
+
 $tarArgs = @(
   "-czf", $archivePath,
   "--exclude=.git",
@@ -789,9 +814,13 @@ $tarArgs = @(
   "--exclude=.omi-*.log",
   "--exclude=.omi-*.pid",
   "--exclude=tools/ais-catcher",
+  "--exclude=tools/docker-images",
   "-C", $ProjectRoot,
   "."
 )
+if (Test-TarSupportsForceLocal) {
+  $tarArgs = @($tarArgs[0], $tarArgs[1], "--force-local") + $tarArgs[2..($tarArgs.Count - 1)]
+}
 
 $openSshSshArgs = @(
   "-p", $TargetPort.ToString(),
@@ -849,13 +878,14 @@ if ($usePutty) {
     $scpArgs += @("-pw", $SshPassword)
   }
 } else {
-  if (-not [string]::IsNullOrWhiteSpace($SshPassword) -and [string]::IsNullOrWhiteSpace($SshKey)) {
+  if (-not [string]::IsNullOrWhiteSpace($SshPassword) -and [string]::IsNullOrWhiteSpace($SshKey) -and -not $opensshDefaultKeyWorks) {
     Warn "RPI_PASSWORD cargada. OpenSSH pedira password interactiva en la conexion."
   }
 }
 
 $remoteArchivePath = "/tmp/$archiveName"
-$extractCmd = "set -e; mkdir -p '$TargetPath'; tar -xzf '$remoteArchivePath' -C '$TargetPath'; rm -f '$remoteArchivePath'"
+$normalizeLineEndingsCmd = "find '$TargetPath' -type f \( -name '*.sh' -o -name '*.py' -o -name '*.mjs' \) -exec sed -i 's/\r$//' {} +"
+$extractCmd = "set -e; mkdir -p '$TargetPath'; tar -xzf '$remoteArchivePath' -C '$TargetPath'; rm -f '$remoteArchivePath'; $normalizeLineEndingsCmd"
 $sshTarget = ""
 $remoteArchiveSpec = ""
 $connectedHost = $TargetHost
@@ -936,7 +966,11 @@ try {
   $sshTarget = "$TargetUser@$connectedHost"
   $remoteArchiveSpec = "$sshTarget`:$remoteArchivePath"
 
-  Export-SignalkImageForMigration -ImageRef $SignalkImageRef -ArchivePath $SignalkImageArchive
+  if ($IncludeDockerImageMigration) {
+    Export-SignalkImageForMigration -ImageRef $SignalkImageRef -ArchivePath $SignalkImageArchive
+  } else {
+    Warn "Se omite imagen Docker en el paquete. Usa OMI_MIGRATE_INCLUDE_DOCKER_IMAGE=true para migracion offline."
+  }
 
   Log "Creando paquete de migracion..."
   Invoke-External -Name "tar" -Args $tarArgs
@@ -952,7 +986,7 @@ try {
   Write-Host "Siguientes pasos en Raspberry:" -ForegroundColor Cyan
   Write-Host "  ssh -p $TargetPort $sshTarget"
   Write-Host "  cd $TargetPath"
-  Write-Host "  npm run init:linux"
+  Write-Host "  npm run init"
   Write-Host ""
 } finally {
   if (Test-Path $archivePath) {

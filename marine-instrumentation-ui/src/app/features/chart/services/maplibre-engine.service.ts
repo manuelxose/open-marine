@@ -8,6 +8,7 @@ import {
   VESSEL_TYPE_KEYS,
   getAisVesselIconId,
   type VesselTypeColors,
+  type VesselTypeFilter,
 } from './chart-vessel-types';
 
 export interface MapLibreInitView {
@@ -29,6 +30,7 @@ const DEFAULT_STYLE: maplibregl.StyleSpecification = {
       type: 'raster',
       tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
       tileSize: 256,
+      maxzoom: 19,
       attribution: '(c) OpenStreetMap contributors',
     },
   },
@@ -104,6 +106,7 @@ export class MapLibreEngineService {
   private featureClickHandler: ((event: { featureId?: string; properties?: any; layerId: string }) => void) | null = null;
   private pendingCenter: [number, number] | null = null;
   private appliedCenter: [number, number] | null = null;
+  private appliedBearing: number | null = null;
   private orientation: MapOrientation = 'north-up';
   private resizeObserver: ResizeObserver | null = null;
 
@@ -824,8 +827,8 @@ export class MapLibreEngineService {
       const normalId = getAisVesselIconId(type);
       const dangerousId = getAisVesselIconId(type, true);
 
-      this.upsertAisIcon(normalId, this.createAisIcon(color, this.adjustHexColor(color, -0.35)));
-      this.upsertAisIcon(dangerousId, this.createDangerousAisIcon(color));
+      this.upsertAisIcon(normalId, this.createAisIcon(color, this.adjustHexColor(color, -0.35), type));
+      this.upsertAisIcon(dangerousId, this.createDangerousAisIcon(color, type));
     }
   }
 
@@ -844,15 +847,16 @@ export class MapLibreEngineService {
     this.map.addImage(iconId, image, { pixelRatio });
   }
 
-  private createDangerousAisIcon(baseColor: string): ImageData {
+  private createDangerousAisIcon(baseColor: string, type: VesselTypeFilter): ImageData {
     return this.createAisIcon(
       this.adjustHexColor(baseColor, 0.12),
       '#dc2626',
+      type,
     );
   }
 
-  private createAisIcon(fillColor: string, strokeColor: string): ImageData {
-    return this.createVesselIcon(strokeColor, fillColor, false);
+  private createAisIcon(fillColor: string, strokeColor: string, type: VesselTypeFilter): ImageData {
+    return this.createVesselIcon(strokeColor, fillColor, type === 'sailing');
   }
 
   private updateCamera(): void {
@@ -878,21 +882,31 @@ export class MapLibreEngineService {
         options.bearing = 0;
       }
     } else {
-      // Course-up
+      // Course-up: only re-orient when heading changes meaningfully, otherwise
+      // sub-degree IMU jitter restarts a 250ms camera animation on every sample.
       const heading = this.lastVessel.rotationDeg;
       if (typeof heading === 'number') {
-        options.bearing = heading;
+        const reference = this.appliedBearing ?? this.map.getBearing();
+        if (this.bearingDelta(reference, heading) > 0.5) {
+          options.bearing = heading;
+          this.appliedBearing = heading;
+        }
       }
     }
-    
+
     if (Object.keys(options).length > 0) {
         // Use easeTo for smooth tracking for both center and bearing
-        this.map.easeTo({ 
+        this.map.easeTo({
             ...options,
             duration: 250, // slightly longer for smoothness
             easing: (t) => t // linear easing often better for tracking? or default cubic-bezier
         });
     }
+  }
+
+  /** Smallest absolute angular difference between two bearings, in degrees [0, 180]. */
+  private bearingDelta(a: number, b: number): number {
+    return Math.abs(((a - b + 540) % 360) - 180);
   }
 
   private onStyleReady(): void {

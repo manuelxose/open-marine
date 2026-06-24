@@ -12,6 +12,8 @@ CFG_GPS_HOST=""
 CFG_GPS_PORT=""
 CFG_GPS_RATE=""
 CFG_GPS_NO_PUBLISH=""
+CFG_GPS_STATIONARY_SOG_KNOTS=""
+CFG_GPS_STATIONARY_RADIUS_METERS=""
 
 load_omi_config_file() {
   local file="$1"
@@ -41,6 +43,8 @@ load_omi_config_file() {
         GPS_PORT) CFG_GPS_PORT="$value" ;;
         GPS_RATE) CFG_GPS_RATE="$value" ;;
         GPS_NO_PUBLISH) CFG_GPS_NO_PUBLISH="$value" ;;
+        GPS_STATIONARY_SOG_KNOTS) CFG_GPS_STATIONARY_SOG_KNOTS="$value" ;;
+        GPS_STATIONARY_RADIUS_METERS) CFG_GPS_STATIONARY_RADIUS_METERS="$value" ;;
       esac
     fi
   done < "$file"
@@ -57,6 +61,8 @@ GPS_HOST="${GPS_HOST:-${CFG_GPS_HOST:-127.0.0.1}}"
 GPS_PORT="${GPS_PORT:-${CFG_GPS_PORT:-3000}}"
 GPS_RATE="${GPS_RATE:-${CFG_GPS_RATE:-1}}"
 GPS_NO_PUBLISH="${GPS_NO_PUBLISH:-${CFG_GPS_NO_PUBLISH:-0}}"
+GPS_STATIONARY_SOG_KNOTS="${GPS_STATIONARY_SOG_KNOTS:-${CFG_GPS_STATIONARY_SOG_KNOTS:-2.0}}"
+GPS_STATIONARY_RADIUS_METERS="${GPS_STATIONARY_RADIUS_METERS:-${CFG_GPS_STATIONARY_RADIUS_METERS:-12}}"
 
 if [[ ! -f "$GPS_PUBLISHER" ]]; then
   echo "[ERROR] GPS publisher no encontrado en $GPS_PUBLISHER"
@@ -76,13 +82,15 @@ gps_args=(
   --device "$GPS_DEVICE"
   --baud "$GPS_BAUD"
   --rate "$GPS_RATE"
+  --stationary-sog-knots "$GPS_STATIONARY_SOG_KNOTS"
+  --stationary-radius-meters "$GPS_STATIONARY_RADIUS_METERS"
 )
 
 if [[ "$gps_no_publish_normalized" == "1" || "$gps_no_publish_normalized" == "true" || "$gps_no_publish_normalized" == "yes" ]]; then
   gps_args+=(--no-publish)
   echo "[GPS] Iniciando GPS publisher en modo dry-run (--no-publish)"
 else
-  echo "[GPS] Iniciando GPS publisher -> Signal K $GPS_HOST:$GPS_PORT (DEVICE=$GPS_DEVICE, BAUD=$GPS_BAUD, RATE=${GPS_RATE}Hz)"
+  echo "[GPS] Iniciando GPS publisher -> Signal K $GPS_HOST:$GPS_PORT (DEVICE=$GPS_DEVICE, BAUD=$GPS_BAUD, RATE=${GPS_RATE}Hz, STOP<=${GPS_STATIONARY_SOG_KNOTS}kn, R=${GPS_STATIONARY_RADIUS_METERS}m)"
 fi
 
 exec python3 "$GPS_PUBLISHER" "${gps_args[@]}"

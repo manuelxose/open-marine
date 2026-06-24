@@ -179,6 +179,7 @@ export function buildEncStyle(config: EncLayerConfig, safetyDepth = 2.0): StyleS
         type: 'raster',
         tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
         tileSize: 256,
+        maxzoom: 19,
         attribution: '&copy; OpenStreetMap contributors',
       },
       'enc-depth-areas': {

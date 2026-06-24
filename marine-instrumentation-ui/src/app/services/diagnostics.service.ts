@@ -1,5 +1,5 @@
-import { Injectable } from "@angular/core";
-import { BehaviorSubject, interval } from "rxjs";
+import { Injectable, NgZone } from "@angular/core";
+import { BehaviorSubject } from "rxjs";
 import { PATHS, type SignalKPath } from "@omi/marine-data-contract";
 import { DatapointStoreService } from "../state/datapoints/datapoint-store.service";
 import type { DataPoint } from "../state/datapoints/datapoint.models";
@@ -85,7 +85,7 @@ export class DiagnosticsService {
 
   readonly state$ = this.stateSubject.asObservable();
 
-  constructor(store: DatapointStoreService) {
+  constructor(store: DatapointStoreService, zone: NgZone) {
     DIAGNOSTIC_PATHS.forEach((path) => {
       this.entries.set(path, createEntry(path));
       store.observe(path).subscribe((point) => {
@@ -93,8 +93,11 @@ export class DiagnosticsService {
       });
     });
 
-    interval(1000).subscribe(() => {
-      this.refresh();
+    zone.runOutsideAngular(() => {
+      setInterval(() => {
+        const newState = this.computeState();
+        zone.run(() => this.stateSubject.next(newState));
+      }, 5000);
     });
   }
 
@@ -126,10 +129,9 @@ export class DiagnosticsService {
     };
 
     this.entries.set(path, updated);
-    this.refresh();
   }
 
-  private refresh(): void {
+  private computeState(): DiagnosticsState {
     const nowMs = Date.now();
     const entryList = Array.from(this.entries.values()).map((entry) => {
       const latencyMs = entry.lastTimestampMs !== undefined ? Math.max(0, nowMs - entry.lastTimestampMs) : null;
@@ -152,13 +154,13 @@ export class DiagnosticsService {
     const staleCount = entryList.filter((entry) => entry.freshness === "stale").length;
     const deadCount = entryList.filter((entry) => entry.freshness === "dead").length;
 
-    this.stateSubject.next({
+    return {
       entries: entryList,
       avgLatencyMs,
       maxLatencyMs,
       staleCount,
       deadCount,
       updatedAt: new Date(nowMs).toISOString(),
-    });
+    };
   }
 }

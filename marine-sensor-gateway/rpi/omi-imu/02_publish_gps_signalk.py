@@ -8,7 +8,7 @@ import glob
 import json
 import math
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
 from typing import Any
 from urllib.parse import urlsplit, urlunsplit
@@ -29,6 +29,8 @@ DEFAULT_DEVICE = "/dev/ttyACM0"
 DEFAULT_TIMEOUT_S = 2.5
 DEFAULT_RATE_HZ = 1.0
 NMEA_STALE_TIMEOUT_S = 3.0
+DEFAULT_STATIONARY_SOG_KNOTS = 2.0
+DEFAULT_STATIONARY_RADIUS_METERS = 12.0
 
 SOURCE_LABEL = "G-Mouse DL28U9U GPS"
 SOURCE_SRC = "gps-usb"
@@ -86,6 +88,13 @@ class GpsState:
     fix_type: str = "none"
 
 
+@dataclass
+class StationaryFilterState:
+    locked_latitude: float | None = None
+    locked_longitude: float | None = None
+    locked_cog_deg_true: float | None = None
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Publish USB GPS NMEA0183 data to Signal K.",
@@ -122,6 +131,24 @@ def parse_args() -> argparse.Namespace:
         "--no-publish",
         action="store_true",
         help="Read and parse only; do not publish to Signal K.",
+    )
+    parser.add_argument(
+        "--stationary-sog-knots",
+        type=float,
+        default=DEFAULT_STATIONARY_SOG_KNOTS,
+        help=(
+            "Treat GPS fixes at or below this SOG as stopped and suppress jitter "
+            f"(default: {DEFAULT_STATIONARY_SOG_KNOTS} kn)."
+        ),
+    )
+    parser.add_argument(
+        "--stationary-radius-meters",
+        type=float,
+        default=DEFAULT_STATIONARY_RADIUS_METERS,
+        help=(
+            "Maximum position drift to freeze while stopped "
+            f"(default: {DEFAULT_STATIONARY_RADIUS_METERS} m)."
+        ),
     )
     return parser.parse_args()
 
@@ -239,6 +266,72 @@ def has_valid_fix(state: GpsState) -> bool:
         and state.latitude is not None
         and state.longitude is not None
         and state.rmc_status != "V"
+    )
+
+
+def distance_meters(
+    lat_a: float,
+    lon_a: float,
+    lat_b: float,
+    lon_b: float,
+) -> float:
+    earth_radius_m = 6_371_000.0
+    phi_a = math.radians(lat_a)
+    phi_b = math.radians(lat_b)
+    delta_phi = math.radians(lat_b - lat_a)
+    delta_lambda = math.radians(lon_b - lon_a)
+    hav = (
+        math.sin(delta_phi / 2.0) ** 2
+        + math.cos(phi_a) * math.cos(phi_b) * math.sin(delta_lambda / 2.0) ** 2
+    )
+    return 2.0 * earth_radius_m * math.atan2(math.sqrt(hav), math.sqrt(1.0 - hav))
+
+
+def apply_stationary_filter(
+    state: GpsState,
+    filter_state: StationaryFilterState,
+    stationary_sog_knots: float,
+    stationary_radius_meters: float,
+) -> GpsState:
+    if not has_valid_fix(state):
+        filter_state.locked_latitude = None
+        filter_state.locked_longitude = None
+        filter_state.locked_cog_deg_true = None
+        return state
+
+    if state.sog_knots is None or state.sog_knots > stationary_sog_knots:
+        filter_state.locked_latitude = state.latitude
+        filter_state.locked_longitude = state.longitude
+        filter_state.locked_cog_deg_true = state.cog_deg_true
+        return state
+
+    lat = state.latitude
+    lon = state.longitude
+    if lat is None or lon is None:
+        return state
+
+    if filter_state.locked_latitude is None or filter_state.locked_longitude is None:
+        filter_state.locked_latitude = lat
+        filter_state.locked_longitude = lon
+        filter_state.locked_cog_deg_true = state.cog_deg_true
+
+    distance_from_lock = distance_meters(
+        filter_state.locked_latitude,
+        filter_state.locked_longitude,
+        lat,
+        lon,
+    )
+    if distance_from_lock > stationary_radius_meters:
+        filter_state.locked_latitude = lat
+        filter_state.locked_longitude = lon
+        filter_state.locked_cog_deg_true = state.cog_deg_true
+
+    return replace(
+        state,
+        latitude=filter_state.locked_latitude,
+        longitude=filter_state.locked_longitude,
+        sog_knots=0.0,
+        cog_deg_true=filter_state.locked_cog_deg_true,
     )
 
 
@@ -572,12 +665,17 @@ def main() -> int:
         raise SystemExit("--baud must be > 0")
     if args.rate <= 0:
         raise SystemExit("--rate must be > 0")
+    if args.stationary_sog_knots < 0:
+        raise SystemExit("--stationary-sog-knots must be >= 0")
+    if args.stationary_radius_meters <= 0:
+        raise SystemExit("--stationary-radius-meters must be > 0")
 
     device = detect_serial_device(args.device)
     base_url = build_base_url(args.host, args.port)
     publish_period_s = 1.0 / args.rate
     serial_timeout_s = max(0.05, min(0.5, publish_period_s / 4.0))
     state = GpsState()
+    stationary_filter = StationaryFilterState()
     stats = RuntimeStats()
     session = requests.Session()
     ws_publisher = SignalKWebSocketPublisher(base_url)
@@ -590,6 +688,11 @@ def main() -> int:
     print(f"GPS device: {device} @ {args.baud} baud")
     print(f"Signal K target: {base_url}/signalk/v1/api/")
     print(f"Rate: {args.rate} Hz")
+    print(
+        "Stationary filter: "
+        f"SOG <= {args.stationary_sog_knots:.2f} kn, "
+        f"radius <= {args.stationary_radius_meters:.1f} m"
+    )
     print(f"Publish enabled: {not args.no_publish}")
 
     if not args.no_publish:
@@ -632,16 +735,22 @@ def main() -> int:
                     if state.gps_datetime_utc is not None
                     else utc_now_iso()
                 )
-                values = build_values(state, timestamp_iso)
+                publish_state = apply_stationary_filter(
+                    state,
+                    stationary_filter,
+                    args.stationary_sog_knots,
+                    args.stationary_radius_meters,
+                )
+                values = build_values(publish_state, timestamp_iso)
                 delta = build_delta_message(timestamp_iso, values)
 
-                if has_valid_fix(state):
+                if has_valid_fix(publish_state):
                     stats.fixes_valid += 1
                 else:
                     stats.fixes_none += 1
 
                 if args.no_publish:
-                    print_line(timestamp_iso, state, status_ok=True, note="dry-run (--no-publish)")
+                    print_line(timestamp_iso, publish_state, status_ok=True, note="dry-run (--no-publish)")
                     continue
 
                 stats.publish_attempts += 1
@@ -678,7 +787,7 @@ def main() -> int:
                     stats.publish_ok += 1
                 else:
                     stats.publish_errors += 1
-                print_line(timestamp_iso, state, status_ok=ok, note=detail)
+                print_line(timestamp_iso, publish_state, status_ok=ok, note=detail)
 
         except KeyboardInterrupt:
             print_summary(stats, publish_enabled=not args.no_publish)

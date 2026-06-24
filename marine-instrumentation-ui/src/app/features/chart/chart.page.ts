@@ -3,6 +3,7 @@ import {
   ChangeDetectionStrategy,
   Component,
   OnDestroy,
+  NgZone,
   ViewChild,
   effect,
   inject,
@@ -570,6 +571,7 @@ export class ChartPage implements AfterViewInit, OnDestroy {
   private readonly datapointStore = inject(DatapointStoreService);
   private readonly aisStore = inject(AisStoreService);
   private readonly playbackStore = inject(PlaybackStoreService);
+  private readonly zone = inject(NgZone);
   
   private readonly engine = new MapLibreEngineService(); // Engine logic maintained
   private canvasComponent: ChartCanvasComponent | undefined;
@@ -782,50 +784,76 @@ export class ChartPage implements AfterViewInit, OnDestroy {
     effect(() => {
       const vessel = this.playbackVesselSignal() ?? this.vesselSignal();
       if (!vessel) return;
-      this.engine.updateVesselPosition(vessel.lngLat, vessel.rotationDeg, vessel.state);
+      this.runMapUpdate(() => this.engine.updateVesselPosition(vessel.lngLat, vessel.rotationDeg, vessel.state));
     });
 
-    effect(() => { this.engine.updateTrack(this.trackSignal()); });
+    effect(() => {
+      const track = this.trackSignal();
+      this.runMapUpdate(() => this.engine.updateTrack(track));
+    });
     effect(() => { 
       const vector = this.vectorSignal(); 
-      this.engine.updateVector(vector.coords, vector.visible); 
+      this.runMapUpdate(() => this.engine.updateVector(vector.coords, vector.visible));
     });
     effect(() => {
       const headingLine = this.headingLineSignal();
-      this.engine.updateHeadingLine(headingLine.coords, headingLine.visible);
+      this.runMapUpdate(() => this.engine.updateHeadingLine(headingLine.coords, headingLine.visible));
     });
     effect(() => {
       const laylines = this.laylinesSignal();
-      this.engine.updateLaylines(laylines.lines, laylines.visible);
+      this.runMapUpdate(() => this.engine.updateLaylines(laylines.lines, laylines.visible));
     });
     effect(() => {
       const wind = this.trueWindSignal();
-      this.engine.updateTrueWind(wind.coords, wind.visible);
+      this.runMapUpdate(() => this.engine.updateTrueWind(wind.coords, wind.visible));
     });
-    effect(() => { this.engine.updateWaypoints(this.waypointsSignal()); });
-    effect(() => { this.engine.updateRoute(this.routeSignal()); });
-    effect(() => { this.engine.updateView(this.centerSignal()); });
+    effect(() => {
+      const waypoints = this.waypointsSignal();
+      this.runMapUpdate(() => this.engine.updateWaypoints(waypoints));
+    });
+    effect(() => {
+      const route = this.routeSignal();
+      this.runMapUpdate(() => this.engine.updateRoute(route));
+    });
+    effect(() => {
+      const center = this.centerSignal();
+      this.runMapUpdate(() => this.engine.updateView(center));
+    });
     effect(() => {
       const rings = this.rangeRingsSignal();
-      if (rings && rings.center) {
-        this.engine.updateRangeRings(rings.center, rings.intervals);
-      } else {
-        this.engine.clearRangeRings();
-      }
+      this.runMapUpdate(() => {
+        if (rings && rings.center) {
+          this.engine.updateRangeRings(rings.center, rings.intervals);
+        } else {
+          this.engine.clearRangeRings();
+        }
+      });
     });
     effect(() => {
       const line = this.bearingLineSignal();
-      this.engine.updateBearingLine(line.coords, line.visible);
+      this.runMapUpdate(() => this.engine.updateBearingLine(line.coords, line.visible));
     });
     effect(() => {
       const source = this.baseSourceSignal();
       if (source) this.engine.setBaseSource(source);
     });
     effect(() => { this.engine.setOrientation(this.orientation()); });
-    effect(() => { this.engine.updateAisTargets(this.aisTargetsSignal()); });
-    effect(() => { this.engine.updateAisTracks(this.aisTracksSignal()); });
-    effect(() => { this.engine.updateAisPredictions(this.aisPredictionsSignal()); });
-    effect(() => { this.engine.updateCpaLines(this.cpaLinesSignal()); });
+    effect(() => {
+      const targets = this.aisTargetsSignal();
+      this.runMapUpdate(() => this.engine.updateAisTargets(targets));
+    });
+    effect(() => {
+      const tracks = this.aisTracksSignal();
+      this.runMapUpdate(() => this.engine.updateAisTracks(tracks));
+    });
+    effect(() => {
+      const predictions = this.aisPredictionsSignal();
+      this.runMapUpdate(() => this.engine.updateAisPredictions(predictions));
+    });
+    effect(() => {
+      const cpaLines = this.cpaLinesSignal();
+      this.runMapUpdate(() => this.engine.updateCpaLines(cpaLines));
+    });
     effect(() => { this.engine.setAisVesselTypeColors(this.aisVesselTypeColorsSignal()); });
     effect(() => { this.engine.setOwnVesselIconScale(this.ownVesselIconScaleSignal()); });
     effect(() => { this.engine.setAisTargetIconScale(this.aisTargetIconScaleSignal()); });
@@ -883,8 +911,7 @@ export class ChartPage implements AfterViewInit, OnDestroy {
       return;
     }
 
-    this.engine.setClickHandler((lngLat) => {
-      // When measurement mode is active, route clicks to measurement service
+    this.engine.setClickHandler((lngLat) => this.zone.run(() => {
       if (this.measurementActive()) {
         this.measurementService.addPoint(lngLat);
         return;
@@ -892,25 +919,33 @@ export class ChartPage implements AfterViewInit, OnDestroy {
       if (this.addWaypointMode()) {
         this.facade.addWaypointAt(lngLat);
       }
-    });
+    }));
     this.engine.setFeatureClickHandler((event) => {
-      if (event.layerId === 'chart-waypoints-layer') {
-        const waypointId =
-          typeof event.properties?.id === 'string' && event.properties.id.trim().length > 0
-            ? event.properties.id
-            : null;
-        if (waypointId) {
-          this.facade.selectWaypoint(waypointId);
+      this.zone.run(() => {
+        if (event.layerId === 'chart-waypoints-layer') {
+          const waypointId =
+            typeof event.properties?.id === 'string' && event.properties.id.trim().length > 0
+              ? event.properties.id
+              : null;
+          if (waypointId) {
+            this.facade.selectWaypoint(waypointId);
+          }
+          return;
         }
-        return;
-      }
-      if (event.layerId === 'chart-ais-layer' && event.properties?.mmsi) {
-        this.selectedAisMmsi.set(event.properties.mmsi);
-      }
+        if (event.layerId === 'chart-ais-layer' && event.properties?.mmsi) {
+          this.selectedAisMmsi.set(event.properties.mmsi);
+        }
+      });
     });
 
-    this.engine.init(container, this.facade.initialView);
+    this.zone.runOutsideAngular(() => {
+      this.engine.init(container, this.facade.initialView);
+    });
     this.mapInitialized = true;
+  }
+
+  private runMapUpdate(update: () => void): void {
+    this.zone.runOutsideAngular(update);
   }
 
   ngOnDestroy(): void {

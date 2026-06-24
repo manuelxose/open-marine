@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, EventEmitter, Input, Output, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, EventEmitter, Input, Output, inject, signal } from '@angular/core';
 import { CommonModule, DecimalPipe } from '@angular/common';
 import { BehaviorSubject } from 'rxjs';
 import { distinctUntilChanged, filter, shareReplay, switchMap } from 'rxjs/operators';
@@ -14,6 +14,7 @@ import { METERS_PER_NM, metersPerSecondToKnots, normalizeDegrees, toDegrees } fr
 import { AisStoreService } from '../../../../state/ais/ais-store.service';
 import { VesselEnrichmentService } from '../../../../data-access/vessel-enrichment/vessel-enrichment.service';
 import {
+  decodeFlagFromMmsi,
   decodeVesselType,
   type EnrichmentResult,
   type EnrichmentStatus,
@@ -47,7 +48,19 @@ import {
         <div class="header-row">
           <div class="header-main">
             <h2>
-              <span class="flag-emoji" *ngIf="enrichment.info?.flagEmoji as flag">{{ flag }}</span>
+              <ng-container *ngIf="getFlagCountryCode() as countryCode">
+                <img
+                  *ngIf="!flagImageFailed(); else flagCodeFallback"
+                  class="flag-image"
+                  [src]="getFlagImageUrl(countryCode)"
+                  [alt]="'Flag ' + countryCode"
+                  width="24"
+                  height="18"
+                  (error)="flagImageFailed.set(true)" />
+                <ng-template #flagCodeFallback>
+                  <span class="flag-code">{{ countryCode }}</span>
+                </ng-template>
+              </ng-container>
               {{ target.name || target.callsign || ('Vessel ' + target.mmsi) }}
             </h2>
             <span class="mmsi">MMSI: {{ target.mmsi }}</span>
@@ -207,8 +220,7 @@ import {
         <div class="details-footer">
           <span class="last-seen">Last seen: {{ target.lastUpdated | timeAgo }}</span>
           <a
-            *ngIf="enrichment.info?.externalUrl as extUrl"
-            [href]="extUrl"
+            [href]="getExternalVesselUrl()"
             target="_blank"
             rel="noopener noreferrer"
             class="external-link">
@@ -298,9 +310,24 @@ import {
       display: block;
     }
 
-    .flag-emoji {
-      font-size: 1.05rem;
-      line-height: 1;
+    .flag-image {
+      width: 24px;
+      height: 18px;
+      object-fit: cover;
+      border-radius: 2px;
+      box-shadow: 0 0 0 1px rgb(255 255 255 / 22%);
+      flex-shrink: 0;
+    }
+
+    .flag-code {
+      min-width: 24px;
+      padding: 1px 4px;
+      border: 1px solid color-mix(in srgb, var(--border-default, #ffffff) 35%, transparent);
+      border-radius: 3px;
+      font-size: 0.65rem;
+      line-height: 1rem;
+      text-align: center;
+      color: var(--text-secondary, #cbd5e1);
       flex-shrink: 0;
     }
 
@@ -514,12 +541,14 @@ export class AisTargetDetailsComponent {
   private readonly aisStore = inject(AisStoreService);
   private readonly enrichmentService = inject(VesselEnrichmentService);
   private readonly targetSubject = new BehaviorSubject<AisTarget | null>(null);
+  readonly flagImageFailed = signal(false);
 
   private _target!: AisTarget;
 
   @Input({ required: true })
   set target(value: AisTarget) {
     this._target = value;
+    this.flagImageFailed.set(false);
     this.targetSubject.next(value);
   }
 
@@ -608,6 +637,20 @@ export class AisTargetDetailsComponent {
     const lengthText = length !== null ? `${length}m` : '--';
     const beamText = beam !== null ? `${beam}m` : '--';
     return `${lengthText} x ${beamText}`;
+  }
+
+  getExternalVesselUrl(): string {
+    const imo = this.target?.imo?.trim();
+    const vesselId = imo && imo !== '0' ? imo : this.target?.mmsi?.trim();
+    return `https://www.vesselfinder.com/vessels/details/${encodeURIComponent(vesselId || '')}`;
+  }
+
+  getFlagCountryCode(): string | null {
+    return decodeFlagFromMmsi(this.target?.mmsi)?.country ?? null;
+  }
+
+  getFlagImageUrl(countryCode: string): string {
+    return `https://flagcdn.com/w40/${countryCode.toLowerCase()}.png`;
   }
 
   getEnrichmentStateLabel(status: EnrichmentStatus): string {
