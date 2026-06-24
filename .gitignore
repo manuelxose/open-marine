@@ -82,6 +82,8 @@ lerna-debug.log*
 
 # Generated files
 .generated/
+__pycache__/
+*.py[cod]
 
 # Local tooling binaries
 tools/*

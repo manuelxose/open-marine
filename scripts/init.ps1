@@ -100,14 +100,14 @@ function Test-Prerequisites {
     $nodeRaw = (node --version).Trim()
     $nodeVer = $nodeRaw -replace '^v', ''
     $major = [int]($nodeVer.Split('.')[0])
-    if ($major -ne 20 -and $major -ne 22) {
-      Err "Node.js v$nodeVer detectado, se requiere v20.x o v22.x"
+    if ($major -ne 20 -and $major -ne 22 -and $major -ne 24) {
+      Err "Node.js v$nodeVer detectado, se requiere v20.x, v22.x o v24.x"
       $missing = $true
     } else {
       Log "Node.js v$nodeVer OK"
     }
   } catch {
-    Err "Node.js no encontrado. Instala Node.js 20/22 LTS: https://nodejs.org/"
+    Err "Node.js no encontrado. Instala Node.js 20/22/24 LTS: https://nodejs.org/"
     $missing = $true
   }
 
@@ -331,7 +331,18 @@ function Initialize-SignalK {
     Warn "docker compose down devolvio error. Continuando con el arranque."
   }
 
-  $upExit = Invoke-DockerCli 'docker compose up -d >nul 2>nul'
+  $upExit = 1
+  for ($attempt = 1; $attempt -le 5; $attempt++) {
+    $upExit = Invoke-DockerCli 'docker compose up -d >nul 2>nul'
+    if ($upExit -eq 0) {
+      break
+    }
+    if ($attempt -lt 5) {
+      Warn "docker compose up fallo (intento $attempt/5), Docker Desktop puede seguir arrancando. Reintentando en 5s..."
+      Start-Sleep -Seconds 5
+    }
+  }
+
   if ($upExit -ne 0) {
     Err "No se pudo levantar Signal K con docker compose."
     Warn "Revisa Docker Desktop y vuelve a ejecutar: npm run init"
@@ -379,12 +390,14 @@ function Build-Packages {
 
   Push-Location (Join-Path $ProjectRoot "marine-instrumentation-ui")
   npm install
-  Log "marine-instrumentation-ui dependencias OK"
+  npm run build
+  Log "marine-instrumentation-ui OK"
   Pop-Location
 
   Push-Location (Join-Path $ProjectRoot "marine-sensor-gateway")
   npm install
-  Log "marine-sensor-gateway dependencias OK"
+  npm run build
+  Log "marine-sensor-gateway OK"
   Pop-Location
 }
 

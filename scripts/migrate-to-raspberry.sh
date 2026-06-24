@@ -113,6 +113,7 @@ SSH_CLIENT="${RPI_SSH_CLIENT:-}"
 CONFIG_FILE="${RPI_CONFIG_FILE:-${OMI_CONFIG_FILE:-}}"
 SIGNALK_IMAGE_REF="${OMI_SIGNALK_IMAGE:-signalk/signalk-server:v2.22.1}"
 SIGNALK_IMAGE_ARCHIVE="$PROJECT_ROOT/tools/docker-images/signalk-signalk-server_latest.tar"
+INCLUDE_DOCKER_IMAGE_MIGRATION="${OMI_MIGRATE_INCLUDE_DOCKER_IMAGE:-false}"
 
 if [[ -z "$CONFIG_FILE" ]]; then
   if [[ -f "$PROJECT_ROOT/config/omi.env" ]]; then
@@ -169,7 +170,7 @@ export_signalk_image_for_migration() {
   if ! docker image inspect "$SIGNALK_IMAGE_REF" >/dev/null 2>&1; then
     warn "Imagen $SIGNALK_IMAGE_REF no encontrada localmente. Intentando docker pull..."
     if ! docker pull "$SIGNALK_IMAGE_REF"; then
-      warn "No se pudo obtener $SIGNALK_IMAGE_REF. La Raspberry descargara la imagen en init:linux."
+      warn "No se pudo obtener $SIGNALK_IMAGE_REF. La Raspberry descargara la imagen en npm run init."
       return
     fi
   fi
@@ -260,7 +261,14 @@ if [[ "$use_sshpass" -eq 1 ]]; then
 fi
 
 log "Creando paquete de migracion..."
-export_signalk_image_for_migration
+case "$(echo "$INCLUDE_DOCKER_IMAGE_MIGRATION" | tr '[:upper:]' '[:lower:]')" in
+  true|1|yes|y|s|si)
+    export_signalk_image_for_migration
+    ;;
+  *)
+    warn "Se omite imagen Docker en el paquete. Usa OMI_MIGRATE_INCLUDE_DOCKER_IMAGE=true para migracion offline."
+    ;;
+esac
 tar -czf "$archive_path" \
   --exclude=.git \
   --exclude=.github \
@@ -274,6 +282,7 @@ tar -czf "$archive_path" \
   --exclude=.omi-*.log \
   --exclude=.omi-*.pid \
   --exclude=tools/ais-catcher \
+  --exclude=tools/docker-images \
   -C "$PROJECT_ROOT" .
 
 remote="${TARGET_USER}@${TARGET_HOST}"
@@ -286,7 +295,7 @@ log "Subiendo paquete a Raspberry..."
 "${scp_cmd[@]}" "$archive_path" "$remote:$TARGET_PATH/$archive_name"
 
 log "Extrayendo proyecto en Raspberry..."
-"${ssh_cmd[@]}" "$remote" "set -e; cd '$TARGET_PATH'; tar -xzf '$archive_name'; rm -f '$archive_name'"
+"${ssh_cmd[@]}" "$remote" "set -e; cd '$TARGET_PATH'; tar -xzf '$archive_name'; rm -f '$archive_name'; find '$TARGET_PATH' -type f \( -name '*.sh' -o -name '*.py' -o -name '*.mjs' \) -exec sed -i 's/\r$//' {} +"
 
 rm -f "$archive_path"
 
@@ -295,5 +304,5 @@ echo ""
 echo "Siguientes pasos en Raspberry:"
 echo "  ssh -p $TARGET_PORT $remote"
 echo "  cd $TARGET_PATH"
-echo "  npm run init:linux"
+echo "  npm run init"
 echo ""

@@ -7,12 +7,19 @@ export interface AppEnvironment {
 
 export const APP_ENVIRONMENT = new InjectionToken<AppEnvironment>('APP_ENVIRONMENT');
 
+// Raspberry Pi running Signal K + GPS/IMU/AIS sensors, see docs/RASPBERRY_CONNECTION.md
+const RASPBERRY_LAN_HOST = '192.168.1.43';
+
 function resolveSignalKHost(): string {
   if (typeof window !== 'undefined' && window.location?.hostname) {
-    return window.location.hostname;
+    const hostname = window.location.hostname;
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+      return RASPBERRY_LAN_HOST;
+    }
+    return hostname;
   }
 
-  return 'localhost';
+  return RASPBERRY_LAN_HOST;
 }
 
 function resolveProtocols(): { httpProtocol: 'http' | 'https'; wsProtocol: 'ws' | 'wss' } {

@@ -10,6 +10,8 @@ export class AudioService {
   private gainNode: GainNode | null = null;
   private soundBuffers = new Map<string, AudioBuffer>();
   private isEnabled = false;
+  private pendingSeverity: AlarmSeverity | null = null;
+  private unlockListenersArmed = false;
 
   // Map severity to sound file
   private readonly SOUND_FILES: Record<AlarmSeverity, string> = {
@@ -20,13 +22,17 @@ export class AudioService {
   };
 
   constructor() {
-    this.initAudioContext();
+    this.armAudioUnlock();
   }
 
   /**
    * Initialize AudioContext. Calling this on user interaction unlocks audio.
    */
   public async initAudioContext(): Promise<void> {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
     if (!this.audioContext) {
       this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
       this.gainNode = this.audioContext.createGain();
@@ -37,36 +43,50 @@ export class AudioService {
     if (this.audioContext.state === 'suspended') {
       try {
         await this.audioContext.resume();
-        this.isEnabled = true;
-        console.log('AudioContext resumed successfully');
       } catch (err) {
-        console.warn('AudioContext resume failed (user interaction needed)', err);
+        this.isEnabled = false;
+        this.armAudioUnlock();
+        return;
       }
-    } else {
-      this.isEnabled = true;
     }
 
-    // Preload sounds
-    this.preloadSounds();
+    this.isEnabled = this.audioContext.state === 'running';
+    if (!this.isEnabled) {
+      this.armAudioUnlock();
+      return;
+    }
+
+    void this.preloadSounds();
+
+    const pendingSeverity = this.pendingSeverity;
+    this.pendingSeverity = null;
+    if (pendingSeverity !== null) {
+      this.playAlarm(pendingSeverity);
+    }
   }
 
   public playAlarm(severity: AlarmSeverity): void {
-    if (!this.isEnabled) {
-      // Try to resume if not enabled
-      this.initAudioContext().catch(() => {});
-    }
-
     if (this.activeSource) {
       this.stop(); // Stop current before playing new
     }
 
     const soundUrl = this.SOUND_FILES[severity];
-    if (!soundUrl) return;
+    if (!soundUrl) {
+      this.pendingSeverity = null;
+      return;
+    }
+
+    if (!this.isEnabled || this.audioContext?.state !== 'running') {
+      this.pendingSeverity = severity;
+      this.armAudioUnlock();
+      return;
+    }
 
     this.playSound(soundUrl, true); // Loop alarms by default
   }
 
   public stop(): void {
+    this.pendingSeverity = null;
     if (this.activeSource) {
       try {
         this.activeSource.stop();
@@ -86,7 +106,7 @@ export class AudioService {
   }
 
   private async preloadSounds(): Promise<void> {
-    const urls = Object.values(this.SOUND_FILES);
+    const urls = Object.values(this.SOUND_FILES).filter((url) => url.length > 0);
     for (const url of urls) {
       if (!this.soundBuffers.has(url)) {
         try {
@@ -102,7 +122,7 @@ export class AudioService {
   }
 
   private async playSound(url: string, loop: boolean = false): Promise<void> {
-    if (!this.audioContext || !this.gainNode) return;
+    if (!this.audioContext || !this.gainNode || this.audioContext.state !== 'running') return;
 
     let buffer = this.soundBuffers.get(url);
     if (!buffer) {
@@ -135,5 +155,22 @@ export class AudioService {
     } catch (err) {
       throw new Error(`Fetch error for ${url}: ${err}`);
     }
+  }
+
+  private armAudioUnlock(): void {
+    if (this.unlockListenersArmed || typeof document === 'undefined') {
+      return;
+    }
+
+    this.unlockListenersArmed = true;
+    const unlock = (): void => {
+      document.removeEventListener('pointerdown', unlock, true);
+      document.removeEventListener('keydown', unlock, true);
+      this.unlockListenersArmed = false;
+      void this.initAudioContext();
+    };
+
+    document.addEventListener('pointerdown', unlock, { capture: true, once: true });
+    document.addEventListener('keydown', unlock, { capture: true, once: true });
   }
 }

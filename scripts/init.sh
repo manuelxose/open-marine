@@ -206,14 +206,14 @@ check_prereqs() {
   local missing=0
 
   if ! command -v node >/dev/null 2>&1; then
-    err "Node.js no encontrado. Instala Node.js 20/22 LTS: https://nodejs.org/"
+    err "Node.js no encontrado. Instala Node.js 20/22/24 LTS: https://nodejs.org/"
     missing=1
   else
     local node_ver node_major
     node_ver="$(node --version | sed 's/^v//')"
     node_major="$(echo "$node_ver" | cut -d. -f1)"
-    if [[ "$node_major" != "20" && "$node_major" != "22" ]]; then
-      err "Node.js v${node_ver} detectado, se requiere v20.x o v22.x"
+    if [[ "$node_major" != "20" && "$node_major" != "22" && "$node_major" != "24" ]]; then
+      err "Node.js v${node_ver} detectado, se requiere v20.x, v22.x o v24.x"
       missing=1
     else
       log "Node.js v${node_ver} OK"
@@ -631,11 +631,13 @@ build_packages() {
 
   cd "$PROJECT_ROOT/marine-instrumentation-ui"
   npm install
-  log "marine-instrumentation-ui dependencias OK"
+  npm run build
+  log "marine-instrumentation-ui OK"
 
   cd "$PROJECT_ROOT/marine-sensor-gateway"
   npm install
-  log "marine-sensor-gateway dependencias OK"
+  npm run build
+  log "marine-sensor-gateway OK"
 }
 
 compile_ais_catcher() {

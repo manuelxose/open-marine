@@ -6,10 +6,11 @@ export interface VesselEnrichmentConfig {
 }
 
 export const DEFAULT_VESSEL_ENRICHMENT_CONFIG: VesselEnrichmentConfig = {
-  // Default endpoint must be DNS-resolvable. This one may still require credentials,
-  // but avoids ERR_NAME_NOT_RESOLVED from a non-existent host.
-  vesselObserverBaseUrl: 'https://api.vesselfinder.com/api/pub/v1/vessel?mmsi={mmsi}',
-  externalDetailsBaseUrl: 'https://www.marinetraffic.com/en/ais/details/ships',
+  // External vessel APIs generally require server-side credentials and do not
+  // allow browser CORS requests. Leave disabled until a compatible backend
+  // endpoint is explicitly configured.
+  vesselObserverBaseUrl: '',
+  externalDetailsBaseUrl: 'https://www.vesselfinder.com/vessels/details',
 };
 
 export const VESSEL_ENRICHMENT_CONFIG = new InjectionToken<VesselEnrichmentConfig>(

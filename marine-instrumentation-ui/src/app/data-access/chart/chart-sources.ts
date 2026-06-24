@@ -24,6 +24,7 @@ const OSM_RASTER_STYLE: StyleSpecification = {
       type: 'raster',
       tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
       tileSize: 256,
+      maxzoom: 19,
       attribution: '(c) OpenStreetMap contributors',
     },
   },
@@ -43,6 +44,7 @@ export const NAUTICAL_RASTER_STYLE: StyleSpecification = {
       type: 'raster',
       tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
       tileSize: 256,
+      maxzoom: 19,
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
     },
     'openseamap-overlay': {

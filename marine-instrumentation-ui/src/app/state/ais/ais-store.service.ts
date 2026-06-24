@@ -1,9 +1,9 @@
-import { Injectable, computed, signal } from '@angular/core';
+import { Injectable, NgZone, computed, signal } from '@angular/core';
 import { AisTarget, AisTrackPoint } from '../../core/models/ais.model';
 import { calculateCpa } from '../../core/calculations/cpa';
 import { DatapointStoreService } from '../datapoints/datapoint-store.service';
 import { PATHS } from '@omi/marine-data-contract';
-import { combineLatest, filter, startWith } from 'rxjs';
+import { auditTime, combineLatest, filter, startWith } from 'rxjs';
 import { AlarmSettingsService } from '../alarms/alarm-settings.service';
 
 const CPA_WARNING_METERS = 1852; // 1 NM
@@ -13,9 +13,16 @@ const TCPA_WARNING_SECONDS = 20 * 60; // 20 Minutes
   providedIn: 'root'
 })
 export class AisStoreService {
-  // Use a map for O(1) access by properties
+  // Authoritative live map, mutated synchronously on every incoming AIS field.
+  private readonly _live = new Map<string, AisTarget>();
+  // Published snapshot for UI consumption; updated in coalesced flushes.
   private _targets = signal<Map<string, AisTarget>>(new Map());
   private readonly _trackBuffer = new Map<string, AisTrackPoint[]>();
+
+  // Coalesce signal emissions: AIS bursts (many fields/vessels per message) would
+  // otherwise clone the map and trigger change detection per field.
+  private flushScheduled = false;
+  private readonly FLUSH_INTERVAL_MS = 250;
   
   // Public signal for UI consumption
   public readonly targets = this._targets.asReadonly();
@@ -48,9 +55,11 @@ export class AisStoreService {
   constructor(
     private datapointStore: DatapointStoreService,
     private alarmSettings: AlarmSettingsService,
+    private zone: NgZone,
   ) {
-    // Start cleanup timer
-    setInterval(() => this.cleanupStaleTargets(), this.CLEANUP_INTERVAL_MS);
+    this.zone.runOutsideAngular(() => {
+      setInterval(() => this.cleanupStaleTargets(), this.CLEANUP_INTERVAL_MS);
+    });
 
     // Keep risk assessment tied to own-ship motion too (not only target updates).
     this.bindOwnShipRiskUpdates();
@@ -62,8 +71,7 @@ export class AisStoreService {
    * @param data Partial data received from Signal K
    */
   updateTarget(mmsi: string, data: Partial<AisTarget>, timestamp: number = Date.now()): void {
-    const currentMap = this._targets();
-    const existing = currentMap.get(mmsi);
+    const existing = this._live.get(mmsi);
 
     let updated: AisTarget = {
       mmsi,
@@ -116,9 +124,7 @@ export class AisStoreService {
         updated = this.calculateRisk(updated);
     }
 
-    // Need to create a new Map to trigger signal change
-    const nextMap = new Map(currentMap);
-    nextMap.set(mmsi, updated);
+    this._live.set(mmsi, updated);
 
     if (
       data.latitude !== undefined &&
@@ -138,7 +144,24 @@ export class AisStoreService {
       });
     }
 
-    this._targets.set(nextMap);
+    this.scheduleFlush();
+  }
+
+  /**
+   * Publish the live map to the UI signal at most once per FLUSH_INTERVAL_MS.
+   * Collapses high-frequency AIS bursts into a single change-detection pass.
+   */
+  private scheduleFlush(): void {
+    if (this.flushScheduled) {
+      return;
+    }
+    this.flushScheduled = true;
+    this.zone.runOutsideAngular(() => {
+      setTimeout(() => {
+        this.flushScheduled = false;
+        this._targets.set(new Map(this._live));
+      }, this.FLUSH_INTERVAL_MS);
+    });
   }
 
   private calculateRisk(
@@ -209,12 +232,12 @@ export class AisStoreService {
   private cleanupStaleTargets(): void {
     const now = Date.now();
     let changed = false;
-    const currentMap = this._targets();
-    const nextMap = new Map(currentMap);
 
-    for (const [mmsi, target] of currentMap) {
+    // Mutate the live map in place (deleting the current key during Map
+    // iteration is safe) — no unconditional full-map clone.
+    for (const [mmsi, target] of this._live) {
       if (now - target.lastUpdated > this.TIMEOUT_MS) {
-        nextMap.delete(mmsi);
+        this._live.delete(mmsi);
         this._trackBuffer.delete(mmsi);
         changed = true;
       }
@@ -232,7 +255,7 @@ export class AisStoreService {
     }
 
     if (changed) {
-      this._targets.set(nextMap);
+      this.scheduleFlush();
     }
   }
 
@@ -241,15 +264,13 @@ export class AisStoreService {
    * This should be called periodically or when Own Ship moves.
    */
   updateRisks(ownShip: { lat: number, lon: number, sog: number, cog: number }): void {
-    const currentMap = this._targets();
-    if (currentMap.size === 0) {
+    if (this._live.size === 0) {
       return;
     }
 
     let changed = false;
-    const nextMap = new Map(currentMap);
 
-    for (const [mmsi, target] of currentMap) {
+    for (const [mmsi, target] of this._live) {
       const updated = this.calculateRisk(target, ownShip);
       if (
         updated.cpa !== target.cpa ||
@@ -257,13 +278,13 @@ export class AisStoreService {
         updated.isDangerous !== target.isDangerous ||
         updated.riskEligible !== target.riskEligible
       ) {
-        nextMap.set(mmsi, updated);
+        this._live.set(mmsi, updated);
         changed = true;
       }
     }
 
     if (changed) {
-      this._targets.set(nextMap);
+      this.scheduleFlush();
     }
   }
 
@@ -273,6 +294,7 @@ export class AisStoreService {
       this.datapointStore.observe<number>(PATHS.navigation.speedOverGround),
       this.datapointStore.observe<number>(PATHS.navigation.courseOverGroundTrue).pipe(startWith(undefined)),
     ]).pipe(
+      auditTime(500),
       filter(([position, sog]) => {
         return !!position &&
           !!position.value &&

@@ -38,6 +38,7 @@ Running services on the Raspberry:
 | `signalk` Docker container | Signal K server on port `3000` |
 | `omi-gps.service` | GPS publisher to local Signal K |
 | `omi-imu.service` | IMU publisher to local Signal K |
+| `omi-ais.service` | AIS-catcher (RTL-SDR) -> UDP `10110` -> Signal K AIS targets |
 | `omi-ui.service` | Compiled Angular UI on port `4200` |
 
 ## SSH
@@ -71,12 +72,12 @@ VS Code:
 2. Select `omi-raspberry-lan` when on the same LAN.
 3. Select `omi-raspberry-cable` when using the direct cable.
 
-Use the Raspberry account password for `manu`, or add this PC public key to the Raspberry:
+This PC's public key (`C:\Users\Admin\.ssh\id_ed25519.pub`) is already installed in `~/.ssh/authorized_keys` on the Raspberry, so `ssh omi-raspberry-lan` connects without a password. If a new PC needs access, append its public key the same way:
 
 ```bash
 mkdir -p ~/.ssh
 chmod 700 ~/.ssh
-echo "<contents of C:\\Users\\Admin\\.ssh\\id_ed25519.pub>" >> ~/.ssh/authorized_keys
+echo "<contents of id_ed25519.pub>" >> ~/.ssh/authorized_keys
 chmod 600 ~/.ssh/authorized_keys
 ```
 
@@ -90,14 +91,22 @@ Run these commands after connecting by SSH:
 systemctl status omi-ui.service
 systemctl status omi-gps.service
 systemctl status omi-imu.service
+systemctl status omi-ais.service
 docker ps --filter name=signalk
 ```
 
-Restart the UI service if needed:
+Restart a service if needed:
 
 ```bash
 sudo systemctl restart omi-ui.service
+sudo systemctl restart omi-ais.service
 ```
+
+`omi-ais.service` runs `scripts/start-ais.sh`, which launches AIS-catcher against the RTL-SDR
+dongle and streams NMEA0183 over UDP to `127.0.0.1:10110` (tunable via `AIS_PPM`, `AIS_GAIN`,
+`AIS_HOST`, `AIS_PORT` in `config/omi.env`). Signal K's `ais-catcher-udp` piped provider listens
+on that port and turns the AIS sentences into vessel targets under
+`/signalk/v1/api/vessels`.
 
 ## Direct cable DHCP
 

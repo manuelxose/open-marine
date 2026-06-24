@@ -82,11 +82,10 @@ export class AppPopoverDirective implements OnDestroy {
 
     this.componentRef.changeDetectorRef.detectChanges();
 
-    // Position
-    this.updatePosition(domElem);
-
+    // Position and show in the same rAF so DOM reads happen after layout is committed
     requestAnimationFrame(() => {
       if (this.componentRef) {
+        this.updatePosition(domElem);
         this.renderer.addClass(domElem, 'visible');
         this.componentRef.instance.visible = true;
         this.componentRef.changeDetectorRef.detectChanges();

@@ -78,14 +78,8 @@ export class AppShellComponent {
     this.router.navigate(['/alarms']);
   }
 
-  /**
-   * Force chart/map reflow after shell layout transitions (hamburger open/close).
-   * MapLibre listens to window resize events and repaints accordingly.
-   */
   private requestChartReflow(): void {
-    // Immediate frame + transition checkpoints (CSS transitions are ~300ms).
-    requestAnimationFrame(() => window.dispatchEvent(new Event('resize')));
-    setTimeout(() => window.dispatchEvent(new Event('resize')), 120);
+    // Single resize after the CSS transition (~300ms) so MapLibre repaints once on the final layout.
     setTimeout(() => window.dispatchEvent(new Event('resize')), 320);
   }
 }

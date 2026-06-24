@@ -224,6 +224,13 @@ export class VesselEnrichmentService {
           continue;
         }
 
+        if (!this.hasExternalProvider()) {
+          const minimal = this.buildMinimalFromMmsi(mmsi);
+          this.saveToCache(mmsi, minimal);
+          subject.next({ status: 'loaded', info: minimal });
+          continue;
+        }
+
         if (subject.value.status !== 'loading') {
           subject.next({ status: 'loading', info: null });
         }
@@ -394,7 +401,14 @@ export class VesselEnrichmentService {
         return null;
       }
 
-      return info as VesselInfo;
+      const cachedInfo = info as VesselInfo;
+      const decodedFlag = decodeFlagFromMmsi(mmsi);
+      if (decodedFlag) {
+        cachedInfo.flagCountry = decodedFlag.country;
+        cachedInfo.flagEmoji = decodedFlag.emoji;
+      }
+
+      return cachedInfo;
     } catch {
       localStorage.removeItem(key);
       return null;
@@ -497,6 +511,10 @@ export class VesselEnrichmentService {
 
     const normalized = raw.replace(/\/+$/, '');
     return `${normalized}/${encodedMmsi}`;
+  }
+
+  private hasExternalProvider(): boolean {
+    return this.config.vesselObserverBaseUrl.trim().length > 0;
   }
 
   private canRequestNow(): boolean {
