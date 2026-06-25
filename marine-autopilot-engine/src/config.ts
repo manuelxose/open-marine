@@ -23,6 +23,10 @@ export interface EngineConfig {
 
   /** Hard rudder limit, degrees. */
   rudderLimitDeg: number;
+  /** Minimum drive (0..1) to overcome static friction; below this the motor idles. */
+  pwmMin: number;
+  /** Maximum drive (0..1) to avoid aggressive helm movements. */
+  pwmMax: number;
   /** Motor overcurrent cutoff, amps. */
   currentLimitA: number;
   /** Battery low-voltage cutoff, volts. */
@@ -79,6 +83,8 @@ export const getConfig = (): EngineConfig => ({
     outputMax: num("AP_RUDDER_LIMIT_DEG", 35),
   },
   rudderLimitDeg: num("AP_RUDDER_LIMIT_DEG", 35),
+  pwmMin: num("AP_PWM_MIN", 0.15),
+  pwmMax: num("AP_PWM_MAX", 1),
   currentLimitA: num("AP_CURRENT_LIMIT_A", 10),
   voltageCutoff: num("AP_VOLTAGE_CUTOFF", 11.5),
   simTrueWindDirDeg: num("AP_SIM_TWD_DEG", 45),

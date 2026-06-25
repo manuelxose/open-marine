@@ -28,7 +28,8 @@ test("HEADING closed loop converges to the target on the bench", async () => {
   const dt = 0.1;
   for (let i = 0; i < 3000; i += 1) {
     const heading = world.getState().headingDeg;
-    motor.command(controller.computeRudder(targetDeg, heading, dt));
+    const rudderDeg = controller.computeRudder(targetDeg, heading, dt);
+    motor.command({ rudderDeg, drive: rudderDeg / 35 });
     world.step(dt);
   }
 
@@ -41,7 +42,7 @@ test("rudder stays at zero while the drive is disabled", async () => {
   const motor = new SimMotor(world, silentLog);
   await motor.init();
   // Not enabled.
-  motor.command(30);
+  motor.command({ rudderDeg: 30, drive: 30 / 35 });
   for (let i = 0; i < 50; i += 1) {
     world.step(0.1);
   }
