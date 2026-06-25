@@ -66,6 +66,14 @@ export class Engine implements AutopilotCommands {
   private wasEngaged = false;
   private commandedRudderDeg = 0;
 
+  /** Live, runtime-tunable parameters (seeded from config, mutable via the API). */
+  private tuning: AutopilotTuning;
+  /** Software E-stop (UI button), OR'd with the hardware line into the snapshot. */
+  private apiEstop = false;
+  /** Dock-side jog test: drives the helm directly while STANDBY (bypasses control). */
+  private driveTestUntilMs = 0;
+  private driveTestCmd = { rudderDeg: 0, drive: 0 };
+
   constructor(
     private readonly config: EngineConfig,
     private readonly sensors: SensorSource,
@@ -81,6 +89,30 @@ export class Engine implements AutopilotCommands {
     this.alarm = new Alarm(this.log.child("alarm"));
     this.publisher = new SignalKPublisher(config.signalKHttpUrl, this.log.child("publish"));
     this.watchdog = new Watchdog(config.watchdogTimeoutMs, () => this.onWatchdogTimeout());
+    this.tuning = {
+      kp: config.pid.kp,
+      ki: config.pid.ki,
+      kd: config.pid.kd,
+      deadbandDeg: config.pid.deadband,
+      rudderLimitDeg: config.rudderLimitDeg,
+      pwmMin: config.pwmMin,
+      pwmMax: config.pwmMax,
+      currentLimitA: config.currentLimitA,
+      voltageCutoff: config.voltageCutoff,
+    };
+  }
+
+  private pidFromTuning(): PidConfig {
+    const limit = this.tuning.rudderLimitDeg;
+    return {
+      kp: this.tuning.kp,
+      ki: this.tuning.ki,
+      kd: this.tuning.kd,
+      deadband: this.tuning.deadbandDeg,
+      integralLimit: this.config.pid.integralLimit,
+      outputMin: -limit,
+      outputMax: limit,
+    };
   }
 
   async start(): Promise<void> {
@@ -116,11 +148,31 @@ export class Engine implements AutopilotCommands {
     this.lastTickMs = now;
     this.watchdog.kick();
 
-    const snapshot = this.sensors.read(now);
+    const raw = this.sensors.read(now);
+    const feedback = this.motor.getFeedback();
+    const snapshot = this.mergeFeedback(raw, feedback);
     this.lastSnapshot = snapshot;
 
+    // Microcontroller-reported fault is a hard stop.
+    if (feedback.fault && this.sm.getState() !== "fault") {
+      this.log.error(`drive fault from microcontroller: ${feedback.fault}`);
+      this.sm.raiseFault("drive-blocked");
+      this.alarm.raise("fault");
+    }
+
     this.applySafety(snapshot);
-    this.runControl(snapshot, dt);
+
+    // Dock-side jog test bypasses normal control while STANDBY and fault-free.
+    if (now < this.driveTestUntilMs && this.sm.getState() === "standby") {
+      this.enableDrive();
+      this.motor.command(this.driveTestCmd);
+    } else {
+      if (this.driveTestUntilMs > 0) {
+        this.driveTestUntilMs = 0;
+        this.disableDrive();
+      }
+      this.runControl(snapshot, dt);
+    }
 
     this.motor.heartbeat(now);
 
@@ -131,11 +183,24 @@ export class Engine implements AutopilotCommands {
     }
   }
 
+  /** Fill rudder/current from motor telemetry when no sensor provides them, and OR the software E-stop. */
+  private mergeFeedback(
+    snapshot: SensorSnapshot,
+    feedback: { rudderAngleDeg: number | undefined; motorCurrentA: number | undefined },
+  ): SensorSnapshot {
+    return {
+      ...snapshot,
+      rudderAngleDeg: snapshot.rudderAngleDeg ?? feedback.rudderAngleDeg,
+      motorCurrentA: snapshot.motorCurrentA ?? feedback.motorCurrentA,
+      emergencyStop: snapshot.emergencyStop || this.apiEstop,
+    };
+  }
+
   private applySafety(snapshot: SensorSnapshot): void {
     const evaluation = evaluateFaults(snapshot, this.sm.getState(), {
-      rudderLimitDeg: this.config.rudderLimitDeg,
-      currentLimitA: this.config.currentLimitA,
-      voltageCutoff: this.config.voltageCutoff,
+      rudderLimitDeg: this.tuning.rudderLimitDeg,
+      currentLimitA: this.tuning.currentLimitA,
+      voltageCutoff: this.tuning.voltageCutoff,
     });
 
     if (evaluation.action === "fault") {
@@ -173,13 +238,13 @@ export class Engine implements AutopilotCommands {
     }
 
     const { rudder, error } = this.computeRudder(state, snapshot, dt);
-    this.commandedRudderDeg = clampRudder(rudder, this.config.rudderLimitDeg);
-    const normalizedDrive = this.commandedRudderDeg / this.config.rudderLimitDeg;
+    this.commandedRudderDeg = clampRudder(rudder, this.tuning.rudderLimitDeg);
+    const normalizedDrive = this.commandedRudderDeg / this.tuning.rudderLimitDeg;
     const driveMagnitude = Math.abs(normalizedDrive) < 1e-6
       ? 0
       : Math.min(
-          this.config.pwmMax,
-          Math.max(this.config.pwmMin, Math.abs(normalizedDrive)),
+          this.tuning.pwmMax,
+          Math.max(this.tuning.pwmMin, Math.abs(normalizedDrive)),
         );
     this.motor.command({
       rudderDeg: this.commandedRudderDeg,
@@ -353,11 +418,64 @@ export class Engine implements AutopilotCommands {
   }
 
   clearFault(): void {
+    this.apiEstop = false;
     this.sm.clearFault();
     this.alarm.clear("fault");
   }
 
   getStatus(): AutopilotStatus {
     return this.sm.getStatus();
+  }
+
+  getTuning(): AutopilotTuning {
+    return { ...this.tuning };
+  }
+
+  /** Apply runtime calibration. Accepts a partial; unknown/invalid fields are ignored. */
+  setTuning(partial: Partial<AutopilotTuning>): AutopilotTuning {
+    const next = { ...this.tuning };
+    for (const key of Object.keys(next) as (keyof AutopilotTuning)[]) {
+      const value = partial[key];
+      if (typeof value === "number" && Number.isFinite(value)) {
+        next[key] = value;
+      }
+    }
+    // Keep limits sane.
+    next.rudderLimitDeg = Math.max(1, Math.min(90, next.rudderLimitDeg));
+    next.pwmMin = Math.max(0, Math.min(1, next.pwmMin));
+    next.pwmMax = Math.max(next.pwmMin, Math.min(1, next.pwmMax));
+    this.tuning = next;
+
+    const pid = this.pidFromTuning();
+    this.heading.setConfig(pid);
+    this.wind.setConfig(pid);
+    this.track.setConfig(pid);
+    this.log.info("tuning updated", this.tuning);
+    return { ...this.tuning };
+  }
+
+  /** Software emergency stop: latched motor cut until the fault is cleared. */
+  emergencyStop(): void {
+    this.apiEstop = true;
+    this.log.error("software E-stop asserted");
+  }
+
+  /**
+   * Dock-side jog test: briefly drive the helm to one side. Allowed only in
+   * STANDBY; the safety layer still runs, so it aborts on any fault.
+   */
+  driveTest(side: "port" | "stbd", seconds: number): EngageResult {
+    if (this.sm.getState() !== "standby") {
+      return { ok: false, reason: "drive test only allowed in STANDBY" };
+    }
+    const dir = side === "stbd" ? 1 : -1;
+    const dur = Math.max(0.2, Math.min(10, seconds));
+    this.driveTestCmd = {
+      rudderDeg: dir * this.tuning.rudderLimitDeg * 0.5,
+      drive: dir * Math.max(this.tuning.pwmMin, 0.3),
+    };
+    this.driveTestUntilMs = Date.now() + dur * 1000;
+    this.log.info(`drive test ${side} for ${dur}s`);
+    return { ok: true };
   }
 }
