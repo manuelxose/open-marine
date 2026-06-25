@@ -1,4 +1,5 @@
 import type { Logger } from "../app/logger.js";
+import WebSocket, { type RawData } from "ws";
 
 interface TimedValue {
   value: unknown;
@@ -13,7 +14,7 @@ interface DeltaMessage {
 /**
  * Subscribes to the Signal K WebSocket stream for the self vessel and keeps the
  * latest value (with receive time) for each path. Reconnects automatically.
- * Uses the global WebSocket (Node 22+), as the rest of this codebase does.
+ * Uses `ws` so the runtime works on the Raspberry's Node 20 installation.
  */
 export class SignalKSubscriber {
   private socket: WebSocket | null = null;
@@ -65,7 +66,7 @@ export class SignalKSubscriber {
     }
     this.socket = socket;
 
-    socket.addEventListener("open", () => {
+    socket.on("open", () => {
       this.log.info(`subscribed to Signal K stream (${this.paths.length} paths)`);
       socket.send(
         JSON.stringify({
@@ -75,15 +76,15 @@ export class SignalKSubscriber {
       );
     });
 
-    socket.addEventListener("message", (event: MessageEvent) => {
-      this.handleMessage(event.data);
+    socket.on("message", (data: RawData) => {
+      this.handleMessage(data.toString());
     });
 
-    socket.addEventListener("error", () => {
+    socket.on("error", () => {
       this.log.warn("Signal K stream error");
     });
 
-    socket.addEventListener("close", () => {
+    socket.on("close", () => {
       this.socket = null;
       if (!this.closed) {
         this.scheduleReconnect();
