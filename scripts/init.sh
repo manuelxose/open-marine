@@ -1004,7 +1004,8 @@ start_post_init_services() {
     echo "  5) busy-shipping-lane"
     echo "  6) combined-failures"
     echo "  7) anchor-drift"
-    read -r -p "Selecciona escenario [1-7 o nombre]: " scenario_choice
+    echo "  8) wind-gps-demo"
+    read -r -p "Selecciona escenario [1-8 o nombre]: " scenario_choice
 
     case "$scenario_choice" in
       ""|"1") scenario="basic-cruise" ;;
@@ -1014,7 +1015,8 @@ start_post_init_services() {
       "5") scenario="busy-shipping-lane" ;;
       "6") scenario="combined-failures" ;;
       "7") scenario="anchor-drift" ;;
-      "basic-cruise"|"harbor-traffic"|"coastal-run"|"anchored-stale"|"busy-shipping-lane"|"combined-failures"|"anchor-drift")
+      "8") scenario="wind-gps-demo" ;;
+      "basic-cruise"|"harbor-traffic"|"coastal-run"|"anchored-stale"|"busy-shipping-lane"|"combined-failures"|"anchor-drift"|"wind-gps-demo")
         scenario="$scenario_choice"
         ;;
       *)

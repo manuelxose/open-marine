@@ -38,6 +38,7 @@ Running services on the Raspberry:
 | `signalk` Docker container | Signal K server on port `3000` |
 | `omi-gps.service` | GPS publisher to local Signal K |
 | `omi-imu.service` | IMU publisher to local Signal K |
+| `omi-wind.service` | NMEA 0183 MWV/MWD wind publisher to local Signal K |
 | `omi-ais.service` | AIS-catcher (RTL-SDR) -> UDP `10110` -> Signal K AIS targets |
 | `omi-ui.service` | Compiled Angular UI on port `4200` |
 
@@ -91,6 +92,7 @@ Run these commands after connecting by SSH:
 systemctl status omi-ui.service
 systemctl status omi-gps.service
 systemctl status omi-imu.service
+systemctl status omi-wind.service
 systemctl status omi-ais.service
 docker ps --filter name=signalk
 ```

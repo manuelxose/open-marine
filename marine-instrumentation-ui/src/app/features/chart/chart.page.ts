@@ -723,7 +723,14 @@ export class ChartPage implements AfterViewInit, OnDestroy {
     initialValue: { lines: [] as [number, number][][], visible: false },
   });
   private readonly trueWindSignal = toSignal(this.facade.trueWindUpdate$, {
-    initialValue: { coords: [] as [number, number][], visible: false },
+    initialValue: {
+      coords: [] as [number, number][],
+      visible: false,
+      directionDeg: 0,
+      speedMps: 0,
+      gustMps: null as number | null,
+      source: 'true' as 'true' | 'apparent',
+    },
   });
   private readonly rangeRingsSignal = toSignal(this.facade.rangeRingsUpdate$, {
     initialValue: { center: null as [number, number] | null, intervals: [] as number[] },
@@ -805,7 +812,7 @@ export class ChartPage implements AfterViewInit, OnDestroy {
     });
     effect(() => {
       const wind = this.trueWindSignal();
-      this.runMapUpdate(() => this.engine.updateTrueWind(wind.coords, wind.visible));
+      this.runMapUpdate(() => this.engine.updateTrueWind(wind));
     });
     effect(() => {
       const waypoints = this.waypointsSignal();

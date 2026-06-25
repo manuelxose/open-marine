@@ -23,6 +23,15 @@ export interface ChartSourceConfig {
   style: maplibregl.StyleSpecification | string;
 }
 
+export interface WindMapUpdate {
+  coords: [number, number][];
+  visible: boolean;
+  directionDeg: number;
+  speedMps: number;
+  gustMps: number | null;
+  source: 'true' | 'apparent';
+}
+
 const DEFAULT_STYLE: maplibregl.StyleSpecification = {
   version: 8,
   sources: {
@@ -63,6 +72,11 @@ const ROUTE_SOURCE_ID = 'chart-route-source';
 const ROUTE_LAYER_ID = 'chart-route-layer';
 const TRUE_WIND_SOURCE_ID = 'chart-true-wind-source';
 const TRUE_WIND_LAYER_ID = 'chart-true-wind-layer';
+const TRUE_WIND_ARROW_SOURCE_ID = 'chart-true-wind-arrow-source';
+const TRUE_WIND_ARROW_LAYER_ID = 'chart-true-wind-arrow-layer';
+const TRUE_WIND_ARROW_LIGHT_ID = 'chart-wind-arrow-light';
+const TRUE_WIND_ARROW_MODERATE_ID = 'chart-wind-arrow-moderate';
+const TRUE_WIND_ARROW_STRONG_ID = 'chart-wind-arrow-strong';
 const RANGE_RINGS_SOURCE_ID = 'chart-range-rings-source';
 const RANGE_RINGS_LAYER_ID = 'chart-range-rings-layer';
 const BEARING_LINE_SOURCE_ID = 'chart-bearing-line-source';
@@ -162,10 +176,15 @@ export class MapLibreEngineService {
   };
   private lastWaypoints: WaypointFeatureCollection = EMPTY_POINTS as unknown as WaypointFeatureCollection;
   private lastRoute: FeatureCollection<LineString> = EMPTY_LINE;
-  private lastTrueWind: { coords: [number, number][]; visible: boolean } = {
+  private lastTrueWind: WindMapUpdate = {
     coords: [],
     visible: false,
+    directionDeg: 0,
+    speedMps: 0,
+    gustMps: null,
+    source: 'true',
   };
+  private trueWindLabelMarker: maplibregl.Marker | null = null;
   private lastRangeRings: FeatureCollection<Polygon> = { type: 'FeatureCollection', features: [] };
   private lastBearingLine: { coords: [number, number][]; visible: boolean } = {
     coords: [],
@@ -295,8 +314,8 @@ export class MapLibreEngineService {
     this.applyRoute();
   }
 
-  updateTrueWind(lineStringCoords: [number, number][], visible: boolean): void {
-    this.lastTrueWind = { coords: lineStringCoords, visible };
+  updateTrueWind(update: WindMapUpdate): void {
+    this.lastTrueWind = update;
     if (!this.mapReady) {
       return;
     }
@@ -555,6 +574,8 @@ export class MapLibreEngineService {
 
 
   destroy(): void {
+    this.trueWindLabelMarker?.remove();
+    this.trueWindLabelMarker = null;
     if (this.resizeObserver) {
       this.resizeObserver.disconnect();
       this.resizeObserver = null;
@@ -911,6 +932,7 @@ export class MapLibreEngineService {
 
   private onStyleReady(): void {
     this.applyOpenSeaMapOverlay();
+    this.ensureTrueWindIcons();
     this.ensureVesselLayer();
     this.ensureTrackLayer();
     this.ensureVectorLayer();
@@ -1301,9 +1323,33 @@ export class MapLibreEngineService {
           visibility: 'none',
         },
         paint: {
-          'line-color': '#10b981', // Emerald-500
+          'line-color': ['coalesce', ['get', 'color'], '#10b981'],
           'line-width': 3,
           'line-opacity': 0.85,
+        },
+      });
+    }
+
+    if (!this.map.getSource(TRUE_WIND_ARROW_SOURCE_ID)) {
+      this.map.addSource(TRUE_WIND_ARROW_SOURCE_ID, {
+        type: 'geojson',
+        data: EMPTY_POINTS,
+      });
+    }
+
+    if (!this.map.getLayer(TRUE_WIND_ARROW_LAYER_ID)) {
+      this.map.addLayer({
+        id: TRUE_WIND_ARROW_LAYER_ID,
+        type: 'symbol',
+        source: TRUE_WIND_ARROW_SOURCE_ID,
+        layout: {
+          'icon-image': ['get', 'icon'],
+          'icon-size': 0.72,
+          'icon-allow-overlap': true,
+          'icon-ignore-placement': true,
+          'icon-rotation-alignment': 'map',
+          'icon-rotate': ['get', 'direction'],
+          visibility: 'none',
         },
       });
     }
@@ -1445,16 +1491,23 @@ export class MapLibreEngineService {
     }
 
     const source = this.map.getSource(TRUE_WIND_SOURCE_ID) as maplibregl.GeoJSONSource | undefined;
-    if (!source || !this.map.getLayer(TRUE_WIND_LAYER_ID)) {
+    const arrowSource = this.map.getSource(TRUE_WIND_ARROW_SOURCE_ID) as maplibregl.GeoJSONSource | undefined;
+    if (!source || !arrowSource || !this.map.getLayer(TRUE_WIND_LAYER_ID)) {
       return;
     }
 
     if (!this.lastTrueWind.visible || this.lastTrueWind.coords.length < 2) {
       source.setData(EMPTY_LINE);
+      arrowSource.setData(EMPTY_POINTS);
       this.map.setLayoutProperty(TRUE_WIND_LAYER_ID, 'visibility', 'none');
+      this.map.setLayoutProperty(TRUE_WIND_ARROW_LAYER_ID, 'visibility', 'none');
+      this.trueWindLabelMarker?.remove();
+      this.trueWindLabelMarker = null;
       return;
     }
 
+    const color = this.windColor(this.lastTrueWind.speedMps);
+    const icon = this.windArrowIcon(this.lastTrueWind.speedMps);
     const data: FeatureCollection<LineString> = {
       type: 'FeatureCollection',
       features: [
@@ -1464,13 +1517,30 @@ export class MapLibreEngineService {
             type: 'LineString',
             coordinates: this.lastTrueWind.coords,
           },
-          properties: {},
+          properties: { color },
         },
       ],
     };
 
     source.setData(data);
+    const endpoint = this.lastTrueWind.coords[this.lastTrueWind.coords.length - 1];
+    if (!endpoint) {
+      return;
+    }
+    arrowSource.setData({
+      type: 'FeatureCollection',
+      features: [{
+        type: 'Feature',
+        geometry: { type: 'Point', coordinates: endpoint },
+        properties: {
+          direction: this.lastTrueWind.directionDeg,
+          icon,
+        },
+      }],
+    });
     this.map.setLayoutProperty(TRUE_WIND_LAYER_ID, 'visibility', 'visible');
+    this.map.setLayoutProperty(TRUE_WIND_ARROW_LAYER_ID, 'visibility', 'visible');
+    this.updateTrueWindLabel(endpoint, color);
   }
 
   private applyVector(): void {
@@ -1718,6 +1788,7 @@ export class MapLibreEngineService {
       HEADING_LINE_LAYER_ID,
       LAYLINES_LAYER_ID,
       TRUE_WIND_LAYER_ID,
+      TRUE_WIND_ARROW_LAYER_ID,
     ]) {
       if (this.map.getLayer(layerId)) {
         this.map.setLayerZoomRange(layerId, minZoom, 24);
@@ -1834,6 +1905,84 @@ export class MapLibreEngineService {
     return `#${[rgb.r, rgb.g, rgb.b]
       .map((channel) => clamp(channel).toString(16).padStart(2, '0'))
       .join('')}`;
+  }
+
+  private ensureTrueWindIcons(): void {
+    this.upsertIcon(TRUE_WIND_ARROW_LIGHT_ID, this.createWindArrowIcon('#22c55e'), 2);
+    this.upsertIcon(TRUE_WIND_ARROW_MODERATE_ID, this.createWindArrowIcon('#f59e0b'), 2);
+    this.upsertIcon(TRUE_WIND_ARROW_STRONG_ID, this.createWindArrowIcon('#ef4444'), 2);
+  }
+
+  private createWindArrowIcon(color: string): ImageData {
+    const size = 64;
+    const canvas = document.createElement('canvas');
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+      return new ImageData(size, size);
+    }
+    ctx.clearRect(0, 0, size, size);
+    ctx.fillStyle = color;
+    ctx.strokeStyle = '#052e2b';
+    ctx.lineWidth = 3;
+    ctx.lineJoin = 'round';
+    ctx.beginPath();
+    ctx.moveTo(size / 2, 5);
+    ctx.lineTo(size - 8, size - 10);
+    ctx.lineTo(size / 2, size - 23);
+    ctx.lineTo(8, size - 10);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    return ctx.getImageData(0, 0, size, size);
+  }
+
+  private windColor(speedMps: number): string {
+    if (speedMps >= 10.8) return '#ef4444';
+    if (speedMps >= 5.5) return '#f59e0b';
+    return '#22c55e';
+  }
+
+  private windArrowIcon(speedMps: number): string {
+    if (speedMps >= 10.8) return TRUE_WIND_ARROW_STRONG_ID;
+    if (speedMps >= 5.5) return TRUE_WIND_ARROW_MODERATE_ID;
+    return TRUE_WIND_ARROW_LIGHT_ID;
+  }
+
+  private updateTrueWindLabel(endpoint: [number, number], color: string): void {
+    if (!this.map) return;
+
+    const speedKnots = this.lastTrueWind.speedMps * 1.943844;
+    const gustKnots = this.lastTrueWind.gustMps === null
+      ? null
+      : this.lastTrueWind.gustMps * 1.943844;
+    const sourceLabel = this.lastTrueWind.source === 'apparent' ? 'AWA' : 'TWD';
+    const text = gustKnots !== null && gustKnots > speedKnots + 0.2
+      ? `${sourceLabel} ${speedKnots.toFixed(1)} kn · G ${gustKnots.toFixed(1)}`
+      : `${sourceLabel} ${speedKnots.toFixed(1)} kn`;
+
+    if (!this.trueWindLabelMarker) {
+      const element = document.createElement('div');
+      element.style.padding = '3px 7px';
+      element.style.borderRadius = '5px';
+      element.style.background = 'rgba(2, 15, 23, 0.88)';
+      element.style.border = '1px solid rgba(255, 255, 255, 0.35)';
+      element.style.color = '#f8fafc';
+      element.style.font = '600 11px/1.2 system-ui, sans-serif';
+      element.style.whiteSpace = 'nowrap';
+      element.style.pointerEvents = 'none';
+      this.trueWindLabelMarker = new maplibregl.Marker({
+        element,
+        anchor: 'bottom',
+        offset: [0, -20],
+      }).addTo(this.map);
+    }
+
+    const element = this.trueWindLabelMarker.getElement();
+    element.textContent = text;
+    element.style.borderColor = color;
+    this.trueWindLabelMarker.setLngLat(endpoint);
   }
 
   private createVesselIcon(color1: string, color2: string, withSails = true): ImageData {
