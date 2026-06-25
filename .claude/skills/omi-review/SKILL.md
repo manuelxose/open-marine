@@ -16,4 +16,7 @@ Check:
 - Raspberry service changes preserve `omi-ui`, `omi-gps`, `omi-imu` and `signalk` behavior.
 - Tests/builds match touched subsystem.
 
+Also flag heavy/recurring work not run outside `NgZone`, per-message Map clones, and forced reflows
+(see performance rules in `.claude/references/architecture.md`).
+
 Return concise findings with file and line references, then residual risk.

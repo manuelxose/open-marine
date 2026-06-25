@@ -82,6 +82,8 @@ const RANGE_RINGS_SOURCE_ID = 'chart-range-rings-source';
 const RANGE_RINGS_LAYER_ID = 'chart-range-rings-layer';
 const BEARING_LINE_SOURCE_ID = 'chart-bearing-line-source';
 const BEARING_LINE_LAYER_ID = 'chart-bearing-line-layer';
+const AUTOPILOT_TARGET_SOURCE_ID = 'chart-autopilot-target-source';
+const AUTOPILOT_TARGET_LAYER_ID = 'chart-autopilot-target-layer';
 const AIS_SOURCE_ID = 'chart-ais-source';
 const AIS_LAYER_ID = 'chart-ais-layer';
 const AIS_FALLBACK_ICON_ID = getAisVesselIconId('other');
@@ -188,6 +190,10 @@ export class MapLibreEngineService {
   private trueWindLabelMarker: maplibregl.Marker | null = null;
   private lastRangeRings: FeatureCollection<Polygon> = { type: 'FeatureCollection', features: [] };
   private lastBearingLine: { coords: [number, number][]; visible: boolean } = {
+    coords: [],
+    visible: false,
+  };
+  private lastAutopilotTarget: { coords: [number, number][]; visible: boolean } = {
     coords: [],
     visible: false,
   };
@@ -321,6 +327,14 @@ export class MapLibreEngineService {
       return;
     }
     this.applyTrueWind();
+  }
+
+  /** Autopilot target heading vector, drawn from the vessel along target_heading. */
+  updateAutopilotTarget(lineStringCoords: [number, number][], visible: boolean): void {
+    this.lastAutopilotTarget = { coords: lineStringCoords, visible };
+    if (this.mapReady) {
+      this.applyAutopilotTarget();
+    }
   }
 
   updateBearingLine(lineStringCoords: [number, number][], visible: boolean): void {
@@ -944,6 +958,7 @@ export class MapLibreEngineService {
     this.ensureRouteLayer();
     this.ensureRangeRingsLayer();
     this.ensureBearingLineLayer();
+    this.ensureAutopilotTargetLayer();
     this.ensureAisTracksLayer();
     this.ensureAisPredictionsLayer();
     this.ensureAisLayer();
@@ -965,6 +980,7 @@ export class MapLibreEngineService {
     this.applyRoute();
     this.applyRangeRings();
     this.applyBearingLine();
+    this.applyAutopilotTarget();
     this.applyAisTracks();
     this.applyAisPredictions();
     this.applyAisTargets();
@@ -1822,6 +1838,73 @@ export class MapLibreEngineService {
 
     source.setData(data);
     this.map.setLayoutProperty(BEARING_LINE_LAYER_ID, 'visibility', 'visible');
+  }
+
+  private ensureAutopilotTargetLayer(): void {
+    if (!this.map) {
+      return;
+    }
+
+    if (!this.map.getSource(AUTOPILOT_TARGET_SOURCE_ID)) {
+      this.map.addSource(AUTOPILOT_TARGET_SOURCE_ID, {
+        type: 'geojson',
+        data: EMPTY_LINE,
+      });
+    }
+
+    if (!this.map.getLayer(AUTOPILOT_TARGET_LAYER_ID)) {
+      this.map.addLayer({
+        id: AUTOPILOT_TARGET_LAYER_ID,
+        type: 'line',
+        source: AUTOPILOT_TARGET_SOURCE_ID,
+        layout: {
+          'line-cap': 'round',
+          'line-join': 'round',
+        },
+        paint: {
+          'line-color': '#00e676', // gb-data-good green — autopilot is steering here
+          'line-width': 3,
+          'line-opacity': 0.9,
+          'line-dasharray': [2, 1.5],
+        },
+      });
+    }
+  }
+
+  private applyAutopilotTarget(): void {
+    if (!this.map) {
+      return;
+    }
+
+    const source = this.map.getSource(AUTOPILOT_TARGET_SOURCE_ID) as
+      | maplibregl.GeoJSONSource
+      | undefined;
+    if (!source || !this.map.getLayer(AUTOPILOT_TARGET_LAYER_ID)) {
+      return;
+    }
+
+    if (!this.lastAutopilotTarget.visible || this.lastAutopilotTarget.coords.length < 2) {
+      source.setData(EMPTY_LINE);
+      this.map.setLayoutProperty(AUTOPILOT_TARGET_LAYER_ID, 'visibility', 'none');
+      return;
+    }
+
+    const data: FeatureCollection<LineString> = {
+      type: 'FeatureCollection',
+      features: [
+        {
+          type: 'Feature',
+          geometry: {
+            type: 'LineString',
+            coordinates: this.lastAutopilotTarget.coords,
+          },
+          properties: {},
+        },
+      ],
+    };
+
+    source.setData(data);
+    this.map.setLayoutProperty(AUTOPILOT_TARGET_LAYER_ID, 'visibility', 'visible');
   }
 
   private applyWindTrackZoomRanges(): void {

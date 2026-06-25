@@ -41,6 +41,7 @@ import { InstrumentsDrawerComponent } from '../instruments/components/instrument
 import { MapSettingsPanelComponent } from './components/map-settings-panel/map-settings-panel.component';
 import { ChartLegendComponent } from '../chart-legend/chart-legend.component';
 import { AppIconComponent } from '../../shared/components/app-icon/app-icon.component';
+import { AutopilotChartControlComponent } from '../autopilot/components/autopilot-chart-control/autopilot-chart-control.component';
 import { TranslatePipe } from '../../shared/pipes/translate.pipe';
 
 // Utils & Types
@@ -79,6 +80,7 @@ const INITIAL_PLAYBACK_STATE: PlaybackState = {
     MapSettingsPanelComponent,
     ChartLegendComponent,
     AppIconComponent,
+    AutopilotChartControlComponent,
     TranslatePipe,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -135,6 +137,11 @@ const INITIAL_PLAYBACK_STATE: PlaybackState = {
       <!-- ZONA: Top Right - Alarm Badge -->
       <div class="chart-zone chart-zone--top-right">
         <app-alarm-status-widget />
+      </div>
+
+      <!-- ZONA: Top Center - Autopilot control overlay -->
+      <div class="chart-zone chart-zone--autopilot">
+        <app-autopilot-chart-control />
       </div>
       
       <!-- ZONA: Left Panel (M2) -->
@@ -325,6 +332,25 @@ const INITIAL_PLAYBACK_STATE: PlaybackState = {
       z-index: calc(var(--z-chart-panels) + 2);
       animation: chart-zone-enter-right 0.35s var(--ease-out) both;
       animation-delay: 0.15s;
+    }
+
+    // TOP CENTER: Autopilot control overlay
+    .chart-zone--autopilot {
+      top: var(--chart-top-controls-offset);
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: calc(var(--z-chart-panels) + 2);
+      animation: chart-zone-enter 0.4s var(--ease-out) both;
+      animation-delay: 0.18s;
+    }
+
+    @media (max-width: 768px) {
+      .chart-zone--autopilot {
+        left: auto;
+        right: var(--chart-edge-gap);
+        top: calc(var(--chart-top-controls-offset) + 44px);
+        transform: none;
+      }
     }
 
     // LEFT PANEL: Floating tabs panel
@@ -723,6 +749,9 @@ export class ChartPage implements AfterViewInit, OnDestroy {
   private readonly headingLineSignal = toSignal(this.facade.headingLineUpdate$, {
     initialValue: { coords: [] as [number, number][], visible: false },
   });
+  private readonly autopilotTargetSignal = toSignal(this.facade.autopilotTargetUpdate$, {
+    initialValue: { coords: [] as [number, number][], visible: false },
+  });
   private readonly laylinesSignal = toSignal(this.facade.laylinesUpdate$, {
     initialValue: { lines: [] as [number, number][][], visible: false },
   });
@@ -809,6 +838,10 @@ export class ChartPage implements AfterViewInit, OnDestroy {
     effect(() => {
       const headingLine = this.headingLineSignal();
       this.runMapUpdate(() => this.engine.updateHeadingLine(headingLine.coords, headingLine.visible));
+    });
+    effect(() => {
+      const apTarget = this.autopilotTargetSignal();
+      this.runMapUpdate(() => this.engine.updateAutopilotTarget(apTarget.coords, apTarget.visible));
     });
     effect(() => {
       const laylines = this.laylinesSignal();

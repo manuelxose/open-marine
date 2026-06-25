@@ -30,12 +30,22 @@ import { PATHS } from '@omi/marine-data-contract';
         </div>
         <button
           class="engage-btn"
-          [class.engage-btn--engaged]="state !== 'standby'"
-          (click)="state !== 'standby' ? facade.standby() : facade.engageAuto()"
-          [attr.aria-label]="state !== 'standby' ? 'Disengage autopilot' : 'Engage autopilot'"
+          [class.engage-btn--engaged]="state !== 'standby' && state !== 'fault'"
+          [class.engage-btn--fault]="state === 'fault'"
+          (click)="onEngageToggle(state)"
+          [attr.aria-label]="engageLabel(state)"
         >
-          {{ state !== 'standby' ? 'DISENGAGE' : 'ENGAGE' }}
+          {{ engageLabel(state) }}
         </button>
+      </div>
+
+      <!-- Fault Banner -->
+      <div class="ap-fault" *ngIf="state === 'fault'">
+        <span class="ap-fault__icon">⛔</span>
+        <div class="ap-fault__body">
+          <span class="ap-fault__title">AUTOPILOT FAULT — MOTOR OFF</span>
+          <span class="ap-fault__reason">{{ (facade.fault$ | async) || 'unknown' }}</span>
+        </div>
       </div>
 
       <!-- Target Display -->
@@ -174,8 +184,8 @@ import { PATHS } from '@omi/marine-data-contract';
         flex: 1;
     }
     .ap-status.engaged {
-        border-left-color: var(--success, #2ec25c);
-        background: rgba(46, 194, 92, 0.08);
+        border-left-color: var(--gb-data-good);
+        background: var(--gb-arc-normal);
     }
     .status-text { display: flex; flex-direction: column; }
     .status-text .label { font-size: 0.65rem; color: var(--gb-text-muted); text-transform: uppercase; letter-spacing: 0.1em; }
@@ -195,9 +205,39 @@ import { PATHS } from '@omi/marine-data-contract';
     }
     .engage-btn:hover { border-color: var(--gb-needle-secondary); color: var(--gb-needle-secondary); }
     .engage-btn--engaged {
-        border-color: var(--status-offline, #f06352);
-        color: var(--status-offline, #f06352);
-        background: rgba(240, 99, 82, 0.1);
+        border-color: var(--gb-data-stale);
+        color: var(--gb-data-stale);
+        background: var(--gb-alarm-emergency-bg);
+    }
+    .engage-btn--fault {
+        border-color: var(--gb-data-warn);
+        color: var(--gb-bg-canvas);
+        background: var(--gb-data-warn);
+    }
+
+    /* Fault banner */
+    .ap-fault {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.75rem 1rem;
+        background: var(--gb-alarm-emergency-bg);
+        border: 1px solid var(--gb-alarm-emergency-border);
+        border-radius: 8px;
+        animation: pulse-alert 1.5s infinite;
+    }
+    .ap-fault__icon { font-size: 1.6rem; }
+    .ap-fault__body { display: flex; flex-direction: column; }
+    .ap-fault__title {
+        font-weight: 800;
+        color: var(--gb-data-stale);
+        letter-spacing: 0.04em;
+    }
+    .ap-fault__reason {
+        font-family: var(--font-mono, monospace);
+        font-size: 0.8rem;
+        color: var(--gb-text-value);
+        text-transform: uppercase;
     }
 
     /* Target display */
@@ -238,7 +278,7 @@ import { PATHS } from '@omi/marine-data-contract';
     }
     .dodge-btn {
         background: var(--gb-bg-panel);
-        border: 1px solid var(--border);
+        border: 1px solid var(--gb-border-panel);
         color: var(--gb-text-value);
         font-family: var(--font-mono, monospace);
         font-weight: 700;
@@ -251,12 +291,12 @@ import { PATHS } from '@omi/marine-data-contract';
         transition: all 0.15s;
     }
     .dodge-btn:active {
-        background: var(--accent, #5ba4cf);
-        color: #fff;
+        background: var(--gb-tick-reference);
+        color: var(--gb-bg-canvas);
         transform: scale(0.95);
     }
-    .dodge-btn--port-big, .dodge-btn--port-small { color: #f06352; }
-    .dodge-btn--stbd-small, .dodge-btn--stbd-big { color: #2ec25c; }
+    .dodge-btn--port-big, .dodge-btn--port-small { color: var(--gb-data-stale); }
+    .dodge-btn--stbd-small, .dodge-btn--stbd-big { color: var(--gb-data-good); }
 
     /* Mode selector */
     .ap-modes {
@@ -279,12 +319,12 @@ import { PATHS } from '@omi/marine-data-contract';
         min-height: 44px;
     }
     .mode-btn:hover {
-        background: rgba(255, 255, 255, 0.05);
+        background: var(--gb-bg-glass-active);
         color: var(--gb-text-value);
     }
     .mode-btn.active {
-        background: var(--accent, #5ba4cf);
-        color: white;
+        background: var(--gb-tick-reference);
+        color: var(--gb-bg-canvas);
         box-shadow: 0 2px 4px rgba(0,0,0,0.2);
     }
 
@@ -307,7 +347,7 @@ import { PATHS } from '@omi/marine-data-contract';
     .rudder-track {
         flex: 1;
         height: 4px;
-        background: var(--surface-3, var(--border));
+        background: var(--gb-bg-glass);
         border-radius: 2px;
         position: relative;
     }
@@ -327,7 +367,7 @@ import { PATHS } from '@omi/marine-data-contract';
         width: 10px;
         height: 10px;
         border-radius: 50%;
-        background: var(--accent, #5ba4cf);
+        background: var(--gb-tick-reference);
         transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     }
     .rudder-value {
@@ -340,10 +380,10 @@ import { PATHS } from '@omi/marine-data-contract';
     /* Off course warning */
     .ap-warning {
         padding: 0.65rem 1rem;
-        background: rgba(240, 99, 82, 0.15);
-        border: 1px solid rgba(240, 99, 82, 0.5);
+        background: var(--gb-alarm-critical-bg);
+        border: 1px solid var(--gb-alarm-critical-border);
         border-radius: 8px;
-        color: var(--status-offline, #f06352);
+        color: var(--gb-needle-primary);
         font-weight: 700;
         text-align: center;
         animation: pulse-alert 2s infinite;
@@ -382,5 +422,22 @@ export class AutopilotConsoleComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.subs.forEach((s) => s.unsubscribe());
+  }
+
+  engageLabel(state: string): string {
+    if (state === 'fault') {
+      return 'CLEAR FAULT';
+    }
+    return state !== 'standby' ? 'DISENGAGE' : 'ENGAGE';
+  }
+
+  onEngageToggle(state: string): void {
+    if (state === 'fault') {
+      this.facade.clearFault();
+    } else if (state !== 'standby') {
+      this.facade.standby();
+    } else {
+      this.facade.engageAuto();
+    }
   }
 }

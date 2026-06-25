@@ -14,6 +14,11 @@ export class AutopilotFacadeService {
   public readonly targetHeadingTrue$ = this.store.targetHeadingTrue$;
   public readonly targetHeadingMagnetic$ = this.store.targetHeadingMagnetic$;
   public readonly targetWindAngle$ = this.store.targetWindAngle$;
+  public readonly targetRudderAngle$ = this.store.targetRudderAngle$;
+  public readonly motorCurrent$ = this.store.motorCurrent$;
+  public readonly rudderAngle$ = this.store.rudderAngle$;
+  public readonly batteryVoltage$ = this.store.batteryVoltage$;
+  public readonly fault$ = this.store.fault$;
   public readonly isConnected$ = this.store.isConnected$;
 
   // Commands
@@ -36,6 +41,14 @@ export class AutopilotFacadeService {
 
   public standby(): void {
     this.api.standby().subscribe();
+  }
+
+  public engageTrack(): void {
+    this.api.engage('route').subscribe();
+  }
+
+  public clearFault(): void {
+    this.api.clearFault().subscribe();
   }
 
   public adjustTarget(deltaDegrees: number): void {

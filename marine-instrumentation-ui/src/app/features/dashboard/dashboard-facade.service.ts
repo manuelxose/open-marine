@@ -73,7 +73,6 @@ import type {
   WindPanelVm,
 } from './types/dashboard-vm';
 
-const FIX_THRESHOLD_MS = 2000;
 const STALE_THRESHOLD_MS = 5000;
 
 const coerceNumber = (value: unknown): number | null => {
@@ -120,6 +119,13 @@ export class DashboardFacadeService {
   private readonly positionValue$ = this.position$.pipe(
     map((point) => this.extractPosition(point)),
     startWith(null),
+    shareReplay({ bufferSize: 1, refCount: true }),
+  );
+  // Measure fix age by local arrival time, not the producer timestamp, so a
+  // GPS/Pi clock skew does not mislabel a live fix as stale/no-fix.
+  private readonly positionArrival$ = this.position$.pipe(
+    map((point) => ({ hasFix: !!point, arrivedAt: Date.now() })),
+    startWith({ hasFix: false, arrivedAt: 0 }),
     shareReplay({ bufferSize: 1, refCount: true }),
   );
   private readonly sog$ = selectSog(this.store).pipe(shareReplay({ bufferSize: 1, refCount: true }));
@@ -185,17 +191,14 @@ export class DashboardFacadeService {
     shareReplay({ bufferSize: 1, refCount: true }),
   );
 
-  private readonly fixLabel$ = combineLatest([this.position$, this.tick$]).pipe(
-    map(([point]) => {
-      if (!point?.timestamp) {
+  private readonly fixLabel$ = combineLatest([this.positionArrival$, this.tick$]).pipe(
+    map(([{ hasFix, arrivedAt }]) => {
+      if (!hasFix || !arrivedAt) {
         return 'dashboard.status.nofix';
       }
-      const ageMs = Date.now() - point.timestamp;
+      const ageMs = Date.now() - arrivedAt;
       if (ageMs > STALE_THRESHOLD_MS) {
         return 'dashboard.status.stale';
-      }
-      if (ageMs <= FIX_THRESHOLD_MS) {
-        return 'dashboard.status.fix';
       }
       return 'dashboard.status.fix';
     }),

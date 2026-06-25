@@ -2,11 +2,14 @@
 
 Keep this file small. Load detailed procedures from `.claude/skills/` or the personal Codex skill only when the task needs them.
 
+Key-file index, sensor→screen data flow and performance rules: `.claude/references/architecture.md` (load on demand, before broad exploration).
+
 ## Repository Map
 
 - `marine-instrumentation-ui/`: Angular 21 UI, Signal K data access, MapLibre chart, dashboard and instruments.
 - `marine-data-contract/`: shared Signal K paths, units, quality flags and data point types.
 - `marine-sensor-gateway/`: TypeScript gateway plus Raspberry Python scripts for GPS, IMU and AIS publishing.
+- `marine-autopilot-engine/`: autopilot control service (state machine, PID, safety/watchdog, abstract MotorController: sim/serial/gpio/can). Reads sensors from Signal K, serves the v2 autopilot command API the UI uses, publishes `steering.autopilot.*`.
 - `marine-data-simulator/`: simulator scenarios and Signal K HTTP/WebSocket publishers.
 - `signalk-runtime/`: Docker Compose and Signal K plugin/settings data.
 - `marine-chart-toolkit/` and `marine-tile-server/`: MBTiles tooling and tile serving.
@@ -19,6 +22,7 @@ Keep this file small. Load detailed procedures from `.claude/skills/` or the per
 - Shared contract: `npm run build:contract`; or `cd marine-data-contract && npm run test:run`
 - UI: `cd marine-instrumentation-ui && npm run build`; `npm run start:ui` from root for LAN dev server.
 - Sensor gateway: `cd marine-sensor-gateway && npm test && npm run build`
+- Autopilot engine: `cd marine-autopilot-engine && npm test && npm run build`; bench: `AP_MOTOR_BACKEND=sim npm run dev` (or `npm run start:autopilot` from root)
 - Simulator: `cd marine-data-simulator && npm run build`
 - Status: `npm run status`
 
