@@ -2,6 +2,7 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import type { AutopilotMode, AutopilotStatus } from "@omi/marine-data-contract";
 import type { Logger } from "./logger.js";
 import type { EngageResult } from "./state-machine.js";
+import type { AutopilotTuning } from "../types.js";
 
 /** Commands the HTTP API drives on the engine. */
 export interface AutopilotCommands {
@@ -14,9 +15,23 @@ export interface AutopilotCommands {
   dodgeRad(rad: number): void;
   clearFault(): void;
   getStatus(): AutopilotStatus;
+  getTuning(): AutopilotTuning;
+  setTuning(partial: Partial<AutopilotTuning>): AutopilotTuning;
+  emergencyStop(): void;
+  driveTest(side: "port" | "stbd", seconds: number): EngageResult;
 }
 
-const ACTIONS = ["mode", "engage", "disengage", "target", "dodge", "clearFault"] as const;
+const ACTIONS = [
+  "mode",
+  "engage",
+  "disengage",
+  "target",
+  "dodge",
+  "clearFault",
+  "tuning",
+  "estop",
+  "drive-test",
+] as const;
 type Action = (typeof ACTIONS)[number];
 
 const isMode = (value: unknown): value is AutopilotMode =>
@@ -68,8 +83,12 @@ export class CommandApi {
 
     const url = req.url ?? "";
 
-    // Status / health: any GET.
+    // GET /tuning → current calibration; any other GET → status/health.
     if (req.method === "GET") {
+      if (this.matchAction(url) === "tuning") {
+        this.sendJson(res, 200, { ok: true, tuning: this.commands.getTuning() });
+        return;
+      }
       this.sendJson(res, 200, { ok: true, autopilot: this.commands.getStatus() });
       return;
     }
@@ -142,6 +161,31 @@ export class CommandApi {
       }
       case "clearFault": {
         this.commands.clearFault();
+        this.sendOk(res);
+        return;
+      }
+      case "tuning": {
+        const tuning = this.commands.setTuning(body as Partial<AutopilotTuning>);
+        this.sendJson(res, 200, { ok: true, tuning });
+        return;
+      }
+      case "estop": {
+        this.commands.emergencyStop();
+        this.sendOk(res);
+        return;
+      }
+      case "drive-test": {
+        const side = body.side === "stbd" ? "stbd" : body.side === "port" ? "port" : null;
+        const seconds = typeof body.seconds === "number" ? body.seconds : 2;
+        if (!side) {
+          this.sendJson(res, 400, { error: "side must be 'port' or 'stbd'" });
+          return;
+        }
+        const result = this.commands.driveTest(side, seconds);
+        if (!result.ok) {
+          this.sendJson(res, 409, { error: result.reason ?? "cannot run drive test" });
+          return;
+        }
         this.sendOk(res);
         return;
       }

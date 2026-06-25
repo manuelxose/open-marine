@@ -24,8 +24,8 @@ export const parseTelemetryLine = (line: string): ParsedTelemetry | null => {
   const parts = line.trim().split(",");
   const kind = parts[0];
   if (kind === "T") {
-    const rudder = Number(parts[1]);
-    const current = Number(parts[2]);
+    const rudder = parts[1]?.trim() ? Number(parts[1]) : Number.NaN;
+    const current = parts[2]?.trim() ? Number(parts[2]) : Number.NaN;
     const out: ParsedTelemetry = {};
     if (Number.isFinite(rudder)) out.rudderAngleDeg = rudder;
     if (Number.isFinite(current)) out.motorCurrentA = current;
