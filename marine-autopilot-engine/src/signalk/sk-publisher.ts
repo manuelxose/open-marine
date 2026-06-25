@@ -1,4 +1,5 @@
 import type { Logger } from "../app/logger.js";
+import WebSocket from "ws";
 
 export interface SkValue {
   path: string;
