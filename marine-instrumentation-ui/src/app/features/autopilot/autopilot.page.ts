@@ -110,6 +110,7 @@ import { DegreesPipe } from '../../shared/pipes/degrees.pipe';
               </div>
             </div>
           </div>
+        </div>
         </section>
       </div>
     </div>
@@ -185,6 +186,21 @@ import { DegreesPipe } from '../../shared/pipes/degrees.pipe';
       align-items: start;
     }
     .ap-page__console { aspect-ratio: 4/5; min-height: 0; }
+
+    .ap-page__side {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-4);
+      min-width: 0;
+    }
+    .ap-page__dial {
+      display: flex;
+      justify-content: center;
+      padding: var(--space-4);
+      border-radius: var(--radius-lg);
+      background: var(--gb-bg-panel);
+      border: 1px solid var(--gb-border-panel);
+    }
 
     .ap-page__tele {
       display: grid;
