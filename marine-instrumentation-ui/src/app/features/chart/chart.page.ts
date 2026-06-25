@@ -708,7 +708,11 @@ export class ChartPage implements AfterViewInit, OnDestroy {
   readonly activeWaypointId = computed(() => this.waypointListVmSignal().activeId);
 
   private readonly vesselSignal = toSignal(this.facade.vesselUpdate$, {
-    initialValue: { lngLat: null, rotationDeg: null, state: 'no-fix' as 'fix' | 'stale' | 'no-fix' },
+    initialValue: {
+      lngLat: [-8.7207, 42.2406] as [number, number],
+      rotationDeg: null,
+      state: 'no-fix' as 'fix' | 'stale' | 'no-fix',
+    },
   });
   private readonly trackSignal = toSignal(this.facade.trackCoords$, {
     initialValue: [] as [number, number][],

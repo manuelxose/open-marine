@@ -741,19 +741,19 @@ export class ChartFacadeService {
   }).pipe(
     auditTime(200),
     map(({ position, heading, cog, fixState }) => {
-      if (!position) {
-        return { lngLat: null, rotationDeg: null, state: fixState };
-      }
-
       const headingRad = coerceNumber(heading?.value);
       const cogRad = coerceNumber(cog?.value);
       const rad = headingRad ?? cogRad ?? null;
       const rotationDeg = rad !== null ? normalizeDegrees(toDegrees(rad)) : null;
+      const vesselPosition = position ?? {
+        latitude: DEFAULT_CENTER.lat,
+        longitude: DEFAULT_CENTER.lon,
+      };
 
       return {
-        lngLat: [position.longitude, position.latitude] as [number, number],
+        lngLat: [vesselPosition.longitude, vesselPosition.latitude] as [number, number],
         rotationDeg,
-        state: fixState,
+        state: position ? fixState : 'no-fix' as ChartFixState,
       };
     }),
     shareReplay({ bufferSize: 1, refCount: true }),
