@@ -1,5 +1,5 @@
 import type { Logger } from "../../app/logger.js";
-import type { MotorController, MotorFeedback } from "../../types.js";
+import type { DriveCommand, MotorController, MotorFeedback } from "../../types.js";
 import type { SimWorld } from "../../sim/sim-world.js";
 
 /**
@@ -31,9 +31,10 @@ export class SimMotor implements MotorController {
     this.world.setDriveEnabled(false);
   }
 
-  command(rudderDemandDeg: number): void {
+  command(cmd: DriveCommand): void {
     if (this.enabled) {
-      this.world.setRudderDemand(rudderDemandDeg);
+      // Position-aware backend: track the demanded rudder angle.
+      this.world.setRudderDemand(cmd.rudderDeg);
     }
   }
 

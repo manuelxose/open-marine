@@ -1,5 +1,5 @@
 import type { Logger } from "../../app/logger.js";
-import type { MotorController, MotorFeedback } from "../../types.js";
+import type { DriveCommand, MotorController, MotorFeedback } from "../../types.js";
 
 /**
  * Direct Raspberry-GPIO backend (PWM + direction + enable to a 12V H-bridge).
@@ -25,8 +25,8 @@ export class GpioMotor implements MotorController {
     this.enabled = false;
   }
 
-  command(_rudderDemandDeg: number): void {
-    // no-op stub
+  command(_cmd: DriveCommand): void {
+    // no-op stub: would map _cmd.drive → PWM + direction GPIO lines.
   }
 
   heartbeat(): void {

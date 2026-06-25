@@ -1,5 +1,5 @@
 import type { Logger } from "../../app/logger.js";
-import type { MotorController, MotorFeedback } from "../../types.js";
+import type { DriveCommand, MotorController, MotorFeedback } from "../../types.js";
 
 /**
  * CAN / NMEA2000 backend for actuators/drivers that are CAN-native. Stub:
@@ -23,8 +23,8 @@ export class CanMotor implements MotorController {
     this.enabled = false;
   }
 
-  command(_rudderDemandDeg: number): void {
-    // no-op stub
+  command(_cmd: DriveCommand): void {
+    // no-op stub: would map _cmd.drive → CAN actuator setpoint.
   }
 
   heartbeat(): void {

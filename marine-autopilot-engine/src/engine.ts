@@ -8,8 +8,9 @@ import {
 } from "@omi/marine-data-contract";
 import type { EngineConfig } from "./config.js";
 import type { Logger } from "./app/logger.js";
-import type { MotorController, SensorSnapshot, SensorSource } from "./types.js";
+import type { AutopilotTuning, MotorController, SensorSnapshot, SensorSource } from "./types.js";
 import { StateMachine, type EngageResult } from "./app/state-machine.js";
+import type { PidConfig } from "./control/pid-controller.js";
 import { HeadingController } from "./control/heading-controller.js";
 import { WindController } from "./control/wind-controller.js";
 import { TrackController } from "./control/track-controller.js";
@@ -173,7 +174,17 @@ export class Engine implements AutopilotCommands {
 
     const { rudder, error } = this.computeRudder(state, snapshot, dt);
     this.commandedRudderDeg = clampRudder(rudder, this.config.rudderLimitDeg);
-    this.motor.command(this.commandedRudderDeg);
+    const normalizedDrive = this.commandedRudderDeg / this.config.rudderLimitDeg;
+    const driveMagnitude = Math.abs(normalizedDrive) < 1e-6
+      ? 0
+      : Math.min(
+          this.config.pwmMax,
+          Math.max(this.config.pwmMin, Math.abs(normalizedDrive)),
+        );
+    this.motor.command({
+      rudderDeg: this.commandedRudderDeg,
+      drive: Math.sign(normalizedDrive) * driveMagnitude,
+    });
 
     if (error !== undefined && Math.abs(error) > OFF_COURSE_DEG) {
       this.alarm.raise("off-course");

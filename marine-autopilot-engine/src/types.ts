@@ -39,6 +39,19 @@ export interface SensorSnapshot {
   emergencyStop: boolean;
 }
 
+/** Runtime-tunable parameters (calibration UI ↔ engine). */
+export interface AutopilotTuning {
+  kp: number;
+  ki: number;
+  kd: number;
+  deadbandDeg: number;
+  rudderLimitDeg: number;
+  pwmMin: number;
+  pwmMax: number;
+  currentLimitA: number;
+  voltageCutoff: number;
+}
+
 /** Produces a {@link SensorSnapshot} each tick (Signal K-backed or simulated). */
 export interface SensorSource {
   start(): Promise<void>;
@@ -51,6 +64,20 @@ export interface MotorFeedback {
   motorCurrentA: number | undefined;
   enabled: boolean;
   clutch: boolean;
+  /** Microcontroller-reported fault (serial backend), if any. */
+  fault?: string;
+}
+
+/**
+ * Command issued to the power stage each tick. `rudderDeg` is the desired rudder
+ * angle (position-aware backends like the sim or a rudder-feedback drive).
+ * `drive` is a normalised motor demand in [-1, 1] (sign = direction) with the
+ * PWM floor/cap already applied — used by velocity-drive backends without a
+ * rudder position sensor (gpio / proportional serial).
+ */
+export interface DriveCommand {
+  rudderDeg: number;
+  drive: number;
 }
 
 /**
@@ -65,8 +92,8 @@ export interface MotorController {
   enable(): Promise<void>;
   /** Disable the drive: PWM 0, driver disable, clutch released, relay cut. */
   disable(): Promise<void>;
-  /** Set the desired rudder angle in degrees (positive = starboard). */
-  command(rudderDemandDeg: number): void;
+  /** Issue the per-tick drive command (rudder angle + normalised drive). */
+  command(cmd: DriveCommand): void;
   /** Liveness pulse; backends with a hardware failsafe cut power without it. */
   heartbeat(nowMs: number): void;
   getFeedback(): MotorFeedback;
