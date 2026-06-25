@@ -45,7 +45,7 @@ import { ChartSettingsService, type EncLayerConfig } from './chart-settings.serv
 import { WaypointService, type Waypoint } from './waypoint.service';
 import { RouteService } from './route.service';
 import { buildEncStyle } from '../layers/enc-style';
-import type { ChartSourceConfig, MapLibreInitView } from './maplibre-engine.service';
+import type { ChartSourceConfig, MapLibreInitView, WindMapUpdate } from './maplibre-engine.service';
 import type { WaypointFeatureCollection, WaypointFeatureProperties } from '../types/chart-geojson';
 import { getAisVesselIconId, mapAisVesselTypeToFilter } from './chart-vessel-types';
 import { DataQualityService } from '../../../shared/services/data-quality.service';
@@ -63,6 +63,7 @@ import {
   vmgToWaypointKnots,
 } from '../../../state/calculations/navigation';
 import type { CpaLinesFeatureCollection } from '../types/chart-geojson';
+import { PATHS } from '@omi/marine-data-contract';
 
 const DEFAULT_CENTER: ChartPosition = { lat: 42.2406, lon: -8.7207 };
 const FIX_THRESHOLD_MS = 2000;
@@ -73,6 +74,8 @@ const MIN_VECTOR_SPEED_MPS = 1.028888; // 2 kn, matches the GPS stopped filter d
 const MIN_SPEED_FOR_ETA_KTS = 0.1;
 const AIS_TRACK_MAX_AGE_MS = 30 * 60 * 1000;
 const AIS_PREDICTION_SECONDS = 6 * 60;
+const WIND_STALE_THRESHOLD_MS = 5_000;
+const GUST_WINDOW_MS = 10_000;
 
 const DEFAULT_BASE_SOURCE: ChartSourceConfig = {
   id: DEFAULT_CHART_SOURCE_ID,
@@ -456,6 +459,10 @@ export class ChartFacadeService {
   private readonly awa$ = selectAwa(this.store).pipe(shareReplay({ bufferSize: 1, refCount: true }));
   private readonly tws$ = selectTws(this.store).pipe(shareReplay({ bufferSize: 1, refCount: true }));
   private readonly twd$ = selectTwd(this.store).pipe(shareReplay({ bufferSize: 1, refCount: true }));
+  private readonly awsHistory$ = this.store.observeHistory(PATHS.environment.wind.speedApparent).pipe(
+    startWith([]),
+    shareReplay({ bufferSize: 1, refCount: true }),
+  );
   private readonly signalKConnected$ = this.signalKClient.connected$.pipe(
     startWith(false),
     shareReplay({ bufferSize: 1, refCount: true }),
@@ -894,6 +901,7 @@ export class ChartFacadeService {
   );
 
   readonly trueWindUpdate$ = combineLatest({
+    tick: this.tick$,
     position: this.effectivePosition$,
     heading: this.heading$,
     cog: this.cog$,
@@ -901,32 +909,71 @@ export class ChartFacadeService {
     aws: this.aws$,
     twd: this.twd$,
     tws: this.tws$,
+    awsHistory: this.awsHistory$,
     settings: this.settingsService.settings$,
   }).pipe(
     auditTime(200),
-    map(({ position, heading, cog, awa, aws, twd, tws, settings }) => {
+    map(({ position, heading, cog, awa, aws, twd, tws, awsHistory, settings }): WindMapUpdate => {
       if (!settings.showTrueWind || !position) {
-        return { coords: [] as [number, number][], visible: false };
+        return {
+          coords: [] as [number, number][],
+          visible: false,
+          directionDeg: 0,
+          speedMps: 0,
+          gustMps: null as number | null,
+          source: settings.windVectorSource,
+        };
       }
 
       let windDirectionDeg: number | null = null;
       let windSpeedMps = 0;
+      let windTimestamp = 0;
 
       if (settings.windVectorSource === 'apparent') {
         const headingRad = coerceNumber(heading?.value) ?? coerceNumber(cog?.value);
         const awaRad = coerceNumber(awa?.value);
         if (headingRad === null || awaRad === null) {
-          return { coords: [] as [number, number][], visible: false };
+          return {
+            coords: [],
+            visible: false,
+            directionDeg: 0,
+            speedMps: 0,
+            gustMps: null,
+            source: settings.windVectorSource,
+          };
         }
         windDirectionDeg = normalizeDegrees(toDegrees(headingRad + awaRad));
         windSpeedMps = coerceNumber(aws?.value) ?? 0;
+        windTimestamp = Math.min(heading?.timestamp ?? cog?.timestamp ?? 0, awa?.timestamp ?? 0, aws?.timestamp ?? 0);
       } else {
         const twdRad = coerceNumber(twd?.value);
         if (twdRad === null) {
-          return { coords: [] as [number, number][], visible: false };
+          return {
+            coords: [],
+            visible: false,
+            directionDeg: 0,
+            speedMps: 0,
+            gustMps: null,
+            source: settings.windVectorSource,
+          };
         }
         windDirectionDeg = normalizeDegrees(toDegrees(twdRad));
         windSpeedMps = coerceNumber(tws?.value) ?? 0;
+        windTimestamp = Math.min(twd?.timestamp ?? 0, tws?.timestamp ?? 0);
+      }
+
+      if (
+        windTimestamp <= 0
+        || Date.now() - windTimestamp > WIND_STALE_THRESHOLD_MS
+      ) {
+        return {
+          coords: [] as [number, number][],
+          visible: false,
+          directionDeg: windDirectionDeg,
+          speedMps: windSpeedMps,
+          gustMps: null as number | null,
+          source: settings.windVectorSource,
+        };
       }
 
       const vectorMeters = Math.max(DEFAULT_VECTOR_NM * METERS_PER_NM, windSpeedMps * VECTOR_TIME_SECONDS);
@@ -936,12 +983,21 @@ export class ChartFacadeService {
         vectorMeters,
       );
 
+      const gustValues = awsHistory
+        .filter((point) => Date.now() - point.timestamp <= GUST_WINDOW_MS)
+        .map((point) => point.value);
+      const gustMps = gustValues.length > 0 ? Math.max(...gustValues) : null;
+
       return {
         coords: [
           [position.longitude, position.latitude],
           [destination.lon, destination.lat],
         ] as [number, number][],
         visible: true,
+        directionDeg: windDirectionDeg,
+        speedMps: windSpeedMps,
+        gustMps,
+        source: settings.windVectorSource,
       };
     }),
     shareReplay({ bufferSize: 1, refCount: true }),

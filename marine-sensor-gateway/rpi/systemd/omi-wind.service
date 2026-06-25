@@ -1,0 +1,16 @@
+[Unit]
+Description=Open Marine NMEA 0183 wind publisher
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/manu/open-marine
+ExecStart=/usr/bin/bash /home/manu/open-marine/scripts/start-wind.sh
+Restart=always
+RestartSec=3
+User=manu
+SupplementaryGroups=dialout
+
+[Install]
+WantedBy=multi-user.target

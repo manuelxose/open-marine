@@ -601,7 +601,8 @@ function Select-SimulatorScenario {
     "anchored-stale",
     "busy-shipping-lane",
     "combined-failures",
-    "anchor-drift"
+    "anchor-drift",
+    "wind-gps-demo"
   )
 
   Write-Host "Escenarios disponibles:" -ForegroundColor Cyan
@@ -612,6 +613,7 @@ function Select-SimulatorScenario {
   Write-Host "  5) busy-shipping-lane"
   Write-Host "  6) combined-failures"
   Write-Host "  7) anchor-drift"
+  Write-Host "  8) wind-gps-demo"
 
   $choice = Read-Host "Selecciona escenario [1-7 o nombre]"
   if ([string]::IsNullOrWhiteSpace($choice) -or $choice -eq "1") { return "basic-cruise" }
@@ -621,6 +623,7 @@ function Select-SimulatorScenario {
   if ($choice -eq "5") { return "busy-shipping-lane" }
   if ($choice -eq "6") { return "combined-failures" }
   if ($choice -eq "7") { return "anchor-drift" }
+  if ($choice -eq "8") { return "wind-gps-demo" }
   if ($scenarios -contains $choice) { return $choice }
 
   Warn "Escenario invalido. Se usara basic-cruise."

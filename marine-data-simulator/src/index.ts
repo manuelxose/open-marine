@@ -6,6 +6,7 @@ import { createHarborTrafficScenario } from "./scenarios/harborTraffic.js";
 import { createBusyShippingLaneScenario } from "./scenarios/busyShippingLane.js";
 import { createCombinedFailuresScenario } from "./scenarios/combinedFailures.js";
 import { createAnchorDriftScenario } from "./scenarios/anchorDrift.js";
+import { createWindGpsDemoScenario } from "./scenarios/windGpsDemo.js";
 import { WsPublisher } from "./publishers/wsPublisher.js";
 import type { Scenario } from "./scenarios/scenario.js";
 
@@ -39,6 +40,7 @@ Scenarios:
   busy-shipping-lane
   combined-failures
   anchor-drift
+  wind-gps-demo
 `);
 };
 
@@ -107,6 +109,7 @@ const main = async (): Promise<void> => {
     "busy-shipping-lane": createBusyShippingLaneScenario,
     "combined-failures": createCombinedFailuresScenario,
     "anchor-drift": createAnchorDriftScenario,
+    "wind-gps-demo": createWindGpsDemoScenario,
   };
 
   const scenarioFactory = scenarios[options.scenario];

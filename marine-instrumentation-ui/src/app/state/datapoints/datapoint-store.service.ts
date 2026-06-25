@@ -224,10 +224,21 @@ export class DatapointStoreService {
     // 2. It's present but stale (timestamp old)?
     // For now, simple logic: If the current map has a value from an external source, don't touch it. [Not completely robust but safe]
     
-    // Check if we have True Wind Speed from an external source
+    const apparentTimestamp = Math.max(
+      state.get(P.environment.wind.speedApparent)?.timestamp ?? 0,
+      state.get(P.environment.wind.angleApparent)?.timestamp ?? 0,
+    );
+
+    // Keep fresh true-wind data supplied by a sensor/simulator. If a newer
+    // apparent-wind sample arrives, derive a matching true-wind sample so stale
+    // external values do not block the live NMEA sensor.
     const currentTws = state.get(P.environment.wind.speedTrue);
-    if (currentTws && currentTws.source !== 'derived') {
-      return; 
+    if (
+      currentTws
+      && !currentTws.source.startsWith('derived')
+      && currentTws.timestamp >= apparentTimestamp
+    ) {
+      return;
     }
 
     const aws = state.get(P.environment.wind.speedApparent)?.value;
@@ -259,7 +270,7 @@ export class DatapointStoreService {
     const result = calculateTrueWind(aws, awa, sog, cogRef, headingRef);
 
     // Update State
-    const source = 'derived';
+    const source = 'derived:wind';
     
     state.set(P.environment.wind.speedTrue, {
       path: P.environment.wind.speedTrue,
