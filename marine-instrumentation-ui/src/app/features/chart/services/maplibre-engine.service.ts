@@ -57,6 +57,7 @@ const VESSEL_ICON_STALE_ID = 'chart-vessel-icon-stale';
 const VESSEL_ICON_NO_FIX_ID = 'chart-vessel-icon-no-fix';
 
 const VESSEL_SOURCE_ID = 'chart-vessel-source';
+const VESSEL_HALO_LAYER_ID = 'chart-vessel-halo-layer';
 const VESSEL_LAYER_ID = 'chart-vessel-layer';
 const TRACK_SOURCE_ID = 'chart-track-source';
 const TRACK_LAYER_ID = 'chart-track-layer';
@@ -948,8 +949,10 @@ export class MapLibreEngineService {
     this.ensureAisLayer();
     this.ensureCpaLinesLayer();
     // Keep the own-vessel marker above AIS targets and chart overlays.
-    if (this.map?.getLayer(VESSEL_LAYER_ID)) {
-      this.map.moveLayer(VESSEL_LAYER_ID);
+    for (const layerId of [VESSEL_HALO_LAYER_ID, VESSEL_LAYER_ID]) {
+      if (this.map?.getLayer(layerId)) {
+        this.map.moveLayer(layerId);
+      }
     }
 
     this.applyVessel();
@@ -1334,6 +1337,45 @@ export class MapLibreEngineService {
       });
     }
 
+    if (!this.map.getLayer(VESSEL_HALO_LAYER_ID)) {
+      this.map.addLayer({
+        id: VESSEL_HALO_LAYER_ID,
+        type: 'circle',
+        source: VESSEL_SOURCE_ID,
+        paint: {
+          'circle-radius': [
+            'match',
+            ['get', 'state'],
+            'no-fix',
+            16,
+            'stale',
+            13,
+            11,
+          ],
+          'circle-color': [
+            'match',
+            ['get', 'state'],
+            'no-fix',
+            '#ef4444',
+            'stale',
+            '#eab308',
+            '#0ea5e9',
+          ],
+          'circle-opacity': 0.32,
+          'circle-stroke-color': [
+            'match',
+            ['get', 'state'],
+            'no-fix',
+            '#fecaca',
+            'stale',
+            '#fef08a',
+            '#e0f2fe',
+          ],
+          'circle-stroke-width': 3,
+        },
+      });
+    }
+
     if (!this.map.getSource(TRUE_WIND_ARROW_SOURCE_ID)) {
       this.map.addSource(TRUE_WIND_ARROW_SOURCE_ID, {
         type: 'geojson',
@@ -1449,6 +1491,7 @@ export class MapLibreEngineService {
           properties: {
             heading: this.lastVessel.rotationDeg ?? 0,
             state: this.lastVessel.state,
+            label: this.lastVessel.state === 'no-fix' ? 'MI BARCO · SIN GPS' : 'MI BARCO',
           },
         },
       ],
