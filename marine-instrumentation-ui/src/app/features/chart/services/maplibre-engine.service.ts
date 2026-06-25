@@ -947,6 +947,10 @@ export class MapLibreEngineService {
     this.ensureAisPredictionsLayer();
     this.ensureAisLayer();
     this.ensureCpaLinesLayer();
+    // Keep the own-vessel marker above AIS targets and chart overlays.
+    if (this.map?.getLayer(VESSEL_LAYER_ID)) {
+      this.map.moveLayer(VESSEL_LAYER_ID);
+    }
 
     this.applyVessel();
     this.applyTrack();
