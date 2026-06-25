@@ -474,6 +474,16 @@ export class ChartFacadeService {
     shareReplay({ bufferSize: 1, refCount: true }),
   );
 
+  // Track the LOCAL arrival time of each position update. Fix/staleness must be
+  // measured against when we received the data, not the producer's timestamp:
+  // the GPS/Pi clock can differ from the browser clock, and that skew would
+  // otherwise flag a perfectly good fix as stale/no-fix ("SIN GPS").
+  private readonly positionArrival$ = this.position$.pipe(
+    map((point) => ({ point, arrivedAt: Date.now() })),
+    startWith({ point: undefined as DataPoint<PositionValue> | undefined, arrivedAt: 0 }),
+    shareReplay({ bufferSize: 1, refCount: true }),
+  );
+
   private readonly effectivePosition$ = combineLatest([
     this.positionValue$,
     this.settingsService.settings$,
@@ -496,12 +506,12 @@ export class ChartFacadeService {
     shareReplay({ bufferSize: 1, refCount: true }),
   );
 
-  private readonly fixState$ = combineLatest([this.position$, this.tick$]).pipe(
-    map(([point]) => {
-      if (!point?.timestamp) {
+  private readonly fixState$ = combineLatest([this.positionArrival$, this.tick$]).pipe(
+    map(([{ point, arrivedAt }]) => {
+      if (!point || !arrivedAt) {
         return 'no-fix' as ChartFixState;
       }
-      const ageMs = Date.now() - point.timestamp;
+      const ageMs = Date.now() - arrivedAt;
       if (ageMs <= FIX_THRESHOLD_MS) {
         return 'fix';
       }
@@ -542,12 +552,12 @@ export class ChartFacadeService {
     shareReplay({ bufferSize: 1, refCount: true }),
   );
 
-  private readonly positionAgeSeconds$ = combineLatest([this.position$, this.tick$]).pipe(
-    map(([point]) => {
-      if (!point?.timestamp) {
+  private readonly positionAgeSeconds$ = combineLatest([this.positionArrival$, this.tick$]).pipe(
+    map(([{ point, arrivedAt }]) => {
+      if (!point || !arrivedAt) {
         return null;
       }
-      return Math.max(0, (Date.now() - point.timestamp) / 1000);
+      return Math.max(0, (Date.now() - arrivedAt) / 1000);
     }),
     startWith(null),
     shareReplay({ bufferSize: 1, refCount: true }),
@@ -837,6 +847,51 @@ export class ChartFacadeService {
       const destination = projectDestination(
         { lat: position.latitude, lon: position.longitude },
         headingDeg,
+        vectorMeters,
+      );
+
+      return {
+        coords: [
+          [position.longitude, position.latitude],
+          [destination.lon, destination.lat],
+        ] as [number, number][],
+        visible: true,
+      };
+    }),
+    shareReplay({ bufferSize: 1, refCount: true }),
+  );
+
+  // Autopilot target heading vector: drawn (green, dashed) from the vessel along
+  // the engaged target heading so the helmsman sees where the pilot is steering.
+  private readonly autopilotState$ = this.store
+    .observe<string>(PATHS.steering.autopilot.state)
+    .pipe(shareReplay({ bufferSize: 1, refCount: true }));
+  private readonly autopilotTargetHeading$ = this.store
+    .observe<number>(PATHS.steering.autopilot.target.headingTrue)
+    .pipe(shareReplay({ bufferSize: 1, refCount: true }));
+
+  readonly autopilotTargetUpdate$ = combineLatest({
+    position: this.effectivePosition$,
+    state: this.autopilotState$,
+    targetHeading: this.autopilotTargetHeading$,
+    sog: this.sog$,
+    settings: this.settingsService.settings$,
+  }).pipe(
+    auditTime(200),
+    map(({ position, state, targetHeading, sog, settings }) => {
+      const engaged = state?.value === 'auto' || state?.value === 'route';
+      const targetRad = coerceNumber(targetHeading?.value);
+      if (!engaged || !position || targetRad === null) {
+        return { coords: [] as [number, number][], visible: false };
+      }
+
+      const targetDeg = normalizeDegrees(toDegrees(targetRad));
+      const sogMps = coerceNumber(sog?.value) ?? 0;
+      const vectorSeconds = Math.max(60, settings.headingLineMinutes * 60);
+      const vectorMeters = Math.max(DEFAULT_VECTOR_NM * METERS_PER_NM, sogMps * vectorSeconds);
+      const destination = projectDestination(
+        { lat: position.latitude, lon: position.longitude },
+        targetDeg,
         vectorMeters,
       );
 

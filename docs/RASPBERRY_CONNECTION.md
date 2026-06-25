@@ -40,6 +40,7 @@ Running services on the Raspberry:
 | `omi-imu.service` | IMU publisher to local Signal K |
 | `omi-wind.service` | NMEA 0183 MWV/MWD wind publisher to local Signal K |
 | `omi-ais.service` | AIS-catcher (RTL-SDR) -> UDP `10110` -> Signal K AIS targets |
+| `omi-autopilot.service` | Autopilot engine (control + safety); command API on `3990`, boots in STANDBY |
 | `omi-ui.service` | Compiled Angular UI on port `4200` |
 
 ## SSH

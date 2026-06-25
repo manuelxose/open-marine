@@ -11,8 +11,11 @@ import { AlarmSettingsService } from '../alarms/alarm-settings.service';
 
 const MAX_TRACK_POINTS = 1000;
 const TRACK_WINDOW_MS = 30 * 60 * 1000;
-const TRACK_MIN_TIME_MS = 1000;
 const TRACK_MIN_DISTANCE_METERS = 10;
+// When the vessel is effectively stationary, require a larger displacement before
+// extending the track so GPS jitter oscillating around a fixed point is not drawn
+// as movement. A genuine slow departure still accumulates past this threshold.
+const TRACK_STATIONARY_MIN_DISTANCE_METERS = 40;
 const DEFAULT_POSITION_MAX_SPEED_MPS = 35; // ~68 kn
 const DEFAULT_POSITION_STATIONARY_SOG_MPS = 0.7; // ~1.4 kn
 const DEFAULT_POSITION_MAX_DRIFT_METERS_WHEN_STATIONARY = 150;
@@ -423,18 +426,34 @@ export class DatapointStoreService {
       return true;
     }
 
-    const timeDelta = sample.ts - this.lastTrackSample.ts;
     const distance = haversineDistanceMeters(
       { lat: this.lastTrackSample.lat, lon: this.lastTrackSample.lon },
       { lat: sample.lat, lon: sample.lon },
     );
 
-    if (timeDelta < TRACK_MIN_TIME_MS && distance < TRACK_MIN_DISTANCE_METERS) {
+    // Only extend the track once the vessel has genuinely moved beyond the GPS
+    // noise floor. While stationary, demand a larger displacement so jitter does
+    // not draw spurious zig-zags.
+    const minDistance = this.isStationary()
+      ? TRACK_STATIONARY_MIN_DISTANCE_METERS
+      : TRACK_MIN_DISTANCE_METERS;
+    if (distance < minDistance) {
       return false;
     }
 
     this.lastTrackSample = sample;
     return true;
+  }
+
+  /** True when speed-over-ground indicates the vessel is effectively not moving. */
+  private isStationary(): boolean {
+    const stationarySogMps = this.nonNegativeOr(
+      this.alarmSettings.snapshot.gpsOutlierStationarySogMps,
+      DEFAULT_POSITION_STATIONARY_SOG_MPS,
+    );
+    const sogPoint = this._state.value.get(PATHS.navigation.speedOverGround);
+    const sogValue = typeof sogPoint?.value === 'number' ? sogPoint.value : null;
+    return sogValue !== null && sogValue <= stationarySogMps;
   }
 
   private emitTrackPoints(referenceTimestamp: number): void {

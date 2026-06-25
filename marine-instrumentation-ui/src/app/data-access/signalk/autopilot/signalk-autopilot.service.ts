@@ -13,10 +13,11 @@ export class SignalKAutopilotService {
     private http: HttpClient,
     @Inject(APP_ENVIRONMENT) private env: AppEnvironment
   ) {
-    const base = this.env.signalKBaseUrl.replace(/\/$/, '');
-    const baseNoApi = base.endsWith('/api') ? base.slice(0, -4) : base;
-    const baseNoV1 = baseNoApi.replace(/\/v1$/, '');
-    this.apiV2Url = `${baseNoV1}/v2/api`;
+    // Commands go to the marine-autopilot-engine, which serves the same
+    // Signal K v2 autopilot routes the UI already speaks. Status is still read
+    // back via Signal K (the engine publishes steering.autopilot.* deltas).
+    const base = this.env.autopilotApiUrl.replace(/\/$/, '');
+    this.apiV2Url = `${base}/v2/api`;
   }
 
   private putAutopilot(path: string, body: Record<string, unknown>): Observable<void> {
@@ -85,5 +86,15 @@ export class SignalKAutopilotService {
 
   standby(): Observable<void> {
     return this.setState('standby');
+  }
+
+  /** Acknowledge and clear a latched FAULT (engine returns to standby). */
+  clearFault(): Observable<void> {
+    return this.postAutopilot('clearFault');
+  }
+
+  /** Relative dodge nudge, in radians (engine applies to the active setpoint). */
+  dodge(deltaRad: number): Observable<void> {
+    return this.putAutopilot('dodge', { value: deltaRad });
   }
 }
