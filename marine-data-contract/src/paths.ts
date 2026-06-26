@@ -58,6 +58,8 @@ export const PATHS = {
       mode: "steering.autopilot.mode",
       engaged: "steering.autopilot.engaged",
       fault: "steering.autopilot.fault",
+      windHazard: "steering.autopilot.windHazard",
+      noGo: "steering.autopilot.noGo",
       target: {
         headingTrue: "steering.autopilot.target.headingTrue",
         headingMagnetic: "steering.autopilot.target.headingMagnetic",
@@ -68,6 +70,12 @@ export const PATHS = {
         motorCurrent: "steering.autopilot.drive.motorCurrent",
         enabled: "steering.autopilot.drive.enabled",
         clutch: "steering.autopilot.drive.clutch",
+      },
+      route: {
+        activeLeg: "steering.autopilot.route.activeLeg",
+        length: "steering.autopilot.route.length",
+        complete: "steering.autopilot.route.complete",
+        waypoints: "steering.autopilot.route.waypoints",
       },
     },
   },

@@ -30,7 +30,7 @@ const angleDelta = (from: number, to: number): number => {
   return delta > Math.PI ? delta - Math.PI * 2 : delta;
 };
 
-export const createWindGpsDemoScenario = (): Scenario<WindGpsDemoState> => ({
+export const createWindGpsDemoScenario = (seed = 42): Scenario<WindGpsDemoState> => ({
   name: "wind-gps-demo",
   init: () => ({
     elapsedSeconds: 0,

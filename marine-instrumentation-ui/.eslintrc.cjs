@@ -1,6 +1,6 @@
 module.exports = {
   root: true,
-  ignorePatterns: ["dist", "node_modules"],
+  ignorePatterns: ["dist", "dist-tmp", "node_modules", "mock-server.js", "vitest.config.ts"],
   overrides: [
     {
       files: ["*.ts"],
@@ -18,6 +18,12 @@ module.exports = {
         "prettier"
       ],
       rules: {
+        "@angular-eslint/component-class-suffix": [
+          "error",
+          {
+            suffixes: ["Component", "Page"]
+          }
+        ],
         "@typescript-eslint/no-explicit-any": "error",
         "no-restricted-imports": [
           "error",

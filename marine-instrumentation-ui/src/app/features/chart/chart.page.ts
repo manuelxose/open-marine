@@ -780,6 +780,12 @@ export class ChartPage implements AfterViewInit, OnDestroy {
   private readonly routeSignal = toSignal(this.facade.routeGeoJson$, {
     initialValue: { type: 'FeatureCollection', features: [] } as RouteFeatureCollection,
   });
+  private readonly benchRouteSignal = toSignal(this.facade.benchRouteUpdate$, {
+    initialValue: {
+      line: { type: 'FeatureCollection', features: [] } as FeatureCollection<LineString>,
+      points: { type: 'FeatureCollection', features: [] } as FeatureCollection<Point>,
+    },
+  });
   private readonly aisTargetsSignal = toSignal(this.facade.aisTargetsGeoJson$, {
     initialValue: { type: 'FeatureCollection', features: [] } as FeatureCollection<Point>,
   });
@@ -858,6 +864,10 @@ export class ChartPage implements AfterViewInit, OnDestroy {
     effect(() => {
       const route = this.routeSignal();
       this.runMapUpdate(() => this.engine.updateRoute(route));
+    });
+    effect(() => {
+      const bench = this.benchRouteSignal();
+      this.runMapUpdate(() => this.engine.updateBenchRoute(bench.line, bench.points));
     });
     effect(() => {
       const center = this.centerSignal();

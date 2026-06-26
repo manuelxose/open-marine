@@ -626,8 +626,9 @@ def print_line(
     note: str,
 ) -> None:
     icon = ICON_OK if status_ok else ICON_FAIL
-    lat = f"{state.latitude:.6f}" if state.latitude is not None else "n/a"
-    lon = f"{state.longitude:.6f}" if state.longitude is not None else "n/a"
+    valid_fix = has_valid_fix(state)
+    lat = f"{state.latitude:.6f}" if valid_fix and state.latitude is not None else "n/a"
+    lon = f"{state.longitude:.6f}" if valid_fix and state.longitude is not None else "n/a"
     sog = f"{state.sog_knots:.2f} kn" if state.sog_knots is not None else "n/a"
     cog = f"{state.cog_deg_true:.2f} deg" if state.cog_deg_true is not None else "n/a"
     sats = state.satellites_in_view

@@ -9,6 +9,8 @@ export type AutopilotState = 'standby' | 'auto' | 'wind' | 'route' | 'fault';
 const AUTOPILOT_PATHS = {
   state: PATHS.steering?.autopilot?.state ?? 'steering.autopilot.state',
   fault: PATHS.steering?.autopilot?.fault ?? 'steering.autopilot.fault',
+  windHazard: PATHS.steering?.autopilot?.windHazard ?? 'steering.autopilot.windHazard',
+  noGo: PATHS.steering?.autopilot?.noGo ?? 'steering.autopilot.noGo',
   engaged: PATHS.steering?.autopilot?.engaged ?? 'steering.autopilot.engaged',
   targetHeadingTrue:
     PATHS.steering?.autopilot?.target?.headingTrue ?? 'steering.autopilot.target.headingTrue',
@@ -23,7 +25,15 @@ const AUTOPILOT_PATHS = {
     PATHS.steering?.autopilot?.drive?.motorCurrent ?? 'steering.autopilot.drive.motorCurrent',
   rudderAngle: PATHS.steering?.rudderAngle ?? 'steering.rudderAngle',
   batteryVoltage:
-    PATHS.electrical?.batteries?.house?.voltage ?? 'electrical.batteries.house.voltage'
+    PATHS.electrical?.batteries?.house?.voltage ?? 'electrical.batteries.house.voltage',
+  routeActiveLeg:
+    PATHS.steering?.autopilot?.route?.activeLeg ?? 'steering.autopilot.route.activeLeg',
+  routeLength:
+    PATHS.steering?.autopilot?.route?.length ?? 'steering.autopilot.route.length',
+  routeComplete:
+    PATHS.steering?.autopilot?.route?.complete ?? 'steering.autopilot.route.complete',
+  routeWaypoints:
+    PATHS.steering?.autopilot?.route?.waypoints ?? 'steering.autopilot.route.waypoints',
 } as const;
 
 export { AUTOPILOT_PATHS };
@@ -73,6 +83,20 @@ export class AutopilotStoreService {
       shareReplay(1)
     );
 
+  public readonly windHazard$: Observable<string> = this.datapointStore
+    .observe<string>(AUTOPILOT_PATHS.windHazard)
+    .pipe(
+      map(dp => (dp?.value as string) || 'none'),
+      shareReplay(1)
+    );
+
+  public readonly noGo$: Observable<boolean> = this.datapointStore
+    .observe<boolean>(AUTOPILOT_PATHS.noGo)
+    .pipe(
+      map(dp => dp?.value === true),
+      shareReplay(1)
+    );
+
   public readonly rudderAngle$: Observable<number | undefined> = this.datapointStore
     .observe<number>(AUTOPILOT_PATHS.rudderAngle)
     .pipe(map(dp => dp?.value));
@@ -80,6 +104,34 @@ export class AutopilotStoreService {
   public readonly batteryVoltage$: Observable<number | undefined> = this.datapointStore
     .observe<number>(AUTOPILOT_PATHS.batteryVoltage)
     .pipe(map(dp => dp?.value));
+
+  public readonly routeActiveLeg$: Observable<number> = this.datapointStore
+    .observe<number>(AUTOPILOT_PATHS.routeActiveLeg)
+    .pipe(
+      map(dp => (typeof dp?.value === 'number' ? dp.value : 0)),
+      shareReplay(1)
+    );
+
+  public readonly routeLength$: Observable<number> = this.datapointStore
+    .observe<number>(AUTOPILOT_PATHS.routeLength)
+    .pipe(
+      map(dp => (typeof dp?.value === 'number' ? dp.value : 0)),
+      shareReplay(1)
+    );
+
+  public readonly routeComplete$: Observable<boolean> = this.datapointStore
+    .observe<boolean>(AUTOPILOT_PATHS.routeComplete)
+    .pipe(
+      map(dp => dp?.value === true),
+      shareReplay(1)
+    );
+
+  public readonly routeWaypoints$: Observable<Array<{ latitude: number; longitude: number }>> = this.datapointStore
+    .observe<Array<{ latitude: number; longitude: number }>>(AUTOPILOT_PATHS.routeWaypoints)
+    .pipe(
+      map(dp => (Array.isArray(dp?.value) ? dp.value : [])),
+      shareReplay(1)
+    );
 
   constructor() {}
 

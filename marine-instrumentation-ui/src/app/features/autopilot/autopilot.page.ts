@@ -1,9 +1,10 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { map } from 'rxjs';
 import { PATHS } from '@omi/marine-data-contract';
 import { AutopilotConsoleComponent } from './components/autopilot-console/autopilot-console.component';
 import { AutopilotCompassComponent } from './components/autopilot-compass/autopilot-compass.component';
+import { AutopilotCalibrationComponent } from './components/autopilot-calibration/autopilot-calibration.component';
 import { AutopilotFacadeService } from './autopilot.facade';
 import { DatapointStoreService } from '../../state/datapoints/datapoint-store.service';
 import { DegreesPipe } from '../../shared/pipes/degrees.pipe';
@@ -16,7 +17,13 @@ import { DegreesPipe } from '../../shared/pipes/degrees.pipe';
 @Component({
   selector: 'app-autopilot-page',
   standalone: true,
-  imports: [CommonModule, AutopilotConsoleComponent, AutopilotCompassComponent, DegreesPipe],
+  imports: [
+    CommonModule,
+    AutopilotConsoleComponent,
+    AutopilotCompassComponent,
+    AutopilotCalibrationComponent,
+    DegreesPipe,
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="ap-page">
@@ -34,6 +41,9 @@ import { DegreesPipe } from '../../shared/pipes/degrees.pipe';
                 [attr.data-state]="(facade.state$ | async)">
             {{ stateLabel(facade.state$ | async) }}
           </span>
+          <button class="cal-btn" (click)="showCalibration.set(true)" aria-label="Open calibration">
+            ⚙ CALIBRATION
+          </button>
         </div>
       </header>
 
@@ -113,6 +123,8 @@ import { DegreesPipe } from '../../shared/pipes/degrees.pipe';
         </div>
         </section>
       </div>
+
+      <app-autopilot-calibration *ngIf="showCalibration()" (close)="showCalibration.set(false)" />
     </div>
   `,
   styles: [`
@@ -159,6 +171,12 @@ import { DegreesPipe } from '../../shared/pipes/degrees.pipe';
     .state-chip[data-state="fault"] {
       background: var(--gb-alarm-emergency-bg); border-color: var(--gb-alarm-emergency-border); color: var(--gb-data-stale);
     }
+    .cal-btn {
+      padding: var(--space-1) var(--space-3); border-radius: var(--radius-full);
+      background: var(--gb-bg-glass); border: 1px solid var(--gb-border-panel); color: var(--gb-text-value);
+      font-size: 0.68rem; font-weight: 700; letter-spacing: 0.06em; cursor: pointer; min-height: 32px;
+    }
+    .cal-btn:hover { border-color: var(--gb-border-active); }
 
     /* Fault strip */
     .ap-page__fault {
@@ -236,6 +254,8 @@ import { DegreesPipe } from '../../shared/pipes/degrees.pipe';
 export class AutopilotPage {
   public facade = inject(AutopilotFacadeService);
   private readonly store = inject(DatapointStoreService);
+
+  readonly showCalibration = signal(false);
 
   // Resolve paths defensively (optional-chaining + string fallback) so a stale
   // contract build at runtime cannot crash construction — matches the pattern in

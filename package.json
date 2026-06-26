@@ -18,11 +18,13 @@
     "start:gps": "node scripts/start-gps-cross-platform.mjs",
     "start:wind": "node scripts/start-wind-cross-platform.mjs",
     "start:autopilot": "node scripts/start-autopilot-cross-platform.mjs",
+    "start:test-bench": "cd marine-test-bench && npm run dev",
     "build:contract": "cd marine-data-contract && npm run build",
     "build:gateway": "cd marine-sensor-gateway && npm run build",
     "build:simulator": "cd marine-data-simulator && npm run build",
     "build:ui": "cd marine-instrumentation-ui && npm run build",
     "build:autopilot": "cd marine-autopilot-engine && npm run build",
+    "build:test-bench": "cd marine-test-bench && npm run build",
     "status": "node scripts/status.mjs"
   }
 }

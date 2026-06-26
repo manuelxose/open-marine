@@ -89,7 +89,7 @@ const generateTargets = (count: number): AisVessel[] => {
   return targets;
 };
 
-export const createBusyShippingLaneScenario = (): Scenario<BusyLaneState> => {
+export const createBusyShippingLaneScenario = (_seed = 42): Scenario<BusyLaneState> => {
   return {
     name: "busy-shipping-lane",
     init: () => ({

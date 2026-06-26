@@ -68,7 +68,13 @@ export const routes: Routes = [
   {
     path: 'diagnostics',
     loadComponent: () => import('./features/diagnostics/diagnostics.page').then(m => m.DiagnosticsPage),
-    title: 'Diagnostics',
+    title: 'Banco de pruebas',
+    canActivate: [onboardingGuard],
+  },
+  {
+    path: 'system-diagnostics',
+    loadComponent: () => import('./features/system-diagnostics/system-diagnostics.page').then(m => m.SystemDiagnosticsPage),
+    title: 'System Diagnostics',
     canActivate: [onboardingGuard],
   },
   {

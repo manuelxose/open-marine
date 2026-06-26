@@ -46,7 +46,7 @@ interface HarborTrafficState {
 const BASE_LAT = 42.2406;
 const BASE_LON = -8.7207;
 
-export const createHarborTrafficScenario = (): Scenario<HarborTrafficState> => {
+export const createHarborTrafficScenario = (_seed = 42): Scenario<HarborTrafficState> => {
   return {
     name: "harbor-traffic",
     init: () => ({

@@ -23,7 +23,8 @@ export class CanMotor implements MotorController {
     this.enabled = false;
   }
 
-  command(_cmd: DriveCommand): void {
+  command(cmd: DriveCommand): void {
+    void cmd;
     // no-op stub: would map _cmd.drive → CAN actuator setpoint.
   }
 

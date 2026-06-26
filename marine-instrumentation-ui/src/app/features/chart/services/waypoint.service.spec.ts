@@ -43,9 +43,9 @@ describe('WaypointService', () => {
     const waypoints = await firstValueFrom(service.waypoints$);
 
     expect(waypoints.length).toBe(1);
-    expect(waypoints[0].id).toBe('wp-1');
-    expect(waypoints[0].lat).toBe(1);
-    expect(waypoints[0].lon).toBe(2);
+    expect(waypoints[0]!.id).toBe('wp-1');
+    expect(waypoints[0]!.lat).toBe(1);
+    expect(waypoints[0]!.lon).toBe(2);
   });
 
   it('sets active waypoint after creation', async () => {

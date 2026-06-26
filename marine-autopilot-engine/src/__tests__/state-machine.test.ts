@@ -15,6 +15,7 @@ const snapshot = (over: Partial<SensorSnapshot> = {}): SensorSnapshot => ({
   positionValid: true,
   xteMeters: 0,
   bearingToWaypointDeg: 100,
+  distanceToWaypointMeters: 500,
   rudderAngleDeg: 0,
   rudderValid: true,
   motorCurrentA: 1,

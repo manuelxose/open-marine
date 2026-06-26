@@ -1,10 +1,13 @@
 import type { PidConfig } from "./control/pid-controller.js";
 
 export type MotorBackendKind = "sim" | "serial" | "gpio" | "can";
+export type SensorBackendKind = "sim" | "signalk";
 
 export interface EngineConfig {
-  /** Motor driver backend. `sim` runs the bench boat model; `serial` talks to the microcontroller. */
+  /** Motor driver backend. `sim` keeps actuator output inside the process. */
   motorBackend: MotorBackendKind;
+  /** Sensor source. `signalk` consumes the real GPS/IMU/wind data from Signal K. */
+  sensorBackend: SensorBackendKind;
   /** Serial device for the `serial` backend (UART to the microcontroller). */
   serialPort: string;
   serialBaud: number;
@@ -39,6 +42,16 @@ export interface EngineConfig {
   simStartLat: number;
   simStartLon: number;
   simCruiseSpeedKt: number;
+  /** Bench-only TRACK waypoint, as bearing+distance from the start (0 distance = no waypoint). */
+  simWaypointBearingDeg: number;
+  simWaypointDistanceNm: number;
+  /** Bench-only TRACK route as relative legs "brg:distNm,brg:distNm,…" (overrides the single waypoint). */
+  simRoute: string;
+
+  /** TRACK sailing-limit: minimum sailable apparent wind angle (no-go half-angle), degrees. */
+  tackAngleDeg: number;
+  /** TRACK arrival radius (m): within this of the active waypoint, advance the route. */
+  arrivalRadiusM: number;
 }
 
 const num = (key: string, fallback: number): number => {
@@ -63,33 +76,49 @@ const backend = (key: string, fallback: MotorBackendKind): MotorBackendKind => {
   return fallback;
 };
 
+const sensorBackend = (fallback: SensorBackendKind): SensorBackendKind => {
+  const raw = process.env["AP_SENSOR_BACKEND"];
+  return raw === "sim" || raw === "signalk" ? raw : fallback;
+};
+
 /** Build the engine configuration from environment variables (see config/omi.env). */
-export const getConfig = (): EngineConfig => ({
-  motorBackend: backend("AP_MOTOR_BACKEND", "sim"),
-  serialPort: str("AP_SERIAL_PORT", "/dev/ttyAMA0"),
-  serialBaud: num("AP_SERIAL_BAUD", 115200),
-  signalKWsUrl: str("AP_SK_WS_URL", "ws://127.0.0.1:3000/signalk/v1/stream"),
-  signalKHttpUrl: str("AP_SK_HTTP_URL", "http://127.0.0.1:3000"),
-  apiPort: num("AP_API_PORT", 3990),
-  loopHz: num("AP_LOOP_HZ", 10),
-  watchdogTimeoutMs: num("AP_WATCHDOG_TIMEOUT_MS", 1000),
-  pid: {
-    kp: num("AP_PID_KP", 1.2),
-    ki: num("AP_PID_KI", 0.05),
-    kd: num("AP_PID_KD", 8),
-    deadband: num("AP_DEADBAND_DEG", 1),
-    integralLimit: num("AP_PID_INTEGRAL_LIMIT", 15),
-    outputMin: -num("AP_RUDDER_LIMIT_DEG", 35),
-    outputMax: num("AP_RUDDER_LIMIT_DEG", 35),
-  },
-  rudderLimitDeg: num("AP_RUDDER_LIMIT_DEG", 35),
-  pwmMin: num("AP_PWM_MIN", 0.15),
-  pwmMax: num("AP_PWM_MAX", 1),
-  currentLimitA: num("AP_CURRENT_LIMIT_A", 10),
-  voltageCutoff: num("AP_VOLTAGE_CUTOFF", 11.5),
-  simTrueWindDirDeg: num("AP_SIM_TWD_DEG", 45),
-  simTrueWindSpeedKt: num("AP_SIM_TWS_KT", 12),
-  simStartLat: num("AP_SIM_START_LAT", 43.46),
-  simStartLon: num("AP_SIM_START_LON", -3.8),
-  simCruiseSpeedKt: num("AP_SIM_CRUISE_KT", 5),
-});
+export const getConfig = (): EngineConfig => {
+  const motorBackend = backend("AP_MOTOR_BACKEND", "sim");
+  return {
+    motorBackend,
+    // Preserve the all-sim developer default, while allowing a safe simulated
+    // motor to consume real navigation sensors during dock-side testing.
+    sensorBackend: sensorBackend(motorBackend === "sim" ? "sim" : "signalk"),
+    serialPort: str("AP_SERIAL_PORT", "/dev/ttyAMA0"),
+    serialBaud: num("AP_SERIAL_BAUD", 115200),
+    signalKWsUrl: str("AP_SK_WS_URL", "ws://127.0.0.1:3000/signalk/v1/stream"),
+    signalKHttpUrl: str("AP_SK_HTTP_URL", "http://127.0.0.1:3000"),
+    apiPort: num("AP_API_PORT", 3990),
+    loopHz: num("AP_LOOP_HZ", 10),
+    watchdogTimeoutMs: num("AP_WATCHDOG_TIMEOUT_MS", 1000),
+    pid: {
+      kp: num("AP_PID_KP", 1.2),
+      ki: num("AP_PID_KI", 0.05),
+      kd: num("AP_PID_KD", 8),
+      deadband: num("AP_DEADBAND_DEG", 1),
+      integralLimit: num("AP_PID_INTEGRAL_LIMIT", 15),
+      outputMin: -num("AP_RUDDER_LIMIT_DEG", 35),
+      outputMax: num("AP_RUDDER_LIMIT_DEG", 35),
+    },
+    rudderLimitDeg: num("AP_RUDDER_LIMIT_DEG", 35),
+    pwmMin: num("AP_PWM_MIN", 0.15),
+    pwmMax: num("AP_PWM_MAX", 1),
+    currentLimitA: num("AP_CURRENT_LIMIT_A", 10),
+    voltageCutoff: num("AP_VOLTAGE_CUTOFF", 11.5),
+    simTrueWindDirDeg: num("AP_SIM_TWD_DEG", 45),
+    simTrueWindSpeedKt: num("AP_SIM_TWS_KT", 12),
+    simStartLat: num("AP_SIM_START_LAT", 43.46),
+    simStartLon: num("AP_SIM_START_LON", -3.8),
+    simCruiseSpeedKt: num("AP_SIM_CRUISE_KT", 5),
+    simWaypointBearingDeg: num("AP_SIM_WP_BRG_DEG", 0),
+    simWaypointDistanceNm: num("AP_SIM_WP_DIST_NM", 0),
+    simRoute: str("AP_SIM_ROUTE", ""),
+    tackAngleDeg: num("AP_TACK_ANGLE_DEG", 40),
+    arrivalRadiusM: num("AP_ARRIVAL_RADIUS_M", 30),
+  };
+};

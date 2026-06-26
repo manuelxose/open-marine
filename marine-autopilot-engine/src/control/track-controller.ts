@@ -1,5 +1,5 @@
 import { PidController, type PidConfig } from "./pid-controller.js";
-import { shortestAngleDiff, clamp } from "./angle-utils.js";
+import { shortestAngleDiff, clamp, wrapTo180, wrapTo360 } from "./angle-utils.js";
 
 export interface TrackInputs {
   /** Cross-track error in metres (positive = boat is to starboard of track). */
@@ -9,6 +9,36 @@ export interface TrackInputs {
   /** Current heading, degrees true. */
   headingDeg: number;
 }
+
+export interface SailingLimitResult {
+  /** Heading to actually steer (clamped to the edge of the no-go zone if limited). */
+  headingDeg: number;
+  /** True when the demanded heading would point inside the no-go zone. */
+  limited: boolean;
+}
+
+/**
+ * Sailing-limit guard for TRACK mode: a route bearing may point too close to the
+ * wind to sail. Given the demanded heading, the current heading and the current
+ * apparent wind angle, this clamps the steered heading to the edge of the no-go
+ * zone (|AWA| = tackAngle) on the same side, so the autopilot never tries to
+ * steer a sailboat into irons. Apparent wind rotates opposite to heading:
+ * `awaAt(h) = awa + heading - h`.
+ */
+export const applySailingLimit = (
+  demandedDeg: number,
+  headingDeg: number,
+  awaDeg: number,
+  tackAngleDeg: number,
+): SailingLimitResult => {
+  const awaAtTarget = wrapTo180(awaDeg + headingDeg - demandedDeg);
+  if (Math.abs(awaAtTarget) >= tackAngleDeg) {
+    return { headingDeg: wrapTo360(demandedDeg), limited: false };
+  }
+  const sign = awaAtTarget >= 0 ? 1 : -1;
+  const limitedHeading = wrapTo360(awaDeg + headingDeg - sign * tackAngleDeg);
+  return { headingDeg: limitedHeading, limited: true };
+};
 
 /**
  * TRACK / GPS mode controller: steers to a route. The demanded heading is the
@@ -53,8 +83,12 @@ export class TrackController {
    * @returns commanded rudder angle in degrees (positive = starboard).
    */
   computeRudder(inputs: TrackInputs, dtSeconds: number): number {
-    const targetHeading = this.demandedHeading(inputs);
-    const error = shortestAngleDiff(targetHeading, inputs.headingDeg);
+    return this.computeRudderToHeading(this.demandedHeading(inputs), inputs.headingDeg, dtSeconds);
+  }
+
+  /** Rudder to steer an explicit target heading (e.g. after a sailing-limit clamp). */
+  computeRudderToHeading(targetHeadingDeg: number, headingDeg: number, dtSeconds: number): number {
+    const error = shortestAngleDiff(targetHeadingDeg, headingDeg);
     return this.pid.update(error, dtSeconds);
   }
 }

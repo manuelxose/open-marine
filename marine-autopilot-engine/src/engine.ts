@@ -5,6 +5,7 @@ import {
   knotsToMetersPerSecond,
   type AutopilotMode,
   type AutopilotStatus,
+  type AutopilotWindHazard,
 } from "@omi/marine-data-contract";
 import type { EngineConfig } from "./config.js";
 import type { Logger } from "./app/logger.js";
@@ -12,8 +13,8 @@ import type { AutopilotTuning, MotorController, SensorSnapshot, SensorSource } f
 import { StateMachine, type EngageResult } from "./app/state-machine.js";
 import type { PidConfig } from "./control/pid-controller.js";
 import { HeadingController } from "./control/heading-controller.js";
-import { WindController } from "./control/wind-controller.js";
-import { TrackController } from "./control/track-controller.js";
+import { WindController, type WindHazard } from "./control/wind-controller.js";
+import { TrackController, applySailingLimit } from "./control/track-controller.js";
 import { shortestAngleDiff } from "./control/angle-utils.js";
 import { evaluateFaults } from "./safety/fault-manager.js";
 import { clampRudder } from "./safety/limits.js";
@@ -21,6 +22,7 @@ import { Watchdog } from "./safety/watchdog.js";
 import { Relay } from "./actuators/relay.js";
 import { Alarm } from "./actuators/alarm.js";
 import { SignalKPublisher, type SkValue } from "./signalk/sk-publisher.js";
+import { SignalKCourseClient, RouteAdvanceLatch } from "./signalk/sk-course.js";
 import type { SimWorld } from "./sim/sim-world.js";
 import type { AutopilotCommands } from "./app/command-api.js";
 
@@ -55,6 +57,8 @@ export class Engine implements AutopilotCommands {
   private readonly relay: Relay;
   private readonly alarm: Alarm;
   private readonly publisher: SignalKPublisher;
+  private readonly course: SignalKCourseClient;
+  private readonly arrivalLatch = new RouteAdvanceLatch();
   private readonly watchdog: Watchdog;
   private readonly log: Logger;
 
@@ -74,6 +78,17 @@ export class Engine implements AutopilotCommands {
   private driveTestUntilMs = 0;
   private driveTestCmd = { rudderDeg: 0, drive: 0 };
 
+  /** WIND-mode hazard, held for a few seconds after detection so the helmsman sees it. */
+  private windHazard: AutopilotWindHazard = "none";
+  private windHazardUntilMs = 0;
+  private static readonly WIND_HAZARD_HOLD_MS = 5000;
+
+  /** TRACK sailing-limit active: the route bearing is inside the no-go zone. */
+  private noGo = false;
+
+  /** Live-mode leg counter: incremented each time the latch fires. */
+  private liveLeg = 0;
+
   constructor(
     private readonly config: EngineConfig,
     private readonly sensors: SensorSource,
@@ -88,6 +103,7 @@ export class Engine implements AutopilotCommands {
     this.relay = new Relay(this.log.child("relay"));
     this.alarm = new Alarm(this.log.child("alarm"));
     this.publisher = new SignalKPublisher(config.signalKHttpUrl, this.log.child("publish"));
+    this.course = new SignalKCourseClient(config.signalKHttpUrl, this.log.child("course"));
     this.watchdog = new Watchdog(config.watchdogTimeoutMs, () => this.onWatchdogTimeout());
     this.tuning = {
       kp: config.pid.kp,
@@ -174,12 +190,32 @@ export class Engine implements AutopilotCommands {
       this.runControl(snapshot, dt);
     }
 
+    this.maybeAdvanceRoute(snapshot);
+
     this.motor.heartbeat(now);
 
     this.tickCount += 1;
     const publishEvery = Math.max(1, Math.floor(this.config.loopHz / 5));
     if (this.tickCount % publishEvery === 0) {
       await this.publishState(snapshot);
+    }
+  }
+
+  /**
+   * Live route sequencing: when engaged in TRACK against a real Signal K course,
+   * request the next route point on arrival. The bench advances its own route, so
+   * this only runs with real sensors (no benchWorld).
+   */
+  private maybeAdvanceRoute(snapshot: SensorSnapshot): void {
+    if (this.benchWorld || this.sm.getState() !== "track") {
+      this.arrivalLatch.reset();
+      this.liveLeg = 0;
+      return;
+    }
+    if (this.arrivalLatch.shouldAdvance(snapshot.distanceToWaypointMeters, this.config.arrivalRadiusM)) {
+      this.liveLeg += 1;
+      this.log.info(`waypoint reached (leg ${this.liveLeg}) — advancing route`);
+      void this.course.advanceToNextPoint();
     }
   }
 
@@ -226,6 +262,7 @@ export class Engine implements AutopilotCommands {
       this.wasEngaged = false;
       this.commandedRudderDeg = 0;
       this.alarm.clear("off-course");
+      this.setNoGo(false);
       return;
     }
 
@@ -235,6 +272,13 @@ export class Engine implements AutopilotCommands {
       this.wind.reset();
       this.track.reset();
       this.wasEngaged = true;
+    }
+
+    if (state !== "wind") {
+      this.clearWindHazard();
+    }
+    if (state !== "track") {
+      this.setNoGo(false);
     }
 
     const { rudder, error } = this.computeRudder(state, snapshot, dt);
@@ -269,7 +313,11 @@ export class Engine implements AutopilotCommands {
       if (target === undefined || awa === undefined) {
         return { rudder: 0, error: undefined };
       }
-      this.wind.evaluateHazards(awa, snapshot.awsKt ?? 0);
+      const hazards = this.wind.evaluateHazards(awa, snapshot.awsKt ?? 0);
+      this.applyWindHazards(hazards);
+      // The control law naturally counter-steers back to the set wind angle, so
+      // an accidental tack/gybe is opposed automatically; here we only surface
+      // the alarm + hazard state for the helmsman.
       return { rudder: this.wind.computeRudder(target, awa, dt), error: shortestAngleDiff(target, awa) };
     }
 
@@ -283,14 +331,71 @@ export class Engine implements AutopilotCommands {
       }
       const inputs = { xteMeters: xte, bearingToWaypointDeg: brg, headingDeg: heading };
       const demanded = this.track.demandedHeading(inputs);
-      this.sm.updateTrackHeading(demanded);
+
+      // Sailing-limit guard: never steer a route bearing that points inside the
+      // no-go zone; clamp to the closest sailable heading and alarm.
+      let steered = demanded;
+      let limited = false;
+      if (snapshot.windValid && snapshot.awaDeg !== undefined) {
+        const limit = applySailingLimit(demanded, heading, snapshot.awaDeg, this.config.tackAngleDeg);
+        steered = limit.headingDeg;
+        limited = limit.limited;
+      }
+      this.setNoGo(limited);
+
+      this.sm.updateTrackHeading(steered);
       return {
-        rudder: this.track.computeRudder(inputs, dt),
-        error: shortestAngleDiff(demanded, heading),
+        rudder: this.track.computeRudderToHeading(steered, heading, dt),
+        error: shortestAngleDiff(steered, heading),
       };
     }
 
     return this.holdHeading(snapshot, dt);
+  }
+
+  /** Map detector output to a held hazard state + alarm (gybe > tack > gust). */
+  private applyWindHazards(h: WindHazard): void {
+    const now = Date.now();
+    let detected: AutopilotWindHazard = "none";
+    if (h.accidentalGybe) {
+      detected = "accidental-gybe";
+    } else if (h.accidentalTack) {
+      detected = "accidental-tack";
+    } else if (h.gust) {
+      detected = "gust";
+    }
+
+    if (detected !== "none") {
+      this.windHazard = detected;
+      this.windHazardUntilMs = now + Engine.WIND_HAZARD_HOLD_MS;
+      this.alarm.raise(detected === "gust" ? "gust" : detected === "accidental-gybe" ? "gybe" : "tack");
+      this.log.warn(`wind hazard: ${detected}`);
+    } else if (this.windHazard !== "none" && now > this.windHazardUntilMs) {
+      this.clearWindHazard();
+    }
+  }
+
+  private clearWindHazard(): void {
+    if (this.windHazard === "none") {
+      return;
+    }
+    this.windHazard = "none";
+    this.windHazardUntilMs = 0;
+    this.alarm.clear("gust");
+    this.alarm.clear("tack");
+    this.alarm.clear("gybe");
+  }
+
+  private setNoGo(active: boolean): void {
+    if (this.noGo === active) {
+      return;
+    }
+    this.noGo = active;
+    if (active) {
+      this.alarm.raise("no-go");
+    } else {
+      this.alarm.clear("no-go");
+    }
   }
 
   private holdHeading(snapshot: SensorSnapshot, dt: number): { rudder: number; error: number | undefined } {
@@ -345,6 +450,8 @@ export class Engine implements AutopilotCommands {
       { path: PATHS.steering.autopilot.fault, value: status.fault },
       { path: PATHS.steering.autopilot.target.rudderAngle, value: degToRad(this.commandedRudderDeg) },
       { path: PATHS.steering.autopilot.drive.enabled, value: feedback.enabled },
+      { path: PATHS.steering.autopilot.windHazard, value: this.windHazard },
+      { path: PATHS.steering.autopilot.noGo, value: this.noGo },
     ];
 
     if (status.targetHeadingTrue !== undefined) {
@@ -378,6 +485,40 @@ export class Engine implements AutopilotCommands {
         { path: PATHS.electrical.batteries.house.voltage, value: this.benchWorld.getBatteryVoltage() },
         { path: PATHS.navigation.position, value: { latitude: b.lat, longitude: b.lon } },
       );
+      // Publish the bench route's active-leg XTE/bearing/distance so TRACK has a
+      // course to follow without a real Signal K Course API.
+      const brg = this.benchWorld.getBearingToWaypointDeg();
+      const xte = this.benchWorld.getXteMeters();
+      const dist = this.benchWorld.getDistanceToWaypointM();
+      if (brg !== undefined) {
+        values.push({ path: PATHS.navigation.courseGreatCircle.nextPoint.bearingTrue, value: degToRad(brg) });
+      }
+      if (xte !== undefined) {
+        values.push({ path: PATHS.navigation.courseGreatCircle.crossTrackError, value: xte });
+      }
+      if (dist !== undefined) {
+        values.push({ path: PATHS.navigation.courseGreatCircle.nextPoint.distance, value: dist });
+      }
+      // Bench route geometry + progress — UI renders these as a route overlay on the map.
+      const routePoints = this.benchWorld.getRoutePoints();
+      const origin = this.benchWorld.getRouteOrigin();
+      if (routePoints.length > 0 && origin) {
+        const waypoints = [origin, ...routePoints].map((p) => ({
+          latitude: p.lat,
+          longitude: p.lon,
+        }));
+        values.push(
+          { path: PATHS.steering.autopilot.route.waypoints, value: waypoints },
+          { path: PATHS.steering.autopilot.route.activeLeg, value: this.benchWorld.getRouteLeg() },
+          { path: PATHS.steering.autopilot.route.length, value: this.benchWorld.getRouteLength() },
+          { path: PATHS.steering.autopilot.route.complete, value: this.benchWorld.isRouteComplete() },
+        );
+      }
+    }
+
+    // Live-mode route leg counter (bench publishes its own above).
+    if (!this.benchWorld && this.sm.getState() === "track" && this.liveLeg > 0) {
+      values.push({ path: PATHS.steering.autopilot.route.activeLeg, value: this.liveLeg });
     }
 
     await this.publisher.publish(values);
