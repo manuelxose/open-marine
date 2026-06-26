@@ -26,7 +26,7 @@ const BASE_LAT = 42.235;
 const BASE_LON = -8.705;
 const POSITION_UPDATE_INTERVAL_SEC = 12;
 
-export const createAnchoredStaleScenario = (): Scenario<AnchoredStaleState> => {
+export const createAnchoredStaleScenario = (_seed = 42): Scenario<AnchoredStaleState> => {
   return {
     name: "anchored-stale",
     init: () => ({

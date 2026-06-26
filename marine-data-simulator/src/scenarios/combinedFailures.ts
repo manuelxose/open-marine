@@ -23,7 +23,7 @@ interface FailureState {
 const START_LAT = 42.15;
 const START_LON = -8.85;
 
-export const createCombinedFailuresScenario = (): Scenario<FailureState> => {
+export const createCombinedFailuresScenario = (_seed = 42): Scenario<FailureState> => {
   return {
     name: "combined-failures",
     init: () => ({

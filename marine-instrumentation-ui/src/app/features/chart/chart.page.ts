@@ -41,6 +41,7 @@ import { InstrumentsDrawerComponent } from '../instruments/components/instrument
 import { MapSettingsPanelComponent } from './components/map-settings-panel/map-settings-panel.component';
 import { ChartLegendComponent } from '../chart-legend/chart-legend.component';
 import { AppIconComponent } from '../../shared/components/app-icon/app-icon.component';
+import { AutopilotChartControlComponent } from '../autopilot/components/autopilot-chart-control/autopilot-chart-control.component';
 import { TranslatePipe } from '../../shared/pipes/translate.pipe';
 
 // Utils & Types
@@ -79,6 +80,7 @@ const INITIAL_PLAYBACK_STATE: PlaybackState = {
     MapSettingsPanelComponent,
     ChartLegendComponent,
     AppIconComponent,
+    AutopilotChartControlComponent,
     TranslatePipe,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -135,6 +137,11 @@ const INITIAL_PLAYBACK_STATE: PlaybackState = {
       <!-- ZONA: Top Right - Alarm Badge -->
       <div class="chart-zone chart-zone--top-right">
         <app-alarm-status-widget />
+      </div>
+
+      <!-- ZONA: Top Center - Autopilot control overlay -->
+      <div class="chart-zone chart-zone--autopilot">
+        <app-autopilot-chart-control />
       </div>
       
       <!-- ZONA: Left Panel (M2) -->
@@ -325,6 +332,25 @@ const INITIAL_PLAYBACK_STATE: PlaybackState = {
       z-index: calc(var(--z-chart-panels) + 2);
       animation: chart-zone-enter-right 0.35s var(--ease-out) both;
       animation-delay: 0.15s;
+    }
+
+    // TOP CENTER: Autopilot control overlay
+    .chart-zone--autopilot {
+      top: var(--chart-top-controls-offset);
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: calc(var(--z-chart-panels) + 2);
+      animation: chart-zone-enter 0.4s var(--ease-out) both;
+      animation-delay: 0.18s;
+    }
+
+    @media (max-width: 768px) {
+      .chart-zone--autopilot {
+        left: auto;
+        right: var(--chart-edge-gap);
+        top: calc(var(--chart-top-controls-offset) + 44px);
+        transform: none;
+      }
     }
 
     // LEFT PANEL: Floating tabs panel
@@ -708,7 +734,11 @@ export class ChartPage implements AfterViewInit, OnDestroy {
   readonly activeWaypointId = computed(() => this.waypointListVmSignal().activeId);
 
   private readonly vesselSignal = toSignal(this.facade.vesselUpdate$, {
-    initialValue: { lngLat: null, rotationDeg: null, state: 'no-fix' as 'fix' | 'stale' | 'no-fix' },
+    initialValue: {
+      lngLat: [-8.7207, 42.2406] as [number, number],
+      rotationDeg: null,
+      state: 'no-fix' as 'fix' | 'stale' | 'no-fix',
+    },
   });
   private readonly trackSignal = toSignal(this.facade.trackCoords$, {
     initialValue: [] as [number, number][],
@@ -719,11 +749,21 @@ export class ChartPage implements AfterViewInit, OnDestroy {
   private readonly headingLineSignal = toSignal(this.facade.headingLineUpdate$, {
     initialValue: { coords: [] as [number, number][], visible: false },
   });
+  private readonly autopilotTargetSignal = toSignal(this.facade.autopilotTargetUpdate$, {
+    initialValue: { coords: [] as [number, number][], visible: false },
+  });
   private readonly laylinesSignal = toSignal(this.facade.laylinesUpdate$, {
     initialValue: { lines: [] as [number, number][][], visible: false },
   });
   private readonly trueWindSignal = toSignal(this.facade.trueWindUpdate$, {
-    initialValue: { coords: [] as [number, number][], visible: false },
+    initialValue: {
+      coords: [] as [number, number][],
+      visible: false,
+      directionDeg: 0,
+      speedMps: 0,
+      gustMps: null as number | null,
+      source: 'true' as 'true' | 'apparent',
+    },
   });
   private readonly rangeRingsSignal = toSignal(this.facade.rangeRingsUpdate$, {
     initialValue: { center: null as [number, number] | null, intervals: [] as number[] },
@@ -739,6 +779,12 @@ export class ChartPage implements AfterViewInit, OnDestroy {
   });
   private readonly routeSignal = toSignal(this.facade.routeGeoJson$, {
     initialValue: { type: 'FeatureCollection', features: [] } as RouteFeatureCollection,
+  });
+  private readonly benchRouteSignal = toSignal(this.facade.benchRouteUpdate$, {
+    initialValue: {
+      line: { type: 'FeatureCollection', features: [] } as FeatureCollection<LineString>,
+      points: { type: 'FeatureCollection', features: [] } as FeatureCollection<Point>,
+    },
   });
   private readonly aisTargetsSignal = toSignal(this.facade.aisTargetsGeoJson$, {
     initialValue: { type: 'FeatureCollection', features: [] } as FeatureCollection<Point>,
@@ -800,12 +846,16 @@ export class ChartPage implements AfterViewInit, OnDestroy {
       this.runMapUpdate(() => this.engine.updateHeadingLine(headingLine.coords, headingLine.visible));
     });
     effect(() => {
+      const apTarget = this.autopilotTargetSignal();
+      this.runMapUpdate(() => this.engine.updateAutopilotTarget(apTarget.coords, apTarget.visible));
+    });
+    effect(() => {
       const laylines = this.laylinesSignal();
       this.runMapUpdate(() => this.engine.updateLaylines(laylines.lines, laylines.visible));
     });
     effect(() => {
       const wind = this.trueWindSignal();
-      this.runMapUpdate(() => this.engine.updateTrueWind(wind.coords, wind.visible));
+      this.runMapUpdate(() => this.engine.updateTrueWind(wind));
     });
     effect(() => {
       const waypoints = this.waypointsSignal();
@@ -814,6 +864,10 @@ export class ChartPage implements AfterViewInit, OnDestroy {
     effect(() => {
       const route = this.routeSignal();
       this.runMapUpdate(() => this.engine.updateRoute(route));
+    });
+    effect(() => {
+      const bench = this.benchRouteSignal();
+      this.runMapUpdate(() => this.engine.updateBenchRoute(bench.line, bench.points));
     });
     effect(() => {
       const center = this.centerSignal();

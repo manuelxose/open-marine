@@ -70,6 +70,26 @@ async function checkAisTargets() {
   }
 }
 
+async function checkAutopilot() {
+  const port = process.env.AP_API_PORT || "3990";
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(`http://localhost:${port}/`, { signal: controller.signal });
+    if (!response.ok) {
+      logCheck(false, "Autopilot engine");
+      return;
+    }
+    const body = await response.json();
+    const state = body?.autopilot?.state ?? "unknown";
+    logCheck(true, `Autopilot engine (state: ${state})`);
+  } catch {
+    logCheck(false, "Autopilot engine");
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function main() {
   console.log("\nOMI System Status\n");
 
@@ -77,6 +97,7 @@ async function main() {
   await checkHttp("Signal K API", "http://localhost:3000/signalk/v1/api/");
   checkUdpPort();
   await checkAisTargets();
+  await checkAutopilot();
 
   console.log("");
 }

@@ -33,7 +33,7 @@ interface CoastalRunState {
 const BASE_LAT = 42.28;
 const BASE_LON = -8.92;
 
-export const createCoastalRunScenario = (): Scenario<CoastalRunState> => {
+export const createCoastalRunScenario = (_seed = 42): Scenario<CoastalRunState> => {
   return {
     name: "coastal-run",
     init: () => ({

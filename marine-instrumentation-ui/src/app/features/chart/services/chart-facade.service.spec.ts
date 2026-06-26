@@ -4,6 +4,7 @@ import { DatapointStoreService } from '../../../state/datapoints/datapoint-store
 import { ChartSettingsService } from './chart-settings.service';
 import { WaypointService } from './waypoint.service';
 import { RouteService } from './route.service';
+import { SignalKClientService } from '../../../data-access/signalk/signalk-client.service';
 import { BehaviorSubject } from 'rxjs';
 import { firstValueFrom } from 'rxjs'; // Fix import
 
@@ -15,6 +16,7 @@ describe('ChartFacadeService', () => {
     const datapointStoreMock = {
       state$: new BehaviorSubject(new Map()),
       observe: () => new BehaviorSubject(null),
+      observeHistory: () => new BehaviorSubject([]),
       trackPoints$: new BehaviorSubject([]),
     };
     const chartSettingsMock = {
@@ -35,6 +37,7 @@ describe('ChartFacadeService', () => {
         { provide: ChartSettingsService, useValue: chartSettingsMock },
         { provide: WaypointService, useValue: waypointServiceMock },
         { provide: RouteService, useValue: routeServiceMock },
+        { provide: SignalKClientService, useValue: { connected$: new BehaviorSubject(false) } },
       ],
     });
     service = TestBed.inject(ChartFacadeService);

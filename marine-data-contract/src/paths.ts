@@ -14,6 +14,15 @@ export const PATHS = {
     leeway: "navigation.leeway",
     currentSet: "navigation.current.setTrue",
     currentDrift: "navigation.current.drift",
+    courseGreatCircle: {
+      crossTrackError: "navigation.courseGreatCircle.crossTrackError",
+      bearingTrackTrue: "navigation.courseGreatCircle.bearingTrackTrue",
+      nextPoint: {
+        bearingTrue: "navigation.courseGreatCircle.nextPoint.bearingTrue",
+        distance: "navigation.courseGreatCircle.nextPoint.distance",
+        velocityMadeGood: "navigation.courseGreatCircle.nextPoint.velocityMadeGood",
+      },
+    },
     trip: {
       log: "navigation.trip.log",
       lastReset: "navigation.trip.lastReset",
@@ -46,10 +55,27 @@ export const PATHS = {
     rudderAngle: "steering.rudderAngle",
     autopilot: {
       state: "steering.autopilot.state",
+      mode: "steering.autopilot.mode",
+      engaged: "steering.autopilot.engaged",
+      fault: "steering.autopilot.fault",
+      windHazard: "steering.autopilot.windHazard",
+      noGo: "steering.autopilot.noGo",
       target: {
         headingTrue: "steering.autopilot.target.headingTrue",
         headingMagnetic: "steering.autopilot.target.headingMagnetic",
         windAngleApparent: "steering.autopilot.target.windAngleApparent",
+        rudderAngle: "steering.autopilot.target.rudderAngle",
+      },
+      drive: {
+        motorCurrent: "steering.autopilot.drive.motorCurrent",
+        enabled: "steering.autopilot.drive.enabled",
+        clutch: "steering.autopilot.drive.clutch",
+      },
+      route: {
+        activeLeg: "steering.autopilot.route.activeLeg",
+        length: "steering.autopilot.route.length",
+        complete: "steering.autopilot.route.complete",
+        waypoints: "steering.autopilot.route.waypoints",
       },
     },
   },

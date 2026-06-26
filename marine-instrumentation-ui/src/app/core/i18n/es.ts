@@ -193,6 +193,41 @@ export const es: Translations = {
     },
   },
   diagnostics: {
+    title: 'Banco de pruebas',
+    subtitle: 'Diagnóstico del sistema real y simulación aislada y reproducible del hardware',
+    source: {
+      live: 'Sistema real',
+      bench: 'Banco aislado',
+    },
+    tabs: {
+      schematic: 'Esquema',
+      signals: 'Señales',
+      scenarios: 'Escenarios',
+      data: 'Datos',
+      history: 'Historial',
+    },
+    actions: {
+      retry: 'Reintentar',
+    },
+    schematic: {
+      title: 'Topología del sistema',
+      inspector: 'Inspector',
+      select: 'Selecciona un bloque o conexión',
+      no_signals: 'Este elemento no tiene señales asignadas.',
+    },
+    signals: {
+      channels: 'Canales',
+      waiting: 'Esperando tramas UART.',
+    },
+    scenarios: {
+      catalog: 'Catálogo de pruebas de motor',
+      active_run: 'Ejecución activa',
+      no_run: 'No hay ningún escenario en ejecución.',
+    },
+    history: {
+      title: 'Informes y reproducibilidad',
+      empty: 'Todavía no hay ejecuciones registradas.',
+    },
     page: {
       search_placeholder: 'Filtrar rutas...',
       stats: {
@@ -206,6 +241,65 @@ export const es: Translations = {
         age: 'Edad',
         source: 'Fuente',
       },
+    },
+  },
+  simulation: {
+    title: 'Laboratorio de simulación',
+    subtitle: 'Simulación aislada y reproducible basada en escenarios para sistemas marinos',
+    source: {
+      standby: 'Standby',
+      running: 'En ejecución',
+    },
+    tabs: {
+      scenarios: 'Escenarios',
+      execution: 'Ejecución',
+      charts: 'Gráficas',
+      data: 'Datos',
+      history: 'Historial',
+    },
+    actions: {
+      retry: 'Reintentar',
+      arm_run: 'ARMAR Y EJECUTAR',
+      abort: 'ABORTAR / SEGURO',
+    },
+    scenarios: {
+      catalog: 'Catálogo de escenarios',
+      empty: 'No hay escenarios disponibles.',
+      timeline: 'Línea temporal',
+    },
+    execution: {
+      title: 'Ejecución',
+      active_run: 'Ejecución activa',
+      no_run: 'No hay ninguna simulación en ejecución.',
+      simulated_time: 'Tiempo simulado',
+      speed: 'Velocidad',
+      seed: 'Semilla',
+      mode: 'Modo',
+      events: 'Registro de eventos',
+      no_events: 'No hay eventos registrados.',
+    },
+    charts: {
+      title: 'Gráficas',
+      channels: 'Canales',
+      no_channels: 'No hay canales disponibles.',
+      select_channels: 'Selecciona canales para mostrar.',
+    },
+    data: {
+      title: 'Datos',
+      search_placeholder: 'Filtrar canales...',
+      empty: 'No hay datos de canales disponibles.',
+      table: {
+        group: 'Grupo',
+        channel: 'Canal',
+        value: 'Valor',
+        unit: 'Unidad',
+        quality: 'Calidad',
+        source: 'Fuente',
+      },
+    },
+    history: {
+      title: 'Historial',
+      empty: 'No hay ejecuciones registradas.',
     },
   },
   dashboard: {
