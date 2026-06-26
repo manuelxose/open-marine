@@ -42,6 +42,27 @@ Running services on the Raspberry:
 | `omi-ais.service` | AIS-catcher (RTL-SDR) -> UDP `10110` -> Signal K AIS targets |
 | `omi-autopilot.service` | Autopilot engine (control + safety); command API on `3990`, boots in STANDBY |
 | `omi-ui.service` | Compiled Angular UI on port `4200` |
+| `omi-test-bench.service` | Isolated virtual test bench; Signal K `3100`, autopilot `3991`, orchestrator `4100` |
+
+## Banco de pruebas aislado
+
+La ruta `/diagnostics` de la UI abre el Banco de pruebas. El selector superior separa
+explícitamente el sistema real del entorno virtual:
+
+- Producción conserva Signal K `3000` y autopiloto `3990`.
+- El banco usa Signal K `3100`, autopiloto `3991` y API/SSE `4100`.
+- Las pruebas se arman con un token temporal y nunca acceden a GPIO ni UART físicos.
+- En Linux, los escenarios de integración crean `/tmp/omi-bench-ap` y
+  `/tmp/omi-bench-mcu` mediante `socat`; si no está instalado se mantiene el
+  emulador UART determinista.
+- Los resultados se guardan en `data/test-bench.sqlite` y pueden exportarse desde
+  la vista Historial en JSON, CSV o HTML.
+
+Instalación del enlace UART virtual:
+
+```bash
+sudo apt-get install -y socat
+```
 
 ## SSH
 

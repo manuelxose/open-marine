@@ -70,6 +70,17 @@ import { DegreesPipe } from '../../../../shared/pipes/degrees.pipe';
           <span class="apc__rval">{{ rudderActualDeg() !== null ? (rudderActualDeg() | number:'1.0-0') : '--' }}°</span>
         </div>
 
+        <!-- Route leg (TRACK) -->
+        <div class="apc__leg" *ngIf="state() === 'route' && routeLen()">
+          <ng-container *ngIf="routeComplete(); else legChip">
+            <span class="apc__leg-done">ROUTE COMPLETE</span>
+          </ng-container>
+          <ng-template #legChip>
+            <span class="apc__leg-k">LEG</span>
+            <span class="apc__leg-v">{{ routeLeg() }}/{{ routeLen() }}</span>
+          </ng-template>
+        </div>
+
         <!-- Telemetry -->
         <div class="apc__tele">
           <div class="apc__cell">
@@ -166,6 +177,16 @@ import { DegreesPipe } from '../../../../shared/pipes/degrees.pipe';
     .apc__cell .k { font-size: 0.6rem; color: var(--gb-text-muted); letter-spacing: 0.08em; }
     .apc__cell .v { font-size: 0.95rem; font-weight: 700; color: var(--gb-text-value); }
     .apc__cell .v.warn { color: var(--gb-data-stale); }
+
+    .apc__leg {
+      display: flex; align-items: center; gap: var(--space-2);
+      padding: var(--space-1) var(--space-2);
+      background: var(--gb-bg-glass); border-radius: var(--radius-sm);
+      border-left: 2px solid var(--gb-data-good);
+    }
+    .apc__leg-k { font-size: 0.6rem; color: var(--gb-text-muted); letter-spacing: 0.08em; }
+    .apc__leg-v { font-weight: 800; font-size: 0.85rem; color: var(--gb-text-value); }
+    .apc__leg-done { font-weight: 800; font-size: 0.72rem; color: var(--gb-data-good); letter-spacing: 0.04em; }
   `],
 })
 export class AutopilotChartControlComponent {
@@ -180,6 +201,9 @@ export class AutopilotChartControlComponent {
   private readonly rudderActual = toSignal(this.facade.rudderAngle$, { initialValue: undefined });
   readonly current = toSignal(this.facade.motorCurrent$, { initialValue: undefined });
   readonly voltage = toSignal(this.facade.batteryVoltage$, { initialValue: undefined });
+  readonly routeLeg = toSignal(this.facade.routeActiveLeg$, { initialValue: 0 });
+  readonly routeLen = toSignal(this.facade.routeLength$, { initialValue: 0 });
+  readonly routeComplete = toSignal(this.facade.routeComplete$, { initialValue: false });
 
   readonly isEngaged = computed(() => {
     const s = this.state();

@@ -64,6 +64,7 @@ import {
 } from '../../../state/calculations/navigation';
 import type { CpaLinesFeatureCollection } from '../types/chart-geojson';
 import { PATHS } from '@omi/marine-data-contract';
+import { AutopilotStoreService } from '../../../state/autopilot/autopilot-store.service';
 
 const DEFAULT_CENTER: ChartPosition = { lat: 42.2406, lon: -8.7207 };
 const FIX_THRESHOLD_MS = 2000;
@@ -87,7 +88,7 @@ const DEFAULT_BASE_SOURCE: ChartSourceConfig = {
         tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
         tileSize: 256,
         maxzoom: 19,
-        attribution: '(c) OpenStreetMap contributors',
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
       },
     },
     layers: [
@@ -185,6 +186,7 @@ export class ChartFacadeService {
   private readonly qualityService = inject(DataQualityService);
   private readonly waypointService = inject(WaypointService);
   private readonly routeService = inject(RouteService);
+  private readonly autopilotStore = inject(AutopilotStoreService);
   private readonly _orientation$ = new BehaviorSubject<MapOrientation>('north-up');
   readonly orientation$ = this._orientation$.asObservable();
 
@@ -869,23 +871,50 @@ export class ChartFacadeService {
   private readonly autopilotTargetHeading$ = this.store
     .observe<number>(PATHS.steering.autopilot.target.headingTrue)
     .pipe(shareReplay({ bufferSize: 1, refCount: true }));
+  private readonly autopilotTargetWind$ = this.store
+    .observe<number>(PATHS.steering.autopilot.target.windAngleApparent)
+    .pipe(shareReplay({ bufferSize: 1, refCount: true }));
 
   readonly autopilotTargetUpdate$ = combineLatest({
     position: this.effectivePosition$,
     state: this.autopilotState$,
     targetHeading: this.autopilotTargetHeading$,
+    targetWind: this.autopilotTargetWind$,
+    heading: this.heading$,
+    awa: this.awa$,
     sog: this.sog$,
     settings: this.settingsService.settings$,
   }).pipe(
     auditTime(200),
-    map(({ position, state, targetHeading, sog, settings }) => {
-      const engaged = state?.value === 'auto' || state?.value === 'route';
-      const targetRad = coerceNumber(targetHeading?.value);
-      if (!engaged || !position || targetRad === null) {
+    map(({ position, state, targetHeading, targetWind, heading, awa, sog, settings }) => {
+      const value = state?.value;
+      const engaged = value === 'auto' || value === 'route' || value === 'wind';
+      if (!engaged || !position) {
         return { coords: [] as [number, number][], visible: false };
       }
 
-      const targetDeg = normalizeDegrees(toDegrees(targetRad));
+      // Heading the pilot is steering to. In wind mode the setpoint is an
+      // apparent wind angle, so derive the heading that satisfies it from the
+      // live heading + (target AWA − current AWA).
+      let targetDeg: number | null = null;
+      if (value === 'wind') {
+        const headingRad = coerceNumber(heading?.value);
+        const awaRad = coerceNumber(awa?.value);
+        const targetAwaRad = coerceNumber(targetWind?.value);
+        if (headingRad !== null && awaRad !== null && targetAwaRad !== null) {
+          targetDeg = normalizeDegrees(toDegrees(headingRad) + toDegrees(targetAwaRad - awaRad));
+        }
+      } else {
+        const targetRad = coerceNumber(targetHeading?.value);
+        if (targetRad !== null) {
+          targetDeg = normalizeDegrees(toDegrees(targetRad));
+        }
+      }
+
+      if (targetDeg === null) {
+        return { coords: [] as [number, number][], visible: false };
+      }
+
       const sogMps = coerceNumber(sog?.value) ?? 0;
       const vectorSeconds = Math.max(60, settings.headingLineMinutes * 60);
       const vectorMeters = Math.max(DEFAULT_VECTOR_NM * METERS_PER_NM, sogMps * vectorSeconds);
@@ -902,6 +931,63 @@ export class ChartFacadeService {
         ] as [number, number][],
         visible: true,
       };
+    }),
+    shareReplay({ bufferSize: 1, refCount: true }),
+  );
+
+  readonly benchRouteUpdate$ = combineLatest({
+    waypoints: this.autopilotStore.routeWaypoints$,
+    activeLeg: this.autopilotStore.routeActiveLeg$,
+  }).pipe(
+    auditTime(500),
+    map(({ waypoints, activeLeg }) => {
+      if (waypoints.length < 2) {
+        return {
+          line: { type: 'FeatureCollection', features: [] } as FeatureCollection<LineString>,
+          points: { type: 'FeatureCollection', features: [] } as FeatureCollection<Point>,
+        };
+      }
+
+      const lineFeatures: Feature<LineString>[] = [];
+      for (let i = 0; i < waypoints.length - 1; i++) {
+        const from = waypoints[i]!;
+        const to = waypoints[i + 1]!;
+        const legIndex = i + 1;
+        lineFeatures.push({
+          type: 'Feature',
+          geometry: {
+            type: 'LineString',
+            coordinates: [
+              [from.longitude, from.latitude],
+              [to.longitude, to.latitude],
+            ],
+          },
+          properties: {
+            leg: legIndex,
+            active: legIndex === activeLeg,
+          },
+        });
+      }
+
+      const pointFeatures: Feature<Point>[] = waypoints.map((wp, i) => ({
+        type: 'Feature',
+        geometry: { type: 'Point', coordinates: [wp.longitude, wp.latitude] },
+        properties: {
+          label: i === 0 ? 'START' : `WP${i}`,
+          index: i,
+          active: i === activeLeg,
+          completed: i < activeLeg,
+        },
+      }));
+
+      return {
+        line: { type: 'FeatureCollection', features: lineFeatures } as FeatureCollection<LineString>,
+        points: { type: 'FeatureCollection', features: pointFeatures } as FeatureCollection<Point>,
+      };
+    }),
+    startWith({
+      line: { type: 'FeatureCollection', features: [] } as FeatureCollection<LineString>,
+      points: { type: 'FeatureCollection', features: [] } as FeatureCollection<Point>,
     }),
     shareReplay({ bufferSize: 1, refCount: true }),
   );

@@ -48,6 +48,8 @@ Thumbs.db
 .DS_Store
 *.log
 *.pid
+marine-test-bench/data/
+data/test-bench.sqlite*
 
 # Logs
 npm-debug.log*

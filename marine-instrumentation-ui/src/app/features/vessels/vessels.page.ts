@@ -1,10 +1,13 @@
-import { Component, ChangeDetectionStrategy, inject, signal, computed } from '@angular/core';
+import { Component, ChangeDetectionStrategy, HostListener, inject, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { Router } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { AisTargetListComponent } from '../ais/components/ais-target-list/ais-target-list.component';
 import { AisTargetDetailsComponent } from '../ais/components/ais-target-details/ais-target-details.component';
+import { AppIconComponent } from '../../shared/components/app-icon/app-icon.component';
 import { AisStoreService } from '../../state/ais/ais-store.service';
 import { DatapointStoreService } from '../../state/datapoints/datapoint-store.service';
+import { haversineDistanceMeters, type GeoPoint } from '../../state/calculations/navigation';
 import { PATHS } from '@omi/marine-data-contract';
 import type { AisTarget } from '../../core/models/ais.model';
 
@@ -15,6 +18,7 @@ import type { AisTarget } from '../../core/models/ais.model';
     CommonModule,
     AisTargetListComponent,
     AisTargetDetailsComponent,
+    AppIconComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -23,7 +27,7 @@ import type { AisTarget } from '../../core/models/ais.model';
       <div class="vessels-header">
         <div class="vessels-header__left">
           <h1 class="vessels-header__title">Vessels &amp; Traffic</h1>
-          <span class="vessels-header__count">{{ targetCount() }} targets in range</span>
+          <span class="vessels-header__count" aria-live="polite">{{ targetCount() }} targets in range</span>
         </div>
         <div class="vessels-header__right">
           <!-- Status indicators -->
@@ -45,7 +49,7 @@ import type { AisTarget } from '../../core/models/ais.model';
       <!-- Content -->
       <div class="vessels-content" [class.vessels-content--detail-open]="selectedTarget() !== null">
         <!-- Target list -->
-        <div class="vessels-list-panel">
+        <div class="vessels-list-panel" role="region" aria-label="Vessel list">
           <app-ais-target-list
             [targets]="sortedTargets()"
             [selectedMmsi]="selectedMmsi()"
@@ -58,7 +62,7 @@ import type { AisTarget } from '../../core/models/ais.model';
 
         <!-- Detail panel -->
         @if (selectedTarget(); as target) {
-          <div class="vessels-detail-panel">
+          <div class="vessels-detail-panel" role="complementary" aria-label="Vessel details">
             <div class="vessels-detail-panel__header">
               <h2 class="vessels-detail-panel__title">{{ target.name || target.mmsi }}</h2>
               <button class="vessels-detail-panel__close" (click)="clearSelection()" aria-label="Close details">
@@ -75,10 +79,7 @@ import type { AisTarget } from '../../core/models/ais.model';
         <!-- Empty state -->
         @if (targetCount() === 0) {
           <div class="vessels-empty">
-            <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="12" cy="12" r="10"></circle>
-              <line x1="22" y1="2" x2="2" y2="22"></line>
-            </svg>
+            <app-icon name="target" [size]="64" class="text-tertiary"></app-icon>
             <h3>No AIS Targets</h3>
             <p>No vessels detected in range. Ensure AIS receiver is connected and operational.</p>
           </div>
@@ -358,9 +359,10 @@ import type { AisTarget } from '../../core/models/ais.model';
 export class VesselsPage {
   private readonly aisStore = inject(AisStoreService);
   private readonly store = inject(DatapointStoreService);
+  private readonly router = inject(Router);
 
   readonly selectedMmsi = signal<string | null>(null);
-  readonly sortBy = signal<'range' | 'cpa' | 'tcpa'>('range');
+  readonly sortBy = signal<'distance' | 'cpa' | 'name'>('distance');
 
   readonly targetsMap = this.aisStore.targets;
   readonly targetCount = this.aisStore.targetCount;
@@ -373,8 +375,34 @@ export class VesselsPage {
 
   readonly sortedTargets = computed(() => {
     const list = Array.from(this.targetsMap().values());
-    this.sortBy();
-    this.position();
+    const sort = this.sortBy();
+    const pos = this.position();
+
+    switch (sort) {
+      case 'distance': {
+        const v = pos?.value;
+        if (v?.latitude != null && v?.longitude != null) {
+          const ownShip: GeoPoint = { lat: v.latitude, lon: v.longitude };
+          list.sort((a, b) => {
+            if (a.isDangerous !== b.isDangerous) return a.isDangerous ? -1 : 1;
+            const distA = haversineDistanceMeters(ownShip, { lat: a.latitude, lon: a.longitude });
+            const distB = haversineDistanceMeters(ownShip, { lat: b.latitude, lon: b.longitude });
+            return distA - distB;
+          });
+        }
+        break;
+      }
+      case 'cpa':
+        list.sort((a, b) => {
+          if (a.isDangerous !== b.isDangerous) return a.isDangerous ? -1 : 1;
+          return (a.cpa ?? Infinity) - (b.cpa ?? Infinity);
+        });
+        break;
+      case 'name':
+        list.sort((a, b) => (a.name ?? a.mmsi).localeCompare(b.name ?? b.mmsi));
+        break;
+    }
+
     return list;
   });
 
@@ -384,6 +412,13 @@ export class VesselsPage {
     return this.targetsMap().get(mmsi) ?? null;
   });
 
+  @HostListener('document:keydown.escape')
+  onEscape(): void {
+    if (this.selectedMmsi()) {
+      this.clearSelection();
+    }
+  }
+
   selectTarget(mmsi: string): void {
     this.selectedMmsi.set(mmsi === this.selectedMmsi() ? null : mmsi);
   }
@@ -392,12 +427,11 @@ export class VesselsPage {
     this.selectedMmsi.set(null);
   }
 
-  handleSortChange(sort: unknown): void {
-    this.sortBy.set(sort as 'range' | 'cpa' | 'tcpa');
+  handleSortChange(sort: string): void {
+    this.sortBy.set(sort as 'distance' | 'cpa' | 'name');
   }
 
   handleFollowTarget(mmsi: string): void {
-    // Future: navigate to chart with vessel focus
-    console.log('Follow target:', mmsi);
+    this.router.navigate(['/chart'], { queryParams: { follow: mmsi } });
   }
 }

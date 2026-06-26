@@ -1,6 +1,6 @@
 import type { Logger } from "../app/logger.js";
 
-export type AlarmKind = "off-course" | "fault" | "tack" | "gybe" | "gust";
+export type AlarmKind = "off-course" | "fault" | "tack" | "gybe" | "gust" | "no-go";
 
 /**
  * Buzzer / UI alarm abstraction. Default implementation logs; a GPIO backend

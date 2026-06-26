@@ -73,9 +73,10 @@ import { WaypointInfoComponent } from '../../shared/components/patterns/waypoint
 import { LegInfoComponent } from '../../shared/components/patterns/leg-info/leg-info.component';
 import { ETADisplayComponent } from '../../shared/components/patterns/eta-display/eta-display.component';
 import { TideDisplayComponent } from '../../shared/components/patterns/tide-display/tide-display.component';
-import { AISTargetCardComponent } from '../../shared/components/patterns/ais-target-card/ais-target-card.component';
-import { AISTargetListComponent, AISTargetListItem } from '../../shared/components/patterns/ais-target-list/ais-target-list.component';
-import { AISTargetDetailsComponent, AISTargetDetailsTarget } from '../../shared/components/patterns/ais-target-details/ais-target-details.component';
+import { AisTargetListComponent } from '../ais/components/ais-target-list/ais-target-list.component';
+import { AisTargetItemComponent } from '../ais/components/ais-target-item/ais-target-item.component';
+import { AisTargetDetailsComponent } from '../ais/components/ais-target-details/ais-target-details.component';
+import { AisTarget, AisNavStatus } from '../../core/models/ais.model';
 import { CPAIndicatorComponent } from '../../shared/components/patterns/cpa-indicator/cpa-indicator.component';
 import { AlarmBadgeComponent } from '../../shared/components/patterns/alarm-badge/alarm-badge.component';
 import { AlarmItemComponent, AlarmItemData } from '../../shared/components/patterns/alarm-item/alarm-item.component';
@@ -115,7 +116,6 @@ import {
   NavigationPanelWidgetComponent
 } from '../../shared/components/widgets/navigation-panel-widget/navigation-panel-widget.component';
 import { AlarmPanelWidgetComponent } from '../../shared/components/widgets/alarm-panel-widget/alarm-panel-widget.component';
-import { AisPanelWidgetComponent } from '../../shared/components/widgets/ais-panel-widget/ais-panel-widget.component';
 import { ResourcesPanelTab, ResourcesPanelWidgetComponent } from '../../shared/components/widgets/resources-panel-widget/resources-panel-widget.component';
 import {
   SettingsPanelChange,
@@ -199,9 +199,9 @@ import {
     LegInfoComponent,
     ETADisplayComponent,
     TideDisplayComponent,
-    AISTargetCardComponent,
-    AISTargetListComponent,
-    AISTargetDetailsComponent,
+    AisTargetListComponent,
+    AisTargetItemComponent,
+    AisTargetDetailsComponent,
     CPAIndicatorComponent,
     AlarmBadgeComponent,
     AlarmItemComponent,
@@ -232,7 +232,6 @@ import {
     InstrumentPanelWidgetComponent,
     NavigationPanelWidgetComponent,
     AlarmPanelWidgetComponent,
-    AisPanelWidgetComponent,
     ResourcesPanelWidgetComponent,
     SettingsPanelWidgetComponent,
   ],
@@ -1930,49 +1929,18 @@ interface Vessel {{ '{' }}
              </app-box>
          </div>
 
-         <h3 class="mt-4">AIS Target Card (N.15)</h3>
+         <h3 class="mt-4">AIS Target Item (N.15)</h3>
          <div class="compass-grid">
              <app-box class="compass-card" padding="4">
                  <app-stack spacing="md">
                      <app-text variant="overline">Safe Target</app-text>
-                     <app-ais-target-card
-                        mmsi="205551234"
-                        name="ST MARY"
-                        callsign="FGHJ"
-                        [distance]="12.4"
-                        [bearing]="245"
-                        status="safe">
-                     </app-ais-target-card>
+                     <app-ais-target-item [target]="aisTargetSafe"></app-ais-target-item>
                  </app-stack>
              </app-box>
-
              <app-box class="compass-card" padding="4">
                  <app-stack spacing="md">
-                     <app-text variant="overline">Warning (Low TCPA)</app-text>
-                     <app-ais-target-card
-                        mmsi="338123456"
-                        name="FAST FERRY"
-                        [distance]="3.2"
-                        [bearing]="012"
-                        [cpa]="0.8"
-                        [tcpa]="600"
-                        status="warning">
-                     </app-ais-target-card>
-                 </app-stack>
-             </app-box>
-
-             <app-box class="compass-card" padding="4">
-                 <app-stack spacing="md">
-                     <app-text variant="overline">Danger (Collision Course)</app-text>
-                     <app-ais-target-card
-                        mmsi="512000000"
-                        name="CONTAINER SHIP"
-                        [distance]="1.1"
-                        [bearing]="180"
-                        [cpa]="0.1"
-                        [tcpa]="120"
-                        status="danger">
-                     </app-ais-target-card>
+                     <app-text variant="overline">Dangerous Target</app-text>
+                     <app-ais-target-item [target]="aisTargetDanger"></app-ais-target-item>
                  </app-stack>
              </app-box>
          </div>
@@ -1980,19 +1948,8 @@ interface Vessel {{ '{' }}
          <h3 class="mt-4">AIS Target List (N.16)</h3>
          <div class="demo-grid">
              <app-ais-target-list
-                [targets]="aisTargets"
+                [targets]="aisTargetsMock"
                 sortBy="distance">
-             </app-ais-target-list>
-
-             <app-ais-target-list
-                [targets]="aisTargets"
-                sortBy="tcpa"
-                filter="warning">
-             </app-ais-target-list>
-
-             <app-ais-target-list
-                [targets]="[]"
-                [loading]="true">
              </app-ais-target-list>
 
              <app-ais-target-list
@@ -2003,11 +1960,11 @@ interface Vessel {{ '{' }}
          <h3 class="mt-4">AIS Target Details (N.17)</h3>
          <div class="demo-grid">
              <app-ais-target-details
-               [target]="aisTargetDetails">
+               [target]="aisTargetSafe">
              </app-ais-target-details>
 
              <app-ais-target-details
-               [target]="aisTargetWarning">
+               [target]="aisTargetDanger">
              </app-ais-target-details>
          </div>
 
@@ -2494,19 +2451,7 @@ interface Vessel {{ '{' }}
             <app-alarm-panel-widget [alarms]="[]"></app-alarm-panel-widget>
          </div>
 
-         <h3 class="mt-4">AIS Panel (W.4)</h3>
-         <div class="demo-grid">
-            <app-ais-panel-widget
-              [targets]="aisTargets"
-              [selectedId]="aisWidgetSelectedId"
-              (onSelect)="onAisWidgetSelect($event)"
-              (onTrack)="onAisWidgetTrack($event)">
-            </app-ais-panel-widget>
-
-            <app-ais-panel-widget [targets]="[]"></app-ais-panel-widget>
-         </div>
-
-         <h3 class="mt-4">Resources Panel (W.5)</h3>
+         <h3 class="mt-4">Resources Panel (W.4)</h3>
          <div class="demo-grid">
             <app-resources-panel-widget
               [waypoints]="waypointListData"
@@ -2697,39 +2642,14 @@ export class StyleguidePage {
   toggle2 = true;
   slider1 = 50;
   slider2 = 5.5;
-  aisTargets: AISTargetListItem[] = [
-    { id: 't-1', name: 'ST MARY', mmsi: '205551234', distance: 12.4, bearing: 245, cpa: 1.2, tcpa: 1800, status: 'safe' },
-    { id: 't-2', name: 'FAST FERRY', mmsi: '338123456', distance: 3.2, bearing: 12, cpa: 0.8, tcpa: 600, status: 'warning' },
-    { id: 't-3', name: 'CONTAINER SHIP', mmsi: '512000000', distance: 1.1, bearing: 180, cpa: 0.1, tcpa: 120, status: 'danger' },
-    { id: 't-4', name: 'FISHING VESSEL', mmsi: '224778899', distance: 6.8, bearing: 305, cpa: 2.5, tcpa: 2400, status: 'safe' },
+  aisTargetsMock: AisTarget[] = [
+    { mmsi: '205551234', name: 'ST MARY', callsign: 'FGHJ', latitude: 42.24, longitude: -8.72, sog: 5.0, cog: 4.276, vesselType: 'Cargo', state: AisNavStatus.UnderWayUsingEngine, cpa: 2222, tcpa: 1800, isDangerous: false, riskEligible: true, lastUpdated: Date.now() - 120_000 },
+    { mmsi: '338123456', name: 'FAST FERRY', latitude: 42.28, longitude: -8.70, sog: 9.5, cog: 0.209, vesselType: 'Passenger', state: AisNavStatus.UnderWayUsingEngine, cpa: 1482, tcpa: 600, isDangerous: false, riskEligible: true, lastUpdated: Date.now() - 30_000 },
+    { mmsi: '512000000', name: 'CONTAINER SHIP', latitude: 42.22, longitude: -8.71, sog: 5.66, cog: 3.142, vesselType: 'Cargo', state: AisNavStatus.UnderWayUsingEngine, cpa: 185, tcpa: 120, isDangerous: true, riskEligible: true, lastUpdated: Date.now() - 10_000 },
+    { mmsi: '224778899', name: 'FISHING VESSEL', latitude: 42.27, longitude: -8.76, sog: 3.0, cog: 5.323, vesselType: 'Fishing', state: AisNavStatus.EngagedInFishing, cpa: 4630, tcpa: 2400, isDangerous: false, riskEligible: true, lastUpdated: Date.now() - 300_000 },
   ];
-  aisTargetDetails: AISTargetDetailsTarget = {
-    name: 'ST MARY',
-    mmsi: '205551234',
-    callsign: 'FGHJ',
-    vesselType: 'Cargo',
-    status: 'safe',
-    distance: 12.4,
-    bearing: 245,
-    sog: 9.7,
-    cog: 240,
-    cpa: 1.2,
-    tcpa: 1800,
-    lastReport: '2 min ago',
-  };
-  aisTargetWarning: AISTargetDetailsTarget = {
-    name: 'FAST FERRY',
-    mmsi: '338123456',
-    vesselType: 'Passenger',
-    status: 'warning',
-    distance: 3.2,
-    bearing: 12,
-    sog: 18.4,
-    cog: 12,
-    cpa: 0.8,
-    tcpa: 600,
-    lastReport: '30 sec ago',
-  };
+  aisTargetSafe: AisTarget = this.aisTargetsMock[0]!;
+  aisTargetDanger: AisTarget = this.aisTargetsMock[2]!;
 
   alarmActive: AlarmItemData = {
     id: 'alarm-1',
@@ -3002,7 +2922,6 @@ export class StyleguidePage {
   };
   navigationPanelRoute: NavigationPanelRoute = { name: 'Vigo to Cies', progress: 68, eta: '19:10 UTC' };
 
-  aisWidgetSelectedId: string | null = this.aisTargets[0]?.id ?? null;
   resourcesPanelTab: ResourcesPanelTab = 'waypoints';
   settingsPanelItems: SettingsPanelItem[] = [
     {
@@ -3373,15 +3292,6 @@ export class StyleguidePage {
     console.log('Alarm panel configure');
   }
 
-  onAisWidgetSelect(id: string) {
-    this.aisWidgetSelectedId = id;
-    console.log('AIS widget selected:', id);
-  }
-
-  onAisWidgetTrack(id: string) {
-    this.aisWidgetSelectedId = id;
-    console.log('AIS widget track:', id);
-  }
 
   onResourcesPanelTabChange(tab: ResourcesPanelTab) {
     this.resourcesPanelTab = tab;

@@ -25,7 +25,8 @@ export class GpioMotor implements MotorController {
     this.enabled = false;
   }
 
-  command(_cmd: DriveCommand): void {
+  command(cmd: DriveCommand): void {
+    void cmd;
     // no-op stub: would map _cmd.drive → PWM + direction GPIO lines.
   }
 

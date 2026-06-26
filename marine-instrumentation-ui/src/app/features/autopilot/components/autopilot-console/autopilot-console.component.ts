@@ -48,6 +48,10 @@ import { PATHS } from '@omi/marine-data-contract';
         </div>
       </div>
 
+      <div class="ap-command-error" *ngIf="facade.commandError$ | async as commandError">
+        COMMAND REJECTED · {{ commandError }}
+      </div>
+
       <!-- Target Display -->
       <div class="ap-display">
         <span class="ap-display__label">TARGET</span>
@@ -123,6 +127,29 @@ import { PATHS } from '@omi/marine-data-contract';
         ⚠️ OFF COURSE
       </div>
 
+      <!-- Wind Hazard (WIND mode) -->
+      <ng-container *ngIf="(facade.windHazard$ | async) as hz">
+        <div class="ap-hazard" [class.ap-hazard--gybe]="hz === 'accidental-gybe'" *ngIf="hz !== 'none'">
+          ⚠️ {{ hazardLabel(hz) }}
+        </div>
+      </ng-container>
+
+      <!-- No-go (TRACK sailing-limit) -->
+      <div class="ap-hazard" *ngIf="facade.noGo$ | async">
+        ⚠️ NO-GO · COURSE TOO CLOSE TO WIND
+      </div>
+
+      <!-- Route leg indicator (TRACK mode) -->
+      <div class="ap-route-leg" *ngIf="state === 'route' && (facade.routeLength$ | async) as rLen">
+        <ng-container *ngIf="facade.routeComplete$ | async; else legProgress">
+          <span class="ap-route-leg__complete">ROUTE COMPLETE</span>
+        </ng-container>
+        <ng-template #legProgress>
+          <span class="ap-route-leg__label">LEG</span>
+          <span class="ap-route-leg__value">{{ facade.routeActiveLeg$ | async }}/{{ rLen }}</span>
+        </ng-template>
+      </div>
+
       </div> <!-- Close ap-console -->
     </div> <!-- Close ap-console-wrapper -->
   `,
@@ -164,6 +191,17 @@ import { PATHS } from '@omi/marine-data-contract';
     .ap-console.disabled {
         pointer-events: none;
         filter: grayscale(0.8) opacity(0.5);
+    }
+    .ap-command-error {
+        padding: var(--space-2) var(--space-3);
+        border: 1px solid var(--gb-alarm-warning-border);
+        border-radius: var(--radius-md);
+        background: var(--gb-alarm-warning-bg);
+        color: var(--gb-data-warn);
+        font-size: 0.72rem;
+        font-weight: 800;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
     }
 
     /* Header */
@@ -389,6 +427,53 @@ import { PATHS } from '@omi/marine-data-contract';
         animation: pulse-alert 2s infinite;
     }
 
+    /* Wind hazard caution */
+    .ap-hazard {
+        padding: 0.6rem 1rem;
+        background: var(--gb-alarm-warning-bg);
+        border: 1px solid var(--gb-alarm-warning-border);
+        border-radius: 8px;
+        color: var(--gb-data-warn);
+        font-weight: 800;
+        letter-spacing: 0.04em;
+        text-align: center;
+        animation: pulse-alert 1.5s infinite;
+    }
+    .ap-hazard--gybe {
+        background: var(--gb-alarm-emergency-bg);
+        border-color: var(--gb-alarm-emergency-border);
+        color: var(--gb-data-stale);
+    }
+
+    /* Route leg progress */
+    .ap-route-leg {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 1rem;
+        background: var(--gb-bg-panel);
+        border-radius: 8px;
+        border-left: 3px solid var(--gb-data-good);
+    }
+    .ap-route-leg__label {
+        font-size: 0.65rem;
+        color: var(--gb-text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+    }
+    .ap-route-leg__value {
+        font-family: var(--font-mono, monospace);
+        font-weight: 700;
+        font-size: 1rem;
+        color: var(--gb-text-value);
+    }
+    .ap-route-leg__complete {
+        font-weight: 800;
+        font-size: 0.8rem;
+        color: var(--gb-data-good);
+        letter-spacing: 0.04em;
+    }
+
     @keyframes pulse-alert {
       0%, 100% { opacity: 1; }
       50% { opacity: 0.6; }
@@ -429,6 +514,19 @@ export class AutopilotConsoleComponent implements OnInit, OnDestroy {
       return 'CLEAR FAULT';
     }
     return state !== 'standby' ? 'DISENGAGE' : 'ENGAGE';
+  }
+
+  hazardLabel(hazard: string): string {
+    switch (hazard) {
+      case 'accidental-gybe':
+        return 'GYBE RISK';
+      case 'accidental-tack':
+        return 'TACK RISK';
+      case 'gust':
+        return 'GUST';
+      default:
+        return hazard.toUpperCase();
+    }
   }
 
   onEngageToggle(state: string): void {

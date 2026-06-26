@@ -1,5 +1,5 @@
 import { Injectable, Inject } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Observable, catchError, switchMap, throwError } from 'rxjs';
 import { APP_ENVIRONMENT, AppEnvironment } from '../../../core/config/app-environment.token';
 
@@ -30,11 +30,39 @@ export class SignalKAutopilotService {
     );
   }
 
-  private postAutopilot(path: string): Observable<void> {
+  private postAutopilot(path: string, body: Record<string, unknown> = {}): Observable<void> {
     const url = `${this.apiV2Url}/vessels/self/autopilots/_default/${path}`;
-    return this.http.post<void>(url, {}).pipe(
+    return this.http.post<void>(url, body).pipe(
       catchError(err => {
-        console.error(`Error posting autopilot ${path}:`, err);
+        const message = this.errorMessage(err);
+        if (err instanceof HttpErrorResponse && err.status === 409) {
+          console.warn(`Autopilot rejected ${path}: ${message}`);
+        } else {
+          console.error(`Error posting autopilot ${path}:`, err);
+        }
+        return throwError(() => new Error(message));
+      })
+    );
+  }
+
+  private errorMessage(error: unknown): string {
+    if (error instanceof HttpErrorResponse) {
+      const apiMessage = error.error?.error;
+      if (typeof apiMessage === 'string' && apiMessage.trim()) {
+        return apiMessage;
+      }
+      return error.status === 0
+        ? 'autopilot API unavailable'
+        : `autopilot request failed (${error.status})`;
+    }
+    return error instanceof Error ? error.message : 'autopilot request failed';
+  }
+
+  private getAutopilot<T>(path: string): Observable<T> {
+    const url = `${this.apiV2Url}/vessels/self/autopilots/_default/${path}`;
+    return this.http.get<T>(url).pipe(
+      catchError(err => {
+        console.error(`Error getting autopilot ${path}:`, err);
         return throwError(() => err);
       })
     );
@@ -97,4 +125,43 @@ export class SignalKAutopilotService {
   dodge(deltaRad: number): Observable<void> {
     return this.putAutopilot('dodge', { value: deltaRad });
   }
+
+  /** Read the live calibration/tuning from the engine. */
+  getTuning(): Observable<{ tuning: AutopilotTuning }> {
+    return this.getAutopilot<{ tuning: AutopilotTuning }>('tuning');
+  }
+
+  /** Apply a partial calibration update; returns the engine's clamped result. */
+  setTuning(partial: Partial<AutopilotTuning>): Observable<{ tuning: AutopilotTuning }> {
+    const url = `${this.apiV2Url}/vessels/self/autopilots/_default/tuning`;
+    return this.http.put<{ tuning: AutopilotTuning }>(url, partial).pipe(
+      catchError(err => {
+        console.error('Error setting autopilot tuning:', err);
+        return throwError(() => err);
+      })
+    );
+  }
+
+  /** Software emergency stop (latched motor cut until fault cleared). */
+  emergencyStop(): Observable<void> {
+    return this.postAutopilot('estop');
+  }
+
+  /** Dock-side jog test (STANDBY only). */
+  driveTest(side: 'port' | 'stbd', seconds = 2): Observable<void> {
+    return this.postAutopilot('drive-test', { side, seconds });
+  }
+}
+
+/** Runtime-tunable autopilot parameters (mirrors the engine's AutopilotTuning). */
+export interface AutopilotTuning {
+  kp: number;
+  ki: number;
+  kd: number;
+  deadbandDeg: number;
+  rudderLimitDeg: number;
+  pwmMin: number;
+  pwmMax: number;
+  currentLimitA: number;
+  voltageCutoff: number;
 }

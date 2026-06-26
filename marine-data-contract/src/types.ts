@@ -122,6 +122,9 @@ export type AutopilotState =
 /** Reference the control loop is currently steering to. */
 export type AutopilotMode = "compass" | "wind" | "gps";
 
+/** Wind-mode hazard surfaced to the helmsman (published on `steering.autopilot.windHazard`). */
+export type AutopilotWindHazard = "none" | "gust" | "accidental-tack" | "accidental-gybe";
+
 /** Why the autopilot dropped into FAULT (published on `steering.autopilot.fault`). */
 export type AutopilotFaultReason =
   | "none"

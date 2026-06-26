@@ -35,7 +35,7 @@ const stepPosition = (
   };
 };
 
-export const createAnchorDriftScenario = (): Scenario<AnchorDriftState> => {
+export const createAnchorDriftScenario = (_seed = 42): Scenario<AnchorDriftState> => {
   return {
     name: "anchor-drift",
     init: () => ({

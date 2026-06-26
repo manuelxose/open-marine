@@ -19,24 +19,29 @@ stops**.
 
 ## Pi → microcontroller
 
-| Frame                 | Meaning                                                        |
-| --------------------- | -------------------------------------------------------------- |
-| `C,<rudderDeg>,<en>`  | Command: target rudder angle in degrees (signed, + = stbd) and enable flag `0/1`. |
-| `H`                   | Heartbeat. Sent every control tick (≈10 Hz).                   |
+| Frame                          | Meaning                                                        |
+| ------------------------------ | -------------------------------------------------------------- |
+| `C,<rudderDeg>,<drive>,<en>`   | Command: target rudder angle in degrees (signed, + = stbd), normalised drive in [-1, 1] (sign = direction, magnitude = PWM duty with the engine's pwmMin/pwmMax already applied), and enable flag `0/1`. |
+| `H`                            | Heartbeat. Sent every control tick (≈10 Hz).                   |
 
-Examples: `C,12.5,1` (steer 12.5° to starboard, drive enabled), `C,0,0`
-(centre, drive disabled), `H`.
+Examples: `C,12.5,0.40,1` (steer 12.5° stbd, 40% drive, enabled),
+`C,0,0,0` (centre, no drive, disabled), `H`.
 
-## microcontroller → Pi (telemetry, parsed in phase 2)
+The microcontroller may honour `rudderDeg` (closed-loop position if it has a
+rudder feedback sensor) or `drive` (open-loop proportional drive without a
+feedback sensor) — both are sent every tick.
+
+## microcontroller → Pi (telemetry — parsed by the engine)
 
 | Frame                          | Meaning                                       |
 | ------------------------------ | --------------------------------------------- |
 | `T,<rudderDeg>,<currentA>`     | Measured rudder angle and motor current.      |
 | `F,<reason>`                   | Microcontroller-side fault (e.g. `estop`, `overcurrent`). |
 
-Until telemetry parsing is wired, the engine reads rudder angle and motor
-current from the Signal K sensors (`steering.rudderAngle`,
-`steering.autopilot.drive.motorCurrent`).
+The engine parses these (`parseTelemetryLine`): `T` updates rudder/current
+feedback (used for the rudder bar, overcurrent guard and Signal K publishing
+when no dedicated sensor exists); `F` latches an engine FAULT (`drive-blocked`)
+and cuts the motor.
 
 ## Microcontroller responsibilities (failsafe — mandatory)
 

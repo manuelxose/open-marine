@@ -1,0 +1,25 @@
+[Unit]
+Description=Open Marine isolated professional test bench
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/manu/open-marine/marine-test-bench
+ExecStart=/usr/bin/node /home/manu/open-marine/marine-test-bench/dist/index.js
+Restart=on-failure
+RestartSec=5
+User=manu
+Environment=BENCH_API_PORT=4100
+Environment=BENCH_DB_PATH=/home/manu/open-marine/data/test-bench.sqlite
+Environment=BENCH_RETENTION_DAYS=90
+Environment=BENCH_RETENTION_MAX_BYTES=1073741824
+
+# The first version is virtual-only. Explicitly deny physical GPIO/serial access.
+PrivateDevices=yes
+ProtectSystem=strict
+ReadWritePaths=/home/manu/open-marine/data
+NoNewPrivileges=yes
+
+[Install]
+WantedBy=multi-user.target

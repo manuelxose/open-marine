@@ -91,7 +91,7 @@ export const en = {
     resources: 'Resources',
     instruments: 'Instruments',
     alarms: 'Alarms',
-    diagnostics: 'Diagnostics',
+    diagnostics: 'Test Bench',
     settings: 'Settings',
     styleguide: 'Styleguide',
   },
@@ -191,6 +191,41 @@ export const en = {
     },
   },
   diagnostics: {
+    title: 'Test Bench',
+    subtitle: 'Live system diagnostics and isolated, reproducible hardware simulation',
+    source: {
+      live: 'Live system',
+      bench: 'Isolated bench',
+    },
+    tabs: {
+      schematic: 'Schematic',
+      signals: 'Signals',
+      scenarios: 'Scenarios',
+      data: 'Data',
+      history: 'History',
+    },
+    actions: {
+      retry: 'Retry',
+    },
+    schematic: {
+      title: 'System topology',
+      inspector: 'Inspector',
+      select: 'Select a block or connection',
+      no_signals: 'No signals assigned to this element.',
+    },
+    signals: {
+      channels: 'Channels',
+      waiting: 'Waiting for UART frames.',
+    },
+    scenarios: {
+      catalog: 'Motor test catalog',
+      active_run: 'Active run',
+      no_run: 'No scenario is running.',
+    },
+    history: {
+      title: 'Reports and reproducibility',
+      empty: 'No test runs have been recorded.',
+    },
     page: {
       search_placeholder: 'Filter paths...',
       stats: {
@@ -204,6 +239,65 @@ export const en = {
         age: 'Age',
         source: 'Source',
       },
+    },
+  },
+  simulation: {
+    title: 'Simulation Lab',
+    subtitle: 'Isolated, reproducible scenario-based simulation for marine systems',
+    source: {
+      standby: 'Standby',
+      running: 'Running',
+    },
+    tabs: {
+      scenarios: 'Scenarios',
+      execution: 'Execution',
+      charts: 'Charts',
+      data: 'Data',
+      history: 'History',
+    },
+    actions: {
+      retry: 'Retry',
+      arm_run: 'ARM & RUN',
+      abort: 'ABORT / SAFE',
+    },
+    scenarios: {
+      catalog: 'Scenario catalog',
+      empty: 'No scenarios available.',
+      timeline: 'Timeline',
+    },
+    execution: {
+      title: 'Execution',
+      active_run: 'Active run',
+      no_run: 'No simulation is running.',
+      simulated_time: 'Simulated time',
+      speed: 'Speed',
+      seed: 'Seed',
+      mode: 'Mode',
+      events: 'Event log',
+      no_events: 'No events recorded.',
+    },
+    charts: {
+      title: 'Charts',
+      channels: 'Channels',
+      no_channels: 'No channels available.',
+      select_channels: 'Select channels to display.',
+    },
+    data: {
+      title: 'Data',
+      search_placeholder: 'Filter channels...',
+      empty: 'No channel data available.',
+      table: {
+        group: 'Group',
+        channel: 'Channel',
+        value: 'Value',
+        unit: 'Unit',
+        quality: 'Quality',
+        source: 'Source',
+      },
+    },
+    history: {
+      title: 'History',
+      empty: 'No runs recorded.',
     },
   },
   dashboard: {

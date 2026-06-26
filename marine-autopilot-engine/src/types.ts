@@ -28,6 +28,8 @@ export interface SensorSnapshot {
   /** Cross-track error in metres (positive = starboard of track). */
   xteMeters: number | undefined;
   bearingToWaypointDeg: number | undefined;
+  /** Distance to the active waypoint, metres (drives live route auto-advance). */
+  distanceToWaypointMeters: number | undefined;
 
   rudderAngleDeg: number | undefined;
   rudderValid: boolean;

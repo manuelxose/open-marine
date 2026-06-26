@@ -9,12 +9,15 @@ const EMERGENCY_STOP_PATH = "steering.autopilot.emergencyStop";
 
 const SUBSCRIBED_PATHS: string[] = [
   PATHS.navigation.headingTrue,
+  PATHS.navigation.headingMagnetic,
+  PATHS.navigation.magneticVariation,
   PATHS.environment.wind.angleApparent,
   PATHS.environment.wind.speedApparent,
   PATHS.navigation.courseOverGroundTrue,
   PATHS.navigation.speedOverGround,
   PATHS.navigation.courseGreatCircle.crossTrackError,
   PATHS.navigation.courseGreatCircle.nextPoint.bearingTrue,
+  PATHS.navigation.courseGreatCircle.nextPoint.distance,
   PATHS.steering.rudderAngle,
   PATHS.steering.autopilot.drive.motorCurrent,
   PATHS.electrical.batteries.house.voltage,
@@ -42,7 +45,10 @@ export class SignalKSensorSource implements SensorSource {
   }
 
   read(nowMs: number): SensorSnapshot {
-    const headingRad = readNumber(this.sub.get(PATHS.navigation.headingTrue));
+    const headingTrueRad = readNumber(this.sub.get(PATHS.navigation.headingTrue));
+    const headingMagneticRad = readNumber(this.sub.get(PATHS.navigation.headingMagnetic));
+    const magneticVariationRad =
+      readNumber(this.sub.get(PATHS.navigation.magneticVariation)) ?? 0;
     const awaRad = readNumber(this.sub.get(PATHS.environment.wind.angleApparent));
     const awsMs = readNumber(this.sub.get(PATHS.environment.wind.speedApparent));
     const cogRad = readNumber(this.sub.get(PATHS.navigation.courseOverGroundTrue));
@@ -51,17 +57,31 @@ export class SignalKSensorSource implements SensorSource {
     const brgRad = readNumber(
       this.sub.get(PATHS.navigation.courseGreatCircle.nextPoint.bearingTrue),
     );
+    const wpDistance = readNumber(
+      this.sub.get(PATHS.navigation.courseGreatCircle.nextPoint.distance),
+    );
     const rudderRad = readNumber(this.sub.get(PATHS.steering.rudderAngle));
     const currentA = readNumber(this.sub.get(PATHS.steering.autopilot.drive.motorCurrent));
     const voltage = readNumber(this.sub.get(PATHS.electrical.batteries.house.voltage));
 
     const fresh = (path: string, budget: number): boolean =>
       this.sub.isFresh(path, nowMs, budget);
+    const trueHeadingFresh =
+      headingTrueRad !== undefined
+      && fresh(PATHS.navigation.headingTrue, SENSOR_TIMEOUTS.heading);
+    const magneticHeadingFresh =
+      headingMagneticRad !== undefined
+      && fresh(PATHS.navigation.headingMagnetic, SENSOR_TIMEOUTS.heading);
+    const headingRad = trueHeadingFresh
+      ? headingTrueRad
+      : magneticHeadingFresh
+        ? headingMagneticRad + magneticVariationRad
+        : undefined;
 
     return {
       nowMs,
       headingTrueDeg: headingRad === undefined ? undefined : radToDeg(headingRad),
-      headingValid: headingRad !== undefined && fresh(PATHS.navigation.headingTrue, SENSOR_TIMEOUTS.heading),
+      headingValid: headingRad !== undefined,
       awaDeg: awaRad === undefined ? undefined : radToDeg(awaRad),
       awsKt: awsMs === undefined ? undefined : metersPerSecondToKnots(awsMs),
       windValid:
@@ -72,6 +92,7 @@ export class SignalKSensorSource implements SensorSource {
         sogMs !== undefined && fresh(PATHS.navigation.speedOverGround, SENSOR_TIMEOUTS.position),
       xteMeters: xte,
       bearingToWaypointDeg: brgRad === undefined ? undefined : radToDeg(brgRad),
+      distanceToWaypointMeters: wpDistance,
       rudderAngleDeg: rudderRad === undefined ? undefined : radToDeg(rudderRad),
       rudderValid:
         rudderRad !== undefined && fresh(PATHS.steering.rudderAngle, SENSOR_TIMEOUTS.rudder),

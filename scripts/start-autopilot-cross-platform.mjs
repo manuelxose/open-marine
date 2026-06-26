@@ -29,7 +29,7 @@ const npmCmd = process.platform === "win32" ? "npm.cmd" : "npm";
 const args = built ? ["start"] : ["run", "dev"];
 
 console.log(
-  `[autopilot] starting engine (${built ? "dist" : "tsx"}, backend=${process.env.AP_MOTOR_BACKEND ?? "sim"})`,
+  `[autopilot] starting engine (${built ? "dist" : "tsx"}, motor=${process.env.AP_MOTOR_BACKEND ?? "sim"}, sensors=${process.env.AP_SENSOR_BACKEND ?? "auto"})`,
 );
 
 const child = spawn(npmCmd, ["--prefix", engineDir, ...args], {

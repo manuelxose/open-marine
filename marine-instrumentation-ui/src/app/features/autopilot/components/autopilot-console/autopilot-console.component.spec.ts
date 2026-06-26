@@ -1,11 +1,12 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { AutopilotConsoleComponent } from './autopilot-console.component';
-import { AutopilotStoreService } from '../../../../state/autopilot/autopilot-store.service';
 import { BehaviorSubject } from 'rxjs';
 import { vi } from 'vitest';
 import { Component, Input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { DegreesPipe } from '../../../../shared/pipes/degrees.pipe';
+import { AutopilotFacadeService } from '../../autopilot.facade';
+import { DatapointStoreService } from '../../../../state/datapoints/datapoint-store.service';
 
 @Component({
   selector: 'app-button',
@@ -20,7 +21,7 @@ class MockAppButtonComponent {
 describe('AutopilotConsoleComponent', () => {
   let component: AutopilotConsoleComponent;
   let fixture: ComponentFixture<AutopilotConsoleComponent>;
-  let mockStore: any;
+  let mockFacade: any;
   let stateSubject: BehaviorSubject<string>;
   let connectedSubject: BehaviorSubject<boolean>;
   let targetHeaderSubject: BehaviorSubject<number>;
@@ -32,20 +33,31 @@ describe('AutopilotConsoleComponent', () => {
     targetHeaderSubject = new BehaviorSubject<number>(0);
     targetWindSubject = new BehaviorSubject<number>(0);
 
-    mockStore = {
+    mockFacade = {
       state$: stateSubject.asObservable(),
       isConnected$: connectedSubject.asObservable(),
       targetHeadingTrue$: targetHeaderSubject.asObservable(),
       targetHeadingMagnetic$: targetHeaderSubject.asObservable(),
       targetWindAngle$: targetWindSubject.asObservable(),
-      setState: vi.fn(),
-      adjustTarget: vi.fn()
+      fault$: new BehaviorSubject('none'),
+      commandError$: new BehaviorSubject(null),
+      windHazard$: new BehaviorSubject('none'),
+      engageAuto: vi.fn(),
+      engageWind: vi.fn(),
+      engageRoute: vi.fn(),
+      standby: vi.fn(),
+      clearFault: vi.fn(),
+      adjustTarget: vi.fn(),
     };
 
     await TestBed.configureTestingModule({
       imports: [], 
       providers: [
-        { provide: AutopilotStoreService, useValue: mockStore }
+        { provide: AutopilotFacadeService, useValue: mockFacade },
+        {
+          provide: DatapointStoreService,
+          useValue: { observe: () => new BehaviorSubject(null) },
+        },
       ]
     })
     .overrideComponent(AutopilotConsoleComponent, {
@@ -72,21 +84,21 @@ describe('AutopilotConsoleComponent', () => {
     expect(overlay.textContent).toContain('DISCONNECTED');
   });
 
-  it('should call setState("auto") when AUTO is clicked', () => {
+  it('should call engageAuto when AUTO is clicked', () => {
     // AUTO is the first button in .mode-selector
     // Template:
     // <button class="mode-btn" ... (click)="store.setState('auto')">AUTO</button>
     
     // Find button by text content to be safe
     const buttons = Array.from(fixture.nativeElement.querySelectorAll('.mode-btn')) as HTMLButtonElement[];
-    const autoBtn = buttons.find(b => b.textContent?.trim() === 'AUTO');
+    const autoBtn = buttons.find(b => b.textContent?.trim().toUpperCase() === 'AUTO');
     
     expect(autoBtn).toBeTruthy();
     autoBtn?.click();
-    expect(mockStore.setState).toHaveBeenCalledWith('auto');
+    expect(mockFacade.engageAuto).toHaveBeenCalled();
   });
 
-  it('should show STANDBY button when engaged', async () => {
+  it('should show DISENGAGE button when engaged', async () => {
     stateSubject.next('auto');
     fixture.detectChanges();
     await fixture.whenStable();
@@ -95,10 +107,10 @@ describe('AutopilotConsoleComponent', () => {
     // selector: .engage-btn
     const standbyBtn = fixture.nativeElement.querySelector('.engage-btn');
     expect(standbyBtn).toBeTruthy();
-    expect(standbyBtn.textContent).toContain('STANDBY');
+    expect(standbyBtn.textContent).toContain('DISENGAGE');
     
     standbyBtn.click();
-    expect(mockStore.setState).toHaveBeenCalledWith('standby');
+    expect(mockFacade.standby).toHaveBeenCalled();
   });
 
   it('should hide controls when disconnected', async () => {

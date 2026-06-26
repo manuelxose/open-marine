@@ -40,7 +40,7 @@ const DEFAULT_STYLE: maplibregl.StyleSpecification = {
       tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
       tileSize: 256,
       maxzoom: 19,
-      attribution: '(c) OpenStreetMap contributors',
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
     },
   },
   layers: [
@@ -84,6 +84,11 @@ const BEARING_LINE_SOURCE_ID = 'chart-bearing-line-source';
 const BEARING_LINE_LAYER_ID = 'chart-bearing-line-layer';
 const AUTOPILOT_TARGET_SOURCE_ID = 'chart-autopilot-target-source';
 const AUTOPILOT_TARGET_LAYER_ID = 'chart-autopilot-target-layer';
+const BENCH_ROUTE_SOURCE_ID = 'chart-bench-route-source';
+const BENCH_ROUTE_LAYER_ID = 'chart-bench-route-layer';
+const BENCH_WAYPOINTS_SOURCE_ID = 'chart-bench-waypoints-source';
+const BENCH_WAYPOINTS_LAYER_ID = 'chart-bench-waypoints-layer';
+const BENCH_WP_LABEL_LAYER_ID = 'chart-bench-wp-label-layer';
 const AIS_SOURCE_ID = 'chart-ais-source';
 const AIS_LAYER_ID = 'chart-ais-layer';
 const AIS_FALLBACK_ICON_ID = getAisVesselIconId('other');
@@ -197,6 +202,10 @@ export class MapLibreEngineService {
     coords: [],
     visible: false,
   };
+  private lastBenchRoute: { line: FeatureCollection<LineString>; points: FeatureCollection<Point> } = {
+    line: EMPTY_LINE,
+    points: EMPTY_POINTS,
+  };
   private lastAisTargets: FeatureCollection<Point> = { type: 'FeatureCollection', features: [] };
   private lastAisTracks: FeatureCollection<LineString> = { type: 'FeatureCollection', features: [] };
   private lastAisPredictions: FeatureCollection<LineString> = { type: 'FeatureCollection', features: [] };
@@ -234,6 +243,9 @@ export class MapLibreEngineService {
     });
 
     this.map.addControl(new maplibregl.AttributionControl({ compact: true }), 'bottom-right');
+    this.map.getContainer()
+      .querySelector('.maplibregl-ctrl-attrib')
+      ?.classList.remove('maplibregl-compact-show');
 
     this.map.on('load', () => {
       this.onStyleReady();
@@ -327,6 +339,14 @@ export class MapLibreEngineService {
       return;
     }
     this.applyTrueWind();
+  }
+
+  /** Bench route: waypoint markers + connecting line with active-leg highlighting. */
+  updateBenchRoute(line: FeatureCollection<LineString>, points: FeatureCollection<Point>): void {
+    this.lastBenchRoute = { line, points };
+    if (this.mapReady) {
+      this.applyBenchRoute();
+    }
   }
 
   /** Autopilot target heading vector, drawn from the vessel along target_heading. */
@@ -959,6 +979,7 @@ export class MapLibreEngineService {
     this.ensureRangeRingsLayer();
     this.ensureBearingLineLayer();
     this.ensureAutopilotTargetLayer();
+    this.ensureBenchRouteLayers();
     this.ensureAisTracksLayer();
     this.ensureAisPredictionsLayer();
     this.ensureAisLayer();
@@ -981,6 +1002,7 @@ export class MapLibreEngineService {
     this.applyRangeRings();
     this.applyBearingLine();
     this.applyAutopilotTarget();
+    this.applyBenchRoute();
     this.applyAisTracks();
     this.applyAisPredictions();
     this.applyAisTargets();
@@ -1871,6 +1893,99 @@ export class MapLibreEngineService {
     }
   }
 
+  private ensureBenchRouteLayers(): void {
+    if (!this.map) return;
+
+    if (!this.map.getSource(BENCH_ROUTE_SOURCE_ID)) {
+      this.map.addSource(BENCH_ROUTE_SOURCE_ID, {
+        type: 'geojson',
+        data: EMPTY_LINE,
+      });
+    }
+    if (!this.map.getLayer(BENCH_ROUTE_LAYER_ID)) {
+      this.map.addLayer({
+        id: BENCH_ROUTE_LAYER_ID,
+        type: 'line',
+        source: BENCH_ROUTE_SOURCE_ID,
+        layout: { 'line-cap': 'round', 'line-join': 'round' },
+        paint: {
+          'line-color': [
+            'case',
+            ['boolean', ['get', 'active'], false],
+            '#00e676',
+            'rgba(255,255,255,0.35)',
+          ],
+          'line-width': [
+            'case',
+            ['boolean', ['get', 'active'], false],
+            3,
+            1.5,
+          ],
+          'line-dasharray': [3, 2],
+          'line-opacity': 0.9,
+        },
+      });
+    }
+
+    if (!this.map.getSource(BENCH_WAYPOINTS_SOURCE_ID)) {
+      this.map.addSource(BENCH_WAYPOINTS_SOURCE_ID, {
+        type: 'geojson',
+        data: EMPTY_POINTS,
+      });
+    }
+    if (!this.map.getLayer(BENCH_WAYPOINTS_LAYER_ID)) {
+      this.map.addLayer({
+        id: BENCH_WAYPOINTS_LAYER_ID,
+        type: 'circle',
+        source: BENCH_WAYPOINTS_SOURCE_ID,
+        paint: {
+          'circle-radius': [
+            'case',
+            ['boolean', ['get', 'active'], false],
+            7,
+            5,
+          ],
+          'circle-color': [
+            'case',
+            ['boolean', ['get', 'completed'], false],
+            'rgba(255,255,255,0.25)',
+            ['boolean', ['get', 'active'], false],
+            '#00e676',
+            '#ffffff',
+          ],
+          'circle-stroke-color': '#00e676',
+          'circle-stroke-width': 2,
+        },
+      });
+    }
+    if (!this.map.getLayer(BENCH_WP_LABEL_LAYER_ID)) {
+      this.map.addLayer({
+        id: BENCH_WP_LABEL_LAYER_ID,
+        type: 'symbol',
+        source: BENCH_WAYPOINTS_SOURCE_ID,
+        layout: {
+          'text-field': ['get', 'label'],
+          'text-size': 11,
+          'text-offset': [0, 1.4],
+          'text-allow-overlap': false,
+        },
+        paint: {
+          'text-color': '#e2e8f0',
+          'text-halo-color': '#0f172a',
+          'text-halo-width': 1,
+        },
+      });
+    }
+  }
+
+  private applyBenchRoute(): void {
+    if (!this.map) return;
+    const lineSrc = this.map.getSource(BENCH_ROUTE_SOURCE_ID) as maplibregl.GeoJSONSource | undefined;
+    lineSrc?.setData(this.lastBenchRoute.line);
+    const ptsSrc = this.map.getSource(BENCH_WAYPOINTS_SOURCE_ID) as maplibregl.GeoJSONSource | undefined;
+    ptsSrc?.setData(this.lastBenchRoute.points);
+  }
+
   private applyAutopilotTarget(): void {
     if (!this.map) {
       return;
@@ -2082,6 +2197,11 @@ export class MapLibreEngineService {
 
   private updateTrueWindLabel(endpoint: [number, number], color: string): void {
     if (!this.map) return;
+    if (!Number.isFinite(endpoint[0]) || !Number.isFinite(endpoint[1])) {
+      this.trueWindLabelMarker?.remove();
+      this.trueWindLabelMarker = null;
+      return;
+    }
 
     const speedKnots = this.lastTrueWind.speedMps * 1.943844;
     const gustKnots = this.lastTrueWind.gustMps === null
@@ -2106,7 +2226,9 @@ export class MapLibreEngineService {
         element,
         anchor: 'bottom',
         offset: [0, -20],
-      }).addTo(this.map);
+      })
+        .setLngLat(endpoint)
+        .addTo(this.map);
     }
 
     const element = this.trueWindLabelMarker.getElement();
