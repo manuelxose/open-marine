@@ -1,0 +1,434 @@
+<div class="bench-page">
+  <header class="bench-header">
+    <div>
+      <span class="eyebrow">OMI SIMULATION LAB</span>
+      <h1>{{ 'simulation.title' | translate }}</h1>
+      <p>{{ 'simulation.subtitle' | translate }}</p>
+    </div>
+
+    <div class="source-switch" role="group" aria-label="Signal source">
+      <button
+        type="button"
+        [class.active]="!facade.activeRun()"
+        (click)="facade.disconnectRun()">
+        <span class="status-dot" [class.status-dot--live]="!facade.activeRun()"></span>
+        {{ 'simulation.source.standby' | translate }}
+      </button>
+      <button
+        type="button"
+        [class.active]="facade.activeRun()"
+        (click)="facade.setTab('execution')">
+        <span class="status-dot" [class.status-dot--live]="facade.api.online()"></span>
+        {{ 'simulation.source.running' | translate }}
+      </button>
+    </div>
+  </header>
+
+  @if (facade.error()) {
+    <div class="notice notice--warning">
+      <span>{{ facade.error() }}</span>
+      <button type="button" (click)="facade.initialize()">{{ 'simulation.actions.retry' | translate }}</button>
+    </div>
+  }
+
+  <nav class="bench-tabs" aria-label="Simulation views">
+    @for (tab of tabs; track tab.id) {
+      <button
+        type="button"
+        [class.active]="facade.activeTab() === tab.id"
+        (click)="facade.setTab(tab.id)">
+        {{ tab.labelKey | translate }}
+      </button>
+    }
+  </nav>
+
+  <main class="bench-workspace">
+    @switch (facade.activeTab()) {
+
+      <!-- 1. ESCENARIOS -->
+      @case ('scenarios') {
+        <section class="scenario-layout">
+          <aside class="panel catalog-panel">
+            <div class="panel-toolbar">
+              <div>
+                <span class="panel-kicker">{{ 'simulation.scenarios.catalog' | translate }}</span>
+                <strong>{{ facade.scenarios().length }} SCENARIOS</strong>
+              </div>
+            </div>
+            <div class="catalog-list">
+              @for (scenario of facade.scenarios(); track scenario.id) {
+                <button
+                  type="button"
+                  [class.active]="facade.selectedScenarioId() === scenario.id"
+                  [class.preset]="scenario.isPreset"
+                  (click)="facade.selectScenario(scenario.id)">
+                  <span>
+                    <strong>{{ scenario.name }}</strong>
+                    <small>{{ scenario.category | uppercase }} · v{{ scenario.version }}</small>
+                  </span>
+                  @if (scenario.isPreset) {
+                    <span class="preset-badge">PRESET</span>
+                  }
+                </button>
+              } @empty {
+                <div class="empty-message">{{ 'simulation.scenarios.empty' | translate }}</div>
+              }
+            </div>
+          </aside>
+
+          <div class="scenario-main">
+            @if (facade.selectedScenario(); as scenario) {
+              <section class="panel scenario-config">
+                <div class="scenario-title">
+                  <div>
+                    <span class="panel-kicker">SCENARIO {{ scenario.version }}</span>
+                    <h2>{{ scenario.name }}</h2>
+                    <p>{{ scenario.description }}</p>
+                  </div>
+                  <span class="category-badge">{{ scenario.category | uppercase }}</span>
+                </div>
+
+                @if (scenario.parameters && scenario.parameters.length > 0) {
+                  <div class="parameter-grid">
+                    @for (param of scenario.parameters; track param.id) {
+                      <label>
+                        <span>{{ param.label }}</span>
+                        @if (param.type === 'number') {
+                          <div class="input-with-unit">
+                            <input
+                              type="number"
+                              [min]="param.min ?? null"
+                              [max]="param.max ?? null"
+                              [step]="param.step ?? 1"
+                              [ngModel]="facade.parameters()[param.id] ?? param.defaultValue"
+                              (ngModelChange)="setNumericParameter(param.id, $event)">
+                            <small>{{ param.unit ?? '' }}</small>
+                          </div>
+                        } @else if (param.type === 'boolean') {
+                          <input
+                            type="checkbox"
+                            [ngModel]="facade.parameters()[param.id] ?? param.defaultValue"
+                            (ngModelChange)="facade.setParameter(param.id, $event)">
+                        } @else {
+                          <select
+                            [ngModel]="facade.parameters()[param.id] ?? param.defaultValue"
+                            (ngModelChange)="facade.setParameter(param.id, $event)">
+                            @for (opt of param.options ?? []; track opt.value) {
+                              <option [value]="opt.value">{{ opt.label }}</option>
+                            }
+                          </select>
+                        }
+                      </label>
+                    }
+                  </div>
+                }
+
+                @if (scenario.timeline.length > 0) {
+                  <div class="timeline-panel">
+                    <span class="panel-kicker">{{ 'simulation.scenarios.timeline' | translate }}</span>
+                    <div class="timeline-list">
+                      @for (action of scenario.timeline; track action.id) {
+                        <div class="timeline-item">
+                          <time>{{ (action.atSimulatedMs / 1000).toFixed(1) }}s</time>
+                          <span class="timeline-type">{{ action.type | uppercase }}</span>
+                          <span>{{ action.channelId ?? action.label ?? '' }}</span>
+                          <code>{{ action.value | json }}</code>
+                        </div>
+                      }
+                    </div>
+                  </div>
+                }
+
+                <div class="preflight">
+                  <span><i class="ok"></i> PORTS 3100 / 3991 / 4100 ISOLATED</span>
+                  <span><i class="ok"></i> PHYSICAL GPIO DISABLED</span>
+                  <span><i [class.ok]="facade.api.online()" [class.bad]="!facade.api.online()"></i> ORCHESTRATOR</span>
+                </div>
+
+                <div class="scenario-actions">
+                  <button
+                    type="button"
+                    class="run-button"
+                    [disabled]="facade.busy() || facade.activeRun()?.status === 'running'"
+                    (click)="facade.startSelectedScenario()">
+                    {{ 'simulation.actions.arm_run' | translate }}
+                  </button>
+                  <button
+                    type="button"
+                    class="abort-button"
+                    [disabled]="facade.activeRun()?.status !== 'running'"
+                    (click)="facade.abortActiveRun()">
+                    {{ 'simulation.actions.abort' | translate }}
+                  </button>
+                </div>
+              </section>
+            }
+
+            <section class="panel run-panel">
+              <div class="panel-toolbar">
+                <div>
+                  <span class="panel-kicker">{{ 'simulation.execution.active_run' | translate }}</span>
+                  <strong>{{ facade.activeRun()?.id ?? 'NO ACTIVE RUN' }}</strong>
+                </div>
+                <span class="run-status" [attr.data-status]="facade.activeRun()?.status ?? 'idle'">
+                  {{ statusLabel(facade.activeRun()?.status ?? 'idle') }}
+                </span>
+              </div>
+
+              <div class="step-timeline">
+                @for (step of facade.activeRun()?.steps ?? []; track step.id) {
+                  <div class="step" [attr.data-status]="step.status">
+                    <span class="step-marker"></span>
+                    <div>
+                      <strong>{{ step.label }}</strong>
+                      <small>{{ step.detail ?? step.status }}</small>
+                    </div>
+                  </div>
+                } @empty {
+                  <div class="empty-message">{{ 'simulation.execution.no_run' | translate }}</div>
+                }
+              </div>
+
+              <div class="assertions">
+                @for (assertion of facade.activeRun()?.assertions ?? []; track assertion.id) {
+                  <div [class.pass]="assertion.passed" [class.fail]="!assertion.passed">
+                    <span>{{ assertion.passed ? 'PASS' : 'FAIL' }}</span>
+                    <strong>{{ assertion.label }}</strong>
+                    <code>{{ assertion.actual | json }}</code>
+                    <time>{{ eventTime(assertion.atSimulatedMs) }}</time>
+                  </div>
+                }
+              </div>
+            </section>
+          </div>
+        </section>
+      }
+
+      <!-- 2. EJECUCIÓN -->
+      @case ('execution') {
+        <section class="execution-layout">
+          <div class="panel execution-panel">
+            <div class="panel-toolbar">
+              <div>
+                <span class="panel-kicker">{{ 'simulation.execution.title' | translate }}</span>
+                <strong>
+                  {{ facade.activeRun()?.id ?? ('simulation.execution.no_run' | translate) }}
+                </strong>
+              </div>
+              <span class="run-status" [attr.data-status]="facade.activeRun()?.status ?? 'idle'">
+                {{ statusLabel(facade.activeRun()?.status ?? 'idle') }}
+              </span>
+            </div>
+
+            @if (facade.activeRun(); as run) {
+              <div class="execution-metrics">
+                <div class="metric">
+                  <span class="metric-label">{{ 'simulation.execution.simulated_time' | translate }}</span>
+                  <span class="metric-value">{{ (run.simulatedTimeMs / 1000).toFixed(1) }} s</span>
+                </div>
+                <div class="metric">
+                  <span class="metric-label">{{ 'simulation.execution.speed' | translate }}</span>
+                  <span class="metric-value">{{ run.speed }}x</span>
+                </div>
+                <div class="metric">
+                  <span class="metric-label">{{ 'simulation.execution.seed' | translate }}</span>
+                  <span class="metric-value">{{ run.seed }}</span>
+                </div>
+                <div class="metric">
+                  <span class="metric-label">{{ 'simulation.execution.mode' | translate }}</span>
+                  <span class="metric-value">{{ run.mode | uppercase }}</span>
+                </div>
+              </div>
+
+              <div class="step-timeline">
+                @for (step of run.steps; track step.id) {
+                  <div class="step" [attr.data-status]="step.status">
+                    <span class="step-marker"></span>
+                    <div>
+                      <strong>{{ step.label }}</strong>
+                      <small>{{ step.detail ?? step.status }}</small>
+                    </div>
+                  </div>
+                }
+              </div>
+
+              <div class="assertions">
+                @for (assertion of run.assertions; track assertion.id) {
+                  <div [class.pass]="assertion.passed" [class.fail]="!assertion.passed">
+                    <span>{{ assertion.passed ? 'PASS' : 'FAIL' }}</span>
+                    <strong>{{ assertion.label }}</strong>
+                    <code>{{ assertion.actual | json }}</code>
+                    <time>{{ eventTime(assertion.atSimulatedMs) }}</time>
+                  </div>
+                }
+              </div>
+
+              <div class="event-log">
+                <span class="panel-kicker">{{ 'simulation.execution.events' | translate }}</span>
+                <div class="event-list">
+                  @for (event of facade.events().slice(-50); track event.id) {
+                    <div class="event-line" [attr.data-kind]="event.kind">
+                      <time>{{ eventTime(event.atSimulatedMs) }}</time>
+                      <span class="event-kind">{{ event.kind | uppercase }}</span>
+                      <span>{{ event.message }}</span>
+                      @if (event.channelId) {
+                        <code>{{ event.channelId }} = {{ event.value | json }}</code>
+                      }
+                    </div>
+                  } @empty {
+                    <div class="empty-message">{{ 'simulation.execution.no_events' | translate }}</div>
+                  }
+                </div>
+              </div>
+
+              <div class="execution-controls">
+                <button
+                  type="button"
+                  class="abort-button"
+                  [disabled]="run.status !== 'running'"
+                  (click)="facade.abortActiveRun()">
+                  {{ 'simulation.actions.abort' | translate }}
+                </button>
+              </div>
+            } @else {
+              <div class="empty-message">{{ 'simulation.execution.no_run' | translate }}</div>
+            }
+          </div>
+        </section>
+      }
+
+      <!-- 3. GRÁFICAS -->
+      @case ('charts') {
+        <section class="charts-layout">
+          <aside class="panel channel-panel">
+            <div class="panel-toolbar">
+              <div>
+                <span class="panel-kicker">{{ 'simulation.charts.channels' | translate }}</span>
+                <strong>{{ facade.selectedChannelIds().length }} / 12</strong>
+              </div>
+              <button type="button" (click)="togglePause()">
+                {{ facade.paused() ? 'RESUME' : 'FREEZE' }}
+              </button>
+            </div>
+            <div class="channel-list">
+              @for (channelId of allChannelIds(); track channelId) {
+                @let snapshot = facade.channelForId(channelId);
+                <label class="channel-item">
+                  <input
+                    type="checkbox"
+                    [checked]="facade.selectedChannelIds().includes(channelId)"
+                    (change)="facade.toggleChannel(channelId)">
+                  <span class="channel-color" [attr.data-quality]="snapshot?.quality ?? 'unknown'"></span>
+                  <span>
+                    <strong>{{ channelId }}</strong>
+                    <small>{{ snapshot?.unit ?? '' }}</small>
+                  </span>
+                  <code>{{ formatValue(snapshot?.value) }}</code>
+                </label>
+              } @empty {
+                <div class="empty-message">{{ 'simulation.charts.no_channels' | translate }}</div>
+              }
+            </div>
+          </aside>
+
+          <div class="panel chart-panel">
+            <div class="panel-toolbar">
+              <div>
+                <span class="panel-kicker">{{ 'simulation.charts.title' | translate }}</span>
+                <strong>uPLOT CANVAS</strong>
+              </div>
+            </div>
+            <div class="chart-container">
+              @if (facade.selectedChannelIds().length > 0 && facade.activeRun(); as run) {
+                <app-uplot-chart
+                  [data]="chartData()"
+                  [options]="chartOptions()">
+                </app-uplot-chart>
+              } @else {
+                <div class="empty-message">{{ 'simulation.charts.select_channels' | translate }}</div>
+              }
+            </div>
+          </div>
+        </section>
+      }
+
+      <!-- 4. DATOS -->
+      @case ('data') {
+        <section class="panel data-panel">
+          <div class="data-toolbar">
+            <input
+              type="search"
+              [placeholder]="'simulation.data.search_placeholder' | translate"
+              [ngModel]="facade.filterText()"
+              (ngModelChange)="facade.setFilter($event)">
+            <div class="data-stats">
+              <span>{{ facade.rows().length }} CHANNELS</span>
+              <span>{{ facade.activeRun()?.mode ?? 'standby' | uppercase }}</span>
+            </div>
+          </div>
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>{{ 'simulation.data.table.group' | translate }}</th>
+                  <th>{{ 'simulation.data.table.channel' | translate }}</th>
+                  <th>{{ 'simulation.data.table.value' | translate }}</th>
+                  <th>{{ 'simulation.data.table.unit' | translate }}</th>
+                  <th>{{ 'simulation.data.table.quality' | translate }}</th>
+                  <th>{{ 'simulation.data.table.source' | translate }}</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (row of facade.rows(); track row.channelId) {
+                  <tr>
+                    <td><span class="group-chip">{{ row.group }}</span></td>
+                    <td class="path-cell" [title]="row.channelId">{{ row.channelId }}</td>
+                    <td class="value-cell" [title]="row.formattedValue">{{ row.formattedValue }}</td>
+                    <td>{{ row.unit || '—' }}</td>
+                    <td><span class="quality" [attr.data-quality]="row.quality">{{ row.quality | uppercase }}</span></td>
+                    <td>{{ row.source }}</td>
+                  </tr>
+                } @empty {
+                  <tr>
+                    <td colspan="6" class="empty-message">{{ 'simulation.data.empty' | translate }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </section>
+      }
+
+      <!-- 5. HISTORIAL -->
+      @case ('history') {
+        <section class="panel history-panel">
+          <div class="panel-toolbar">
+            <div>
+              <span class="panel-kicker">{{ 'simulation.history.title' | translate }}</span>
+              <strong>{{ facade.runHistory().length }} RUNS</strong>
+            </div>
+          </div>
+          <div class="history-list">
+            @for (run of facade.runHistory(); track run.id) {
+              <article>
+                <span class="run-status" [attr.data-status]="run.status">{{ run.status | uppercase }}</span>
+                <div>
+                  <strong>{{ run.scenarioId }}</strong>
+                  <code>{{ run.id }}</code>
+                </div>
+                <time>{{ run.startedAtUtc | date:'medium' }}</time>
+                <div class="report-actions">
+                  <a [href]="facade.reportUrl(run.id, 'json')" target="_blank">JSON</a>
+                  <a [href]="facade.reportUrl(run.id, 'csv')" target="_blank">CSV</a>
+                  <a [href]="facade.reportUrl(run.id, 'html')" target="_blank">HTML</a>
+                </div>
+              </article>
+            } @empty {
+              <div class="empty-message">{{ 'simulation.history.empty' | translate }}</div>
+            }
+          </div>
+        </section>
+      }
+    }
+  </main>
+</div>

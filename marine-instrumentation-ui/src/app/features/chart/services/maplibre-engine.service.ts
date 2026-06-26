@@ -23,6 +23,15 @@ export interface ChartSourceConfig {
   style: maplibregl.StyleSpecification | string;
 }
 
+export interface WindMapUpdate {
+  coords: [number, number][];
+  visible: boolean;
+  directionDeg: number;
+  speedMps: number;
+  gustMps: number | null;
+  source: 'true' | 'apparent';
+}
+
 const DEFAULT_STYLE: maplibregl.StyleSpecification = {
   version: 8,
   sources: {
@@ -31,7 +40,7 @@ const DEFAULT_STYLE: maplibregl.StyleSpecification = {
       tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
       tileSize: 256,
       maxzoom: 19,
-      attribution: '(c) OpenStreetMap contributors',
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
     },
   },
   layers: [
@@ -48,6 +57,7 @@ const VESSEL_ICON_STALE_ID = 'chart-vessel-icon-stale';
 const VESSEL_ICON_NO_FIX_ID = 'chart-vessel-icon-no-fix';
 
 const VESSEL_SOURCE_ID = 'chart-vessel-source';
+const VESSEL_HALO_LAYER_ID = 'chart-vessel-halo-layer';
 const VESSEL_LAYER_ID = 'chart-vessel-layer';
 const TRACK_SOURCE_ID = 'chart-track-source';
 const TRACK_LAYER_ID = 'chart-track-layer';
@@ -63,10 +73,22 @@ const ROUTE_SOURCE_ID = 'chart-route-source';
 const ROUTE_LAYER_ID = 'chart-route-layer';
 const TRUE_WIND_SOURCE_ID = 'chart-true-wind-source';
 const TRUE_WIND_LAYER_ID = 'chart-true-wind-layer';
+const TRUE_WIND_ARROW_SOURCE_ID = 'chart-true-wind-arrow-source';
+const TRUE_WIND_ARROW_LAYER_ID = 'chart-true-wind-arrow-layer';
+const TRUE_WIND_ARROW_LIGHT_ID = 'chart-wind-arrow-light';
+const TRUE_WIND_ARROW_MODERATE_ID = 'chart-wind-arrow-moderate';
+const TRUE_WIND_ARROW_STRONG_ID = 'chart-wind-arrow-strong';
 const RANGE_RINGS_SOURCE_ID = 'chart-range-rings-source';
 const RANGE_RINGS_LAYER_ID = 'chart-range-rings-layer';
 const BEARING_LINE_SOURCE_ID = 'chart-bearing-line-source';
 const BEARING_LINE_LAYER_ID = 'chart-bearing-line-layer';
+const AUTOPILOT_TARGET_SOURCE_ID = 'chart-autopilot-target-source';
+const AUTOPILOT_TARGET_LAYER_ID = 'chart-autopilot-target-layer';
+const BENCH_ROUTE_SOURCE_ID = 'chart-bench-route-source';
+const BENCH_ROUTE_LAYER_ID = 'chart-bench-route-layer';
+const BENCH_WAYPOINTS_SOURCE_ID = 'chart-bench-waypoints-source';
+const BENCH_WAYPOINTS_LAYER_ID = 'chart-bench-waypoints-layer';
+const BENCH_WP_LABEL_LAYER_ID = 'chart-bench-wp-label-layer';
 const AIS_SOURCE_ID = 'chart-ais-source';
 const AIS_LAYER_ID = 'chart-ais-layer';
 const AIS_FALLBACK_ICON_ID = getAisVesselIconId('other');
@@ -162,14 +184,27 @@ export class MapLibreEngineService {
   };
   private lastWaypoints: WaypointFeatureCollection = EMPTY_POINTS as unknown as WaypointFeatureCollection;
   private lastRoute: FeatureCollection<LineString> = EMPTY_LINE;
-  private lastTrueWind: { coords: [number, number][]; visible: boolean } = {
+  private lastTrueWind: WindMapUpdate = {
     coords: [],
     visible: false,
+    directionDeg: 0,
+    speedMps: 0,
+    gustMps: null,
+    source: 'true',
   };
+  private trueWindLabelMarker: maplibregl.Marker | null = null;
   private lastRangeRings: FeatureCollection<Polygon> = { type: 'FeatureCollection', features: [] };
   private lastBearingLine: { coords: [number, number][]; visible: boolean } = {
     coords: [],
     visible: false,
+  };
+  private lastAutopilotTarget: { coords: [number, number][]; visible: boolean } = {
+    coords: [],
+    visible: false,
+  };
+  private lastBenchRoute: { line: FeatureCollection<LineString>; points: FeatureCollection<Point> } = {
+    line: EMPTY_LINE,
+    points: EMPTY_POINTS,
   };
   private lastAisTargets: FeatureCollection<Point> = { type: 'FeatureCollection', features: [] };
   private lastAisTracks: FeatureCollection<LineString> = { type: 'FeatureCollection', features: [] };
@@ -208,6 +243,9 @@ export class MapLibreEngineService {
     });
 
     this.map.addControl(new maplibregl.AttributionControl({ compact: true }), 'bottom-right');
+    this.map.getContainer()
+      .querySelector('.maplibregl-ctrl-attrib')
+      ?.classList.remove('maplibregl-compact-show');
 
     this.map.on('load', () => {
       this.onStyleReady();
@@ -295,12 +333,28 @@ export class MapLibreEngineService {
     this.applyRoute();
   }
 
-  updateTrueWind(lineStringCoords: [number, number][], visible: boolean): void {
-    this.lastTrueWind = { coords: lineStringCoords, visible };
+  updateTrueWind(update: WindMapUpdate): void {
+    this.lastTrueWind = update;
     if (!this.mapReady) {
       return;
     }
     this.applyTrueWind();
+  }
+
+  /** Bench route: waypoint markers + connecting line with active-leg highlighting. */
+  updateBenchRoute(line: FeatureCollection<LineString>, points: FeatureCollection<Point>): void {
+    this.lastBenchRoute = { line, points };
+    if (this.mapReady) {
+      this.applyBenchRoute();
+    }
+  }
+
+  /** Autopilot target heading vector, drawn from the vessel along target_heading. */
+  updateAutopilotTarget(lineStringCoords: [number, number][], visible: boolean): void {
+    this.lastAutopilotTarget = { coords: lineStringCoords, visible };
+    if (this.mapReady) {
+      this.applyAutopilotTarget();
+    }
   }
 
   updateBearingLine(lineStringCoords: [number, number][], visible: boolean): void {
@@ -555,6 +609,8 @@ export class MapLibreEngineService {
 
 
   destroy(): void {
+    this.trueWindLabelMarker?.remove();
+    this.trueWindLabelMarker = null;
     if (this.resizeObserver) {
       this.resizeObserver.disconnect();
       this.resizeObserver = null;
@@ -911,6 +967,7 @@ export class MapLibreEngineService {
 
   private onStyleReady(): void {
     this.applyOpenSeaMapOverlay();
+    this.ensureTrueWindIcons();
     this.ensureVesselLayer();
     this.ensureTrackLayer();
     this.ensureVectorLayer();
@@ -921,10 +978,18 @@ export class MapLibreEngineService {
     this.ensureRouteLayer();
     this.ensureRangeRingsLayer();
     this.ensureBearingLineLayer();
+    this.ensureAutopilotTargetLayer();
+    this.ensureBenchRouteLayers();
     this.ensureAisTracksLayer();
     this.ensureAisPredictionsLayer();
     this.ensureAisLayer();
     this.ensureCpaLinesLayer();
+    // Keep the own-vessel marker above AIS targets and chart overlays.
+    for (const layerId of [VESSEL_HALO_LAYER_ID, VESSEL_LAYER_ID]) {
+      if (this.map?.getLayer(layerId)) {
+        this.map.moveLayer(layerId);
+      }
+    }
 
     this.applyVessel();
     this.applyTrack();
@@ -936,6 +1001,8 @@ export class MapLibreEngineService {
     this.applyRoute();
     this.applyRangeRings();
     this.applyBearingLine();
+    this.applyAutopilotTarget();
+    this.applyBenchRoute();
     this.applyAisTracks();
     this.applyAisPredictions();
     this.applyAisTargets();
@@ -1301,9 +1368,72 @@ export class MapLibreEngineService {
           visibility: 'none',
         },
         paint: {
-          'line-color': '#10b981', // Emerald-500
+          'line-color': ['coalesce', ['get', 'color'], '#10b981'],
           'line-width': 3,
           'line-opacity': 0.85,
+        },
+      });
+    }
+
+    if (!this.map.getLayer(VESSEL_HALO_LAYER_ID)) {
+      this.map.addLayer({
+        id: VESSEL_HALO_LAYER_ID,
+        type: 'circle',
+        source: VESSEL_SOURCE_ID,
+        paint: {
+          'circle-radius': [
+            'match',
+            ['get', 'state'],
+            'no-fix',
+            16,
+            'stale',
+            13,
+            11,
+          ],
+          'circle-color': [
+            'match',
+            ['get', 'state'],
+            'no-fix',
+            '#ef4444',
+            'stale',
+            '#eab308',
+            '#0ea5e9',
+          ],
+          'circle-opacity': 0.32,
+          'circle-stroke-color': [
+            'match',
+            ['get', 'state'],
+            'no-fix',
+            '#fecaca',
+            'stale',
+            '#fef08a',
+            '#e0f2fe',
+          ],
+          'circle-stroke-width': 3,
+        },
+      });
+    }
+
+    if (!this.map.getSource(TRUE_WIND_ARROW_SOURCE_ID)) {
+      this.map.addSource(TRUE_WIND_ARROW_SOURCE_ID, {
+        type: 'geojson',
+        data: EMPTY_POINTS,
+      });
+    }
+
+    if (!this.map.getLayer(TRUE_WIND_ARROW_LAYER_ID)) {
+      this.map.addLayer({
+        id: TRUE_WIND_ARROW_LAYER_ID,
+        type: 'symbol',
+        source: TRUE_WIND_ARROW_SOURCE_ID,
+        layout: {
+          'icon-image': ['get', 'icon'],
+          'icon-size': 0.72,
+          'icon-allow-overlap': true,
+          'icon-ignore-placement': true,
+          'icon-rotation-alignment': 'map',
+          'icon-rotate': ['get', 'direction'],
+          visibility: 'none',
         },
       });
     }
@@ -1399,6 +1529,7 @@ export class MapLibreEngineService {
           properties: {
             heading: this.lastVessel.rotationDeg ?? 0,
             state: this.lastVessel.state,
+            label: this.lastVessel.state === 'no-fix' ? 'MI BARCO · SIN GPS' : 'MI BARCO',
           },
         },
       ],
@@ -1445,16 +1576,23 @@ export class MapLibreEngineService {
     }
 
     const source = this.map.getSource(TRUE_WIND_SOURCE_ID) as maplibregl.GeoJSONSource | undefined;
-    if (!source || !this.map.getLayer(TRUE_WIND_LAYER_ID)) {
+    const arrowSource = this.map.getSource(TRUE_WIND_ARROW_SOURCE_ID) as maplibregl.GeoJSONSource | undefined;
+    if (!source || !arrowSource || !this.map.getLayer(TRUE_WIND_LAYER_ID)) {
       return;
     }
 
     if (!this.lastTrueWind.visible || this.lastTrueWind.coords.length < 2) {
       source.setData(EMPTY_LINE);
+      arrowSource.setData(EMPTY_POINTS);
       this.map.setLayoutProperty(TRUE_WIND_LAYER_ID, 'visibility', 'none');
+      this.map.setLayoutProperty(TRUE_WIND_ARROW_LAYER_ID, 'visibility', 'none');
+      this.trueWindLabelMarker?.remove();
+      this.trueWindLabelMarker = null;
       return;
     }
 
+    const color = this.windColor(this.lastTrueWind.speedMps);
+    const icon = this.windArrowIcon(this.lastTrueWind.speedMps);
     const data: FeatureCollection<LineString> = {
       type: 'FeatureCollection',
       features: [
@@ -1464,13 +1602,30 @@ export class MapLibreEngineService {
             type: 'LineString',
             coordinates: this.lastTrueWind.coords,
           },
-          properties: {},
+          properties: { color },
         },
       ],
     };
 
     source.setData(data);
+    const endpoint = this.lastTrueWind.coords[this.lastTrueWind.coords.length - 1];
+    if (!endpoint) {
+      return;
+    }
+    arrowSource.setData({
+      type: 'FeatureCollection',
+      features: [{
+        type: 'Feature',
+        geometry: { type: 'Point', coordinates: endpoint },
+        properties: {
+          direction: this.lastTrueWind.directionDeg,
+          icon,
+        },
+      }],
+    });
     this.map.setLayoutProperty(TRUE_WIND_LAYER_ID, 'visibility', 'visible');
+    this.map.setLayoutProperty(TRUE_WIND_ARROW_LAYER_ID, 'visibility', 'visible');
+    this.updateTrueWindLabel(endpoint, color);
   }
 
   private applyVector(): void {
@@ -1707,6 +1862,166 @@ export class MapLibreEngineService {
     this.map.setLayoutProperty(BEARING_LINE_LAYER_ID, 'visibility', 'visible');
   }
 
+  private ensureAutopilotTargetLayer(): void {
+    if (!this.map) {
+      return;
+    }
+
+    if (!this.map.getSource(AUTOPILOT_TARGET_SOURCE_ID)) {
+      this.map.addSource(AUTOPILOT_TARGET_SOURCE_ID, {
+        type: 'geojson',
+        data: EMPTY_LINE,
+      });
+    }
+
+    if (!this.map.getLayer(AUTOPILOT_TARGET_LAYER_ID)) {
+      this.map.addLayer({
+        id: AUTOPILOT_TARGET_LAYER_ID,
+        type: 'line',
+        source: AUTOPILOT_TARGET_SOURCE_ID,
+        layout: {
+          'line-cap': 'round',
+          'line-join': 'round',
+        },
+        paint: {
+          'line-color': '#00e676', // gb-data-good green — autopilot is steering here
+          'line-width': 3,
+          'line-opacity': 0.9,
+          'line-dasharray': [2, 1.5],
+        },
+      });
+    }
+  }
+
+  private ensureBenchRouteLayers(): void {
+    if (!this.map) return;
+
+    if (!this.map.getSource(BENCH_ROUTE_SOURCE_ID)) {
+      this.map.addSource(BENCH_ROUTE_SOURCE_ID, {
+        type: 'geojson',
+        data: EMPTY_LINE,
+      });
+    }
+    if (!this.map.getLayer(BENCH_ROUTE_LAYER_ID)) {
+      this.map.addLayer({
+        id: BENCH_ROUTE_LAYER_ID,
+        type: 'line',
+        source: BENCH_ROUTE_SOURCE_ID,
+        layout: { 'line-cap': 'round', 'line-join': 'round' },
+        paint: {
+          'line-color': [
+            'case',
+            ['boolean', ['get', 'active'], false],
+            '#00e676',
+            'rgba(255,255,255,0.35)',
+          ],
+          'line-width': [
+            'case',
+            ['boolean', ['get', 'active'], false],
+            3,
+            1.5,
+          ],
+          'line-dasharray': [3, 2],
+          'line-opacity': 0.9,
+        },
+      });
+    }
+
+    if (!this.map.getSource(BENCH_WAYPOINTS_SOURCE_ID)) {
+      this.map.addSource(BENCH_WAYPOINTS_SOURCE_ID, {
+        type: 'geojson',
+        data: EMPTY_POINTS,
+      });
+    }
+    if (!this.map.getLayer(BENCH_WAYPOINTS_LAYER_ID)) {
+      this.map.addLayer({
+        id: BENCH_WAYPOINTS_LAYER_ID,
+        type: 'circle',
+        source: BENCH_WAYPOINTS_SOURCE_ID,
+        paint: {
+          'circle-radius': [
+            'case',
+            ['boolean', ['get', 'active'], false],
+            7,
+            5,
+          ],
+          'circle-color': [
+            'case',
+            ['boolean', ['get', 'completed'], false],
+            'rgba(255,255,255,0.25)',
+            ['boolean', ['get', 'active'], false],
+            '#00e676',
+            '#ffffff',
+          ],
+          'circle-stroke-color': '#00e676',
+          'circle-stroke-width': 2,
+        },
+      });
+    }
+    if (!this.map.getLayer(BENCH_WP_LABEL_LAYER_ID)) {
+      this.map.addLayer({
+        id: BENCH_WP_LABEL_LAYER_ID,
+        type: 'symbol',
+        source: BENCH_WAYPOINTS_SOURCE_ID,
+        layout: {
+          'text-field': ['get', 'label'],
+          'text-size': 11,
+          'text-offset': [0, 1.4],
+          'text-allow-overlap': false,
+        },
+        paint: {
+          'text-color': '#e2e8f0',
+          'text-halo-color': '#0f172a',
+          'text-halo-width': 1,
+        },
+      });
+    }
+  }
+
+  private applyBenchRoute(): void {
+    if (!this.map) return;
+    const lineSrc = this.map.getSource(BENCH_ROUTE_SOURCE_ID) as maplibregl.GeoJSONSource | undefined;
+    lineSrc?.setData(this.lastBenchRoute.line);
+    const ptsSrc = this.map.getSource(BENCH_WAYPOINTS_SOURCE_ID) as maplibregl.GeoJSONSource | undefined;
+    ptsSrc?.setData(this.lastBenchRoute.points);
+  }
+
+  private applyAutopilotTarget(): void {
+    if (!this.map) {
+      return;
+    }
+
+    const source = this.map.getSource(AUTOPILOT_TARGET_SOURCE_ID) as
+      | maplibregl.GeoJSONSource
+      | undefined;
+    if (!source || !this.map.getLayer(AUTOPILOT_TARGET_LAYER_ID)) {
+      return;
+    }
+
+    if (!this.lastAutopilotTarget.visible || this.lastAutopilotTarget.coords.length < 2) {
+      source.setData(EMPTY_LINE);
+      this.map.setLayoutProperty(AUTOPILOT_TARGET_LAYER_ID, 'visibility', 'none');
+      return;
+    }
+
+    const data: FeatureCollection<LineString> = {
+      type: 'FeatureCollection',
+      features: [
+        {
+          type: 'Feature',
+          geometry: {
+            type: 'LineString',
+            coordinates: this.lastAutopilotTarget.coords,
+          },
+          properties: {},
+        },
+      ],
+    };
+
+    source.setData(data);
+    this.map.setLayoutProperty(AUTOPILOT_TARGET_LAYER_ID, 'visibility', 'visible');
+  }
+
   private applyWindTrackZoomRanges(): void {
     if (!this.map) {
       return;
@@ -1718,6 +2033,7 @@ export class MapLibreEngineService {
       HEADING_LINE_LAYER_ID,
       LAYLINES_LAYER_ID,
       TRUE_WIND_LAYER_ID,
+      TRUE_WIND_ARROW_LAYER_ID,
     ]) {
       if (this.map.getLayer(layerId)) {
         this.map.setLayerZoomRange(layerId, minZoom, 24);
@@ -1834,6 +2150,91 @@ export class MapLibreEngineService {
     return `#${[rgb.r, rgb.g, rgb.b]
       .map((channel) => clamp(channel).toString(16).padStart(2, '0'))
       .join('')}`;
+  }
+
+  private ensureTrueWindIcons(): void {
+    this.upsertIcon(TRUE_WIND_ARROW_LIGHT_ID, this.createWindArrowIcon('#22c55e'), 2);
+    this.upsertIcon(TRUE_WIND_ARROW_MODERATE_ID, this.createWindArrowIcon('#f59e0b'), 2);
+    this.upsertIcon(TRUE_WIND_ARROW_STRONG_ID, this.createWindArrowIcon('#ef4444'), 2);
+  }
+
+  private createWindArrowIcon(color: string): ImageData {
+    const size = 64;
+    const canvas = document.createElement('canvas');
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+      return new ImageData(size, size);
+    }
+    ctx.clearRect(0, 0, size, size);
+    ctx.fillStyle = color;
+    ctx.strokeStyle = '#052e2b';
+    ctx.lineWidth = 3;
+    ctx.lineJoin = 'round';
+    ctx.beginPath();
+    ctx.moveTo(size / 2, 5);
+    ctx.lineTo(size - 8, size - 10);
+    ctx.lineTo(size / 2, size - 23);
+    ctx.lineTo(8, size - 10);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    return ctx.getImageData(0, 0, size, size);
+  }
+
+  private windColor(speedMps: number): string {
+    if (speedMps >= 10.8) return '#ef4444';
+    if (speedMps >= 5.5) return '#f59e0b';
+    return '#22c55e';
+  }
+
+  private windArrowIcon(speedMps: number): string {
+    if (speedMps >= 10.8) return TRUE_WIND_ARROW_STRONG_ID;
+    if (speedMps >= 5.5) return TRUE_WIND_ARROW_MODERATE_ID;
+    return TRUE_WIND_ARROW_LIGHT_ID;
+  }
+
+  private updateTrueWindLabel(endpoint: [number, number], color: string): void {
+    if (!this.map) return;
+    if (!Number.isFinite(endpoint[0]) || !Number.isFinite(endpoint[1])) {
+      this.trueWindLabelMarker?.remove();
+      this.trueWindLabelMarker = null;
+      return;
+    }
+
+    const speedKnots = this.lastTrueWind.speedMps * 1.943844;
+    const gustKnots = this.lastTrueWind.gustMps === null
+      ? null
+      : this.lastTrueWind.gustMps * 1.943844;
+    const sourceLabel = this.lastTrueWind.source === 'apparent' ? 'AWA' : 'TWD';
+    const text = gustKnots !== null && gustKnots > speedKnots + 0.2
+      ? `${sourceLabel} ${speedKnots.toFixed(1)} kn · G ${gustKnots.toFixed(1)}`
+      : `${sourceLabel} ${speedKnots.toFixed(1)} kn`;
+
+    if (!this.trueWindLabelMarker) {
+      const element = document.createElement('div');
+      element.style.padding = '3px 7px';
+      element.style.borderRadius = '5px';
+      element.style.background = 'rgba(2, 15, 23, 0.88)';
+      element.style.border = '1px solid rgba(255, 255, 255, 0.35)';
+      element.style.color = '#f8fafc';
+      element.style.font = '600 11px/1.2 system-ui, sans-serif';
+      element.style.whiteSpace = 'nowrap';
+      element.style.pointerEvents = 'none';
+      this.trueWindLabelMarker = new maplibregl.Marker({
+        element,
+        anchor: 'bottom',
+        offset: [0, -20],
+      })
+        .setLngLat(endpoint)
+        .addTo(this.map);
+    }
+
+    const element = this.trueWindLabelMarker.getElement();
+    element.textContent = text;
+    element.style.borderColor = color;
+    this.trueWindLabelMarker.setLngLat(endpoint);
   }
 
   private createVesselIcon(color1: string, color2: string, withSails = true): ImageData {

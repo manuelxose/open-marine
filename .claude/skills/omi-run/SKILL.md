@@ -24,3 +24,5 @@ Use the narrowest command that proves the requested behavior.
 - Services: `omi-ui.service`, `omi-gps.service`, `omi-imu.service`, Docker container `signalk`
 
 Never print or commit the Raspberry password. Use local ignored config and SSH host aliases.
+
+Full validation matrix and key files: `.claude/references/architecture.md` (load on demand).

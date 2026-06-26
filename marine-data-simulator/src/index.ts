@@ -6,19 +6,25 @@ import { createHarborTrafficScenario } from "./scenarios/harborTraffic.js";
 import { createBusyShippingLaneScenario } from "./scenarios/busyShippingLane.js";
 import { createCombinedFailuresScenario } from "./scenarios/combinedFailures.js";
 import { createAnchorDriftScenario } from "./scenarios/anchorDrift.js";
+import { createWindGpsDemoScenario } from "./scenarios/windGpsDemo.js";
 import { WsPublisher } from "./publishers/wsPublisher.js";
 import type { Scenario } from "./scenarios/scenario.js";
+import { registerScenario } from "./registry.js";
 
 interface CliOptions {
   host: string;
   scenario: string;
   rate: number;
+  seed: number;
+  speed: number;
 }
 
 const defaultOptions: CliOptions = {
   host: "http://localhost:3000",
   scenario: "basic-cruise",
   rate: 1,
+  seed: 42,
+  speed: 1,
 };
 
 const printHelp = (): void => {
@@ -29,6 +35,8 @@ Options:
   --host <url>       Signal K base URL (default: ${defaultOptions.host})
   --scenario <name>  Scenario name (default: ${defaultOptions.scenario})
   --rate <hz>        Update rate in Hz (default: ${defaultOptions.rate})
+  --seed <number>    Random seed for deterministic output (default: ${defaultOptions.seed})
+  --speed <factor>   Simulation speed multiplier 0.25-4 (default: ${defaultOptions.speed})
   --help             Show this help
 
 Scenarios:
@@ -39,14 +47,12 @@ Scenarios:
   busy-shipping-lane
   combined-failures
   anchor-drift
+  wind-gps-demo
 `);
 };
 
 const parseArgs = (args: string[]): CliOptions => {
   const options: CliOptions = { ...defaultOptions };
-
-  // Handle positional arguments (fallback)
-  // If first arg doesn't start with --, assume: host scenario rate
   const [firstArg, secondArg, thirdArg] = args;
   if (firstArg && !firstArg.startsWith("--")) {
     options.host = firstArg;
@@ -60,10 +66,7 @@ const parseArgs = (args: string[]): CliOptions => {
 
   for (let i = 0; i < args.length; i += 1) {
     const arg = args[i];
-    if (!arg) {
-      continue;
-    }
-
+    if (!arg) continue;
     switch (arg) {
       case "--host":
         options.host = args[i + 1] ?? options.host;
@@ -73,55 +76,61 @@ const parseArgs = (args: string[]): CliOptions => {
         options.scenario = args[i + 1] ?? options.scenario;
         i += 1;
         break;
-      case "--rate":
-        {
-          const parsed = Number(args[i + 1]);
-          if (Number.isFinite(parsed) && parsed > 0) {
-            options.rate = parsed;
-          }
-        }
+      case "--rate": {
+        const parsed = Number(args[i + 1]);
+        if (Number.isFinite(parsed) && parsed > 0) options.rate = parsed;
         i += 1;
         break;
+      }
+      case "--seed": {
+        const parsed = Number(args[i + 1]);
+        if (Number.isFinite(parsed)) options.seed = parsed;
+        i += 1;
+        break;
+      }
+      case "--speed": {
+        const parsed = Number(args[i + 1]);
+        if (Number.isFinite(parsed) && parsed >= 0.25 && parsed <= 4) options.speed = parsed;
+        i += 1;
+        break;
+      }
       case "--help":
         printHelp();
         process.exit(0);
       default:
-        if (arg.startsWith("--")) {
-          console.warn(`Unknown option: ${arg}`);
-        }
+        if (arg.startsWith("--")) console.warn(`Unknown option: ${arg}`);
         break;
     }
   }
-
   return options;
 };
 
 const main = async (): Promise<void> => {
   const options = parseArgs(process.argv.slice(2));
 
-  const scenarios: Record<string, () => Scenario<any>> = {
-    "basic-cruise": createBasicCruiseScenario,
-    "harbor-traffic": createHarborTrafficScenario,
-    "coastal-run": createCoastalRunScenario,
-    "anchored-stale": createAnchoredStaleScenario,
-    "busy-shipping-lane": createBusyShippingLaneScenario,
-    "combined-failures": createCombinedFailuresScenario,
-    "anchor-drift": createAnchorDriftScenario,
-  };
+  registerScenario("basic-cruise", "Basic Cruise", () => createBasicCruiseScenario(options.seed));
+  registerScenario("harbor-traffic", "Harbor Traffic", () => createHarborTrafficScenario(options.seed));
+  registerScenario("coastal-run", "Coastal Run", () => createCoastalRunScenario(options.seed));
+  registerScenario("anchored-stale", "Anchored Stale", () => createAnchoredStaleScenario(options.seed));
+  registerScenario("busy-shipping-lane", "Busy Shipping Lane", () => createBusyShippingLaneScenario(options.seed));
+  registerScenario("combined-failures", "Combined Failures", () => createCombinedFailuresScenario(options.seed));
+  registerScenario("anchor-drift", "Anchor Drift", () => createAnchorDriftScenario(options.seed));
+  registerScenario("wind-gps-demo", "Wind GPS Demo", () => createWindGpsDemoScenario(options.seed));
 
-  const scenarioFactory = scenarios[options.scenario];
-  if (!scenarioFactory) {
+  const { getScenarioFactory } = await import("./registry.js");
+  const factory = getScenarioFactory(options.scenario);
+  if (!factory) {
     console.error(`Unsupported scenario: ${options.scenario}`);
-    console.error(`Available: ${Object.keys(scenarios).join(", ")}`);
+    console.error(`Available: ${(await import("./registry.js")).listScenarios().map((s) => s.id).join(", ")}`);
     process.exit(1);
   }
 
-  const scenario = scenarioFactory();
+  const scenario = factory() as Scenario<unknown>;
   const token = process.env.SIGNALK_TOKEN;
   const publisher = new WsPublisher(options.host, token);
-  const engine = new SimulatorEngine(scenario, publisher, options.rate);
+  const engine = new SimulatorEngine(scenario, publisher, options.rate, options.speed);
 
-  console.log(`[simulator] scenario=${scenario.name} rate=${options.rate}Hz host=${options.host}`);
+  console.log(`[simulator] scenario=${scenario.name} rate=${options.rate}Hz speed=${options.speed}x seed=${options.seed} host=${options.host}`);
   await engine.start();
 };
 

@@ -5,13 +5,15 @@ description: Implement Open Marine sensor, gateway, simulator, or Signal K contr
 
 # OMI Sensor Change
 
-1. Start from `marine-data-contract` for shared paths, units, quality and `DataPoint` types.
-2. For gateway changes, follow existing adapter and publisher patterns in `marine-sensor-gateway/src`.
-3. For simulator changes, keep scenarios deterministic and publish through existing HTTP/WebSocket publishers.
-4. For Raspberry scripts, preserve CLI flags, env vars and systemd compatibility.
-5. Validate the narrowest affected packages:
+1. Start from the contract `marine-data-contract/src/`: `paths.ts` (`PATHS`), `types.ts` (`DataPoint`),
+   `units.ts`, `quality.ts`. Extend `PATHS`; never duplicate Signal K path strings.
+2. Gateway: follow existing adapter/publisher patterns in `marine-sensor-gateway/src`. Python
+   operational scripts live in `rpi/omi-imu/` — preserve CLI flags, env vars and systemd compatibility.
+3. Simulator: keep scenarios deterministic; publish through the existing HTTP/WebSocket publishers in `marine-data-simulator`.
+4. Preserve `vessels.self`/`self` context normalization and use the contract timestamp helpers in publishers.
+5. Validate the narrowest affected package:
    - Contract: `cd marine-data-contract && npm run test:run && npm run build`
    - Gateway: `cd marine-sensor-gateway && npm test && npm run build`
    - Simulator: `cd marine-data-simulator && npm run build`
 
-Do not duplicate Signal K path strings when `PATHS` can be extended.
+Full map, data flow and key files: `.claude/references/architecture.md` (load on demand).

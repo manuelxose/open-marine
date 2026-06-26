@@ -104,3 +104,52 @@ export interface GpsSatelliteInfo {
   pdop?: number;
   vdop?: number;
 }
+
+/**
+ * Autopilot operating state, published on `steering.autopilot.state`.
+ * `heading` keeps a compass heading, `wind` keeps an apparent wind angle,
+ * `track` follows a GPS route, `calibration` runs setup routines and
+ * `fault` means the safety layer has disabled the drive.
+ */
+export type AutopilotState =
+  | "standby"
+  | "heading"
+  | "wind"
+  | "track"
+  | "fault"
+  | "calibration";
+
+/** Reference the control loop is currently steering to. */
+export type AutopilotMode = "compass" | "wind" | "gps";
+
+/** Wind-mode hazard surfaced to the helmsman (published on `steering.autopilot.windHazard`). */
+export type AutopilotWindHazard = "none" | "gust" | "accidental-tack" | "accidental-gybe";
+
+/** Why the autopilot dropped into FAULT (published on `steering.autopilot.fault`). */
+export type AutopilotFaultReason =
+  | "none"
+  | "heading-sensor-lost"
+  | "wind-sensor-lost"
+  | "gps-lost"
+  | "overcurrent"
+  | "low-battery"
+  | "emergency-stop"
+  | "watchdog-timeout"
+  | "rudder-sensor-lost"
+  | "drive-blocked";
+
+/** Snapshot describing the live autopilot status (engine → API/UI). */
+export interface AutopilotStatus {
+  state: AutopilotState;
+  mode: AutopilotMode;
+  engaged: boolean;
+  fault: AutopilotFaultReason;
+  /** Target heading in radians (true), when in heading/track modes. */
+  targetHeadingTrue?: number;
+  /** Target apparent wind angle in radians, when in wind mode. */
+  targetWindAngleApparent?: number;
+  /** Commanded rudder angle in radians (control output). */
+  targetRudderAngle?: number;
+  /** Measured rudder angle in radians, when a rudder sensor is present. */
+  rudderAngle?: number;
+}

@@ -4,7 +4,7 @@ import { HistoryService } from '../../core/services/history.service';
 import type { HistoryPoint } from '../datapoints/datapoint.models';
 
 class MockHistoryService {
-  getRange = vi.fn<Parameters<HistoryService['getRange']>, Promise<HistoryPoint[]>>();
+  getRange = vi.fn<HistoryService['getRange']>();
 }
 
 describe('PlaybackStoreService', () => {

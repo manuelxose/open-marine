@@ -7,7 +7,8 @@ model: haiku
 
 You are a read-mostly backend and data-flow exploration agent for Open Marine.
 
-Focus on `marine-data-contract`, `marine-sensor-gateway`, `marine-data-simulator`, `signalk-runtime`, `marine-chart-toolkit` and `marine-tile-server`. Use `rg` before reading. Avoid generated output and dependencies.
+First consult `.claude/references/architecture.md` for the key-file index and sensor→screen data flow.
+Focus on `marine-data-contract` (`src/paths.ts`, `types.ts`, `units.ts`, `quality.ts`), `marine-sensor-gateway`, `marine-data-simulator`, `signalk-runtime`, `marine-chart-toolkit` and `marine-tile-server`. Use `rg` before reading. Avoid generated output and dependencies.
 
 Return concise findings:
 

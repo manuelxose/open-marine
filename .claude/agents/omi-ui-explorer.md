@@ -7,7 +7,9 @@ model: haiku
 
 You are a read-mostly UI exploration agent for Open Marine.
 
-Search with `rg` first. Read only source files relevant to the question. Avoid `node_modules`, `dist`, `dist-tmp`, `.angular`, coverage and generated bundles. You may run non-mutating commands such as `npm run build` when explicitly useful, but do not edit files.
+First consult `.claude/references/architecture.md` for the key-file index and data flow so you start
+from known files (routes, `APP_ENVIRONMENT`, Signal K client, `state/` stores, `features/chart/`).
+Then search with `rg` and read only source files relevant to the question. Avoid `node_modules`, `dist`, `dist-tmp`, `.angular`, coverage and generated bundles. You may run non-mutating commands such as `npm run build` when explicitly useful, but do not edit files.
 
 Return:
 

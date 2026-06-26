@@ -1,157 +1,109 @@
-import { Component, ChangeDetectionStrategy, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { TranslatePipe } from '../../shared/pipes/translate.pipe';
-import { DiagnosticsFacadeService } from './diagnostics-facade.service';
+import { UplotChartComponent } from '../../shared/components/uplot-chart/uplot-chart.component';
+import {
+  SimulationFacadeService,
+  type SimulationTab,
+} from './simulation-facade.service';
 
 @Component({
   selector: 'app-diagnostics-page',
   standalone: true,
-  imports: [CommonModule, FormsModule, TranslatePipe],
+  imports: [CommonModule, FormsModule, TranslatePipe, UplotChartComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
-    <div class="diag-page">
-      <div class="toolbar">
-        <input
-          type="text"
-          [placeholder]="'diagnostics.page.search_placeholder' | translate"
-          class="search-input"
-          [ngModel]="facade.filterText()"
-          (ngModelChange)="facade.setFilter($event)"
-        />
-        <div class="stats">
-          {{ 'diagnostics.page.stats.showing' | translate }} {{ facade.vm().filteredCount }} {{ 'diagnostics.page.stats.of' | translate }} {{ facade.vm().totalCount }} {{ 'diagnostics.page.stats.points' | translate }}
-        </div>
-      </div>
-
-      <div class="table-container">
-        <table class="diag-table">
-          <thead>
-            <tr>
-              <th>{{ 'diagnostics.page.table.path' | translate }}</th>
-              <th>{{ 'diagnostics.page.table.value' | translate }}</th>
-              <th>{{ 'diagnostics.page.table.age' | translate }}</th>
-              <th>{{ 'diagnostics.page.table.source' | translate }}</th>
-            </tr>
-          </thead>
-          <tbody>
-            @for (row of facade.vm().rows; track row.path) {
-              <tr>
-                <td class="path-col" [title]="row.path">{{ row.path }}</td>
-                <td class="value-col">{{ row.formattedValue }}</td>
-                <td class="age-col" [class]="row.ageClass">
-                  {{ row.ageSeconds | number:'1.1-1' }}s
-                </td>
-                <td class="source-col">{{ row.source }}</td>
-              </tr>
-            }
-          </tbody>
-        </table>
-      </div>
-    </div>
-  `,
-  styles: [`
-    :host {
-      display: block;
-      height: 100%;
-      min-height: 0;
-    }
-
-    .diag-page {
-      height: 100%;
-      display: flex;
-      flex-direction: column;
-      padding: 1rem;
-      gap: 1rem;
-      min-height: 0;
-    }
-
-    .toolbar {
-      flex-shrink: 0;
-      display: flex;
-      align-items: center;
-      gap: 1rem;
-    }
-
-    .search-input {
-      padding: 0.5rem 0.75rem;
-      border-radius: 6px;
-      border: 1px solid var(--card-border);
-      background: var(--card-bg);
-      color: var(--fg);
-      width: 300px;
-      font-size: 0.875rem;
-    }
-
-    .search-input:focus {
-      outline: none;
-      border-color: var(--gb-needle-secondary);
-    }
-
-    .stats {
-      color: var(--muted);
-      font-size: 0.875rem;
-    }
-
-    .table-container {
-      flex: 1;
-      overflow: auto;
-      background: var(--card-bg);
-      border-radius: var(--radius);
-      border: 1px solid var(--card-border);
-      min-height: 0;
-    }
-
-    .diag-table {
-      width: 100%;
-      border-collapse: collapse;
-      text-align: left;
-      font-size: 0.875rem;
-    }
-
-    th, td {
-      padding: 0.75rem 1rem;
-      border-bottom: 1px solid var(--card-border);
-    }
-
-    th {
-      background: var(--bg);
-      position: sticky;
-      top: 0;
-      font-weight: 600;
-      color: var(--fg);
-    }
-
-    .path-col {
-      font-family: var(--font-mono);
-      font-size: 0.8125rem;
-    }
-
-    .value-col {
-      font-family: var(--font-mono);
-    }
-
-    .age-col {
-      font-family: var(--font-mono);
-    }
-
-    .age-col.fresh {
-      color: var(--success);
-    }
-
-    .age-col.stale {
-      color: var(--warn);
-    }
-
-    .age-col.dead {
-      color: var(--danger);
-    }
-
-    .source-col {
-      color: var(--muted);
-    }
-  `],
+  templateUrl: './diagnostics.page.html',
+  styleUrl: './diagnostics.page.scss',
 })
 export class DiagnosticsPage {
-  readonly facade = inject(DiagnosticsFacadeService);
+  readonly facade = inject(SimulationFacadeService);
+
+  readonly tabs: Array<{ id: SimulationTab; labelKey: string }> = [
+    { id: 'scenarios', labelKey: 'simulation.tabs.scenarios' },
+    { id: 'execution', labelKey: 'simulation.tabs.execution' },
+    { id: 'charts', labelKey: 'simulation.tabs.charts' },
+    { id: 'data', labelKey: 'simulation.tabs.data' },
+    { id: 'history', labelKey: 'simulation.tabs.history' },
+  ];
+
+  // Channels list for charts tab
+  readonly allChannelIds = computed(() => {
+    const run = this.facade.activeRun();
+    if (!run) return [];
+    return run.channelSnapshot?.map((s) => s.channelId) ?? [];
+  });
+
+  // Simple uPlot data preparation
+  readonly chartData = computed<number[][]>(() => {
+    const selectedIds = this.facade.selectedChannelIds();
+    if (selectedIds.length === 0) return [[], []];
+
+    const timeData: number[] = [];
+    const seriesData: number[][] = [];
+
+    for (const channelId of selectedIds) {
+      const history = this.facade.historyFor(channelId);
+      const values: number[] = [];
+      for (const sample of history) {
+        if (timeData.length === 0 || sample.simulatedMs > (timeData[timeData.length - 1] ?? 0)) {
+          timeData.push(sample.simulatedMs);
+        }
+        values.push(typeof sample.value === 'number' ? sample.value : 0);
+      }
+      seriesData.push(values);
+    }
+
+    if (timeData.length === 0) return [[], []];
+
+    return [timeData, ...seriesData];
+  });
+
+  readonly chartOptions = computed(() => {
+    const selectedIds = this.facade.selectedChannelIds();
+    return {
+      width: 800,
+      height: 400,
+      series: [
+        { label: 'Time (ms)' },
+        ...selectedIds.map((id, i) => ({
+          label: id,
+          stroke: this.chartColor(i),
+        })),
+      ],
+      axes: [
+        { label: 'Simulated Time (ms)' },
+        { label: 'Value' },
+      ],
+    };
+  });
+
+  setNumericParameter(id: string, value: unknown): void {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) this.facade.setParameter(id, parsed);
+  }
+
+  eventTime(simulatedMs: number): string {
+    return `${(simulatedMs / 1000).toFixed(1)} s`;
+  }
+
+  statusLabel(status: string): string {
+    return status.replace('-', ' ').toUpperCase();
+  }
+
+  formatValue(value: unknown): string {
+    if (value === null || value === undefined) return '—';
+    if (typeof value === 'number') return Number.isInteger(value) ? String(value) : value.toFixed(4);
+    if (typeof value === 'object') return JSON.stringify(value);
+    return String(value);
+  }
+
+  togglePause(): void {
+    this.facade.paused.update((p) => !p);
+  }
+
+  private chartColor(index: number): string {
+    const colors = ['#00ff88', '#00ccff', '#ffaa00', '#ff4444', '#cc88ff', '#ffff00'];
+    return colors[index % colors.length] ?? '#00ff88';
+  }
 }

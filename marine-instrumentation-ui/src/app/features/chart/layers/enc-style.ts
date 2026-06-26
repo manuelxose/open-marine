@@ -180,7 +180,7 @@ export function buildEncStyle(config: EncLayerConfig, safetyDepth = 2.0): StyleS
         tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
         tileSize: 256,
         maxzoom: 19,
-        attribution: '&copy; OpenStreetMap contributors',
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
       },
       'enc-depth-areas': {
         type: 'geojson',
