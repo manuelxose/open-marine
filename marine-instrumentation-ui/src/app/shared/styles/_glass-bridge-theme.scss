@@ -46,7 +46,9 @@
   --gb-tick-minor: #2a3744;
   --gb-tick-reference: #4a90d9;
   --gb-needle-primary: #ff5722;
+  --gb-needle-primary-rgb: 255, 87, 34;
   --gb-needle-secondary: #4a90d9;
+  --gb-needle-secondary-rgb: 74, 144, 217;
   --gb-needle-pin: #1a2530;
   --gb-needle-pin-border: #52667a;
   --gb-arc-normal: rgba(0, 230, 118, 0.25);
@@ -121,7 +123,9 @@
   --gb-tick-minor: #8b9bb4;
   --gb-tick-reference: #0369a1;
   --gb-needle-primary: #d83b01;
+  --gb-needle-primary-rgb: 216, 59, 1;
   --gb-needle-secondary: #0369a1;
+  --gb-needle-secondary-rgb: 3, 105, 161;
   --gb-needle-pin: #e8edf1;
   --gb-needle-pin-border: #8b9bb4;
   --gb-arc-normal: rgba(2, 163, 84, 0.2);
@@ -166,4 +170,61 @@
   --success: #00a659;
   --warn: #c97b00;
   --danger: #c0392b;
+}
+
+// ----------------------------------------------------------------------------
+// DERIVED INSTRUMENT / WIDGET / AUTOPILOT TOKENS
+// Theme-agnostic: these reference the --gb-* tokens above, so they resolve
+// correctly for both night and day without per-theme duplication. Components
+// must consume these (never literal colors).
+// ----------------------------------------------------------------------------
+:root {
+  // --- Reusable widget shell structure ---
+  --widget-bg: var(--gb-bg-panel);
+  --widget-border: var(--gb-border-panel);
+  --widget-border-active: var(--gb-border-active);
+  --widget-radius: var(--radius-lg, 16px);
+  --widget-pad: var(--space-3, 12px);
+  --widget-gap: var(--space-2, 8px);
+  --widget-shadow: var(--gb-shadow-instrument);
+  --widget-shadow-active: var(--gb-shadow-active);
+  --widget-label: var(--gb-text-muted);
+  --widget-label-size: 0.62rem;
+  --widget-label-tracking: 0.12em;
+  --widget-value: var(--gb-text-value);
+  --widget-unit: var(--gb-text-unit);
+  // Chrome: header strip, hover affordance, top shine line, accent
+  --widget-header-bg: var(--gb-bg-glass);
+  --widget-hover-border: var(--gb-border-active);
+  --widget-shine: color-mix(in srgb, var(--gb-text-value) 12%, transparent);
+  --widget-accent: var(--gb-tick-reference);
+  --widget-accent-soft: var(--gb-bg-glass-active);
+
+  // --- Generic instrument graphical tokens ---
+  --instrument-ring: var(--gb-border-panel);
+  --instrument-face: var(--gb-bg-face);
+  --instrument-tick-major: var(--gb-tick-major);
+  --instrument-tick-minor: var(--gb-tick-minor);
+  --instrument-cardinal: var(--gb-text-cardinal);
+  --instrument-pin: var(--gb-needle-pin);
+  --instrument-pin-border: var(--gb-needle-pin-border);
+  // Gauge arcs / warning bands (translucent fills already theme-aware)
+  --instrument-arc-track: var(--gb-bg-glass);
+  --instrument-arc-normal: var(--gb-arc-normal);
+  --instrument-arc-warning: var(--gb-arc-warning);
+  --instrument-arc-danger: var(--gb-arc-danger);
+
+  // --- Autopilot-specific ---
+  --ap-heading-needle: var(--gb-needle-primary);
+  --ap-needle-tail: var(--gb-text-muted);
+  --ap-target-bug: var(--gb-data-good);
+  --ap-target-text: var(--gb-data-good);
+  --ap-rudder-fill: var(--gb-needle-secondary);
+  --ap-rudder-track: var(--gb-bg-glass);
+  // Mode/state accents
+  --ap-mode-standby: var(--gb-text-muted);
+  --ap-mode-auto: var(--gb-data-good);
+  --ap-mode-wind: var(--gb-needle-secondary);
+  --ap-mode-route: var(--gb-tick-reference);
+  --ap-mode-fault: var(--gb-data-stale);
 }

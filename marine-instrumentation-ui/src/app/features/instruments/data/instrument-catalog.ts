@@ -9,7 +9,8 @@ export type InstrumentCategoryId =
   | 'environment'
   | 'electrical'
   | 'engine'
-  | 'performance';
+  | 'performance'
+  | 'autopilot';
 
 export type InstrumentDisplayType =
   | 'digital'
@@ -49,6 +50,7 @@ export const INSTRUMENT_CATEGORIES: InstrumentCategoryMeta[] = [
   { id: 'electrical', label: 'Electrical', icon: 'battery' },
   { id: 'engine', label: 'Engine', icon: 'engine' },
   { id: 'performance', label: 'Performance', icon: 'gauge' },
+  { id: 'autopilot', label: 'Autopilot', icon: 'compass' },
 ];
 
 // ── Full catalog (54 instruments) ─────────────────────────────────────
@@ -574,6 +576,19 @@ export const INSTRUMENT_CATALOG: InstrumentDefinition[] = [
     path: PATHS.navigation?.leeway ?? 'navigation.leeway',
     category: 'performance',
     displayType: 'digital',
+    decimals: 0,
+  },
+
+  // ── AUTOPILOT (1) ────────────────────────────────────────────────
+  {
+    id: 'ap_heading',
+    label: 'Autopilot Heading',
+    unit: '°T',
+    path: PATHS.navigation?.headingTrue ?? 'navigation.headingTrue',
+    category: 'autopilot',
+    displayType: 'analog-circular',
+    minValue: 0,
+    maxValue: 360,
     decimals: 0,
   },
 ];

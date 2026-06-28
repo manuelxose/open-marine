@@ -102,6 +102,53 @@ get_generic_ssh_candidates() {
   printf '%s\n' "${reachable[@]}" | awk 'NF' | sort -u
 }
 
+# ── Argument parsing ─────────────────────────────────────────────
+RUN_INIT=0
+SELECTIVE_MIGRATE=0
+SELECTIVE_MODULES=("marine-data-contract" "marine-sensor-gateway" "marine-autopilot-engine" "marine-instrumentation-ui" "marine-simulation-platform" "marine-chart-engine" "scripts" "config" "signalk-runtime" "tools" "marine-sensor-gateway/rpi")
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --run-init)
+      RUN_INIT=1
+      shift
+      ;;
+    --selective)
+      SELECTIVE_MIGRATE=1
+      shift
+      ;;
+    --modules)
+      shift
+      SELECTIVE_MIGRATE=1
+      SELECTIVE_MODULES=()
+      while [[ $# -gt 0 && ! "$1" =~ ^-- ]]; do
+        SELECTIVE_MODULES+=("$1")
+        shift
+      done
+      ;;
+    --help|-h)
+      echo "Usage: migrate-to-raspberry.sh [options] [HOST] [USER] [PORT] [PATH]"
+      echo ""
+      echo "Options:"
+      echo "  --run-init      Ejecutar 'npm run init' remotamente tras extraer"
+      echo "  --selective     Migrar solo modulos esenciales para Raspberry"
+      echo "  --modules LIST  Migrar solo los modulos especificados (espacio separado)"
+      echo ""
+      echo "Environment: RPI_HOST, RPI_USER, RPI_PORT, RPI_PATH, RPI_SSH_KEY, RPI_PASSWORD"
+      echo "             OMI_MIGRATE_INCLUDE_DOCKER_IMAGE=true (offline mode)"
+      exit 0
+      ;;
+    --*)
+      warn "Opcion desconocida: $1"
+      shift
+      ;;
+    *)
+      break
+      ;;
+  esac
+done
+
+# ── Config loading ───────────────────────────────────────────────
 TARGET_HOST="${1:-${RPI_HOST:-}}"
 TARGET_USER="${2:-${RPI_USER:-}}"
 TARGET_PORT="${3:-${RPI_PORT:-}}"
@@ -118,8 +165,6 @@ INCLUDE_DOCKER_IMAGE_MIGRATION="${OMI_MIGRATE_INCLUDE_DOCKER_IMAGE:-false}"
 if [[ -z "$CONFIG_FILE" ]]; then
   if [[ -f "$PROJECT_ROOT/config/omi.env" ]]; then
     CONFIG_FILE="$PROJECT_ROOT/config/omi.env"
-  else
-    CONFIG_FILE="$PROJECT_ROOT/config/raspberry.env"
   fi
 fi
 
@@ -269,21 +314,61 @@ case "$(echo "$INCLUDE_DOCKER_IMAGE_MIGRATION" | tr '[:upper:]' '[:lower:]')" in
     warn "Se omite imagen Docker en el paquete. Usa OMI_MIGRATE_INCLUDE_DOCKER_IMAGE=true para migracion offline."
     ;;
 esac
-tar -czf "$archive_path" \
-  --exclude=.git \
-  --exclude=.github \
-  --exclude=.vscode \
-  --exclude=node_modules \
-  --exclude='*/node_modules' \
-  --exclude=dist \
-  --exclude='*/dist' \
-  --exclude=.angular \
-  --exclude=coverage \
-  --exclude=.omi-*.log \
-  --exclude=.omi-*.pid \
-  --exclude=tools/ais-catcher \
-  --exclude=tools/docker-images \
-  -C "$PROJECT_ROOT" .
+
+# ── Build tarball ────────────────────────────────────────────────
+TAR_EXCLUDES=(
+  --exclude=.git
+  --exclude=.github
+  --exclude=.vscode
+  --exclude=node_modules
+  --exclude='*/node_modules'
+  --exclude=dist
+  --exclude='*/dist'
+  --exclude=.angular
+  --exclude=coverage
+  --exclude='*.log'
+  --exclude=.omi-*.log
+  --exclude=.omi-*.pid
+  --exclude=tools/ais-catcher
+  --exclude=tools/docker-images
+  --exclude='.claude'
+  --exclude='*.etl'
+  --exclude='__pycache__'
+  --exclude='.venv'
+  --exclude='*.egg-info'
+)
+
+if [[ "$SELECTIVE_MIGRATE" -eq 1 ]]; then
+  log "Migracion SELECTIVA: solo modulos esenciales para Raspberry"
+  # Create a temp staging dir with only selected modules
+  staging_dir="/tmp/omi-migrate-staging-${timestamp}"
+  rm -rf "$staging_dir"
+  mkdir -p "$staging_dir"
+
+  for mod in "${SELECTIVE_MODULES[@]}"; do
+    src="$PROJECT_ROOT/$mod"
+    if [[ -e "$src" ]]; then
+      cp -r "$src" "$staging_dir/"
+      log "  + $mod"
+    else
+      warn "  ! $mod no encontrado, omitido"
+    fi
+  done
+
+  # Copy essential root files
+  cp "$PROJECT_ROOT/package.json" "$PROJECT_ROOT/package-lock.json" "$staging_dir/" 2>/dev/null || true
+  if [[ -f "$PROJECT_ROOT/README.md" ]]; then
+    cp "$PROJECT_ROOT/README.md" "$staging_dir/"
+  fi
+
+  tar -czf "$archive_path" "${TAR_EXCLUDES[@]}" -C "$staging_dir" .
+  rm -rf "$staging_dir"
+else
+  tar -czf "$archive_path" "${TAR_EXCLUDES[@]}" -C "$PROJECT_ROOT" .
+fi
+
+archive_size="$(du -sh "$archive_path" 2>/dev/null | cut -f1)"
+log "Paquete creado: $archive_path ($archive_size)"
 
 remote="${TARGET_USER}@${TARGET_HOST}"
 
@@ -299,10 +384,49 @@ log "Extrayendo proyecto en Raspberry..."
 
 rm -f "$archive_path"
 
+# ── Post-extraction: run init remotely if requested ─────────────
+if [[ "$RUN_INIT" -eq 1 ]]; then
+  log "Ejecutando 'npm run init' remotamente en la Raspberry..."
+  if ! "${ssh_cmd[@]}" "$remote" "cd '$TARGET_PATH' && npm run init"; then
+    warn "npm run init fallo remotamente. Conectate manualmente para diagnosticar."
+  else
+    log "Init completado en Raspberry."
+  fi
+fi
+
+# ── Install systemd services if they exist in repo ──────────────
+if [[ -d "$PROJECT_ROOT/marine-sensor-gateway/rpi/systemd" ]]; then
+  log "Instalando servicios systemd en Raspberry..."
+  "${ssh_cmd[@]}" "$remote" "
+    set -e
+    cd '$TARGET_PATH'
+    if [[ -d marine-sensor-gateway/rpi/systemd ]]; then
+      for svc in marine-sensor-gateway/rpi/systemd/*.service; do
+        if [[ -f \"\$svc\" ]]; then
+          sudo cp \"\$svc\" /etc/systemd/system/
+          sudo systemctl daemon-reload
+          svc_name=\$(basename \"\$svc\")
+          sudo systemctl enable \"\$svc_name\" || true
+          echo \"Servicio instalado: \$svc_name\"
+        fi
+      done
+    fi
+  " || warn "No se pudieron instalar servicios systemd (puede requerir sudo)."
+fi
+
 log "Migracion completada."
 echo ""
-echo "Siguientes pasos en Raspberry:"
-echo "  ssh -p $TARGET_PORT $remote"
-echo "  cd $TARGET_PATH"
-echo "  npm run init"
+echo "Raspberry: $remote:$TARGET_PATH"
+if [[ "$RUN_INIT" -eq 1 ]]; then
+  echo "Estado: init ejecutado automaticamente."
+else
+  echo "Siguientes pasos en Raspberry:"
+  echo "  ssh -p $TARGET_PORT $remote"
+  echo "  cd $TARGET_PATH"
+  echo "  npm run init"
+fi
 echo ""
+echo "Para migracion selectiva (solo modulos runtime):"
+echo "  npm run migrate:raspberry -- --selective"
+echo "Para migracion + init automatico:"
+echo "  npm run migrate:raspberry -- --run-init"

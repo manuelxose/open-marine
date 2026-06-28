@@ -991,6 +991,9 @@ export class ChartPage implements AfterViewInit, OnDestroy {
         }
       });
     });
+    this.engine.setErrorHandler((message, sourceId) => {
+      this.zone.run(() => this.facade.recordMapError(message, sourceId));
+    });
 
     this.zone.runOutsideAngular(() => {
       this.engine.init(container, this.facade.initialView);

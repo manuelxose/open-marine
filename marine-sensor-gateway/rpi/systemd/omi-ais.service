@@ -1,0 +1,16 @@
+[Unit]
+Description=Open Marine AIS-catcher RTL-SDR receiver
+After=network-online.target docker.service signalk.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/manu/open-marine
+ExecStart=/home/manu/open-marine/tools/ais-catcher/AIS-catcher -p 0 -g 33 -u 127.0.0.1 10110
+Restart=always
+RestartSec=5
+User=manu
+SupplementaryGroups=plugdev
+
+[Install]
+WantedBy=multi-user.target

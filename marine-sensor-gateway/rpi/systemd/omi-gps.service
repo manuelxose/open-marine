@@ -1,0 +1,16 @@
+[Unit]
+Description=Open Marine GPS NMEA publisher
+After=network-online.target docker.service signalk.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/manu/open-marine
+ExecStart=/usr/bin/bash /home/manu/open-marine/scripts/start-gps.sh
+Restart=always
+RestartSec=3
+User=manu
+SupplementaryGroups=dialout
+
+[Install]
+WantedBy=multi-user.target

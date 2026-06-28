@@ -2,7 +2,13 @@ import { ChangeDetectionStrategy, Component, EventEmitter, Input, Output, inject
 import { CommonModule, DecimalPipe } from '@angular/common';
 import { BehaviorSubject } from 'rxjs';
 import { distinctUntilChanged, filter, shareReplay, switchMap } from 'rxjs/operators';
-import { AisTarget, AisNavStatus, type AisTrackPoint } from '../../../../core/models/ais.model';
+import {
+  AisTarget,
+  AisNavStatus,
+  getAisTargetKind,
+  isAisVessel,
+  type AisTrackPoint,
+} from '../../../../core/models/ais.model';
 import { AppButtonComponent } from '../../../../shared/components/app-button/app-button.component';
 import { AppIconComponent } from '../../../../shared/components/app-icon/app-icon.component';
 import { TimeAgoPipe } from '../../../../shared/pipes/time-ago.pipe';
@@ -40,7 +46,7 @@ import {
         <div class="vessel-photo" *ngIf="enrichment.info?.photoUrl as photoUrl">
           <img
             [src]="photoUrl"
-            [alt]="target.name || target.callsign || ('Vessel ' + target.mmsi)"
+            [alt]="getDisplayName()"
             class="vessel-photo-img"
             (error)="onPhotoError($event)" />
         </div>
@@ -61,10 +67,10 @@ import {
                   <span class="flag-code">{{ countryCode }}</span>
                 </ng-template>
               </ng-container>
-              {{ target.name || target.callsign || ('Vessel ' + target.mmsi) }}
+              {{ getDisplayName() }}
             </h2>
             <span class="mmsi">MMSI: {{ target.mmsi }}</span>
-            <span class="imo" *ngIf="enrichment.info?.imoNumber as imo">IMO: {{ imo }}</span>
+            <span class="imo" *ngIf="getImoDisplay(enrichment) as imo">IMO: {{ imo }}</span>
           </div>
           <app-button
             variant="ghost"
@@ -85,7 +91,7 @@ import {
           </div>
         </div>
 
-        <section class="details-section">
+        <section class="details-section" *ngIf="isVesselTarget(); else aisObjectSection">
           <h3>Voyage</h3>
           <div class="grid-2">
             <div class="field">
@@ -98,6 +104,26 @@ import {
             </div>
           </div>
         </section>
+
+        <ng-template #aisObjectSection>
+          <section class="details-section details-section--object">
+            <h3>AIS Object</h3>
+            <div class="grid-2">
+              <div class="field">
+                <label>Category</label>
+                <span class="value">{{ getTargetKindLabel() }}</span>
+              </div>
+              <div class="field">
+                <label>Broadcast</label>
+                <span class="value">{{ getStatusLabel() }}</span>
+              </div>
+              <div class="field full-width">
+                <label>Role</label>
+                <span class="value">{{ getNonVesselRole() }}</span>
+              </div>
+            </div>
+          </section>
+        </ng-template>
 
         <section class="details-section">
           <h3>Track &amp; Prediction</h3>
@@ -123,7 +149,7 @@ import {
               <span class="value">{{ predictionBearingDeg !== null ? ((predictionBearingDeg | number:'1.0-0') + ' deg') : '--' }}</span>
             </div>
           </div>
-          <p class="hint">Projection shown on chart as dashed amber line when target is moving.</p>
+          <p class="hint">{{ isVesselTarget() ? 'Projection shown on chart as dashed amber line when target is moving.' : 'Fixed AIS objects do not participate in vessel collision prediction.' }}</p>
         </section>
 
         <section class="details-section">
@@ -153,13 +179,13 @@ import {
         </section>
 
         <section class="details-section">
-          <h3>Vessel Details</h3>
+          <h3>{{ isVesselTarget() ? 'Vessel Details' : 'Object Details' }}</h3>
           <div class="grid-2">
-            <div class="field">
+            <div class="field" *ngIf="isVesselTarget()">
               <label>Callsign</label>
               <span class="value">{{ target.callsign || '--' }}</span>
             </div>
-            <div class="field">
+            <div class="field" *ngIf="isVesselTarget()">
               <label>IMO</label>
               <span class="value">{{ enrichment.info?.imoNumber || target.imo || '--' }}</span>
             </div>
@@ -167,17 +193,21 @@ import {
               <label>Type</label>
               <span class="value">{{ getVesselTypeDisplay(enrichment) }}</span>
             </div>
-            <div class="field">
+            <div class="field" *ngIf="isVesselTarget()">
               <label>Dimensions</label>
               <span class="value">{{ getDimensionsDisplay(enrichment) }}</span>
             </div>
-            <div class="field" *ngIf="enrichment.info?.yearBuilt as yearBuilt">
+            <div class="field" *ngIf="isVesselTarget() && enrichment.info?.yearBuilt">
               <label>{{ 'ais.year_built' | translate }}</label>
-              <span class="value">{{ yearBuilt }}</span>
+              <span class="value">{{ enrichment.info?.yearBuilt }}</span>
             </div>
-            <div class="field" *ngIf="!enrichment.info?.yearBuilt">
+            <div class="field" *ngIf="isVesselTarget() && !enrichment.info?.yearBuilt">
               <label>Draft</label>
               <span class="value">{{ target.draft ? target.draft + 'm' : '--' }}</span>
+            </div>
+            <div class="field" *ngIf="!isVesselTarget()">
+              <label>Class</label>
+              <span class="value">{{ target.class || '--' }}</span>
             </div>
           </div>
         </section>
@@ -566,6 +596,10 @@ export class AisTargetDetailsComponent {
   );
 
   getStatusLabel(): string {
+    if (!this.isVesselTarget()) {
+      return 'Active AIS broadcast';
+    }
+
     if (this.target.state === undefined) {
       return 'Unknown';
     }
@@ -604,6 +638,9 @@ export class AisTargetDetailsComponent {
   }
 
   get predictionDistanceNm(): number | null {
+    if (!this.isVesselTarget()) {
+      return null;
+    }
     if (!this.canPredictTarget()) {
       return null;
     }
@@ -620,6 +657,10 @@ export class AisTargetDetailsComponent {
   }
 
   getVesselTypeDisplay(enrichment: EnrichmentResult | null): string {
+    if (!this.isVesselTarget()) {
+      return this.getTargetKindLabel();
+    }
+
     if (enrichment?.info?.vesselTypeDescription) {
       return enrichment.info.vesselTypeDescription;
     }
@@ -629,6 +670,14 @@ export class AisTargetDetailsComponent {
     }
 
     return 'Unknown';
+  }
+
+  getImoDisplay(enrichment: EnrichmentResult | null): string | null {
+    if (!this.isVesselTarget()) {
+      return null;
+    }
+
+    return enrichment?.info?.imoNumber ?? this.target.imo ?? null;
   }
 
   getDimensionsDisplay(enrichment: EnrichmentResult | null): string {
@@ -643,6 +692,44 @@ export class AisTargetDetailsComponent {
     const imo = this.target?.imo?.trim();
     const vesselId = imo && imo !== '0' ? imo : this.target?.mmsi?.trim();
     return `https://www.vesselfinder.com/vessels/details/${encodeURIComponent(vesselId || '')}`;
+  }
+
+  getDisplayName(): string {
+    if (this.target.name || this.target.callsign) {
+      return this.target.name || this.target.callsign || this.target.mmsi;
+    }
+
+    const kind = getAisTargetKind(this.target);
+    if (kind === 'shore-station') return `AIS Station ${this.target.mmsi}`;
+    if (kind === 'navigation-aid') return `AIS Aid ${this.target.mmsi}`;
+    if (kind === 'sart') return `AIS SART ${this.target.mmsi}`;
+    return `Vessel ${this.target.mmsi}`;
+  }
+
+  getTargetKindLabel(): string {
+    const kind = getAisTargetKind(this.target);
+    if (kind === 'shore-station') return 'Coastal AIS station';
+    if (kind === 'navigation-aid') return 'AIS aid to navigation';
+    if (kind === 'sart') return 'AIS search and rescue transponder';
+    return 'Vessel';
+  }
+
+  getNonVesselRole(): string {
+    const kind = getAisTargetKind(this.target);
+    if (kind === 'shore-station') {
+      return 'Fixed shore-side transmitter or monitored navigation asset, not a moving vessel.';
+    }
+    if (kind === 'navigation-aid') {
+      return 'Fixed or floating aid to navigation such as a beacon, buoy or lighthouse.';
+    }
+    if (kind === 'sart') {
+      return 'Emergency search and rescue AIS transponder.';
+    }
+    return '--';
+  }
+
+  isVesselTarget(): boolean {
+    return isAisVessel(this.target);
   }
 
   getFlagCountryCode(): string | null {

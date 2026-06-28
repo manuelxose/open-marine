@@ -1,14 +1,13 @@
-import { Injectable, Inject, PLATFORM_ID } from '@angular/core';
+import { Injectable, Inject, PLATFORM_ID, inject } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { BehaviorSubject } from 'rxjs';
+import { PreferencesService as CorePreferencesService } from '../core/preferences/preferences.service';
 
-export type DensityMode = 'comfortable' | 'compact';
 export type SpeedUnit = 'kn' | 'm/s' | 'km/h';
 export type DepthUnit = 'm' | 'ft';
 export type ThemeMode = 'day' | 'night';
 
 export interface UserPreferences {
-  density: DensityMode;
   speedUnit: SpeedUnit;
   depthUnit: DepthUnit;
   units: {
@@ -20,7 +19,6 @@ export interface UserPreferences {
 }
 
 const DEFAULT_PREFERENCES: UserPreferences = {
-  density: 'comfortable',
   speedUnit: 'kn',
   depthUnit: 'm',
   units: {
@@ -32,7 +30,6 @@ const DEFAULT_PREFERENCES: UserPreferences = {
 };
 
 const STORAGE_KEY = 'omi-preferences';
-const LEGACY_THEME_KEY = 'omi-theme';
 
 @Injectable({
   providedIn: 'root',
@@ -41,6 +38,11 @@ export class PreferencesService {
   private readonly _preferences = new BehaviorSubject<UserPreferences>(DEFAULT_PREFERENCES);
   public readonly preferences$ = this._preferences.asObservable();
   public readonly prefs$ = this.preferences$;
+
+  // Canonical theme owner. This service keeps unit/threshold preferences but no
+  // longer owns the document theme — that would fight the canonical service and
+  // flip `data-theme` whenever a page lazily constructs this singleton.
+  private readonly core = inject(CorePreferencesService);
 
   constructor(@Inject(PLATFORM_ID) private platformId: object) {
     if (isPlatformBrowser(this.platformId)) {
@@ -55,8 +57,17 @@ export class PreferencesService {
       }
     }
 
+    // Persist unit/threshold changes (never touches the DOM theme).
     this.preferences$.subscribe((prefs) => {
-      this.applyPreferences(prefs);
+      this.persist(prefs);
+    });
+
+    // Mirror the canonical theme so this service's `theme` reads stay correct
+    // for its consumers, without ever applying it to the DOM itself.
+    this.core.preferences$.subscribe((corePrefs) => {
+      if (corePrefs.theme !== this._preferences.value.theme) {
+        this._preferences.next({ ...this._preferences.value, theme: corePrefs.theme });
+      }
     });
   }
 
@@ -66,15 +77,6 @@ export class PreferencesService {
 
   getSnapshot(): UserPreferences {
     return this._preferences.value;
-  }
-
-  setDensity(mode: DensityMode): void {
-    this._preferences.next({ ...this._preferences.value, density: mode });
-  }
-
-  toggleDensity(): void {
-    const current = this._preferences.value.density;
-    this.setDensity(current === 'comfortable' ? 'compact' : 'comfortable');
   }
 
   setSpeedUnit(unit: SpeedUnit): void {
@@ -98,28 +100,24 @@ export class PreferencesService {
   }
 
   setTheme(theme: ThemeMode): void {
-    this._preferences.next({ ...this._preferences.value, theme });
+    // Delegate to the canonical owner; the mirror subscription updates our copy.
+    this.core.setTheme(theme);
   }
 
   toggleTheme(): void {
-    const next = this._preferences.value.theme === 'day' ? 'night' : 'day';
-    this.setTheme(next);
+    this.core.toggleTheme();
   }
 
   reset(): void {
-    this._preferences.next(DEFAULT_PREFERENCES);
+    this._preferences.next({ ...DEFAULT_PREFERENCES, theme: this._preferences.value.theme });
   }
 
-  private applyPreferences(prefs: UserPreferences): void {
+  private persist(prefs: UserPreferences): void {
     if (!isPlatformBrowser(this.platformId)) {
       return;
     }
 
     localStorage.setItem(STORAGE_KEY, JSON.stringify(prefs));
-    localStorage.setItem(LEGACY_THEME_KEY, prefs.theme);
-    document.body.classList.toggle('compact-mode', prefs.density === 'compact');
-    document.documentElement.setAttribute('data-theme', prefs.theme);
-    document.body.setAttribute('data-theme', prefs.theme);
   }
 
   private normalizePreferences(parsed: Partial<UserPreferences>): UserPreferences {

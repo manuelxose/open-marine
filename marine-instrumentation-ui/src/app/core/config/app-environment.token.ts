@@ -6,8 +6,10 @@ export interface AppEnvironment {
   // marine-autopilot-engine command API base, e.g. 'http://192.168.1.43:3990'.
   // Engine serves the Signal K v2 autopilot routes (mode/engage/disengage/target).
   autopilotApiUrl: string;
-  // Isolated marine-test-bench orchestrator. Never points at production ports.
+  // Isolated marine-simulation-platform orchestrator. Never points at production ports.
   testBenchApiUrl: string;
+  // Local/LAN nautical chart engine for legal local chart sources.
+  chartEngineApiUrl: string;
 }
 
 export const APP_ENVIRONMENT = new InjectionToken<AppEnvironment>('APP_ENVIRONMENT');
@@ -44,10 +46,12 @@ const { httpProtocol, wsProtocol } = resolveProtocols();
 
 const AUTOPILOT_API_PORT = 3990;
 const TEST_BENCH_API_PORT = 4100;
+const CHART_ENGINE_API_PORT = 8088;
 
 export const environment: AppEnvironment = {
   signalKBaseUrl: `${httpProtocol}://${signalKHost}:3000/signalk/v1/api`,
   signalKWsUrl: `${wsProtocol}://${signalKHost}:3000/signalk/v1/stream?subscribe=all`,
   autopilotApiUrl: `${httpProtocol}://${signalKHost}:${AUTOPILOT_API_PORT}`,
   testBenchApiUrl: `${httpProtocol}://${testBenchHost}:${TEST_BENCH_API_PORT}`,
+  chartEngineApiUrl: `${httpProtocol}://${testBenchHost}:${CHART_ENGINE_API_PORT}`,
 };

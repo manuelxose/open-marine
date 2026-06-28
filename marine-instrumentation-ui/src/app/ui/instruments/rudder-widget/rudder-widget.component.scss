@@ -65,7 +65,7 @@
       .tick-label {
         fill: color-mix(in srgb, var(--gb-text-unit) 75%, transparent);
         font-size: 10px;
-        font-family: 'JetBrains Mono', 'Courier New', monospace;
+        font-family: var(--font-mono);
         text-anchor: middle;
         font-weight: 600;
 

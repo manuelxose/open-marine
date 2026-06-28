@@ -52,7 +52,7 @@
 
   .ticks {
     text {
-      font-family: 'Space Grotesk', system-ui, sans-serif;
+      font-family: var(--font-family);
       font-size: 10px;
       fill: var(--gb-text-unit);
       text-anchor: middle;
@@ -70,7 +70,7 @@
     text-anchor: middle;
 
     .value {
-      font-family: 'JetBrains Mono', 'Courier New', monospace;
+      font-family: var(--font-mono);
       font-weight: 700;
       font-size: 32px;
       fill: var(--gb-text-value);
@@ -79,7 +79,7 @@
     }
 
     .unit {
-      font-family: 'Space Grotesk', system-ui, sans-serif;
+      font-family: var(--font-family);
       font-size: 10px;
       fill: var(--gb-text-unit);
       letter-spacing: 1.5px;

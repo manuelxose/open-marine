@@ -4,6 +4,7 @@ import { firstValueFrom } from 'rxjs';
 import type {
   SimulationEvent,
   SimulationRun,
+  SimulationSampleBatch,
   SimulationScenarioDocument,
 } from '@omi/marine-data-contract';
 import { APP_ENVIRONMENT, type AppEnvironment } from '../../core/config/app-environment.token';
@@ -13,10 +14,10 @@ export interface RunSummary {
   scenarioId: string;
   status: SimulationRun['status'];
   startedAtUtc: string;
-  completedAtUtc?: string;
+  completedAtUtc?: string | undefined;
   simulatedTimeMs: number;
   mode: SimulationRun['mode'];
-  failureReason?: string;
+  failureReason?: string | undefined;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -54,6 +55,10 @@ export class SimulationApiService {
     return this.post<SimulationScenarioDocument>('/api/v2/scenarios/import', body);
   }
 
+  async generateWindScenario(body: unknown): Promise<SimulationScenarioDocument> {
+    return this.post<SimulationScenarioDocument>('/api/v2/scenarios/generate-wind', body);
+  }
+
   async arm(): Promise<{ token: string; expiresAtUtc: string }> {
     return this.post<{ token: string; expiresAtUtc: string }>('/api/v2/arm', {});
   }
@@ -87,6 +92,13 @@ export class SimulationApiService {
 
   async injectRun(id: string, channelId: string, value: number | boolean | string): Promise<SimulationRun> {
     return this.post<SimulationRun>(`/api/v2/runs/${encodeURIComponent(id)}/injections`, { channelId, value });
+  }
+
+  async loadSamples(id: string, afterTick = 0, maxPoints?: number): Promise<SimulationSampleBatch[]> {
+    const params = new URLSearchParams();
+    params.set('after', String(afterTick));
+    if (maxPoints !== undefined) params.set('maxPoints', String(maxPoints));
+    return this.get<SimulationSampleBatch[]>(`/api/v2/runs/${encodeURIComponent(id)}/samples?${params.toString()}`);
   }
 
   reportUrl(id: string, format: 'json' | 'csv' | 'html'): string {

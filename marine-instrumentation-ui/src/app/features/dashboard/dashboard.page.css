@@ -47,7 +47,7 @@
 
 .toolbar-title {
   margin: 0;
-  font-family: 'Space Grotesk', sans-serif;
+  font-family: var(--font-family);
   font-size: 0.88rem;
   font-weight: 700;
   color: var(--gb-text-value);
@@ -62,7 +62,7 @@
   background: color-mix(in srgb, var(--gb-needle-secondary) 16%, transparent);
   border: 1px solid color-mix(in srgb, var(--gb-needle-secondary) 35%, transparent);
   color: var(--gb-needle-secondary);
-  font-family: 'Space Grotesk', sans-serif;
+  font-family: var(--font-family);
   font-size: 0.6rem;
   font-weight: 700;
   letter-spacing: 0.1em;
@@ -93,7 +93,7 @@
   background: color-mix(in srgb, var(--gb-bg-glass-active) 80%, transparent);
   color: var(--gb-text-unit);
   cursor: pointer;
-  font-family: 'Space Grotesk', sans-serif;
+  font-family: var(--font-family);
   font-size: 0.68rem;
   font-weight: 600;
   letter-spacing: 0.02em;
@@ -177,7 +177,7 @@
 .banner--alert .banner__dot { background: var(--gb-data-stale); }
 
 .banner__label {
-  font-family: 'Space Grotesk', sans-serif;
+  font-family: var(--font-family);
   font-size: 0.66rem;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -228,14 +228,8 @@
 .tile--m { grid-column: span 4; }
 .tile--s { grid-column: span 3; }
 
-/* ── Compact density ── */
-.compact .grid {
-  gap: var(--space-2, 8px);
-}
-
-.compact .tile {
-  min-height: 190px;
-}
+/* Single-instrument tiles are denser than composite panels. */
+.tile--instrument { min-height: 170px; }
 
 /* ── Edit mode ── */
 .dashboard--editing .tile {
@@ -268,7 +262,7 @@
   border-bottom: 1px solid var(--gb-border-panel);
   z-index: 3;
   color: var(--gb-text-unit);
-  font-family: 'Space Grotesk', sans-serif;
+  font-family: var(--font-family);
   font-size: 0.7rem;
   font-weight: 600;
 }
@@ -306,6 +300,14 @@
   height: 100%;
 }
 
+/* Autopilot compass widget host: center the dial within the card. */
+.ap-compass-host {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+}
+
 /* ── Simple widgets ── */
 .simple-widget {
   height: 100%;
@@ -331,7 +333,7 @@
 
 .simple-widget__value {
   margin: 0;
-  font-family: 'Share Tech Mono', 'Space Grotesk', monospace;
+  font-family: var(--font-mono);
   font-size: clamp(1.7rem, 2vw + 0.8rem, 2.6rem);
   font-weight: 700;
   color: var(--gb-text-value);
@@ -394,7 +396,7 @@
 
 .grid-empty__text {
   margin: 0;
-  font-family: 'Space Grotesk', sans-serif;
+  font-family: var(--font-family);
   font-size: 1rem;
   font-weight: 700;
   color: var(--gb-text-unit);
@@ -406,160 +408,65 @@
   max-width: 320px;
 }
 
-/* ── Widget Palette sidebar ── */
-.palette {
+/* ── Widget Library dock ── */
+.library-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 9;
+  background: color-mix(in srgb, var(--gb-bg-canvas) 55%, transparent);
+  backdrop-filter: blur(2px);
+  /* Backdrop is only used when the dock overlays (tablet / mobile). */
+  display: none;
+}
+
+.library-dock {
   width: 0;
   min-width: 0;
   overflow: hidden;
   border-left: 1px solid transparent;
-  background: color-mix(in srgb, var(--gb-bg-panel) 96%, transparent);
-  backdrop-filter: blur(12px);
-  transition: width 220ms ease, min-width 220ms ease, border-color 220ms ease;
   flex-shrink: 0;
-  display: flex;
-  flex-direction: column;
+  transition: width 220ms ease, min-width 220ms ease, border-color 220ms ease;
 }
 
-.palette--open {
-  width: 280px;
-  min-width: 280px;
+.library-dock--open {
+  width: 340px;
+  min-width: 340px;
   border-left-color: var(--gb-border-panel);
 }
 
-.palette__header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: var(--space-2, 8px) var(--space-3, 12px);
-  border-bottom: 1px solid var(--gb-border-panel);
-  flex-shrink: 0;
-}
-
-.palette__title-row {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex: 1;
-  font-family: 'Space Grotesk', sans-serif;
-  font-size: 0.7rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--gb-text-unit);
-  white-space: nowrap;
-}
-
-.palette__count {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.62rem;
-  color: var(--gb-text-muted);
-  white-space: nowrap;
-}
-
-.palette__close {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  border-radius: 999px;
-  border: 1px solid var(--gb-border-panel);
-  background: transparent;
-  color: var(--gb-text-unit);
-  cursor: pointer;
-  flex-shrink: 0;
-  transition: border-color 120ms ease, color 120ms ease;
-}
-
-.palette__close:hover {
-  border-color: var(--gb-border-active);
-  color: var(--gb-text-value);
-}
-
-.palette__list {
-  flex: 1;
-  overflow: auto;
-  padding: 6px;
-  display: grid;
-  gap: 4px;
-  align-content: start;
-}
-
-.palette__item {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 7px 10px;
-  border: 1px solid var(--gb-border-panel);
-  border-radius: 8px;
-  background: transparent;
-  color: var(--gb-text-value);
-  cursor: pointer;
-  text-align: left;
-  font-size: 0.74rem;
-  transition: border-color 120ms ease, background 120ms ease;
-}
-
-.palette__item:hover {
-  border-color: var(--gb-border-active);
-  background: color-mix(in srgb, var(--gb-bg-glass-active) 60%, transparent);
-}
-
-.palette__item--active {
-  border-color: color-mix(in srgb, var(--gb-data-good) 40%, var(--gb-border-panel));
-  background: color-mix(in srgb, var(--gb-data-good) 8%, transparent);
-}
-
-.palette__item-name {
-  flex: 1;
-  font-weight: 600;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.palette__item-size {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.6rem;
-  color: var(--gb-text-muted);
-  padding: 1px 5px;
-  border-radius: 4px;
-  background: color-mix(in srgb, var(--gb-bg-glass) 60%, transparent);
-}
-
-.palette__item-state {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.72rem;
-  font-weight: 700;
-  color: var(--gb-text-unit);
-  width: 16px;
-  text-align: center;
-}
-
-.palette__item--active .palette__item-state {
-  color: var(--gb-data-good);
-}
-
-/* ── Responsive ── */
+/* ── Responsive ──
+   Desktop (>1280): 12-col grid, library as inline side dock.
+   Tablet (≤1280 / ≤980): wider spans, library overlays from the right.
+   Mobile (≤640): single column, library as full-width overlay sheet. */
 @media (max-width: 1280px) {
   .tile--l { grid-column: span 12; }
   .tile--m { grid-column: span 6; }
   .tile--s { grid-column: span 4; }
 }
 
+/* Tablet & below: library detaches into an overlay so it never squeezes the grid. */
 @media (max-width: 980px) {
   .dashboard-toolbar {
     flex-wrap: wrap;
   }
 
-  .palette--open {
+  .library-backdrop {
+    display: block;
+  }
+
+  .library-dock {
     position: absolute;
     right: 0;
     top: 0;
     bottom: 0;
     z-index: 10;
-    box-shadow: -8px 0 32px color-mix(in srgb, var(--gb-bg-canvas) 50%, transparent);
+    width: 0;
+  }
+
+  .library-dock--open {
+    width: min(360px, 88vw);
+    min-width: 0;
+    box-shadow: -8px 0 32px color-mix(in srgb, var(--gb-bg-canvas) 55%, transparent);
   }
 
   .grid-scroll {
@@ -576,12 +483,15 @@
   }
 }
 
-@media (max-width: 760px) {
+@media (max-width: 640px) {
   .tile--l,
   .tile--m,
   .tile--s {
     grid-column: span 12;
   }
+
+  .tile { min-height: 190px; }
+  .tile--instrument { min-height: 160px; }
 
   .tb-label {
     display: none;
@@ -591,9 +501,8 @@
     margin-inline: var(--space-2, 8px);
   }
 
-  .palette--open {
+  .library-dock--open {
     width: 100%;
-    min-width: 100%;
   }
 }
 

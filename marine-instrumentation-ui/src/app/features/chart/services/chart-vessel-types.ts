@@ -11,6 +11,7 @@ export type VesselTypeFilter =
   | 'other';
 
 export type VesselTypeColors = Record<VesselTypeFilter, string>;
+export type AisTargetIconKind = 'vessel' | 'navigation-aid' | 'shore-station' | 'sart';
 
 export const VESSEL_TYPE_KEYS: VesselTypeFilter[] = [
   'cargo', 'tanker', 'passenger', 'fishing', 'sailing',
@@ -53,6 +54,18 @@ export const normalizeHexColor = (value: unknown, fallback: string): string =>
 
 export const getAisVesselIconId = (type: VesselTypeFilter, dangerous = false): string =>
   `chart-ais-icon-${type}${dangerous ? '-dangerous' : ''}`;
+
+export const getAisTargetIconId = (
+  kind: AisTargetIconKind,
+  type: VesselTypeFilter,
+  dangerous = false,
+): string => {
+  if (kind === 'vessel') {
+    return getAisVesselIconId(type, dangerous);
+  }
+
+  return `chart-ais-icon-${kind}${dangerous ? '-dangerous' : ''}`;
+};
 
 export const mapAisVesselTypeToFilter = (rawType: string | undefined | null): VesselTypeFilter => {
   const normalized = normalizeTypeText(rawType);

@@ -24,6 +24,12 @@ export const routes: Routes = [
     canActivate: [onboardingGuard],
   },
   {
+    path: 'charts',
+    loadComponent: () => import('./features/chart-catalog/chart-catalog.page').then(m => m.ChartCatalogPage),
+    title: 'Charts',
+    canActivate: [onboardingGuard],
+  },
+  {
     path: 'dashboard',
     loadComponent: () => import('./features/dashboard/dashboard.page').then(m => m.DashboardPage),
     title: 'Dashboard',

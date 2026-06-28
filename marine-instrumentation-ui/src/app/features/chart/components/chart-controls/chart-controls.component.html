@@ -152,8 +152,8 @@
         {{ 'chart.controls.apply' | translate }}
       </button>
     </div>
-    <div id="range-rings-hint" class="hint" [class.error]="!!error">
-      {{ (error ? error : 'chart.controls.range_rings_hint') | translate }}
+    <div id="range-rings-hint" class="hint" [class.error]="!!rangeRingError">
+      {{ (rangeRingError ? rangeRingError : 'chart.controls.range_rings_hint') | translate }}
     </div>
   </div>
 </div>
