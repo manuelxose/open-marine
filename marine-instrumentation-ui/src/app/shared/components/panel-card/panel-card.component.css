@@ -260,17 +260,6 @@
   line-height: 1.5;
 }
 
-/* Compact mode */
-:host-context(.compact) .card {
-  padding: var(--space-3);
-  border-radius: var(--glass-card-radius-sm);
-  gap: var(--space-3);
-}
-
-:host-context(.compact) .title {
-  font-size: 0.62rem;
-}
-
 /* Reduced motion */
 @media (prefers-reduced-motion: reduce) {
   .card {

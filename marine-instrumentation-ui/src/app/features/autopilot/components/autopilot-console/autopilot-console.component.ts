@@ -163,7 +163,7 @@ import { PATHS } from '@omi/marine-data-contract';
     .disconnected-overlay {
         position: absolute;
         inset: 0;
-        background: rgba(0,0,0,0.75);
+        background: var(--overlay-backdrop);
         backdrop-filter: blur(4px);
         z-index: 50;
         display: flex;
@@ -363,7 +363,7 @@ import { PATHS } from '@omi/marine-data-contract';
     .mode-btn.active {
         background: var(--gb-tick-reference);
         color: var(--gb-bg-canvas);
-        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        box-shadow: 0 2px 4px color-mix(in srgb, var(--gb-bg-canvas) 25%, transparent);
     }
 
     /* Rudder indicator */

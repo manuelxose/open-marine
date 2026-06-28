@@ -1,0 +1,3 @@
+*.mbtiles
+registry.local.json
+*/chart.mbtiles

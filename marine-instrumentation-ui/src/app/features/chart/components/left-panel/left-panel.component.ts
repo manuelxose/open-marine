@@ -4,6 +4,7 @@ import { AppIconComponent } from '../../../../shared/components/app-icon/app-ico
 import { ChartControlsComponent } from '../chart-controls/chart-controls.component';
 import { AisTargetListComponent } from '../../../ais/components/ais-target-list/ais-target-list.component';
 import { ChartWaypointListComponent } from '../chart-waypoint-list/chart-waypoint-list.component';
+import { ChartSourceCatalogComponent } from '../chart-source-catalog/chart-source-catalog.component';
 import { AisTarget } from '../../../../core/models/ais.model';
 import {
   ChartControlsVm,
@@ -21,6 +22,7 @@ import {
     ChartControlsComponent,
     AisTargetListComponent,
     ChartWaypointListComponent,
+    ChartSourceCatalogComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './left-panel.component.html',
@@ -60,8 +62,9 @@ export class LeftPanelComponent {
   @Output() exportWaypointsGpx = new EventEmitter<void>();
   @Output() exportRouteGpx = new EventEmitter<void>();
 
-  readonly tabs: { id: ChartLeftPanelTab; label: string; icon: 'layers' | 'ais' | 'waypoint' | 'route' }[] = [
+  readonly tabs: { id: ChartLeftPanelTab; label: string; icon: 'layers' | 'ais' | 'waypoint' | 'route' | 'catalog' }[] = [
     { id: 'layers', label: 'Layers', icon: 'layers' },
+    { id: 'catalog', label: 'Catalog', icon: 'catalog' },
     { id: 'ais', label: 'AIS', icon: 'ais' },
     { id: 'waypoints', label: 'Waypoints', icon: 'waypoint' },
     { id: 'routes', label: 'Routes', icon: 'route' },

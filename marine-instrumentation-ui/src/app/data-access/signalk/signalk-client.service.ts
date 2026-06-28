@@ -432,8 +432,8 @@ export class SignalKClientService implements OnDestroy {
       const normalized = text.toLowerCase().replace(/[\s_-]/g, '');
       if (normalized === 'a' || normalized === 'classa') return AisClass.A;
       if (normalized === 'b' || normalized === 'classb') return AisClass.B;
-      if (normalized === 'base' || normalized === 'basestation') return AisClass.BaseStation;
-      if (normalized === 'aton') return AisClass.AtoN;
+      if (normalized === 'base' || normalized === 'basestation' || normalized === 'shorestation' || normalized === 'coaststation') return AisClass.BaseStation;
+      if (normalized === 'aton' || normalized === 'aidtonavigation' || normalized === 'navigationaid') return AisClass.AtoN;
       if (normalized === 'sart' || normalized === 'aissart') return AisClass.SART;
     }
 

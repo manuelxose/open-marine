@@ -2,23 +2,41 @@ import { PATHS, type SignalKPath } from '@omi/marine-data-contract';
 
 export type WidgetSize = 'S' | 'M' | 'L';
 
+/** A widget on the dashboard is either a composite panel or a single instrument. */
+export type WidgetKind = 'panel' | 'instrument';
+
 export interface WidgetDefinition {
     id: string;
     title: string;
     description: string;
     size: WidgetSize;
     requiredPaths: SignalKPath[];
-    category: 'navigation' | 'environment' | 'electrical' | 'system' | 'engine';
+    category: 'navigation' | 'environment' | 'electrical' | 'system' | 'engine' | 'autopilot';
 }
 
 export interface WidgetConfig {
+    /**
+     * Unique placement id. For panels this equals the panel definition id
+     * (one instance each); for instruments it is a generated unique id so the
+     * same instrument can be placed more than once.
+     */
     id: string;
+    kind: WidgetKind;
+    /** Panel definition id (WIDGET_DEFINITIONS) or instrument catalog id. */
+    refId: string;
+    size: WidgetSize;
     visible: boolean;
     order: number;
 }
 
 export interface DashboardLayout {
     widgets: WidgetConfig[];
+}
+
+/** Build a unique placement id for an instrument widget (allows duplicates). */
+export function makeInstrumentWidgetId(refId: string): string {
+    const rand = Math.random().toString(36).slice(2, 8);
+    return `inst-${refId}-${rand}`;
 }
 
 // Available widget definitions
@@ -98,6 +116,19 @@ export const WIDGET_DEFINITIONS: WidgetDefinition[] = [
         category: 'environment'
     },
     {
+        id: 'autopilot-compass',
+        title: 'dashboard.panels.autopilot',
+        description: 'settings.widgets.desc.autopilot_compass',
+        size: 'L',
+        requiredPaths: [
+            PATHS.navigation.headingTrue,
+            PATHS.steering?.autopilot?.state ?? ('steering.autopilot.state' as SignalKPath),
+            PATHS.steering?.autopilot?.target?.headingTrue ??
+                ('steering.autopilot.target.headingTrue' as SignalKPath),
+        ],
+        category: 'autopilot'
+    },
+    {
         id: 'sog-simple',
         title: 'SOG (Simple)',
         description: 'settings.widgets.desc.sog_simple',
@@ -123,18 +154,31 @@ export const WIDGET_DEFINITIONS: WidgetDefinition[] = [
     }
 ];
 
-// Default layout configuration
+// Default layout configuration — composite panels only; instruments are added
+// by the user from the widget library.
+const DEFAULT_PANEL_LAYOUT: { id: string; visible: boolean }[] = [
+    { id: 'navigation-card', visible: true },
+    { id: 'wind-card', visible: true },
+    { id: 'engine-card', visible: true },
+    { id: 'depth-card', visible: true },
+    { id: 'power-card', visible: true },
+    { id: 'environment-card', visible: true },
+    { id: 'system-card', visible: true },
+    { id: 'sog-simple', visible: false },
+    { id: 'heading-simple', visible: false },
+    { id: 'depth-simple', visible: false }
+];
+
 export const DEFAULT_LAYOUT: DashboardLayout = {
-    widgets: [
-        { id: 'navigation-card', visible: true, order: 0 },
-        { id: 'wind-card', visible: true, order: 1 },
-        { id: 'engine-card', visible: true, order: 2 },
-        { id: 'depth-card', visible: true, order: 3 },
-        { id: 'power-card', visible: true, order: 4 },
-        { id: 'environment-card', visible: true, order: 5 },
-        { id: 'system-card', visible: true, order: 6 },
-        { id: 'sog-simple', visible: false, order: 7 },
-        { id: 'heading-simple', visible: false, order: 8 },
-        { id: 'depth-simple', visible: false, order: 9 }
-    ]
+    widgets: DEFAULT_PANEL_LAYOUT.map((entry, order) => {
+        const def = WIDGET_DEFINITIONS.find((d) => d.id === entry.id);
+        return {
+            id: entry.id,
+            kind: 'panel' as const,
+            refId: entry.id,
+            size: def?.size ?? 'S',
+            visible: entry.visible,
+            order,
+        };
+    })
 };

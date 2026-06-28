@@ -1,5 +1,5 @@
 import { Injectable, NgZone, computed, signal } from '@angular/core';
-import { AisTarget, AisTrackPoint } from '../../core/models/ais.model';
+import { AisTarget, AisTrackPoint, inferAisClassFromMmsi } from '../../core/models/ais.model';
 import { calculateCpa } from '../../core/calculations/cpa';
 import { DatapointStoreService } from '../datapoints/datapoint-store.service';
 import { PATHS } from '@omi/marine-data-contract';
@@ -95,7 +95,7 @@ export class AisStoreService {
     if (rot !== undefined) updated.rot = rot;
     const state = data.state ?? existing?.state;
     if (state !== undefined) updated.state = state;
-    const vesselClass = data.class ?? existing?.class;
+    const vesselClass = data.class ?? existing?.class ?? inferAisClassFromMmsi(mmsi);
     if (vesselClass !== undefined) updated.class = vesselClass;
     const destination = data.destination ?? existing?.destination;
     if (destination !== undefined) updated.destination = destination;

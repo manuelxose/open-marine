@@ -1,0 +1,98 @@
+import { resolve } from "node:path";
+import { BenchRuntime } from "../runtime/bench-runtime.js";
+import { LiveRuntime } from "../runtime/live-runtime.js";
+import { SqliteStore } from "../persistence/sqlite-store.js";
+import { SimulationApiServer } from "../api/server.js";
+import { WsPublisher } from "../publishers/ws-publisher.js";
+import { listPresetScenarios } from "../scenarios/presets.js";
+import type { ExecutionConfig } from "../core/types.js";
+
+const defaultConfig: ExecutionConfig = {
+  mode: "live",
+  scenarioId: "basic-cruise",
+  parameters: {},
+  seed: 42,
+  speed: 1,
+  rateHz: 1,
+  signalKHost: "http://localhost:3000",
+  apiPort: 4100,
+};
+
+const main = async (): Promise<void> => {
+  const [command = "help", ...args] = process.argv.slice(2);
+  if (command === "list-scenarios") {
+    for (const scenario of listPresetScenarios()) console.log(`${scenario.id}\t${scenario.name}`);
+    return;
+  }
+  if (command === "live") {
+    const config = parseConfig(args, { ...defaultConfig, mode: "live" });
+    const runtime = new LiveRuntime(config, new WsPublisher(config.signalKHost ?? defaultConfig.signalKHost!, config.signalKToken ?? process.env.SIGNALK_TOKEN));
+    console.log(`[sim] live scenario=${config.scenarioId} rate=${config.rateHz}Hz speed=${config.speed}x host=${config.signalKHost}`);
+    await runtime.start();
+    return;
+  }
+  if (command === "bench" || command === "closed-loop") {
+    const config = parseConfig(args, { ...defaultConfig, mode: command === "bench" ? "bench" : "closed-loop", apiPort: 4100 });
+    const store = new SqliteStore(
+      resolve(config.storePath ?? process.env["BENCH_DB_PATH"] ?? "./data/simulation-platform.sqlite"),
+      numberEnv("BENCH_RETENTION_DAYS", 90),
+      numberEnv("BENCH_RETENTION_MAX_BYTES", 1_073_741_824),
+    );
+    const runtime = new BenchRuntime(store);
+    runtime.start();
+    const server = new SimulationApiServer({ port: config.apiPort ?? 4100, store, runManager: runtime.runManager });
+    const { port } = await server.start();
+    console.log(`[sim] ${command} api=http://localhost:${port}`);
+    process.once("SIGINT", async () => {
+      await server.stop();
+      runtime.stop();
+      process.exit(0);
+    });
+    return;
+  }
+  printHelp();
+};
+
+const parseConfig = (args: string[], base: ExecutionConfig): ExecutionConfig => {
+  const config = { ...base };
+  for (let i = 0; i < args.length; i += 1) {
+    const arg = args[i];
+    const value = args[i + 1];
+    if (!arg) continue;
+    if (arg === "--scenario" && value) { config.scenarioId = value; i += 1; }
+    else if (arg === "--host" && value) { config.signalKHost = value; i += 1; }
+    else if (arg === "--rate" && value) { config.rateHz = positiveNumber(value, config.rateHz); i += 1; }
+    else if (arg === "--speed" && value) { config.speed = positiveNumber(value, config.speed); i += 1; }
+    else if (arg === "--seed" && value) { config.seed = Number(value); i += 1; }
+    else if (arg === "--port" && value) { config.apiPort = Number(value); i += 1; }
+    else if (arg === "--db" && value) { config.storePath = value; i += 1; }
+    else if (arg === "--duration-ms" && value) { config.durationMs = Number(value); i += 1; }
+  }
+  return config;
+};
+
+const positiveNumber = (value: string, fallback: number): number => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+};
+
+const printHelp = (): void => {
+  console.log(`Marine Simulation Platform
+
+Commands:
+  live --scenario <id> --host <url> --rate <hz>
+  bench --port <port> --db <sqlite-path>
+  closed-loop --port <port> --db <sqlite-path>
+  list-scenarios
+`);
+};
+
+const numberEnv = (key: string, fallback: number): number => {
+  const parsed = Number(process.env[key]);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+};
+
+main().catch((error) => {
+  console.error(error instanceof Error ? error.message : error);
+  process.exit(1);
+});

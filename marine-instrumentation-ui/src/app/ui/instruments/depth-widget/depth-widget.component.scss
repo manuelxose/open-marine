@@ -45,7 +45,7 @@
     }
 
     .grid-label {
-      font-family: 'Space Grotesk', system-ui, sans-serif;
+      font-family: var(--font-family);
       font-size: 9px;
       fill: color-mix(in srgb, var(--gb-text-value) 50%, transparent);
       font-weight: 500;

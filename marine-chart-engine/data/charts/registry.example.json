@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "charts": [
+    {
+      "id": "example-local-raster",
+      "label": "Example Local Raster",
+      "kind": "raster",
+      "storage": "mbtiles",
+      "description": "Example legal local raster MBTiles package.",
+      "attribution": "Local chart data",
+      "minZoom": 0,
+      "maxZoom": 18,
+      "tileUrl": "http://localhost:8088/charts/example-local-raster/raster/{z}/{x}/{y}.png",
+      "mbtilesFile": "data/charts/example-local-raster.mbtiles"
+    }
+  ]
+}

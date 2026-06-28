@@ -1,49 +1,236 @@
-# Open Marine Agent Guide
+# Open Marine — AI Agent Operating System
 
-Keep this file small. Load detailed procedures from `.claude/skills/` or the personal Codex skill only when the task needs them.
+> Model-agnostic canonical brain. Every agent (Codex, Claude, Kimi) reads this first.
+> Keep responses concise. No introductions. No generic conclusions.
 
-Key-file index, sensor→screen data flow and performance rules: `.claude/references/architecture.md` (load on demand, before broad exploration).
+## 1. Repository Purpose
 
-## Repository Map
+Open Marine Instrumentation: modular marine navigation system.
+- Signal K data bus (Docker)
+- Angular 21 UI with MapLibre charts
+- TypeScript sensor gateway + Raspberry Python scripts
+- Deterministic simulator
+- Autopilot engine with safety-critical state machine
+- Test bench, chart toolkit, tile server
 
-- `marine-instrumentation-ui/`: Angular 21 UI, Signal K data access, MapLibre chart, dashboard and instruments.
-- `marine-data-contract/`: shared Signal K paths, units, quality flags and data point types.
-- `marine-sensor-gateway/`: TypeScript gateway plus Raspberry Python scripts for GPS, IMU and AIS publishing.
-- `marine-autopilot-engine/`: autopilot control service (state machine, PID, safety/watchdog, abstract MotorController: sim/serial/gpio/can). Reads sensors from Signal K, serves the v2 autopilot command API the UI uses, publishes `steering.autopilot.*`.
-- `marine-data-simulator/`: simulator scenarios and Signal K HTTP/WebSocket publishers.
-- `signalk-runtime/`: Docker Compose and Signal K plugin/settings data.
-- `marine-chart-toolkit/` and `marine-tile-server/`: MBTiles tooling and tile serving.
-- `scripts/`: cross-platform setup, migration, status and Raspberry helpers.
+## 2. Module Map (one line each)
 
-## Commands
+| Module | Entry | Validation | Depends |
+|---|---|---|---|
+| `marine-data-contract` | `src/index.ts` | `npm run test:contract` | none |
+| `marine-sensor-gateway` | `src/cli.ts` | `npm run test:gateway` | contract |
+| `marine-simulation-platform` | `src/cli/index.ts` | `npm run test:simulation` | contract |
+| `marine-instrumentation-ui` | `src/main.ts` | `npm run build:ui` | contract |
+| `marine-autopilot-engine` | `src/cli.ts` | `npm run test:autopilot` | contract |
+| `marine-chart-toolkit` | `dist/index.js` (CLI) | `npm run build:toolkit` | none |
+| `marine-chart-engine` | `dist/server.js` | `npm run test:charts` | none |
+| `marine-tile-server` | `dist/index.js` | `npm run build:tile-server` | none |
+| `signalk-runtime` | `docker compose up -d` | `docker ps --filter name=signalk` | none |
+| `scripts/` | cross-platform `.mjs` | `npm run status` | varies |
 
-- Root init: `npm run init`
-- Signal K: `npm run start:signalk`, `npm run stop:signalk`, `npm run logs:signalk`
-- Shared contract: `npm run build:contract`; or `cd marine-data-contract && npm run test:run`
-- UI: `cd marine-instrumentation-ui && npm run build`; `npm run start:ui` from root for LAN dev server.
-- Sensor gateway: `cd marine-sensor-gateway && npm test && npm run build`
-- Autopilot engine: `cd marine-autopilot-engine && npm test && npm run build`; bench: `AP_MOTOR_BACKEND=sim npm run dev` (or `npm run start:autopilot` from root)
-- Simulator: `cd marine-data-simulator && npm run build`
-- Status: `npm run status`
+## 3. Task Routing Table
 
-## Token Discipline
+Route by keyword → mode → narrowest validation.
 
-- Search first with `rg` or `rg --files`; read only the files needed for the current change.
-- Do not inspect `node_modules`, `dist`, `dist-tmp`, `.angular`, logs, coverage or generated bundles unless the bug is specifically inside generated output.
-- Prefer package-level validation over whole-repo sweeps.
-- Summarize large files instead of pasting them into the conversation.
-- When exploring broadly, delegate to a focused subagent and ask for concise findings.
+| Keywords | Mode | Module | Validation |
+|---|---|---|---|
+| path, DataPoint, unit, quality, PATHS | `MODE_CONTRACT_FIRST` | contract | `npm run test:contract` |
+| GPS, IMU, AIS, wind, NMEA, serial, gateway, publisher, rpi | `MODE_SENSOR_GATEWAY` | gateway | `npm run test:gateway` |
+| scenario, simulator, demo, timeline, publish | `MODE_SIMULATOR` | simulation-platform | `npm run test:simulation` |
+| Angular, component, route, chart, instrument, dashboard, style, PWA, lazy | `MODE_UI_CHANGE` | UI | `npm run build:ui` |
+| autopilot, PID, motor, steering, watchdog, heartbeat, failsafe, E-stop, drive-test | `MODE_AUTOPILOT_SAFETY` | autopilot | `npm run test:autopilot` |
+| test-bench, isolated, simulation orchestration | `MODE_TEST_BENCH` | simulation-platform | `npm run test:simulation` |
+| Signal K, Docker, plugin, runtime, WebSocket, HTTP | `MODE_SIGNALK_RUNTIME` | signalk-runtime | `docker ps --filter name=signalk` |
+| Raspberry, systemd, SSH, deploy, omi-gps, omi-imu, omi-ui | `MODE_RASPBERRY_DEPLOY` | scripts + Raspberry | `npm run status` + SSH checks |
+| MBTiles, chart, tile, map data, rendering | `MODE_CHARTS_AND_TILES` | chart-toolkit + tile-server | `npm run build:toolkit` ; `npm run build:tile-server` |
+| CI, GitHub Actions, workflow, build matrix | `MODE_CI_VALIDATION` | root `.github/workflows` | `npm run status` + per-package builds |
+| review, diff, regression, secret, leak | `MODE_REVIEW` | all touched | narrowest per touched module |
+| error, bug, crash, log, diagnose | `MODE_ERROR_DIAGNOSIS` | affected module | narrowest command + logs |
+| docs, reference, compress, memory | `MODE_DOC_COMPRESSION` | `.claude/references/` | n/a |
 
-## Safety
+## 4. Context-Loading Rules
+
+1. **Search before open.** Use `rg` or `rg --files` first.
+2. **Reference before exploration.** Load `.claude/references/architecture.md` only when file routing or data flow is unclear. Load `.claude/references/design-system.md` only for UI styling. Load `.claude/references/validation.md` only when validation strategy is unclear. Load `.claude/references/safety.md` only for autopilot safety questions.
+3. **Module before repo.** Read only the package that changed. Cross-module changes start at contract.
+4. **Patch before rewrite.** Propose diffs, not full files.
+5. **Summary before full file.** If a file >100 lines is needed, summarize first 20 and last 20 unless the change requires middle details.
+
+## 5. Token Budget Rules (hard ceilings)
+
+| Output type | Max tokens |
+|---|---|
+| Simple answer | 250 |
+| Direct diagnosis | 600 |
+| Diff review | 900 |
+| Implementation plan | 1000 |
+| Patch proposal | 1200 |
+| Architecture decision | 1500 |
+| Full agent-layer audit | 2500 |
+| Repository map update | 3000 |
+
+If exceeded: split by subsystem, compress, or ask user which subsystem.
+
+## 6. Model Portability Rules
+
+### Codex
+- Use `AGENTS.md` as the complete instruction source.
+- Do not rely on Claude subagents or skills.
+- Use task modes as plain text routing rules.
+- Prefer exact patches.
+- Use narrow validation.
+- Keep answers concise.
+
+### Claude Code
+- Read `AGENTS.md` first, then `CLAUDE.md`.
+- Use `.claude/skills/` only when the task matches the skill name.
+- Use `.claude/agents/` only for broad exploration or review, not for every task.
+- Load `.claude/references/` on demand, never all by default.
+- Keep `CLAUDE.md` thin; do not duplicate `AGENTS.md`.
+
+### Kimi
+- Use compressed task context: module name + task + `AGENTS.md`.
+- Do not load the whole repo.
+- Use `PROJECT_STATE_SUMMARY` from `.claude/references/architecture.md` only if needed.
+- Prefer: decision + patch + validation.
+- Avoid long explanations.
+
+## 7. Contract-First Rules
+
+- `marine-data-contract` is the single source of truth for Signal K paths, types, units, quality.
+- No duplicated Signal K strings in gateway, simulator, UI, or autopilot.
+- Import contract as `@omi/marine-data-contract`.
+- Contract changes must validate first: `cd marine-data-contract && npm run test:run && npm run build`.
+- Downstream packages rebuild after contract changes.
+
+## 8. Autopilot Safety Rules (hard)
+
+- **STANDBY by default.** No motor enable at boot.
+- **No hardware backend without explicit configuration.** Simulator-first validation always.
+- **No actuator control without failsafe.** Watchdog must cut motor. Heartbeat must be present.
+- **E-stop must latch.** Faults must be explicit and visible in Signal K state.
+- **Drive-test only in STANDBY.** Never drive-test while ENGAGED or AUTO.
+- **Signal K state visibility.** Autopilot publishes `steering.autopilot.*` via contract paths.
+- **Serial/GPIO/CAN are opt-in.** Never default to real hardware.
+- **Test bench must never control real hardware.** Isolated ports, local DB only.
+
+## 9. UI / Design-System Rules
+
+- Use `APP_ENVIRONMENT` token for all endpoints.
+- Use Glass Bridge `--gb-*` tokens; never hardcode colors.
+- MapLibre WebGL paint is the only exception: literal hex + comment mapping to token.
+- Standalone components, lazy routes, `OnPush`.
+- Heavy/recurring work outside `NgZone`.
+- Coalesce high-frequency streams (AIS, fast sensors).
+
+## 10. Raspberry / Secrets Rules
 
 - Never commit credentials. `config/omi.env` and `config/raspberry.env` are local-only.
-- Do not change or revert unrelated dirty files. Work around existing edits unless the user asks to reset them.
-- Keep Raspberry passwords out of docs, skills, agents and committed configs.
-- Treat `.claude/settings.local.json` as local machine state, not shared project policy.
+- Use SSH aliases (`omi-raspberry-lan`, `omi-raspberry-cable`), never raw passwords in docs.
+- Prefer read-only diagnostics before restarts.
+- Preserve systemd services: `omi-ui`, `omi-gps`, `omi-imu`, `omi-wind`, `omi-ais`, `omi-autopilot`, `signalk`.
 
-## Project Conventions
+## 11. CI Validation Matrix
 
-- Use TypeScript modules and existing package patterns.
-- Keep Signal K paths in `marine-data-contract` before duplicating strings elsewhere.
-- For UI work, use existing standalone Angular components, lazy routes and shared design tokens.
-- For Raspberry work, verify systemd services and Signal K availability before changing scripts.
+Run only the narrowest command for the changed module.
+
+| Module | Command |
+|---|---|
+| Contract | `npm run test:contract` |
+| Gateway | `npm run test:gateway` |
+| Simulation platform | `npm run test:simulation` |
+| UI | `npm run build:ui` |
+| Autopilot | `npm run test:autopilot` |
+| Chart toolkit | `npm run build:toolkit` |
+| Chart engine | `npm run test:charts` |
+| Tile server | `npm run build:tile-server` |
+| Root status | `npm run status` |
+| Full build | `npm run build` |
+
+Only run full cross-module validation if the change touches `marine-data-contract` or shared types.
+
+## 12. Response Formats
+
+### Implementation
+```
+PATCH PLAN
+- file:
+  - change:
+VALIDATION
+- command
+```
+
+### Review
+```
+FINDINGS
+1. [severity] file/path
+   - Issue:
+   - Fix:
+VALIDATION
+- command
+```
+
+### Diagnosis
+```
+RESULT
+- Mode:
+- Files:
+- Decision:
+- Change:
+- Validation:
+- Risk:
+```
+
+### Prompt (for subagents)
+```
+PROMPT
+[clean prompt only]
+```
+
+No introductions. No restatement of user request. No generic offers.
+
+## 13. Files / Directories Never to Read
+
+- `node_modules/`
+- `dist/`, `dist-tmp/`
+- `.angular/`
+- `coverage/`
+- `logs/` (unless debugging a specific runtime issue)
+- Generated bundles, service worker output
+- `package-lock.json` unless dependency resolution is the task
+- Large binary/chart data files unless chart tooling requires them
+- `.env`, `config/omi.env`, `config/raspberry.env`
+
+## 14. References to Load On Demand
+
+| Reference | When |
+|---|---|
+| `.claude/references/architecture.md` | File routing, data flow, key-file index, performance rules |
+| `.claude/references/design-system.md` | UI styling, tokens, Glass Bridge theme |
+| `.claude/references/validation.md` | Validation strategy, CI matrix, test commands |
+| `.claude/references/safety.md` | Autopilot safety rules, failsafe, watchdog, E-stop |
+| `docs/CHARTS.md` | Chart formats, import CLI, GDAL/tippecanoe, bathymetry |
+| `docs/RASPBERRY_CONNECTION.md` | SSH config, IP addresses, MACs, DHCP helper, service checks |
+| `docs/RASPBERRY_DEPLOYMENT.md` | Service matrix, chart storage, chart engine install, diagnostics |
+| `docs/WIND_GPS_DEMO.md` | Wind-gps demo scenario, NMEA 0183 wind sensor setup, systemd |
+
+## 15. Claude Skills & Agents (`.claude/`)
+
+Skills (specialized capabilities): `omi-autopilot-safety`, `omi-contract-first`, `omi-raspberry`, `omi-review`, `omi-run`, `omi-sensor-change`, `omi-test-bench`, `omi-ui-change`.
+
+Agents (subagent definitions with model hints): `omi-autopilot-safety`, `omi-backend-explorer`, `omi-chart-explorer`, `omi-ci-validator`, `omi-raspberry-operator`, `omi-reviewer`, `omi-sim-explorer`, `omi-test-bench`, `omi-ui-explorer`.
+
+Rules (path-based agent rules): `sensors.md`, `signalk.md`, `ui.md`.
+
+## 16. Concise Professional Output Rules
+
+- No motivational text.
+- No generic conclusions.
+- No "here is a comprehensive overview" unless asked.
+- No long bullet lists when 3 bullets are enough.
+- No full file output unless required.
+- No repeated module map.
+- No repeated validation matrix.
+- No chain-of-thought.
+- Use short professional English for technical output (project code uses English).
+- Spanish only when the user writes in Spanish.

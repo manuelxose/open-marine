@@ -25,7 +25,7 @@ export class ChartControlsComponent implements OnChanges {
   @Output() toggleOpenSeaMap = new EventEmitter<void>();
 
   intervalsText = '';
-  error: string | null = null;
+  rangeRingError: string | null = null;
   private isEditingIntervals = false;
   private lastIntervalsSignature = '';
 
@@ -73,17 +73,17 @@ export class ChartControlsComponent implements OnChanges {
 
   onIntervalsInput(raw: string): void {
     this.intervalsText = raw;
-    this.error = null;
+    this.rangeRingError = null;
     this.isEditingIntervals = true;
   }
 
   applyIntervals(): void {
     const parsed = this.parseIntervals(this.intervalsText);
     if (!parsed || parsed.length === 0) {
-      this.error = 'chart.controls.range_rings_error';
+      this.rangeRingError = 'chart.controls.range_rings_error';
       return;
     }
-    this.error = null;
+    this.rangeRingError = null;
     const signature = parsed.join(', ');
     this.intervalsText = signature;
     this.lastIntervalsSignature = signature;
@@ -114,4 +114,5 @@ export class ChartControlsComponent implements OnChanges {
     const uniqueSorted = Array.from(new Set(numbers)).sort((a, b) => a - b);
     return uniqueSorted;
   }
+
 }

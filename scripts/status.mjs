@@ -90,6 +90,11 @@ async function checkAutopilot() {
   }
 }
 
+async function checkChartEngine() {
+  const port = process.env.CHART_ENGINE_PORT || "8088";
+  await checkHttp("Chart engine", `http://localhost:${port}/health`);
+}
+
 async function main() {
   console.log("\nOMI System Status\n");
 
@@ -98,6 +103,7 @@ async function main() {
   checkUdpPort();
   await checkAisTargets();
   await checkAutopilot();
+  await checkChartEngine();
 
   console.log("");
 }

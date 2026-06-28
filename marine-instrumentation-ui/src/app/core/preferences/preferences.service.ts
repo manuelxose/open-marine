@@ -2,11 +2,10 @@ import { Injectable, Inject, PLATFORM_ID } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { BehaviorSubject, Observable } from 'rxjs';
 import { map, distinctUntilChanged } from 'rxjs/operators';
-import { 
-  UserPreferences, 
-  DEFAULT_PREFERENCES, 
-  ThemeMode, 
-  DensityMode,
+import {
+  UserPreferences,
+  DEFAULT_PREFERENCES,
+  ThemeMode,
   SpeedUnit,
   DepthUnit
 } from './preferences.schema';
@@ -64,11 +63,6 @@ export class PreferencesService {
     this.applyTheme(theme);
   }
 
-  setDensity(density: DensityMode): void {
-    this.update({ density });
-    this.applyDensity(density);
-  }
-
   setSpeedUnit(speed: SpeedUnit): void {
     this.update((current) => ({
       ...current,
@@ -116,11 +110,6 @@ export class PreferencesService {
     this.setTheme(next);
   }
 
-  toggleDensity(): void {
-    const next = this.snapshot.density === 'comfortable' ? 'compact' : 'comfortable';
-    this.setDensity(next);
-  }
-
   private load(): void {
     if (!isPlatformBrowser(this.platformId)) return;
 
@@ -131,7 +120,6 @@ export class PreferencesService {
         const migrated = migratePreferences(parsed);
         this._prefs$.next(migrated);
         this.applyTheme(migrated.theme);
-        this.applyDensity(migrated.density);
       } else {
         // Handle legacy key if v2 doesn't exist
         const legacy = localStorage.getItem('omi-preferences');
@@ -139,7 +127,6 @@ export class PreferencesService {
            const migrated = migratePreferences(JSON.parse(legacy));
            this._prefs$.next(migrated);
            this.applyTheme(migrated.theme);
-           this.applyDensity(migrated.density);
            // Save to new key
            this.save(migrated);
         }
@@ -158,10 +145,5 @@ export class PreferencesService {
     if (!isPlatformBrowser(this.platformId)) return;
     document.documentElement.setAttribute('data-theme', theme);
     document.body.setAttribute('data-theme', theme);
-  }
-
-  private applyDensity(density: DensityMode): void {
-    if (!isPlatformBrowser(this.platformId)) return;
-    document.body.classList.toggle('compact-mode', density === 'compact');
   }
 }

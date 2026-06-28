@@ -12,18 +12,11 @@
     "format": "prettier --write ."
   },
   "dependencies": {
-    "@omi/marine-data-contract": "file:../marine-data-contract",
-    "ws": "^8.19.0"
+    "@omi/marine-data-contract": "*",
+    "ws": "^8.21.0"
   },
   "devDependencies": {
     "@types/node": "^20.14.10",
-    "@types/ws": "^8.18.1",
-    "@typescript-eslint/eslint-plugin": "^7.16.0",
-    "@typescript-eslint/parser": "^7.16.0",
-    "eslint": "^8.57.0",
-    "eslint-config-prettier": "^9.1.0",
-    "prettier": "^3.3.3",
-    "tsx": "^4.15.6",
-    "typescript": "^5.5.4"
+    "@types/ws": "^8.18.1"
   }
 }

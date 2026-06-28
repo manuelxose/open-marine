@@ -19,6 +19,18 @@ function Warn([string]$Message) { Write-Host "[OMI] $Message" -ForegroundColor Y
 function Err([string]$Message)  { Write-Host "[OMI] $Message" -ForegroundColor Red }
 function Info([string]$Message) { Write-Host "[OMI] $Message" -ForegroundColor Cyan }
 
+function Invoke-CheckedCommand {
+  param(
+    [Parameter(Mandatory = $true)][string]$FilePath,
+    [Parameter(ValueFromRemainingArguments = $true)][string[]]$Arguments
+  )
+
+  & $FilePath @Arguments
+  if ($LASTEXITCODE -ne 0) {
+    throw "Comando fallido ($LASTEXITCODE): $FilePath $($Arguments -join ' ')"
+  }
+}
+
 function Load-OmiConfigFile {
   param(
     [Parameter(Mandatory = $true)][string]$Path
@@ -69,9 +81,10 @@ function Initialize-OmiConfig {
 function Assert-ProjectStructure {
   $required = @(
     "marine-data-contract",
-    "marine-data-simulator",
+    "marine-simulation-platform",
     "marine-sensor-gateway",
     "marine-instrumentation-ui",
+    "marine-chart-engine",
     "signalk-runtime"
   )
 
@@ -374,31 +387,24 @@ function Initialize-SignalK {
 }
 
 function Build-Packages {
-  Log "Instalando dependencias y compilando paquetes..."
+  Log "Instalando dependencias con npm workspaces..."
 
-  Push-Location (Join-Path $ProjectRoot "marine-data-contract")
-  npm install
-  npm run build
-  Log "marine-data-contract OK"
+  Push-Location $ProjectRoot
+  Invoke-CheckedCommand npm install --workspaces --include-workspace-root --legacy-peer-deps
+
+  Log "Compilando contrato y plataforma de simulacion..."
+  Invoke-CheckedCommand npm run build:contract
+  Invoke-CheckedCommand npm run build:simulation
+
+  Log "Compilando paquetes principales..."
+  Invoke-CheckedCommand npm run build:gateway
+  Invoke-CheckedCommand npm run build:ui
+  Invoke-CheckedCommand npm run build:charts
+  Invoke-CheckedCommand npm run build:tile-server
+  Invoke-CheckedCommand npm run build:autopilot
   Pop-Location
 
-  Push-Location (Join-Path $ProjectRoot "marine-data-simulator")
-  npm install
-  npm run build
-  Log "marine-data-simulator OK"
-  Pop-Location
-
-  Push-Location (Join-Path $ProjectRoot "marine-instrumentation-ui")
-  npm install
-  npm run build
-  Log "marine-instrumentation-ui OK"
-  Pop-Location
-
-  Push-Location (Join-Path $ProjectRoot "marine-sensor-gateway")
-  npm install
-  npm run build
-  Log "marine-sensor-gateway OK"
-  Pop-Location
+  Log "Paquetes compilados OK"
 }
 
 function Resolve-AisCatcherWindowsZip {
@@ -556,11 +562,15 @@ function Show-Summary {
   }
   Write-Host "  UDP AIS:   puerto 10110" -ForegroundColor Cyan
   Write-Host ""
+  Write-Host "  Chart Engine: npm run start:charts" -ForegroundColor Yellow
+  Write-Host "    (puerto 8088)" -ForegroundColor Yellow
+  Write-Host ""
   Write-Host "  UI:         npm run start:ui" -ForegroundColor Yellow
   if ($lanIp) {
     Write-Host "  UI en red:   http://$($lanIp):4200" -ForegroundColor Yellow
   }
-  Write-Host "  Simulator:  cd marine-data-simulator; npm run dev" -ForegroundColor Yellow
+  Write-Host "  Simulation API: npm run start:simulation-bench" -ForegroundColor Yellow
+  Write-Host "  Simulator:  npm run start:simulator" -ForegroundColor Yellow
   Write-Host "  Nota:       localhost solo funciona en esta maquina." -ForegroundColor Yellow
   Write-Host ""
   Write-Host "  AIS real:" -ForegroundColor Yellow
@@ -646,6 +656,15 @@ function Select-SimulatorRate {
 }
 
 function Start-PostInitServices {
+  $startChartEngineResponse = Read-Host "Deseas arrancar Chart Engine ahora? (s/n)"
+  if ($startChartEngineResponse -in @("s", "S", "y", "Y")) {
+    Start-BackgroundPowerShell `
+      -Name "Chart Engine" `
+      -WorkingDir $ProjectRoot `
+      -Command "npm run start:charts"
+    Log "Chart Engine arrancado en ventana separada."
+  }
+
   $startUiResponse = Read-Host "Deseas arrancar UI ahora? (s/n)"
   if ($startUiResponse -in @("s", "S", "y", "Y")) {
     Start-BackgroundPowerShell `
@@ -655,15 +674,24 @@ function Start-PostInitServices {
     Log "UI arrancada en ventana separada."
   }
 
+  $startTestBenchResponse = Read-Host "Deseas arrancar el servidor de simulacion enterprise ahora? (s/n)"
+  if ($startTestBenchResponse -in @("s", "S", "y", "Y")) {
+    Start-BackgroundPowerShell `
+      -Name "Simulation API" `
+      -WorkingDir $ProjectRoot `
+      -Command "npm run start:simulation-bench"
+    Log "Simulation API arrancada en ventana separada."
+  }
+
   $startSimResponse = Read-Host "Deseas arrancar Simulator ahora? (s/n)"
   if ($startSimResponse -in @("s", "S", "y", "Y")) {
     $scenario = Select-SimulatorScenario
     $rate = Select-SimulatorRate
-    $simCommand = "npm run dev -- --scenario $scenario --rate $rate"
+    $simCommand = "npm run start:simulator -- --scenario $scenario --rate $rate"
 
     Start-BackgroundPowerShell `
       -Name "Simulator" `
-      -WorkingDir (Join-Path $ProjectRoot "marine-data-simulator") `
+      -WorkingDir $ProjectRoot `
       -Command $simCommand
 
     Log "Simulator arrancado en ventana separada (scenario=$scenario, rate=${rate}Hz)."

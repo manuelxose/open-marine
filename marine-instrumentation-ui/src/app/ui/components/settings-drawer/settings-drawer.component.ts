@@ -50,17 +50,6 @@ import { LayoutService } from '../../../core/services/layout.service';
                     </button>
                 </div>
 
-                <div class="flex items-center justify-between">
-                    <span class="text-[var(--fg)]">Compact Mode</span>
-                    <button 
-                        (click)="toggleCompact()" 
-                        class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--accent)] focus:ring-offset-2"
-                        [class.bg-[var(--accent)]]="(prefs.preferences$ | async)?.density === 'compact'"
-                        [class.bg-[var(--surface-2)]]="(prefs.preferences$ | async)?.density !== 'compact'"
-                    >
-                        <span class="translate-x-1 inline-block h-4 w-4 transform rounded-full bg-white transition-transform" [class.translate-x-6]="(prefs.preferences$ | async)?.density === 'compact'"></span>
-                    </button>
-                </div>
             </section>
 
             <!-- Units -->
@@ -158,10 +147,6 @@ export class SettingsDrawerComponent {
 
     trackByWidget(_index: number, def: { id: string }): string {
         return def.id;
-    }
-
-    toggleCompact() {
-        this.prefs.toggleDensity();
     }
 
     onSpeedUnitChange(event: Event) {

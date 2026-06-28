@@ -57,8 +57,8 @@ if (isPidRunning(".omi-wind-demo-simulator.pid")) {
 } else {
   startDetached(
     "simulator",
-    join(projectRoot, "marine-data-simulator"),
-    ["run", "dev", "--", "--scenario", "wind-gps-demo", "--rate", "2"],
+    projectRoot,
+    ["run", "start:simulator", "--", "--scenario", "wind-gps-demo", "--rate", "2"],
     ".omi-wind-demo-simulator.log",
     ".omi-wind-demo-simulator.pid",
   );

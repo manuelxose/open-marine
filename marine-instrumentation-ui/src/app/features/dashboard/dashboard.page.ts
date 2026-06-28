@@ -18,11 +18,17 @@ import { SystemPanelComponent } from './components/panels/system-panel/system-pa
 import { EnginePanelComponent } from './components/panels/engine-panel/engine-panel.component';
 import { EnvironmentPanelComponent } from './components/panels/environment-panel/environment-panel.component';
 import { AppIconComponent } from '../../shared/components/app-icon/app-icon.component';
+import { InstrumentTileComponent } from './components/instrument-tile/instrument-tile.component';
+import { WidgetLibraryComponent } from './components/widget-library/widget-library.component';
+import { AutopilotCompassComponent } from '../autopilot/components/autopilot-compass/autopilot-compass.component';
+import { getInstrumentById, type InstrumentDefinition } from '../instruments/data/instrument-catalog';
+import type { LibraryItem } from './data/widget-library';
 import type { DashboardMetricVm } from './types/dashboard-vm';
 
 interface DashboardWidgetCardVm {
   config: WidgetConfig;
   definition: WidgetDefinition | undefined;
+  instrument: InstrumentDefinition | undefined;
 }
 
 @Component({
@@ -39,6 +45,9 @@ interface DashboardWidgetCardVm {
     SystemPanelComponent,
     EnginePanelComponent,
     EnvironmentPanelComponent,
+    InstrumentTileComponent,
+    WidgetLibraryComponent,
+    AutopilotCompassComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './dashboard.page.html',
@@ -52,7 +61,6 @@ export class DashboardPage {
   );
 
   /* ── Observables → Signals ── */
-  readonly isCompact = toSignal(this.facade.isCompact$, { initialValue: false });
   readonly layout = toSignal(this.layoutService.layout$, { initialValue: DEFAULT_LAYOUT });
   readonly criticalVm = toSignal(this.facade.criticalStripVm$);
   readonly navigationVm = toSignal(this.facade.navigationVm$);
@@ -68,7 +76,6 @@ export class DashboardPage {
   /* ── Local UI state ── */
   readonly editMode = signal(false);
   readonly showPalette = signal(false);
-  readonly widgetDefinitions = WIDGET_DEFINITIONS;
   readonly degreeUnit = '\u00B0';
 
   /* ── Computed ── */
@@ -79,12 +86,17 @@ export class DashboardPage {
       .sort((a, b) => a.order - b.order)
       .map((config) => ({
         config,
-        definition: this.definitionById.get(config.id),
+        definition: config.kind === 'panel' ? this.definitionById.get(config.refId) : undefined,
+        instrument: config.kind === 'instrument' ? getInstrumentById(config.refId) : undefined,
       }));
   });
 
-  readonly visibleCount = computed(() => this.visibleCards().length);
-  readonly totalCount = computed(() => this.layout()?.widgets?.length ?? 0);
+  /** refIds of panels currently visible (drives the library "active" state). */
+  readonly activePanelIds = computed(() =>
+    (this.layout()?.widgets ?? [])
+      .filter((w) => w.kind === 'panel' && w.visible)
+      .map((w) => w.refId),
+  );
 
   /* ── Actions ── */
   toggleEditMode(): void {
@@ -97,10 +109,6 @@ export class DashboardPage {
     this.showPalette.update((v) => !v);
   }
 
-  toggleDensity(): void {
-    this.facade.toggleDensity();
-  }
-
   dismissError(): void {
     this.facade.clearError();
   }
@@ -109,12 +117,29 @@ export class DashboardPage {
     this.layoutService.reset();
   }
 
-  isWidgetVisible(id: string): boolean {
-    return (this.layout()?.widgets ?? []).find((w) => w.id === id)?.visible ?? false;
+  /** Add from the library: panels toggle visibility, instruments are appended. */
+  onLibrarySelect(item: LibraryItem): void {
+    if (item.kind === 'panel' && this.activePanelIds().includes(item.refId)) {
+      this.layoutService.setWidgetVisibility(item.refId, false);
+      return;
+    }
+    this.layoutService.addWidget(item.kind, item.refId, item.size);
   }
 
-  toggleWidget(widgetId: string): void {
-    this.layoutService.toggleWidget(widgetId);
+  /** Remove a tile: panels are hidden, instruments are removed outright. */
+  removeCard(card: DashboardWidgetCardVm): void {
+    if (card.config.kind === 'instrument') {
+      this.layoutService.removeWidget(card.config.id);
+    } else {
+      this.layoutService.setWidgetVisibility(card.config.refId, false);
+    }
+  }
+
+  cardTitle(card: DashboardWidgetCardVm): string {
+    if (card.config.kind === 'instrument') {
+      return card.instrument?.label ?? card.config.refId;
+    }
+    return this.widgetTitle(card.definition, card.config.refId);
   }
 
   onWidgetDrop(event: CdkDragDrop<DashboardWidgetCardVm[]>): void {
