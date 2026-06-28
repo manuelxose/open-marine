@@ -38,6 +38,7 @@ const VIEW_MODE_ICONS: Record<InstrumentViewMode, { icon: string; label: string 
           class="view-toggle"
           (click)="cycleView()"
           [title]="'View: ' + viewModeLabel()"
+          [attr.aria-label]="'Toggle instrument view, current ' + viewModeLabel()"
           type="button"
         >
           <span class="view-toggle__icon">{{ viewModeIcon() }}</span>
@@ -66,15 +67,18 @@ const VIEW_MODE_ICONS: Record<InstrumentViewMode, { icon: string; label: string 
 
     /* ── Container frame ───────────────────────────── */
     .instrument-container {
-      background: var(--glass-bg, var(--gb-bg-panel));
+      background: var(--widget-bg);
       backdrop-filter: blur(var(--glass-blur, 16px));
       -webkit-backdrop-filter: blur(var(--glass-blur, 16px));
-      border: 1px solid var(--glass-border, var(--gb-border-panel));
-      border-radius: var(--glass-card-radius-sm, 14px);
+      border: 1px solid var(--widget-border);
+      border-radius: var(--widget-radius);
       overflow: hidden;
       display: flex;
       flex-direction: column;
-      transition: border-color 0.25s ease, box-shadow 0.25s ease, transform 0.25s ease;
+      transition:
+        border-color var(--gb-anim-theme) var(--gb-ease-data),
+        box-shadow var(--gb-anim-theme) var(--gb-ease-data),
+        transform var(--gb-anim-theme) var(--gb-ease-data);
       position: relative;
     }
 
@@ -86,16 +90,14 @@ const VIEW_MODE_ICONS: Record<InstrumentViewMode, { icon: string; label: string 
       left: 12%;
       right: 12%;
       height: 1px;
-      background: linear-gradient(90deg, transparent, var(--glass-shine, rgba(255,255,255,0.12)), transparent);
+      background: linear-gradient(90deg, transparent, var(--widget-shine), transparent);
       opacity: 0.5;
       z-index: 1;
     }
 
     .instrument-container:hover {
-      border-color: color-mix(in srgb, var(--glass-border) 60%, var(--primary, #4a90d9) 40%);
-      box-shadow:
-        var(--glass-hover-glow, 0 0 16px rgba(74,144,217,0.10)),
-        0 4px 20px rgba(0,0,0,0.12);
+      border-color: var(--widget-hover-border);
+      box-shadow: var(--widget-shadow-active);
       transform: translateY(-1px);
     }
 
@@ -105,18 +107,18 @@ const VIEW_MODE_ICONS: Record<InstrumentViewMode, { icon: string; label: string 
       align-items: center;
       justify-content: space-between;
       padding: var(--space-2, 8px) var(--space-3, 12px);
-      border-bottom: 1px solid var(--glass-border, var(--gb-border-panel));
-      background: linear-gradient(180deg, rgba(0,0,0,0.02), rgba(0,0,0,0.04));
+      border-bottom: 1px solid var(--widget-border);
+      background: var(--widget-header-bg);
       flex-shrink: 0;
     }
 
     .instrument-title {
-      font-family: 'Space Grotesk', sans-serif;
-      font-size: 0.65rem;
+      font-family: var(--font-family);
+      font-size: var(--widget-label-size);
       font-weight: 700;
       text-transform: uppercase;
-      letter-spacing: 0.12em;
-      color: var(--text-muted, var(--gb-text-muted));
+      letter-spacing: var(--widget-label-tracking);
+      color: var(--widget-label);
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
@@ -127,33 +129,40 @@ const VIEW_MODE_ICONS: Record<InstrumentViewMode, { icon: string; label: string 
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      width: 28px;
-      height: 28px;
-      min-width: 28px;
-      border-radius: 8px;
-      border: 1px solid var(--glass-border, var(--gb-border-panel));
-      background: var(--glass-bg, var(--gb-bg-glass));
+      width: 32px;
+      height: 32px;
+      min-width: 32px;
+      border-radius: var(--radius-md, 8px);
+      border: 1px solid var(--widget-border);
+      background: var(--gb-bg-glass);
       cursor: pointer;
-      transition: all 150ms ease;
+      transition:
+        border-color 150ms var(--gb-ease-data),
+        background 150ms var(--gb-ease-data);
       padding: 0;
       flex-shrink: 0;
     }
 
     .view-toggle:hover {
-      border-color: var(--primary, #4a90d9);
-      background: rgba(74, 144, 217, 0.08);
+      border-color: var(--widget-hover-border);
+      background: var(--widget-accent-soft);
+    }
+
+    .view-toggle:focus-visible {
+      outline: 2px solid var(--widget-accent);
+      outline-offset: 2px;
     }
 
     .view-toggle__icon {
-      font-family: 'Space Grotesk', sans-serif;
+      font-family: var(--font-family);
       font-size: 0.65rem;
       font-weight: 700;
-      color: var(--text-muted, var(--gb-text-muted));
+      color: var(--widget-label);
       line-height: 1;
     }
 
     .view-toggle:hover .view-toggle__icon {
-      color: var(--primary, #4a90d9);
+      color: var(--widget-accent);
     }
 
     /* ── Body ──────────────────────────────────────── */

@@ -54,7 +54,7 @@
 }
 
 .coord {
-  font-family: 'Share Tech Mono', 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 1.15rem;
   color: var(--text-primary);
   letter-spacing: 0.08em;
@@ -97,7 +97,7 @@
 }
 
 .metric-label {
-  font-family: 'Space Grotesk', sans-serif;
+  font-family: var(--font-family);
   font-size: 0.65rem;
   font-weight: 700;
   text-transform: uppercase;
@@ -113,7 +113,7 @@
 
 /* Primary value — large instrument-grade type */
 .value {
-  font-family: 'Share Tech Mono', 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 2.2rem;
   font-weight: 500;
   color: var(--text-primary);
@@ -134,7 +134,7 @@
 }
 
 .unit {
-  font-family: 'Space Grotesk', sans-serif;
+  font-family: var(--font-family);
   font-size: 0.75rem;
   font-weight: 600;
   color: var(--text-muted);
@@ -151,10 +151,3 @@
 .metric-row:hover .metric-trend {
   opacity: 0.9;
 }
-
-/* Compact mode */
-:host-context(.compact) .coord { font-size: 0.9rem; }
-:host-context(.compact) .value { font-size: 1.6rem; }
-:host-context(.compact) .metric-row:first-child .value { font-size: 2rem; }
-:host-context(.compact) .position-display { padding: var(--space-2) var(--space-3); }
-:host-context(.compact) .metric-row { padding: var(--space-2) var(--space-1); }

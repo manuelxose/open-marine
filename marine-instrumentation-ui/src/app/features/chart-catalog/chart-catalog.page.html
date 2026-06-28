@@ -1,0 +1,208 @@
+<ng-container *ngIf="vm$ | async as vm">
+  <section class="catalog-page">
+    <header class="page-header">
+      <div>
+        <p class="eyebrow">Nautical chart data</p>
+        <h1>Charts</h1>
+        <p class="subtitle">Manage local chart sources, imports, conversion jobs, and tile diagnostics.</p>
+      </div>
+      <div class="header-actions">
+        <a class="secondary-btn" routerLink="/chart">Open map</a>
+        <button class="primary-btn" type="button" (click)="refresh()">Refresh catalog</button>
+      </div>
+    </header>
+
+    <section class="status-card" [class.status-card--online]="vm.chartEngineStatus === 'online'" [class.status-card--error]="vm.chartEngineStatus === 'error' || vm.chartEngineStatus === 'offline'">
+      <div>
+        <span class="status-card__label">Chart engine</span>
+        <strong>{{ statusLabel(vm) }}</strong>
+      </div>
+      <p>{{ vm.chartEngineMessage }}</p>
+      <code *ngIf="vm.chartEngineStatus === 'offline'">sudo systemctl start omi-charts</code>
+    </section>
+
+    <nav class="tabs" aria-label="Chart management sections">
+      <button
+        type="button"
+        *ngFor="let tab of tabs"
+        [class.active]="activeTab === tab.id"
+        (click)="activeTab = tab.id">
+        {{ tab.label }}
+      </button>
+    </nav>
+
+    <div class="tab-panel" [ngSwitch]="activeTab">
+      <section *ngSwitchCase="'sources'" class="sources-layout">
+        <article class="panel">
+          <header class="panel__header">
+            <div>
+              <h2>Base maps</h2>
+              <p>Always available in the UI.</p>
+            </div>
+          </header>
+          <div class="source-grid">
+            <button
+              type="button"
+              class="source-card"
+              *ngFor="let source of vm.baseChartSources; trackBy: trackSource"
+              [class.active]="vm.sourceId === source.id"
+              (click)="selectSource(source.id)">
+              <span class="source-card__label">{{ source.label }}</span>
+              <span class="source-card__meta">{{ sourceMeta(source) }}</span>
+              <span class="source-card__description">{{ source.description ?? 'Built-in chart style.' }}</span>
+            </button>
+          </div>
+        </article>
+
+        <article class="panel">
+          <header class="panel__header">
+            <div>
+              <h2>Local charts</h2>
+              <p>Loaded from the chart engine catalog.</p>
+            </div>
+          </header>
+
+          <div class="empty-state" *ngIf="vm.localChartSources.length === 0">
+            {{ vm.chartEngineOnline ? 'No local charts imported yet.' : 'Start the chart engine to list local charts.' }}
+          </div>
+
+          <div class="source-grid">
+            <article
+              class="source-card source-card--local"
+              *ngFor="let source of vm.localChartSources; trackBy: trackSource"
+              [class.active]="vm.sourceId === source.id">
+              <button type="button" class="source-card__main" [disabled]="!source.available" (click)="selectSource(source.id)">
+                <span class="source-card__label">{{ source.label }}</span>
+                <span class="source-card__meta">{{ sourceMeta(source) }}</span>
+                <span class="source-card__description">{{ source.description ?? 'Local chart source.' }}</span>
+              </button>
+              <button type="button" class="danger-btn" (click)="deleteSource(source.id)">Delete</button>
+            </article>
+          </div>
+        </article>
+      </section>
+
+      <section *ngSwitchCase="'import'" class="import-layout">
+        <article class="panel import-panel">
+          <header class="panel__header">
+            <div>
+              <h2>Import charts</h2>
+              <p>Upload legal local chart data to the Raspberry chart engine.</p>
+            </div>
+          </header>
+
+          <fieldset [disabled]="!vm.chartEngineOnline">
+            <div class="form-grid">
+              <label>
+                <span>Chart label</span>
+                <input type="text" [value]="importLabel" (input)="importLabel = $any($event.target).value" placeholder="Rias Baixas raster" />
+              </label>
+              <label>
+                <span>Chart id</span>
+                <input type="text" [value]="importId" (input)="importId = $any($event.target).value" placeholder="rias-baixas-raster" />
+              </label>
+              <label>
+                <span>MBTiles type</span>
+                <select [value]="importChartKind" (change)="importChartKind = $any($event.target).value">
+                  <option value="raster">Raster</option>
+                  <option value="vector">Vector ENC</option>
+                </select>
+              </label>
+            </div>
+
+            <div class="import-options">
+              <div class="import-option">
+                <strong>MBTiles</strong>
+                <span>{{ selectedFileName('mbtiles') }}</span>
+                <label class="file-btn">
+                  <input type="file" accept=".mbtiles" (change)="onFileSelected('mbtiles', $event)" />
+                  Choose file
+                </label>
+                <button class="primary-btn" type="button" (click)="submitImport('mbtiles', vm)">Import</button>
+              </div>
+
+              <div class="import-option">
+                <strong>GeoTIFF / KAP</strong>
+                <span>{{ selectedFileName('raster') }}</span>
+                <label class="file-btn">
+                  <input type="file" accept=".tif,.tiff,.kap" (change)="onFileSelected('raster', $event)" />
+                  Choose file
+                </label>
+                <button class="primary-btn" type="button" (click)="submitImport('raster', vm)">Convert</button>
+              </div>
+
+              <div class="import-option">
+                <strong>Open S-57 .000</strong>
+                <span>{{ selectedFileName('s57') }}</span>
+                <label class="file-btn">
+                  <input type="file" accept=".000" (change)="onFileSelected('s57', $event)" />
+                  Choose file
+                </label>
+                <button class="primary-btn" type="button" (click)="submitImport('s57', vm)">Convert</button>
+              </div>
+            </div>
+          </fieldset>
+
+          <p class="hint error" *ngIf="importError">{{ importError }}</p>
+          <p class="hint" *ngIf="!vm.chartEngineOnline">Imports are disabled until the chart engine is online.</p>
+        </article>
+
+        <article class="panel">
+          <header class="panel__header">
+            <div>
+              <h2>Jobs</h2>
+              <p>Current upload and conversion status.</p>
+            </div>
+          </header>
+          <div class="empty-state" *ngIf="vm.chartJobs.length === 0">No import jobs yet.</div>
+          <div class="job-list">
+            <article class="job-row" *ngFor="let job of vm.chartJobs" [class.failed]="job.status === 'failed'">
+              <div>
+                <strong>{{ job.label }}</strong>
+                <span>{{ job.kind }} - {{ job.chartId }}</span>
+              </div>
+              <span class="job-status">{{ job.status }}</span>
+              <small *ngIf="job.error">{{ job.error }}</small>
+            </article>
+          </div>
+        </article>
+      </section>
+
+      <section *ngSwitchCase="'diagnostics'" class="diagnostics-layout">
+        <article class="panel">
+          <header class="panel__header">
+            <div>
+              <h2>Map source diagnostics</h2>
+              <p>Recent tile, glyph, and source errors reported by MapLibre.</p>
+            </div>
+          </header>
+          <div class="empty-state" *ngIf="vm.mapErrors.length === 0">No map source errors.</div>
+          <div class="job-list">
+            <article class="job-row failed" *ngFor="let mapError of vm.mapErrors">
+              <div>
+                <strong>{{ mapError.sourceId ?? 'map' }}</strong>
+                <span>{{ mapError.timestamp | date: 'mediumTime' }}</span>
+              </div>
+              <small>{{ mapError.message }}</small>
+            </article>
+          </div>
+        </article>
+
+        <article class="panel">
+          <header class="panel__header">
+            <div>
+              <h2>Raspberry storage</h2>
+              <p>Runtime chart data should live outside the repository.</p>
+            </div>
+          </header>
+          <div class="command-list">
+            <code>/var/lib/open-marine/charts</code>
+            <code>/var/lib/open-marine/chart-cache</code>
+            <code>/var/lib/open-marine/chart-uploads</code>
+          </div>
+          <p class="hint">Use USB/SSD storage for large MBTiles and bathymetry datasets.</p>
+        </article>
+      </section>
+    </div>
+  </section>
+</ng-container>

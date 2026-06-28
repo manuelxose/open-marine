@@ -32,6 +32,13 @@ GPS_HOST_DEFAULT="127.0.0.1"
 GPS_PORT_DEFAULT="3000"
 GPS_RATE_DEFAULT="1"
 GPS_AUTO_SETUP_DEFAULT="true"
+WIND_DEVICE_DEFAULT="auto"
+WIND_BAUD_DEFAULT="4800"
+WIND_HOST_DEFAULT="127.0.0.1"
+WIND_PORT_DEFAULT="3000"
+WIND_NO_PUBLISH_DEFAULT="false"
+CHART_ENGINE_PORT_DEFAULT="8088"
+CHART_ENGINE_DATA_DIR_DEFAULT="/var/lib/open-marine"
 OMI_SIGNALK_IMAGE_DEFAULT="signalk/signalk-server:v2.22.1"
 DOCKER_CMD=(docker)
 DOCKER_USING_SUDO=0
@@ -135,6 +142,13 @@ load_omi_config_file() {
         GPS_PORT) GPS_PORT_DEFAULT="$value" ;;
         GPS_RATE) GPS_RATE_DEFAULT="$value" ;;
         GPS_AUTO_SETUP) GPS_AUTO_SETUP_DEFAULT="$value" ;;
+        WIND_DEVICE) WIND_DEVICE_DEFAULT="$value" ;;
+        WIND_BAUD) WIND_BAUD_DEFAULT="$value" ;;
+        WIND_HOST) WIND_HOST_DEFAULT="$value" ;;
+        WIND_PORT) WIND_PORT_DEFAULT="$value" ;;
+        WIND_NO_PUBLISH) WIND_NO_PUBLISH_DEFAULT="$value" ;;
+        CHART_ENGINE_PORT) CHART_ENGINE_PORT_DEFAULT="$value" ;;
+        CHART_ENGINE_DATA_DIR) CHART_ENGINE_DATA_DIR_DEFAULT="$value" ;;
         OMI_SIGNALK_IMAGE) OMI_SIGNALK_IMAGE_DEFAULT="$value" ;;
       esac
     fi
@@ -438,7 +452,7 @@ docker_compose_up_with_recovery() {
 verify_project_structure() {
   local required=(
     "marine-data-contract"
-    "marine-data-simulator"
+    "marine-simulation-platform"
     "marine-sensor-gateway"
     "marine-instrumentation-ui"
     "signalk-runtime"
@@ -617,27 +631,13 @@ SETTINGS_EOF
 }
 
 build_packages() {
-  log "Instalando dependencias y compilando paquetes..."
+  log "Instalando dependencias con npm workspaces (una sola instalacion)..."
+  cd "$PROJECT_ROOT"
+  npm install --workspaces --include-workspace-root --legacy-peer-deps
 
-  cd "$PROJECT_ROOT/marine-data-contract"
-  npm install
-  npm run build
-  log "marine-data-contract OK"
-
-  cd "$PROJECT_ROOT/marine-data-simulator"
-  npm install
-  npm run build
-  log "marine-data-simulator OK"
-
-  cd "$PROJECT_ROOT/marine-instrumentation-ui"
-  npm install
-  npm run build
-  log "marine-instrumentation-ui OK"
-
-  cd "$PROJECT_ROOT/marine-sensor-gateway"
-  npm install
-  npm run build
-  log "marine-sensor-gateway OK"
+  log "Compilando paquetes..."
+  npm run build --workspaces
+  log "Todos los paquetes compilados OK"
 }
 
 compile_ais_catcher() {
@@ -884,6 +884,96 @@ setup_gps_publisher() {
   fi
 }
 
+setup_wind_publisher() {
+  local wind_setup_script="$PROJECT_ROOT/marine-sensor-gateway/rpi/wind/setup_wind.sh"
+  local wind_publish_script="$PROJECT_ROOT/marine-sensor-gateway/rpi/wind/03_publish_wind_signalk.py"
+  local wind_device=""
+  local setup_now=0
+
+  if [[ ! -f "$wind_publish_script" ]]; then
+    warn "Script wind no encontrado: $wind_publish_script"
+    return
+  fi
+
+  if ! command -v python3 >/dev/null 2>&1; then
+    warn "python3 no disponible. Se omite setup wind."
+    return
+  fi
+
+  wind_device="$(detect_usb_gps_device || true)"
+  if [[ -z "$wind_device" ]]; then
+    warn "No se detecto sensor wind NMEA 0183 (/dev/ttyACM* o /dev/ttyUSB*)."
+    return
+  fi
+
+  log "Wind NMEA detectado en $wind_device"
+
+  if [[ ! -f "$wind_setup_script" ]]; then
+    warn "setup_wind.sh no encontrado: $wind_setup_script"
+    return
+  fi
+
+  if is_truthy "$WIND_AUTO_SETUP_DEFAULT"; then
+    setup_now=1
+  else
+    local setup_response
+    read -r -p "Wind detectado. Deseas ejecutar setup_wind.sh ahora? [s/N]: " setup_response
+    if [[ "$setup_response" =~ ^[sSyY]$ ]]; then
+      setup_now=1
+    fi
+  fi
+
+  if [[ "$setup_now" -ne 1 ]]; then
+    warn "Setup wind omitido."
+    return
+  fi
+
+  info "Configurando dependencias wind..."
+  if bash "$wind_setup_script"; then
+    log "Setup wind completado."
+  else
+    warn "setup_wind.sh fallo. Puedes reintentarlo con:"
+    warn "  bash $wind_setup_script"
+  fi
+}
+
+setup_chart_engine() {
+  log "Configurando chart engine..."
+
+  cd "$PROJECT_ROOT/marine-chart-engine"
+  npm run build
+  log "marine-chart-engine OK"
+
+  local data_dir="${CHART_ENGINE_DATA_DIR_DEFAULT:-/var/lib/open-marine}"
+  if [[ -d /var/lib ]] && [[ "$EUID" -eq 0 || -w /var/lib ]]; then
+    mkdir -p "$data_dir/charts" "$data_dir/chart-cache" "$data_dir/chart-uploads"
+    log "Directorios persistentes de charts creados: $data_dir"
+  else
+    mkdir -p "$PROJECT_ROOT/data/charts" "$PROJECT_ROOT/data/chart-cache" "$PROJECT_ROOT/data/chart-uploads"
+    log "Directorios de charts creados en proyecto (sin /var/lib accesible)"
+  fi
+
+  local gdal_missing=0
+  if ! command -v gdal_translate >/dev/null 2>&1; then
+    warn "gdal_translate no encontrado. Conversion raster (GeoTIFF/KAP -> MBTiles) no disponible."
+    gdal_missing=1
+  fi
+  if ! command -v ogr2ogr >/dev/null 2>&1; then
+    warn "ogr2ogr no encontrado. Conversion S-57 -> MBTiles no disponible."
+    gdal_missing=1
+  fi
+  if ! command -v tippecanoe >/dev/null 2>&1; then
+    warn "tippecanoe no encontrado. Vector tiling S-57 no disponible."
+    gdal_missing=1
+  fi
+  if [[ "$gdal_missing" -eq 1 ]]; then
+    info "Para conversiones de cartas: sudo apt-get install gdal-bin tippecanoe"
+    info "O pre-convierte cartas en otra maquina y usa 'npm run charts:import-mbtiles'"
+  else
+    log "GDAL + tippecanoe detectados. Conversiones de cartas disponibles."
+  fi
+}
+
 detect_lan_ip() {
   local lan_ip=""
 
@@ -939,8 +1029,13 @@ print_summary() {
   if [[ -n "$lan_ip" ]]; then
     echo -e "  ${YELLOW}UI en red:${NC}   http://${lan_ip}:4200"
   fi
-  echo -e "  ${YELLOW}Simulator:${NC}  cd marine-data-simulator && npm run dev"
+  echo -e "  ${YELLOW}Simulation API:${NC}  npm run start:simulation-bench"
+  echo -e "  ${YELLOW}Simulator:${NC}  npm run start:simulator"
   echo -e "  ${YELLOW}Nota:${NC}        localhost solo funciona en la Raspberry."
+  echo ""
+  echo -e "  ${YELLOW}Chart Engine:${NC}"
+  echo "    npm run start:charts"
+  echo "    (puerto $CHART_ENGINE_PORT_DEFAULT, datos: $CHART_ENGINE_DATA_DIR_DEFAULT)"
   echo ""
   echo -e "  ${YELLOW}AIS real:${NC}"
   if [[ -x "$ais_bin" ]]; then
@@ -948,6 +1043,15 @@ print_summary() {
     echo "    (config: PPM=$AIS_PPM_DEFAULT, GAIN=$AIS_GAIN_DEFAULT, HOST=$AIS_HOST_DEFAULT, PORT=$AIS_PORT_DEFAULT)"
   else
     echo "    Ejecuta scripts/init.sh y selecciona instalacion de AIS-catcher."
+  fi
+  echo ""
+  echo -e "  ${YELLOW}Wind real:${NC}"
+  local wind_publish_script="$PROJECT_ROOT/marine-sensor-gateway/rpi/wind/03_publish_wind_signalk.py"
+  if [[ -f "$wind_publish_script" ]]; then
+    echo "    npm run start:wind"
+    echo "    (config: DEVICE=$WIND_DEVICE_DEFAULT, BAUD=$WIND_BAUD_DEFAULT, HOST=$WIND_HOST_DEFAULT, PORT=$WIND_PORT_DEFAULT)"
+  else
+    echo "    Script wind no encontrado en marine-sensor-gateway/rpi/wind."
   fi
   echo ""
   echo -e "  ${YELLOW}IMU real:${NC}"
@@ -979,6 +1083,18 @@ print_summary() {
 }
 
 start_post_init_services() {
+  local start_chart_engine_response
+  read -r -p "Deseas arrancar Chart Engine ahora? [s/N]: " start_chart_engine_response
+  if [[ "$start_chart_engine_response" =~ ^[sSyY]$ ]]; then
+    (
+      cd "$PROJECT_ROOT"
+      nohup npm run start:charts > "$PROJECT_ROOT/.omi-charts.log" 2>&1 &
+      echo $! > "$PROJECT_ROOT/.omi-charts.pid"
+    )
+    log "Chart Engine arrancado en background."
+    info "Log Chart Engine: $PROJECT_ROOT/.omi-charts.log"
+  fi
+
   local start_ui_response
   read -r -p "Deseas arrancar UI ahora? [s/N]: " start_ui_response
   if [[ "$start_ui_response" =~ ^[sSyY]$ ]]; then
@@ -989,6 +1105,18 @@ start_post_init_services() {
     )
     log "UI arrancada en background."
     info "Log UI: $PROJECT_ROOT/.omi-ui.log"
+  fi
+
+  local start_test_bench_response
+  read -r -p "Deseas arrancar el servidor de simulacion enterprise ahora? [s/N]: " start_test_bench_response
+  if [[ "$start_test_bench_response" =~ ^[sSyY]$ ]]; then
+    (
+      cd "$PROJECT_ROOT"
+      nohup npm run start:simulation-bench > "$PROJECT_ROOT/.omi-test-bench.log" 2>&1 &
+      echo $! > "$PROJECT_ROOT/.omi-test-bench.pid"
+    )
+    log "Simulation API arrancada en background."
+    info "Log Simulation API: $PROJECT_ROOT/.omi-test-bench.log"
   fi
 
   local start_sim_response
@@ -1036,8 +1164,8 @@ start_post_init_services() {
     fi
 
     (
-      cd "$PROJECT_ROOT/marine-data-simulator"
-      nohup npm run dev -- --scenario "$scenario" --rate "$rate" > "$PROJECT_ROOT/.omi-simulator.log" 2>&1 &
+      cd "$PROJECT_ROOT"
+      nohup npm run start:simulator -- --scenario "$scenario" --rate "$rate" > "$PROJECT_ROOT/.omi-simulator.log" 2>&1 &
       echo $! > "$PROJECT_ROOT/.omi-simulator.pid"
     )
 
@@ -1110,6 +1238,8 @@ main() {
   setup_ais_catcher
   setup_imu_publisher
   setup_gps_publisher
+  setup_wind_publisher
+  setup_chart_engine
   print_summary
   start_post_init_services
 }

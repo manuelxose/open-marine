@@ -185,12 +185,6 @@ export class DashboardFacadeService {
     shareReplay({ bufferSize: 1, refCount: true }),
   );
 
-  readonly isCompact$ = this.prefs$.pipe(
-    map((prefs) => prefs.density === 'compact'),
-    startWith(this.preferences.snapshot.density === 'compact'),
-    shareReplay({ bufferSize: 1, refCount: true }),
-  );
-
   private readonly fixLabel$ = combineLatest([this.positionArrival$, this.tick$]).pipe(
     map(([{ hasFix, arrivedAt }]) => {
       if (!hasFix || !arrivedAt) {
@@ -609,10 +603,6 @@ export class DashboardFacadeService {
     ),
     shareReplay({ bufferSize: 1, refCount: true }),
   );
-
-  toggleDensity(): void {
-    this.preferences.toggleDensity();
-  }
 
   clearError(): void {
     this.errorSubject.next(null);

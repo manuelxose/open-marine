@@ -45,7 +45,7 @@
   }
 
   .tick-label {
-    font-family: 'Space Grotesk', system-ui, sans-serif;
+    font-family: var(--font-family);
     font-size: 10px;
     font-weight: 700;
     fill: var(--gb-text-unit);

@@ -3,7 +3,6 @@ export {
 } from '../preferences/preferences.service';
 
 export {
-  type DensityMode,
   type SpeedUnit,
   type DepthUnit,
   type ThemeMode,

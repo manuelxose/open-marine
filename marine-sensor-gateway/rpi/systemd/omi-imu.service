@@ -1,0 +1,16 @@
+[Unit]
+Description=Open Marine IMU (ICM-20948) Signal K publisher
+After=network-online.target docker.service signalk.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/manu/open-marine
+ExecStart=/usr/bin/python3 /home/manu/open-marine/marine-sensor-gateway/rpi/omi-imu/02_publish_signalk.py
+Restart=always
+RestartSec=3
+User=manu
+SupplementaryGroups=i2c
+
+[Install]
+WantedBy=multi-user.target

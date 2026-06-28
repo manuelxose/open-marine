@@ -23,8 +23,8 @@
   border-radius: var(--glass-card-radius);
   background: linear-gradient(
     135deg,
-    rgba(136, 192, 208, 0.06) 0%,
-    rgba(129, 161, 193, 0.04) 50%,
+    rgba(var(--gb-needle-secondary-rgb), 0.06) 0%,
+    rgba(var(--gb-needle-secondary-rgb), 0.04) 50%,
     transparent 100%
   );
   pointer-events: none;
@@ -42,7 +42,7 @@
 }
 
 .env-hero-label {
-  font-family: 'Space Grotesk', sans-serif;
+  font-family: var(--font-family);
   font-size: 0.6rem;
   font-weight: 700;
   text-transform: uppercase;
@@ -57,17 +57,17 @@
 }
 
 .env-hero-value {
-  font-family: 'Share Tech Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 2.8rem;
   font-weight: 500;
   color: var(--text-primary);
   font-variant-numeric: tabular-nums;
   line-height: 1;
-  text-shadow: 0 2px 10px rgba(136, 192, 208, 0.15);
+  text-shadow: 0 2px 10px rgba(var(--gb-needle-secondary-rgb), 0.15);
 }
 
 .env-hero-unit {
-  font-family: 'Space Grotesk', sans-serif;
+  font-family: var(--font-family);
   font-size: 0.85rem;
   font-weight: 600;
   color: var(--text-muted);
@@ -116,7 +116,7 @@
 }
 
 .env-metric-label {
-  font-family: 'Space Grotesk', sans-serif;
+  font-family: var(--font-family);
   font-size: 0.65rem;
   font-weight: 700;
   text-transform: uppercase;
@@ -132,7 +132,7 @@
 }
 
 .env-metric-value {
-  font-family: 'Share Tech Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 1.7rem;
   font-weight: 500;
   color: var(--text-primary);
@@ -141,7 +141,7 @@
 }
 
 .env-metric-unit {
-  font-family: 'Space Grotesk', sans-serif;
+  font-family: var(--font-family);
   font-size: 0.75rem;
   font-weight: 600;
   color: var(--text-muted);

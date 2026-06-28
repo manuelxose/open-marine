@@ -1,4 +1,4 @@
-import { Component, ChangeDetectionStrategy, inject, computed, signal } from '@angular/core';
+import { Component, ChangeDetectionStrategy, computed, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { TranslatePipe } from '../../shared/pipes/translate.pipe';
 import { AppIconComponent } from '../../shared/components/app-icon/app-icon.component';
@@ -17,8 +17,7 @@ import { MeteoWidgetComponent } from '../../ui/instruments/meteo-widget/meteo-wi
 import { CogInstrumentComponent } from '../../ui/instruments/cog-instrument/cog-instrument.component';
 import { PositionInstrumentComponent } from '../../ui/instruments/position-instrument/position-instrument.component';
 import { GpsStatusInstrumentComponent } from '../../ui/instruments/gps-status-instrument/gps-status-instrument.component';
-import { AisTargetListComponent } from '../../features/ais/components/ais-target-list/ais-target-list.component';
-import { AisStoreService } from '../../state/ais/ais-store.service';
+import { AutopilotCompassComponent } from '../autopilot/components/autopilot-compass/autopilot-compass.component';
 import {
   INSTRUMENT_CATALOG,
   INSTRUMENT_CATEGORIES,
@@ -26,50 +25,11 @@ import {
   type InstrumentCategoryId,
   type InstrumentDefinition,
 } from './data/instrument-catalog';
-
-/**
- * Maps catalog instrument IDs to visual widget component types.
- * Instruments NOT in this map get numeric-only rendering.
- */
-type VisualWidgetType =
-  | 'compass'
-  | 'speedometer'
-  | 'depth-gauge'
-  | 'depth'
-  | 'wind'
-  | 'rudder'
-  | 'engine-rpm'
-  | 'tank'
-  | 'battery'
-  | 'meteo'
-  | 'cog'
-  | 'position'
-  | 'gps-status';
-
-const VISUAL_WIDGET_MAP: Record<string, VisualWidgetType> = {
-  hdg_true: 'compass',
-  hdg_mag: 'compass',
-  cog: 'cog',
-  sog: 'speedometer',
-  sow: 'speedometer',
-  depth_keel: 'depth',
-  depth_transducer: 'depth-gauge',
-  depth_surface: 'depth-gauge',
-  aws: 'wind',
-  awa: 'wind',
-  tws: 'wind',
-  twa: 'wind',
-  twd: 'wind',
-  rpm: 'engine-rpm',
-  fuel_level: 'tank',
-  battery_v: 'battery',
-  battery_a: 'battery',
-  battery_soc: 'battery',
-  water_temp: 'meteo',
-  air_temp: 'meteo',
-  pressure: 'meteo',
-  humidity: 'meteo',
-};
+import {
+  hasVisualWidget,
+  getVisualWidgetType,
+  type VisualWidgetType,
+} from './data/visual-widget-map';
 
 type CategoryFilter = 'all' | InstrumentCategoryId;
 
@@ -95,7 +55,7 @@ type CategoryFilter = 'all' | InstrumentCategoryId;
     CogInstrumentComponent,
     PositionInstrumentComponent,
     GpsStatusInstrumentComponent,
-    AisTargetListComponent,
+    AutopilotCompassComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -169,6 +129,7 @@ type CategoryFilter = 'all' | InstrumentCategoryId;
                 @case ('cog') { <app-cog-instrument visual /> }
                 @case ('position') { <app-position-instrument visual /> }
                 @case ('gps-status') { <app-gps-status-instrument visual /> }
+                @case ('autopilot-compass') { <app-autopilot-compass visual /> }
                 @default { <omi-instrument-widget visual [config]="instrument" /> }
               }
             </app-instrument-container>
@@ -188,21 +149,7 @@ type CategoryFilter = 'all' | InstrumentCategoryId;
           </div>
         }
 
-        <!-- AIS Section -->
-        @if (aisTargets().length > 0) {
-          <section class="ais-section">
-            <div class="ais-section__header">
-              <app-icon name="ais" size="16" />
-              <h2 class="ais-section__title">AIS Targets</h2>
-              <span class="ais-section__count">{{ aisTargets().length }}</span>
-            </div>
-            <app-ais-target-list
-              [targets]="aisTargets()"
-              [selectedMmsi]="null"
-              sortBy="distance"
-            />
-          </section>
-        }
+
       </div>
     </div>
   `,
@@ -219,8 +166,8 @@ type CategoryFilter = 'all' | InstrumentCategoryId;
       flex-direction: column;
       overflow: hidden;
       background:
-        radial-gradient(ellipse 100% 60% at 50% 0%, rgba(74, 144, 217, 0.06), transparent 70%),
-        radial-gradient(ellipse 80% 50% at 80% 100%, rgba(136, 192, 208, 0.04), transparent 60%),
+        radial-gradient(ellipse 100% 60% at 50% 0%, color-mix(in srgb, var(--gb-tick-reference) 8%, transparent), transparent 70%),
+        radial-gradient(ellipse 80% 50% at 80% 100%, color-mix(in srgb, var(--gb-needle-secondary) 6%, transparent), transparent 60%),
         var(--gb-bg-canvas);
     }
 
@@ -230,8 +177,8 @@ type CategoryFilter = 'all' | InstrumentCategoryId;
       align-items: center;
       justify-content: space-between;
       padding: var(--space-3, 12px) var(--space-5, 24px);
-      border-bottom: 1px solid var(--glass-border, var(--gb-border-panel));
-      background: var(--glass-bg, var(--gb-bg-bezel));
+      border-bottom: 1px solid var(--gb-border-panel);
+      background: var(--gb-bg-bezel);
       backdrop-filter: blur(var(--glass-blur, 16px));
       -webkit-backdrop-filter: blur(var(--glass-blur, 16px));
       flex-shrink: 0;
@@ -246,7 +193,7 @@ type CategoryFilter = 'all' | InstrumentCategoryId;
       left: 0;
       right: 0;
       height: 1px;
-      background: linear-gradient(90deg, transparent, var(--glass-shine, rgba(255,255,255,0.1)), transparent);
+      background: linear-gradient(90deg, transparent, var(--widget-shine), transparent);
       opacity: 0.5;
     }
 
@@ -257,10 +204,10 @@ type CategoryFilter = 'all' | InstrumentCategoryId;
     }
 
     .instruments-toolbar__title {
-      font-family: 'Space Grotesk', sans-serif;
+      font-family: var(--font-family);
       font-size: 1rem;
       font-weight: 700;
-      color: var(--text-primary, var(--gb-text-value));
+      color: var(--gb-text-value);
       margin: 0;
       white-space: nowrap;
       position: relative;
@@ -274,14 +221,14 @@ type CategoryFilter = 'all' | InstrumentCategoryId;
       transform: translateY(-50%);
       width: 3px;
       height: 60%;
-      background: var(--primary, #4a90d9);
+      background: var(--widget-accent);
       border-radius: var(--radius-full, 999px);
     }
 
     .instruments-toolbar__subtitle {
-      font-family: 'Space Grotesk', sans-serif;
+      font-family: var(--font-family);
       font-size: 0.7rem;
-      color: var(--text-muted, var(--gb-text-muted));
+      color: var(--gb-text-muted);
       margin: 0;
     }
 
@@ -299,20 +246,21 @@ type CategoryFilter = 'all' | InstrumentCategoryId;
     }
 
     .stat-value {
-      font-family: 'Share Tech Mono', monospace;
+      font-family: var(--font-mono);
+      font-variant-numeric: tabular-nums;
       font-size: 1rem;
       font-weight: 700;
-      color: var(--text-primary, var(--gb-text-value));
+      color: var(--gb-text-value);
       line-height: 1;
     }
 
     .stat-label {
-      font-family: 'Space Grotesk', sans-serif;
+      font-family: var(--font-family);
       font-size: 0.55rem;
       font-weight: 600;
       text-transform: uppercase;
       letter-spacing: 0.08em;
-      color: var(--text-muted, var(--gb-text-muted));
+      color: var(--gb-text-muted);
     }
 
     /* ── Category tabs ────────────────────────────── */
@@ -321,8 +269,8 @@ type CategoryFilter = 'all' | InstrumentCategoryId;
       align-items: center;
       gap: var(--space-1, 4px);
       padding: var(--space-2, 8px) var(--space-5, 24px);
-      background: var(--glass-bg, var(--gb-bg-bezel));
-      border-bottom: 1px solid var(--glass-border, var(--gb-border-panel));
+      background: var(--gb-bg-bezel);
+      border-bottom: 1px solid var(--gb-border-panel);
       overflow-x: auto;
       scrollbar-width: none;
       flex-shrink: 0;
@@ -334,46 +282,56 @@ type CategoryFilter = 'all' | InstrumentCategoryId;
       display: inline-flex;
       align-items: center;
       gap: 6px;
-      padding: 6px 14px;
-      font-family: 'Space Grotesk', sans-serif;
+      padding: 8px 14px;
+      min-height: 36px;
+      font-family: var(--font-family);
       font-size: 0.72rem;
       font-weight: 600;
       letter-spacing: 0.04em;
-      color: var(--text-muted, var(--gb-text-muted));
+      color: var(--gb-text-muted);
       background: transparent;
       border: 1px solid transparent;
       border-radius: var(--radius-full, 999px);
       cursor: pointer;
       white-space: nowrap;
-      transition: all 150ms ease;
+      transition:
+        color 150ms var(--gb-ease-data),
+        background 150ms var(--gb-ease-data),
+        border-color 150ms var(--gb-ease-data);
     }
 
     .category-tab:hover {
-      color: var(--text-primary, var(--gb-text-value));
-      background: rgba(74, 144, 217, 0.06);
-      border-color: var(--glass-border, var(--gb-border-panel));
+      color: var(--gb-text-value);
+      background: var(--gb-bg-glass);
+      border-color: var(--gb-border-panel);
+    }
+
+    .category-tab:focus-visible {
+      outline: 2px solid var(--widget-accent);
+      outline-offset: 2px;
     }
 
     .category-tab.active {
-      color: var(--primary, #4a90d9);
-      background: rgba(74, 144, 217, 0.1);
-      border-color: rgba(74, 144, 217, 0.3);
+      color: var(--widget-accent);
+      background: var(--gb-bg-glass-active);
+      border-color: var(--gb-border-active);
     }
 
     .category-tab__count {
-      font-family: 'Share Tech Mono', monospace;
+      font-family: var(--font-mono);
+      font-variant-numeric: tabular-nums;
       font-size: 0.6rem;
       font-weight: 700;
-      color: var(--text-muted, var(--gb-text-muted));
-      background: rgba(255, 255, 255, 0.04);
+      color: var(--gb-text-muted);
+      background: var(--gb-bg-glass);
       padding: 1px 6px;
       border-radius: var(--radius-full, 999px);
       line-height: 1.3;
     }
 
     .category-tab.active .category-tab__count {
-      color: var(--primary, #4a90d9);
-      background: rgba(74, 144, 217, 0.12);
+      color: var(--widget-accent);
+      background: var(--gb-bg-glass-active);
     }
 
     /* ── Scrollable content ───────────────────────── */
@@ -382,7 +340,7 @@ type CategoryFilter = 'all' | InstrumentCategoryId;
       overflow-y: auto;
       overflow-x: hidden;
       scrollbar-width: thin;
-      scrollbar-color: var(--glass-border, rgba(255,255,255,0.1)) transparent;
+      scrollbar-color: var(--gb-border-panel) transparent;
     }
 
     /* ── Instruments grid ─────────────────────────── */
@@ -401,55 +359,15 @@ type CategoryFilter = 'all' | InstrumentCategoryId;
       justify-content: center;
       gap: 1rem;
       padding: var(--space-8, 64px) var(--space-4, 16px);
-      color: var(--text-muted, var(--gb-text-muted));
+      color: var(--gb-text-muted);
       opacity: 0.6;
     }
 
     .instruments-empty p {
-      font-family: 'Space Grotesk', sans-serif;
+      font-family: var(--font-family);
       font-size: 0.85rem;
       font-weight: 500;
       margin: 0;
-    }
-
-    /* ── AIS Section ──────────────────────────────── */
-    .ais-section {
-      margin: 0 var(--space-5, 24px) var(--space-5, 24px);
-      border: 1px solid var(--glass-border, var(--gb-border-panel));
-      border-radius: var(--glass-card-radius-sm, 14px);
-      overflow: hidden;
-      background: var(--glass-bg, var(--gb-bg-panel));
-      backdrop-filter: blur(var(--glass-blur, 16px));
-      -webkit-backdrop-filter: blur(var(--glass-blur, 16px));
-    }
-
-    .ais-section__header {
-      display: flex;
-      align-items: center;
-      gap: var(--space-2, 8px);
-      padding: var(--space-3, 12px) var(--space-4, 16px);
-      border-bottom: 1px solid var(--glass-border, var(--gb-border-panel));
-      background: linear-gradient(180deg, rgba(0,0,0,0.02), rgba(0,0,0,0.04));
-    }
-
-    .ais-section__title {
-      font-family: 'Space Grotesk', sans-serif;
-      font-size: 0.72rem;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      color: var(--text-muted, var(--gb-text-muted));
-      margin: 0;
-    }
-
-    .ais-section__count {
-      font-family: 'Share Tech Mono', monospace;
-      font-size: 0.68rem;
-      font-weight: 700;
-      color: var(--primary, #4a90d9);
-      background: rgba(74, 144, 217, 0.12);
-      padding: 2px 8px;
-      border-radius: var(--radius-full, 999px);
     }
 
     /* ── Responsive ───────────────────────────────── */
@@ -472,9 +390,6 @@ type CategoryFilter = 'all' | InstrumentCategoryId;
         padding: var(--space-2, 8px) var(--space-3, 12px);
       }
 
-      .ais-section {
-        margin: 0 var(--space-3, 12px) var(--space-3, 12px);
-      }
     }
 
     @media (min-width: 768px) and (max-width: 1199px) {
@@ -491,8 +406,6 @@ type CategoryFilter = 'all' | InstrumentCategoryId;
   `],
 })
 export class InstrumentsPage {
-  private readonly aisStore = inject(AisStoreService);
-
   /** All category metadata from the catalog */
   readonly categories = INSTRUMENT_CATEGORIES;
 
@@ -510,12 +423,6 @@ export class InstrumentsPage {
       : getInstrumentsByCategory(cat);
   });
 
-  /** AIS targets as array, limited to 50 */
-  readonly aisTargets = computed(() => {
-    const map = this.aisStore.targets();
-    return Array.from(map.values()).slice(0, 50);
-  });
-
   /** Set the active category filter */
   setCategory(category: CategoryFilter): void {
     this.activeCategory.set(category);
@@ -528,11 +435,11 @@ export class InstrumentsPage {
 
   /** Check if an instrument has a dedicated visual widget */
   hasVisual(instrumentId: string): boolean {
-    return instrumentId in VISUAL_WIDGET_MAP;
+    return hasVisualWidget(instrumentId);
   }
 
   /** Get the visual widget type for an instrument, or null */
   getVisualType(instrumentId: string): VisualWidgetType | null {
-    return VISUAL_WIDGET_MAP[instrumentId] ?? null;
+    return getVisualWidgetType(instrumentId);
   }
 }

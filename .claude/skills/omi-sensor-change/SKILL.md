@@ -1,6 +1,6 @@
 ---
 name: omi-sensor-change
-description: Implement Open Marine sensor, gateway, simulator, or Signal K contract changes. Use for GPS, IMU, AIS, DataPoint, PATHS, publishers, Raspberry scripts, or simulator scenarios.
+description: Implement Open Marine sensor, gateway, simulator, or Signal K contract changes. Use for GPS, IMU, AIS, wind, DataPoint, PATHS, publishers, Raspberry scripts, or simulator scenarios.
 ---
 
 # OMI Sensor Change

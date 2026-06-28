@@ -1,6 +1,6 @@
 ---
 name: omi-run
-description: Run and verify Open Marine locally or against the Raspberry without rediscovering package commands. Use when starting Signal K, the Angular UI, sensor services, or checking the running app.
+description: Choose the narrowest validation command for Open Marine. Use when starting, stopping, building, or checking any module.
 ---
 
 # OMI Run
@@ -15,6 +15,10 @@ Use the narrowest command that proves the requested behavior.
 - UI build check: `cd marine-instrumentation-ui && npm run build`
 - Contract build: `npm run build:contract`
 - Sensor gateway check: `cd marine-sensor-gateway && npm test && npm run build`
+- Autopilot check: `cd marine-autopilot-engine && npm test && npm run build`
+- Test bench check: `cd marine-test-bench && npm test && npm run build`
+- Chart toolkit: `cd marine-chart-toolkit && npm run build`
+- Tile server: `cd marine-tile-server && npm run build`
 
 ## Raspberry
 
@@ -25,4 +29,4 @@ Use the narrowest command that proves the requested behavior.
 
 Never print or commit the Raspberry password. Use local ignored config and SSH host aliases.
 
-Full validation matrix and key files: `.claude/references/architecture.md` (load on demand).
+Full validation matrix: `.claude/references/validation.md` (load on demand).

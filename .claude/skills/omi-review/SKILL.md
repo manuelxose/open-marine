@@ -15,6 +15,7 @@ Check:
 - UI endpoint changes still work for localhost, LAN and Raspberry-hosted UI.
 - Raspberry service changes preserve `omi-ui`, `omi-gps`, `omi-imu` and `signalk` behavior.
 - Tests/builds match touched subsystem.
+- Autopilot safety: STANDBY default, no motor at boot, watchdog present, E-stop latches.
 
 Also flag heavy/recurring work not run outside `NgZone`, per-message Map clones, and forced reflows
 (see performance rules in `.claude/references/architecture.md`).

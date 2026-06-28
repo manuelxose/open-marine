@@ -27,6 +27,8 @@ export enum AisClass {
   SART = 'SART'
 }
 
+export type AisTargetKind = 'vessel' | 'navigation-aid' | 'shore-station' | 'sart';
+
 export interface AisTarget {
   mmsi: string;
   name?: string;
@@ -59,6 +61,40 @@ export interface AisTarget {
   tcpa?: number; // Time to CPA (seconds)
   isDangerous?: boolean; // If CPA < threshold && TCPA < threshold
   riskEligible?: boolean; // Risk computation is valid for own-ship collision logic
+}
+
+export function inferAisClassFromMmsi(mmsi: string | undefined | null): AisClass | undefined {
+  const normalized = normalizeMmsi(mmsi);
+  if (!normalized) return undefined;
+
+  if (normalized.startsWith('00')) return AisClass.BaseStation;
+  if (normalized.startsWith('99')) return AisClass.AtoN;
+  if (normalized.startsWith('970')) return AisClass.SART;
+
+  return undefined;
+}
+
+export function getAisTargetKind(target: Pick<AisTarget, 'mmsi' | 'class'>): AisTargetKind {
+  const aisClass = target.class ?? inferAisClassFromMmsi(target.mmsi);
+
+  switch (aisClass) {
+    case AisClass.AtoN:
+      return 'navigation-aid';
+    case AisClass.BaseStation:
+      return 'shore-station';
+    case AisClass.SART:
+      return 'sart';
+    default:
+      return 'vessel';
+  }
+}
+
+export function isAisVessel(target: Pick<AisTarget, 'mmsi' | 'class'>): boolean {
+  return getAisTargetKind(target) === 'vessel';
+}
+
+function normalizeMmsi(mmsi: string | undefined | null): string {
+  return typeof mmsi === 'string' && /^\d{9}$/.test(mmsi.trim()) ? mmsi.trim() : '';
 }
 
 export interface AisState {

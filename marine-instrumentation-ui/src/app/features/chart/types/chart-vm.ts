@@ -1,7 +1,7 @@
 export type ChartFixState = 'no-fix' | 'fix' | 'stale';
 
 export type MapOrientation = 'north-up' | 'course-up';
-export type ChartLayerMode = 'osm' | 'satellite' | 'nautical' | 'enc';
+export type ChartLayerMode = 'osm' | 'satellite' | 'nautical' | 'enc' | 'local-raster' | 'bathymetry' | 'enc-vector';
 
 export interface ChartPosition {
   lat: number;
@@ -46,6 +46,51 @@ export interface ChartControlsVm {
   showAisTargets: boolean;
   showAisLabels: boolean;
   showCpaLines: boolean;
+  chartEngineOnline: boolean;
+  chartEngineStatus: ChartEngineStatus;
+  chartEngineMessage: string;
+  chartSources: ChartSourceOptionVm[];
+  baseChartSources: ChartSourceOptionVm[];
+  localChartSources: ChartSourceOptionVm[];
+  chartJobs: ChartImportJobVm[];
+  mapErrors: ChartMapErrorVm[];
+}
+
+export type ChartImportKind = 'mbtiles' | 'raster' | 's57';
+export type ChartEngineStatus = 'unknown' | 'checking' | 'online' | 'offline' | 'error';
+
+export interface ChartSourceOptionVm {
+  id: string;
+  label: string;
+  kind: 'raster' | 'vector' | 'bathymetry';
+  description?: string;
+  available: boolean;
+  local: boolean;
+  category: 'base' | 'local';
+}
+
+export interface ChartImportJobVm {
+  id: string;
+  kind: ChartImportKind;
+  status: 'queued' | 'running' | 'completed' | 'failed';
+  chartId: string;
+  label: string;
+  error?: string;
+}
+
+export interface ChartMapErrorVm {
+  id: string;
+  message: string;
+  sourceId?: string;
+  timestamp: number;
+}
+
+export interface ChartImportRequestVm {
+  kind: ChartImportKind;
+  file: File;
+  id: string;
+  label: string;
+  chartKind?: 'raster' | 'vector';
 }
 
 export interface ChartWaypointVm {
@@ -99,7 +144,7 @@ export interface ChartTopBarVm {
   activeRoute: TopBarActiveRouteVm | null;
 }
 
-export type ChartLeftPanelTab = 'layers' | 'ais' | 'waypoints' | 'routes';
+export type ChartLeftPanelTab = 'layers' | 'catalog' | 'ais' | 'waypoints' | 'routes';
 
 export interface ChartRouteLegVm {
   from: string;

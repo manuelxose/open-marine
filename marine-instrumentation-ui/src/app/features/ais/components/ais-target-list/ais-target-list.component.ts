@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, EventEmitter, Input, Output } from 
 import { CommonModule } from '@angular/common';
 import { AisTargetItemComponent } from '../ais-target-item/ais-target-item.component';
 import { AppIconComponent } from '../../../../shared/components/app-icon/app-icon.component';
-import { AisTarget } from '../../../../core/models/ais.model';
+import { AisTarget, getAisTargetKind } from '../../../../core/models/ais.model';
 import { FormsModule } from '@angular/forms';
 
 @Component({
@@ -22,6 +22,7 @@ import { FormsModule } from '@angular/forms';
             <option value="pleasure">Pleasure</option>
             <option value="tug">Tug</option>
             <option value="sailing">Sailing</option>
+            <option value="aids">Aids &amp; Stations</option>
           </select>
           <select [ngModel]="sortBy" (ngModelChange)="sortChange.emit($event)" class="ais-sort-select">
             <option value="cpa">Sort by CPA</option>
@@ -190,6 +191,9 @@ export class AisTargetListComponent {
   get filteredTargets(): AisTarget[] {
     if (this.filterType === 'all') return this.targets;
     return this.targets.filter(t => {
+      if (this.filterType === 'aids') {
+        return getAisTargetKind(t) !== 'vessel';
+      }
       const type = (t.vesselType ?? '').toLowerCase();
       return type.includes(this.filterType);
     });

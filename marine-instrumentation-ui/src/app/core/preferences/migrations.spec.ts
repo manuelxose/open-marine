@@ -10,7 +10,6 @@ describe('Preferences Migrations', () => {
   it('should migrate legacy preferences (no version) to version 1', () => {
     const legacy = {
       theme: 'night',
-      density: 'compact',
       speedUnit: 'm/s',
       depthUnit: 'ft',
       shallowThreshold: 5.0,
@@ -20,7 +19,6 @@ describe('Preferences Migrations', () => {
 
     expect(result.version).toBe(1);
     expect(result.theme).toBe('night');
-    expect(result.density).toBe('compact');
     expect(result.units.speed).toBe('m/s');
     expect(result.units.depth).toBe('ft');
     expect(result.shallowThreshold).toBe(5.0);
@@ -31,7 +29,6 @@ describe('Preferences Migrations', () => {
      const v1 = {
        version: 1,
        theme: 'night',
-       density: 'compact',
        units: {
          speed: 'km/h',
          depth: 'ft'
@@ -56,7 +53,6 @@ describe('Preferences Migrations', () => {
     const result = migratePreferences(legacy);
     expect(result.version).toBe(1);
     expect(result.theme).toBe('night');
-    expect(result.density).toBe(DEFAULT_PREFERENCES.density);
     expect(result.units.speed).toBe(DEFAULT_PREFERENCES.units.speed);
     expect(result.chart).toEqual(DEFAULT_PREFERENCES.chart);
   });

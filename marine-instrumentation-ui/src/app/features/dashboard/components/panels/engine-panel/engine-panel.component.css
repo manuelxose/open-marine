@@ -23,8 +23,8 @@
   border-radius: var(--glass-card-radius);
   background: linear-gradient(
     135deg,
-    rgba(235, 203, 139, 0.06) 0%,
-    rgba(208, 135, 112, 0.04) 50%,
+    rgba(var(--gb-data-warn-rgb), 0.06) 0%,
+    rgba(var(--gb-needle-primary-rgb), 0.04) 50%,
     transparent 100%
   );
   pointer-events: none;
@@ -42,7 +42,7 @@
 }
 
 .rpm-label {
-  font-family: 'Space Grotesk', sans-serif;
+  font-family: var(--font-family);
   font-size: 0.6rem;
   font-weight: 700;
   text-transform: uppercase;
@@ -57,17 +57,17 @@
 }
 
 .rpm-value {
-  font-family: 'Share Tech Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 2.8rem;
   font-weight: 500;
   color: var(--text-primary);
   font-variant-numeric: tabular-nums;
   line-height: 1;
-  text-shadow: 0 2px 10px rgba(235, 203, 139, 0.15);
+  text-shadow: 0 2px 10px rgba(var(--gb-data-warn-rgb), 0.15);
 }
 
 .rpm-unit {
-  font-family: 'Space Grotesk', sans-serif;
+  font-family: var(--font-family);
   font-size: 0.75rem;
   font-weight: 600;
   color: var(--text-muted);
@@ -116,27 +116,27 @@
 
 .fuel-bar-fill.level-high {
   background: linear-gradient(90deg, var(--success), color-mix(in srgb, var(--success) 80%, var(--nord-14)));
-  box-shadow: 0 0 10px rgba(163, 190, 140, 0.45);
+  box-shadow: 0 0 10px rgba(var(--gb-data-good-rgb), 0.45);
 }
 
 .fuel-bar-fill.level-mid {
   background: linear-gradient(90deg, var(--warn), color-mix(in srgb, var(--warn) 80%, var(--nord-13)));
-  box-shadow: 0 0 8px rgba(235, 203, 139, 0.3);
+  box-shadow: 0 0 8px rgba(var(--gb-data-warn-rgb), 0.3);
 }
 
 .fuel-bar-fill.level-low {
   background: linear-gradient(90deg, var(--danger), color-mix(in srgb, var(--danger) 80%, var(--nord-11)));
-  box-shadow: 0 0 10px rgba(191, 97, 106, 0.45);
+  box-shadow: 0 0 10px rgba(var(--gb-data-stale-rgb), 0.45);
   animation: low-fuel-pulse 1.5s ease-in-out infinite;
 }
 
 @keyframes low-fuel-pulse {
-  0%, 100% { box-shadow: 0 0 8px rgba(191, 97, 106, 0.35); }
-  50% { box-shadow: 0 0 20px rgba(191, 97, 106, 0.65); }
+  0%, 100% { box-shadow: 0 0 8px rgba(var(--gb-data-stale-rgb), 0.35); }
+  50% { box-shadow: 0 0 20px rgba(var(--gb-data-stale-rgb), 0.65); }
 }
 
 .fuel-pct {
-  font-family: 'Share Tech Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 0.85rem;
   color: var(--text-secondary);
   font-variant-numeric: tabular-nums;
@@ -181,7 +181,7 @@
 }
 
 .engine-metric-label {
-  font-family: 'Space Grotesk', sans-serif;
+  font-family: var(--font-family);
   font-size: 0.65rem;
   font-weight: 700;
   text-transform: uppercase;
@@ -197,7 +197,7 @@
 }
 
 .engine-metric-value {
-  font-family: 'Share Tech Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 1.7rem;
   font-weight: 500;
   color: var(--text-primary);
@@ -206,7 +206,7 @@
 }
 
 .engine-metric-unit {
-  font-family: 'Space Grotesk', sans-serif;
+  font-family: var(--font-family);
   font-size: 0.75rem;
   font-weight: 600;
   color: var(--text-muted);

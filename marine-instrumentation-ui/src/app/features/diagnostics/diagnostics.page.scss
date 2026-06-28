@@ -152,6 +152,12 @@ button {
   border: 1px solid var(--gb-alarm-warning-border);
 }
 
+.notice--info {
+  color: var(--gb-tick-reference);
+  background: var(--gb-bg-glass);
+  border: 1px solid var(--gb-border-active);
+}
+
 .notice button {
   min-height: 32px;
   border: 1px solid currentColor;
@@ -260,12 +266,20 @@ button {
   letter-spacing: 0.06em;
 }
 
+/* scenario-main: config + run-panel side by side, each scrolls independently.
+   Prevents the run-panel from overlapping the config / ARM & RUN button when a
+   scenario's timeline or parameters are tall. */
 .scenario-main {
   min-height: 0;
-  overflow: auto;
   display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(320px, 1fr);
   gap: var(--space-3);
-  grid-template-rows: auto minmax(260px, 1fr);
+}
+
+.scenario-main > .scenario-config,
+.scenario-main > .run-panel {
+  min-height: 0;
+  overflow: auto;
 }
 
 .scenario-config,
@@ -405,9 +419,16 @@ button {
 .preflight i.bad { background: var(--gb-data-stale); }
 
 .scenario-actions {
+  position: sticky;
+  bottom: calc(var(--space-4) * -1);
+  z-index: 2;
   display: flex;
   gap: var(--space-2);
-  margin-top: var(--space-4);
+  margin: var(--space-4) calc(var(--space-4) * -1) calc(var(--space-4) * -1);
+  padding: var(--space-3) var(--space-4);
+  background: var(--gb-bg-panel);
+  border-top: 1px solid var(--gb-border-panel);
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
 }
 
 .scenario-actions button {
@@ -600,13 +621,31 @@ button {
   border-top: 1px solid var(--gb-border-panel);
 }
 
+/* ── Wind generator ───────────────────────────────────────────────────────── */
+
+.wind-generator {
+  margin-top: var(--space-4);
+  padding: var(--space-4);
+  background: var(--gb-bg-glass);
+  border: 1px solid var(--gb-border-panel);
+  border-radius: var(--radius-md);
+}
+
+.wind-generator .parameter-grid {
+  margin-top: var(--space-3);
+}
+
+.wind-generator button {
+  margin-top: var(--space-3);
+}
+
 /* ── Charts ───────────────────────────────────────────────────────────────── */
 
 .charts-layout {
   height: 100%;
   min-height: 0;
   display: grid;
-  grid-template-columns: 300px minmax(0, 1fr);
+  grid-template-columns: 320px minmax(0, 1fr);
   gap: var(--space-3);
 }
 
@@ -621,10 +660,66 @@ button {
   flex-direction: column;
 }
 
-.channel-list {
+.channel-toolbar-actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.channel-toolbar-actions button {
+  min-height: 32px;
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--gb-bg-glass);
+  border: 1px solid var(--gb-border-panel);
+  color: var(--gb-text-muted);
+  font-size: 0.65rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.channel-groups {
   flex: 1;
   min-height: 0;
+  overflow: auto;
   padding: var(--space-2);
+}
+
+.channel-group {
+  border-bottom: 1px solid var(--gb-border-panel);
+}
+
+.channel-group summary {
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-1) var(--space-2);
+  color: var(--gb-text-value);
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  list-style: none;
+}
+
+.channel-group summary::-webkit-details-marker {
+  display: none;
+}
+
+.group-toggle {
+  min-height: 24px;
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-sm);
+  background: var(--gb-bg-bezel);
+  border: 1px solid var(--gb-border-panel);
+  color: var(--gb-text-muted);
+  font-size: 0.55rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.channel-list {
+  padding: 0 var(--space-2) var(--space-2);
   overflow: auto;
 }
 
@@ -661,9 +756,18 @@ button {
   font: 0.72rem var(--font-mono, monospace);
 }
 
+.charts-stack {
+  min-height: 0;
+  overflow: auto;
+  display: grid;
+  grid-template-rows: repeat(auto-fit, minmax(260px, 1fr));
+  gap: var(--space-3);
+}
+
 .chart-panel {
   display: flex;
   flex-direction: column;
+  min-height: 260px;
 }
 
 .chart-container {
@@ -872,6 +976,15 @@ td.dead { color: var(--gb-data-stale); }
   .charts-layout {
     grid-template-columns: 1fr;
     overflow: auto;
+  }
+
+  .scenario-main {
+    grid-template-columns: 1fr;
+  }
+
+  .scenario-main > .scenario-config,
+  .scenario-main > .run-panel {
+    overflow: visible;
   }
 
   .catalog-panel,

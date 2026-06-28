@@ -6,12 +6,22 @@ import { AisStoreService } from '../../../state/ais/ais-store.service';
 import { SignalKClientService } from '../../../data-access/signalk/signalk-client.service';
 import {
   DEFAULT_CHART_SOURCE_ID,
+  BATHYMETRY_CHART_SOURCE_ID,
+  CHART_SOURCES,
   ENC_CHART_SOURCE_ID,
+  ENC_VECTOR_CHART_SOURCE_ID,
+  GEBCO_CHART_SOURCE_ID,
+  IHM_WMS_CHART_SOURCE_ID,
+  LOCAL_RASTER_CHART_SOURCE_ID,
   NAUTICAL_CHART_SOURCE_ID,
+  NOAA_WMS_CHART_SOURCE_ID,
   NAUTICAL_RASTER_STYLE,
+  buildEngineChartStyle,
 } from '../../../data-access/chart/chart-sources';
+import { ChartCatalogService } from '../../../data-access/chart/chart-catalog.service';
+import type { EngineChartSource } from '../../../data-access/chart/chart-engine-api.service';
 import type { Feature, FeatureCollection, LineString, Point } from 'geojson';
-import { AisNavStatus, type AisTarget, type AisTrackPoint } from '../../../core/models/ais.model';
+import { AisNavStatus, getAisTargetKind, type AisTarget, type AisTrackPoint } from '../../../core/models/ais.model';
 import {
   isPositionValue,
   selectAwa,
@@ -30,9 +40,11 @@ import type { DataPoint, TrackPoint } from '../../../state/datapoints/datapoint.
 import type {
   ChartCanvasVm,
   ChartControlsVm,
+  ChartMapErrorVm,
   ChartRoutesPanelVm,
   ChartTopBarVm,
   ChartLayerMode,
+  ChartImportRequestVm,
   ChartFixState,
   ChartHudRow,
   ChartHudVm,
@@ -47,7 +59,7 @@ import { RouteService } from './route.service';
 import { buildEncStyle } from '../layers/enc-style';
 import type { ChartSourceConfig, MapLibreInitView, WindMapUpdate } from './maplibre-engine.service';
 import type { WaypointFeatureCollection, WaypointFeatureProperties } from '../types/chart-geojson';
-import { getAisVesselIconId, mapAisVesselTypeToFilter } from './chart-vessel-types';
+import { getAisTargetIconId, mapAisVesselTypeToFilter } from './chart-vessel-types';
 import { DataQualityService } from '../../../shared/services/data-quality.service';
 import { AlarmSettingsService } from '../../../state/alarms/alarm-settings.service';
 import { formatCoordinate } from '../../../core/formatting/formatters';
@@ -77,6 +89,16 @@ const AIS_TRACK_MAX_AGE_MS = 30 * 60 * 1000;
 const AIS_PREDICTION_SECONDS = 6 * 60;
 const WIND_STALE_THRESHOLD_MS = 5_000;
 const GUST_WINDOW_MS = 10_000;
+const BUILT_IN_BASE_SOURCE_IDS = new Set([
+  DEFAULT_CHART_SOURCE_ID,
+  'satellite',
+  NAUTICAL_CHART_SOURCE_ID,
+  ENC_CHART_SOURCE_ID,
+  GEBCO_CHART_SOURCE_ID,
+  NOAA_WMS_CHART_SOURCE_ID,
+  IHM_WMS_CHART_SOURCE_ID,
+  BATHYMETRY_CHART_SOURCE_ID,
+]);
 
 const DEFAULT_BASE_SOURCE: ChartSourceConfig = {
   id: DEFAULT_CHART_SOURCE_ID,
@@ -187,6 +209,7 @@ export class ChartFacadeService {
   private readonly waypointService = inject(WaypointService);
   private readonly routeService = inject(RouteService);
   private readonly autopilotStore = inject(AutopilotStoreService);
+  private readonly chartCatalog = inject(ChartCatalogService);
   private readonly _orientation$ = new BehaviorSubject<MapOrientation>('north-up');
   readonly orientation$ = this._orientation$.asObservable();
 
@@ -223,6 +246,7 @@ export class ChartFacadeService {
 
         const dangerous = t.isDangerous === true && t.riskEligible === true;
         const inactive = this.isTargetInactive(t, settings.aisInactiveAfterMinutes, now);
+        const targetKind = getAisTargetKind(t);
 
         features.push({
           type: 'Feature',
@@ -235,7 +259,8 @@ export class ChartFacadeService {
             heading: toDegrees(t.heading ?? t.cog ?? 0),
             status: dangerous ? 'dangerous' : 'normal',
             vesselTypeKey,
-            iconId: getAisVesselIconId(vesselTypeKey, dangerous),
+            targetKind,
+            iconId: getAisTargetIconId(targetKind, vesselTypeKey, dangerous),
             name: t.name ?? t.mmsi,
             inactive,
           },
@@ -587,6 +612,53 @@ export class ChartFacadeService {
 
   private readonly _baseSource$ = new BehaviorSubject<ChartSourceConfig>(DEFAULT_BASE_SOURCE);
   readonly baseSource$ = this._baseSource$.asObservable();
+  private readonly _mapErrors$ = new BehaviorSubject<ChartMapErrorVm[]>([]);
+  readonly mapErrors$ = this._mapErrors$.asObservable();
+
+  private readonly chartSourceOptions$ = combineLatest({
+    charts: this.chartCatalog.charts$,
+    jobs: this.chartCatalog.jobs$,
+    online: this.chartCatalog.online$,
+    status: this.chartCatalog.status$,
+    message: this.chartCatalog.message$,
+  }).pipe(
+    map(({ charts, jobs, online, status, message }) => ({
+      online,
+      status,
+      message,
+      jobs: jobs.map((job) => ({
+        id: job.id,
+        kind: job.kind,
+        status: job.status,
+        chartId: job.chartId,
+        label: job.label,
+        ...(job.error ? { error: job.error } : {}),
+      })),
+      baseSources: CHART_SOURCES
+        .filter((source) => BUILT_IN_BASE_SOURCE_IDS.has(source.id))
+        .map((source) => ({
+          id: source.id,
+          label: source.label,
+          kind: source.kind,
+          ...(source.description ? { description: source.description } : {}),
+          available: source.available ?? true,
+          local: false,
+          category: 'base' as const,
+        })),
+      localSources: charts
+        .filter((chart) => chart.available)
+        .map((chart) => ({
+          id: chart.id,
+          label: chart.label,
+          kind: chart.kind,
+          ...(chart.description ? { description: chart.description } : {}),
+          available: chart.available,
+          local: true,
+          category: 'local' as const,
+        })),
+    })),
+    shareReplay({ bufferSize: 1, refCount: true }),
+  );
 
   readonly hudVm$ = combineLatest({
     fixState: this.fixState$,
@@ -1187,8 +1259,10 @@ export class ChartFacadeService {
     settings: this.settingsService.settings$,
     canCenter: this.hasFix$,
     source: this.baseSource$,
+    chartCatalog: this.chartSourceOptions$,
+    mapErrors: this.mapErrors$,
   }).pipe(
-    map(({ settings, canCenter, source }) => ({
+    map(({ settings, canCenter, source, chartCatalog, mapErrors }) => ({
       autoCenter: settings.autoCenter,
       showTrack: settings.showTrack,
       showVector: settings.showVector,
@@ -1202,6 +1276,14 @@ export class ChartFacadeService {
       showAisTargets: settings.showAisTargets,
       showAisLabels: settings.showAisLabels,
       showCpaLines: settings.showCpaLines,
+      chartEngineOnline: chartCatalog.online,
+      chartEngineStatus: chartCatalog.status,
+      chartEngineMessage: chartCatalog.message,
+      chartSources: [...chartCatalog.baseSources, ...chartCatalog.localSources],
+      baseChartSources: chartCatalog.baseSources,
+      localChartSources: chartCatalog.localSources,
+      chartJobs: chartCatalog.jobs,
+      mapErrors,
     } satisfies ChartControlsVm)),
     shareReplay({ bufferSize: 1, refCount: true }),
   );
@@ -1437,6 +1519,51 @@ export class ChartFacadeService {
     }
   }
 
+  async selectChartSource(sourceId: string): Promise<void> {
+    const builtIn = this.buildStaticSource(sourceId);
+    if (builtIn) {
+      this._baseSource$.next(builtIn);
+      return;
+    }
+
+    const charts = await firstValueFrom(this.chartCatalog.charts$);
+    const chart = charts.find((candidate) => candidate.id === sourceId && candidate.available);
+    if (!chart) {
+      this.recordMapError(`Chart source is not available: ${sourceId}`, sourceId);
+      return;
+    }
+
+    this._baseSource$.next(this.buildEngineSource(chart));
+  }
+
+  importChart(request: ChartImportRequestVm): void {
+    this.chartCatalog.importChart({
+      kind: request.kind,
+      file: request.file,
+      id: request.id,
+      label: request.label,
+      ...(request.chartKind ? { chartKind: request.chartKind } : {}),
+    });
+  }
+
+  deleteChart(chartId: string): void {
+    this.chartCatalog.deleteChart(chartId);
+  }
+
+  refreshChartCatalog(): void {
+    this.chartCatalog.refresh();
+  }
+
+  recordMapError(message: string, sourceId?: string): void {
+    const error: ChartMapErrorVm = {
+      id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      message,
+      ...(sourceId ? { sourceId } : {}),
+      timestamp: Date.now(),
+    };
+    this._mapErrors$.next([error, ...this._mapErrors$.value].slice(0, 5));
+  }
+
   get currentLayerMode(): ChartLayerMode {
     const id = this._baseSource$.value.id;
     if (id === 'satellite') {
@@ -1448,12 +1575,24 @@ export class ChartFacadeService {
     if (id === ENC_CHART_SOURCE_ID) {
       return 'enc';
     }
+    if (id === LOCAL_RASTER_CHART_SOURCE_ID) {
+      return 'local-raster';
+    }
+    if (id === BATHYMETRY_CHART_SOURCE_ID) {
+      return 'bathymetry';
+    }
+    if (id === ENC_VECTOR_CHART_SOURCE_ID || id.startsWith('local-enc') || id.includes('vector')) {
+      return 'enc-vector';
+    }
     return 'osm';
   }
 
   refreshEncStyle(): void {
     if (this._baseSource$.value.id === ENC_CHART_SOURCE_ID) {
       this._baseSource$.next(this.buildEncSource());
+    }
+    if (this._baseSource$.value.id === ENC_VECTOR_CHART_SOURCE_ID) {
+      this._baseSource$.next(this.buildStaticSource(ENC_VECTOR_CHART_SOURCE_ID) ?? this._baseSource$.value);
     }
   }
 
@@ -1638,6 +1777,47 @@ export class ChartFacadeService {
     return {
       id: ENC_CHART_SOURCE_ID,
       style: buildEncStyle(settings.encLayers, settings.safetyDepth),
+    };
+  }
+
+  private buildStaticSource(sourceId: string): ChartSourceConfig | null {
+    if (sourceId === DEFAULT_CHART_SOURCE_ID) {
+      return DEFAULT_BASE_SOURCE;
+    }
+    if (sourceId === 'satellite') {
+      return SATELLITE_SOURCE;
+    }
+    if (sourceId === NAUTICAL_CHART_SOURCE_ID) {
+      return NAUTICAL_SOURCE;
+    }
+    if (sourceId === ENC_CHART_SOURCE_ID) {
+      return this.buildEncSource();
+    }
+    if (sourceId === GEBCO_CHART_SOURCE_ID) {
+      const source = CHART_SOURCES.find((s) => s.id === GEBCO_CHART_SOURCE_ID);
+      return source?.style ? { id: source.id, style: source.style } : null;
+    }
+    if (sourceId === NOAA_WMS_CHART_SOURCE_ID) {
+      const source = CHART_SOURCES.find((s) => s.id === NOAA_WMS_CHART_SOURCE_ID);
+      return source?.style ? { id: source.id, style: source.style } : null;
+    }
+    if (sourceId === IHM_WMS_CHART_SOURCE_ID) {
+      const source = CHART_SOURCES.find((s) => s.id === IHM_WMS_CHART_SOURCE_ID);
+      return source?.style ? { id: source.id, style: source.style } : null;
+    }
+    if (sourceId === BATHYMETRY_CHART_SOURCE_ID) {
+      const source = CHART_SOURCES.find((s) => s.id === BATHYMETRY_CHART_SOURCE_ID);
+      return source?.style ? { id: source.id, style: source.style } : null;
+    }
+    const source = CHART_SOURCES.find((candidate) => candidate.id === sourceId && BUILT_IN_BASE_SOURCE_IDS.has(candidate.id));
+    return source?.style ? { id: source.id, style: source.style } : null;
+  }
+
+  private buildEngineSource(chart: EngineChartSource): ChartSourceConfig {
+    const settings = this.settingsService.snapshot;
+    return {
+      id: chart.id,
+      style: buildEngineChartStyle(chart, settings.encLayers, settings.safetyDepth),
     };
   }
 }

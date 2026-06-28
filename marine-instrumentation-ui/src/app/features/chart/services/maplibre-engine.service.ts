@@ -6,6 +6,7 @@ import { METERS_PER_NM, projectDestination } from '../../../state/calculations/n
 import {
   DEFAULT_VESSEL_TYPE_COLORS,
   VESSEL_TYPE_KEYS,
+  getAisTargetIconId,
   getAisVesselIconId,
   type VesselTypeColors,
   type VesselTypeFilter,
@@ -126,6 +127,7 @@ export class MapLibreEngineService {
   private baseSource: ChartSourceConfig | null = null;
   private clickHandler: ((lngLat: [number, number]) => void) | null = null;
   private featureClickHandler: ((event: { featureId?: string; properties?: any; layerId: string }) => void) | null = null;
+  private errorHandler: ((message: string, sourceId?: string) => void) | null = null;
   private pendingCenter: [number, number] | null = null;
   private appliedCenter: [number, number] | null = null;
   private appliedBearing: number | null = null;
@@ -253,6 +255,7 @@ export class MapLibreEngineService {
       setTimeout(() => this.map?.resize(), 400);
     });
     this.map.on('style.load', () => this.onStyleReady());
+    this.map.on('error', (event) => this.handleMapError(event));
     this.map.on('click', this.handleMapClick);
 
     // Watch for container size changes (grid transitions, sidenav toggle)
@@ -433,6 +436,10 @@ export class MapLibreEngineService {
 
   setFeatureClickHandler(handler: ((event: { featureId?: string; properties?: any; layerId: string }) => void) | null): void {
     this.featureClickHandler = handler;
+  }
+
+  setErrorHandler(handler: ((message: string, sourceId?: string) => void) | null): void {
+    this.errorHandler = handler;
   }
 
   // ---- Anchor Watch Layer ----
@@ -622,8 +629,18 @@ export class MapLibreEngineService {
     this.map = null;
     this.mapReady = false;
     this.clickHandler = null;
+    this.errorHandler = null;
     this.pendingCenter = null;
     this.appliedCenter = null;
+  }
+
+  private handleMapError(event: { error?: Error; sourceId?: unknown }): void {
+    const message = event.error?.message ?? 'Map source failed to load.';
+    if (!/Failed to fetch|404|glyph|tile/i.test(message)) {
+      return;
+    }
+    const sourceId = typeof event.sourceId === 'string' ? event.sourceId : this.baseSource?.id;
+    this.errorHandler?.(message, sourceId);
   }
 
   /** Force the map to recalculate its container dimensions. */
@@ -886,6 +903,11 @@ export class MapLibreEngineService {
       this.upsertAisIcon(normalId, this.createAisIcon(color, this.adjustHexColor(color, -0.35), type));
       this.upsertAisIcon(dangerousId, this.createDangerousAisIcon(color, type));
     }
+
+    for (const kind of ['navigation-aid', 'shore-station', 'sart'] as const) {
+      this.upsertAisIcon(getAisTargetIconId(kind, 'other'), this.createAisObjectIcon(kind));
+      this.upsertAisIcon(getAisTargetIconId(kind, 'other', true), this.createAisObjectIcon(kind, true));
+    }
   }
 
   private upsertAisIcon(iconId: string, image: ImageData): void {
@@ -913,6 +935,96 @@ export class MapLibreEngineService {
 
   private createAisIcon(fillColor: string, strokeColor: string, type: VesselTypeFilter): ImageData {
     return this.createVesselIcon(strokeColor, fillColor, type === 'sailing');
+  }
+
+  private createAisObjectIcon(
+    kind: 'navigation-aid' | 'shore-station' | 'sart',
+    dangerous = false,
+  ): ImageData {
+    const size = 128;
+    const canvas = document.createElement('canvas');
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+      return new ImageData(size, size);
+    }
+
+    const cx = size / 2;
+    const cy = size / 2;
+    const accent =
+      dangerous ? '#dc2626' :
+      kind === 'navigation-aid' ? '#f59e0b' :
+      kind === 'sart' ? '#ef4444' :
+      '#38bdf8';
+    const stroke = this.adjustHexColor(accent, -0.35);
+    const fill = this.adjustHexColor(accent, 0.24);
+
+    ctx.clearRect(0, 0, size, size);
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.35)';
+    ctx.shadowBlur = 10;
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = stroke;
+    ctx.fillStyle = fill;
+    ctx.lineWidth = 5;
+
+    if (kind === 'shore-station') {
+      ctx.beginPath();
+      ctx.moveTo(cx, cy - 42);
+      ctx.lineTo(cx + 28, cy + 34);
+      ctx.lineTo(cx - 28, cy + 34);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.shadowBlur = 0;
+      ctx.strokeStyle = stroke;
+      ctx.lineWidth = 4;
+      for (const radius of [22, 34]) {
+        ctx.beginPath();
+        ctx.arc(cx, cy - 24, radius, -0.85, -0.2);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(cx, cy - 24, radius, Math.PI + 0.2, Math.PI + 0.85);
+        ctx.stroke();
+      }
+      return ctx.getImageData(0, 0, size, size);
+    }
+
+    if (kind === 'sart') {
+      ctx.beginPath();
+      ctx.arc(cx, cy, 34, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+      ctx.strokeStyle = stroke;
+      ctx.lineWidth = 7;
+      ctx.beginPath();
+      ctx.moveTo(cx - 18, cy);
+      ctx.lineTo(cx + 18, cy);
+      ctx.moveTo(cx, cy - 18);
+      ctx.lineTo(cx, cy + 18);
+      ctx.stroke();
+      return ctx.getImageData(0, 0, size, size);
+    }
+
+    ctx.beginPath();
+    ctx.moveTo(cx, cy - 42);
+    ctx.lineTo(cx + 34, cy);
+    ctx.lineTo(cx, cy + 42);
+    ctx.lineTo(cx - 34, cy);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = stroke;
+    ctx.beginPath();
+    ctx.arc(cx, cy, 8, 0, Math.PI * 2);
+    ctx.fill();
+
+    return ctx.getImageData(0, 0, size, size);
   }
 
   private updateCamera(): void {
@@ -2090,7 +2202,7 @@ export class MapLibreEngineService {
   }
 
   private isEncBaseStyleActive(): boolean {
-    return this.baseSource?.id === 'enc';
+    return this.baseSource?.id === 'enc' || this.baseSource?.id === 'enc-vector';
   }
 
   private getEffectiveOwnVesselScale(scale: number): number {

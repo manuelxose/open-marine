@@ -1,0 +1,16 @@
+[Unit]
+Description=Open Marine Angular UI (SSR/development server)
+After=network-online.target docker.service signalk.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/manu/open-marine
+ExecStart=/usr/bin/npm run start:ui
+Restart=always
+RestartSec=5
+User=manu
+Environment=NODE_ENV=production
+
+[Install]
+WantedBy=multi-user.target

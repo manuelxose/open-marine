@@ -60,6 +60,10 @@ pnpm-debug.log*
 pnpm-error.log*
 lerna-debug.log*
 
+# Wind demo artifacts
+.omi-wind-demo-*.log
+.omi-wind-demo-*.pid
+
 # Temporary files
 *.tmp
 *.bak

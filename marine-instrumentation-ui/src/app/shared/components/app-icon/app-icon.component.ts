@@ -7,7 +7,7 @@ export type IconName =
   // Instruments
   | 'speedometer' | 'depth' | 'wind' | 'wind-arrow' | 'battery' | 'thermometer' | 'barometer'
   // Actions
-  | 'play' | 'pause' | 'stop' | 'forward' | 'backward' | 'zoom-in' | 'zoom-out' | 'center' | 'layers' | 'map'
+  | 'play' | 'pause' | 'stop' | 'forward' | 'backward' | 'zoom-in' | 'zoom-out' | 'center' | 'layers' | 'map' | 'catalog'
   | 'edit' | 'trash' | 'locate' | 'target' | 'activity' | 'maximize' | 'minimize'
   // UI
   | 'menu' | 'close' | 'check' | 'warning' | 'error' | 'info' | 'settings' | 'search' | 'calendar_today' | 'schedule' | 'filter' | 'more-vertical' | 'x'

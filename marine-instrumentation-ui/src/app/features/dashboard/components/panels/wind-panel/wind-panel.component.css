@@ -45,7 +45,7 @@
 }
 
 .aws-value {
-  font-family: 'Share Tech Mono', 'JetBrains Mono', monospace;
+  font-family: var(--font-mono);
   font-size: clamp(3rem, 8vw, 4.5rem);
   font-weight: 500;
   color: var(--nord-7);
@@ -53,13 +53,13 @@
   letter-spacing: -0.03em;
   font-variant-numeric: tabular-nums;
   text-shadow:
-    0 0 28px rgba(143, 188, 187, 0.35),
+    0 0 28px rgba(var(--gb-needle-secondary-rgb), 0.35),
     0 2px 12px rgba(0, 0, 0, 0.08);
   transition: color 0.3s ease, text-shadow 0.3s ease;
 }
 
 .aws-unit {
-  font-family: 'Space Grotesk', sans-serif;
+  font-family: var(--font-family);
   font-size: 1.1rem;
   font-weight: 600;
   color: var(--text-muted);
@@ -102,7 +102,7 @@
 }
 
 .awa-label {
-  font-family: 'Space Grotesk', sans-serif;
+  font-family: var(--font-family);
   font-size: 0.65rem;
   font-weight: 700;
   text-transform: uppercase;
@@ -117,7 +117,7 @@
 }
 
 .awa-value {
-  font-family: 'Share Tech Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 1.7rem;
   font-weight: 500;
   color: var(--text-primary);
@@ -154,7 +154,7 @@
 }
 
 .secondary-label {
-  font-family: 'Space Grotesk', sans-serif;
+  font-family: var(--font-family);
   font-size: 0.62rem;
   font-weight: 700;
   text-transform: uppercase;
@@ -169,7 +169,7 @@
 }
 
 .secondary-value {
-  font-family: 'Share Tech Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 1rem;
   color: var(--text-primary);
   font-variant-numeric: tabular-nums;
@@ -181,8 +181,3 @@
   text-transform: uppercase;
   font-weight: 600;
 }
-
-/* Compact */
-:host-context(.compact) .aws-value { font-size: 2.5rem; }
-:host-context(.compact) .awa-value { font-size: 1.3rem; }
-:host-context(.compact) .awa-section { padding: var(--space-2) var(--space-3); }

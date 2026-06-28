@@ -14,7 +14,6 @@ export const migrations: Record<number, MigrationFn> = {
     return {
       version: 1,
       theme: legacy?.theme || DEFAULT_PREFERENCES.theme,
-      density: legacy?.density || DEFAULT_PREFERENCES.density,
       units: {
         speed: legacy?.speedUnit || DEFAULT_PREFERENCES.units.speed,
         depth: legacy?.depthUnit || DEFAULT_PREFERENCES.units.depth,

@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, EventEmitter, Input, Output } from '@angular/core';
 import { CommonModule, DecimalPipe } from '@angular/common';
 import { AppIconComponent, IconName } from '../../../../shared/components/app-icon/app-icon.component';
-import { AisTarget, AisNavStatus } from '../../../../core/models/ais.model';
+import { AisTarget, AisNavStatus, getAisTargetKind } from '../../../../core/models/ais.model';
 import { TimeAgoPipe } from '../../../../shared/pipes/time-ago.pipe';
 import { DistancePipe } from '../../../../shared/pipes/distance.pipe';
 
@@ -27,7 +27,7 @@ import { DistancePipe } from '../../../../shared/pipes/distance.pipe';
       
       <div class="ais-info">
         <div class="ais-header">
-          <span class="ais-name">{{ target.name || target.mmsi }}</span>
+          <span class="ais-name">{{ getDisplayName() }}</span>
           <span class="ais-badge" *ngIf="target.isDangerous">DANGEROUS</span>
         </div>
         
@@ -132,6 +132,11 @@ export class AisTargetItemComponent {
 
   getIconName(): IconName {
     if (this.target.isDangerous) return 'alert-triangle';
+    const kind = getAisTargetKind(this.target);
+    if (kind === 'shore-station') return 'radio';
+    if (kind === 'navigation-aid') return 'waypoint';
+    if (kind === 'sart') return 'life-buoy';
+
     switch (this.target.state) {
       case AisNavStatus.AtAnchor:
       case AisNavStatus.Moored:
@@ -142,6 +147,11 @@ export class AisTargetItemComponent {
   }
 
   getStatusLabel(): string {
+    const kind = getAisTargetKind(this.target);
+    if (kind === 'shore-station') return 'Coastal station';
+    if (kind === 'navigation-aid') return 'Aid to navigation';
+    if (kind === 'sart') return 'Search and rescue';
+
     if (this.target.state === undefined) return 'Unknown';
     switch (this.target.state) {
       case AisNavStatus.UnderWayUsingEngine: return 'Underway (Eng)';
@@ -155,5 +165,16 @@ export class AisTargetItemComponent {
       case AisNavStatus.UnderWaySailing: return 'Sailing';
       default: return AisNavStatus[this.target.state] ?? 'Unknown';
     }
+  }
+
+  getDisplayName(): string {
+    if (this.target.name) return this.target.name;
+
+    const kind = getAisTargetKind(this.target);
+    if (kind === 'shore-station') return `AIS Station ${this.target.mmsi}`;
+    if (kind === 'navigation-aid') return `AIS Aid ${this.target.mmsi}`;
+    if (kind === 'sart') return `AIS SART ${this.target.mmsi}`;
+
+    return this.target.mmsi;
   }
 }
