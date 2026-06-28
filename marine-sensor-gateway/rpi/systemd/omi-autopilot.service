@@ -9,7 +9,7 @@ WorkingDirectory=/home/manu/open-marine
 # The engine always boots in STANDBY with the motor disabled; it never drives
 # the motor by default. Restart on failure only — a crash loop must not keep
 # re-engaging the drive; the microcontroller heartbeat failsafe also cuts power.
-ExecStart=/usr/bin/node /home/manu/open-marine/scripts/start-autopilot-cross-platform.mjs
+ExecStart=/usr/bin/node /home/manu/open-marine/scripts/start-sensor-cross-platform.mjs autopilot
 Restart=on-failure
 RestartSec=5
 User=manu

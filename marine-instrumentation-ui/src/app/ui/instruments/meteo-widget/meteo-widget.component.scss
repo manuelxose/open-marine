@@ -111,7 +111,7 @@
     color: color-mix(in srgb, var(--gb-text-unit) 45%, transparent);
     pointer-events: none;
     letter-spacing: 0.06em;
-    font-family: 'Space Grotesk', system-ui, sans-serif;
+    font-family: var(--font-family);
   }
 }
 

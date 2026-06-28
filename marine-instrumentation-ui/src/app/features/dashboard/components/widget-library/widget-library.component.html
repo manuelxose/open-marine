@@ -1,0 +1,62 @@
+<div class="lib">
+  <header class="lib__header">
+    <div class="lib__title-row">
+      <app-icon name="plus" [size]="14" />
+      <span class="lib__title">Add to dashboard</span>
+      <button class="lib__close" type="button" (click)="closePanel.emit()" aria-label="Close library">
+        <app-icon name="x" [size]="14" />
+      </button>
+    </div>
+    <app-search-input
+      placeholder="Search instruments & panels…"
+      (search)="onSearch($event)"
+      (clear)="onClearSearch()" />
+  </header>
+
+  @if (!isSearching()) {
+    <nav class="lib__tabs" aria-label="Widget categories">
+      @for (group of groups; track trackGroup($index, group)) {
+        <button
+          type="button"
+          class="lib__tab"
+          [class.lib__tab--active]="activeGroup() === group.id"
+          (click)="setGroup(group.id)">
+          <app-icon [name]="$any(group.icon)" [size]="14" />
+          <span class="lib__tab-label">{{ group.label }}</span>
+          <span class="lib__tab-count">{{ group.items.length }}</span>
+        </button>
+      }
+    </nav>
+  }
+
+  <div class="lib__list">
+    @for (item of visibleItems(); track trackItem($index, item)) {
+      <button
+        type="button"
+        class="lib__item"
+        [class.lib__item--active]="isPanelActive(item)"
+        [class.lib__item--panel]="item.kind === 'panel'"
+        (click)="onSelect(item)">
+        <span class="lib__item-icon"><app-icon [name]="$any(item.icon)" [size]="16" /></span>
+        <span class="lib__item-text">
+          <span class="lib__item-name">{{ item.label }}</span>
+          @if (item.description) {
+            <span class="lib__item-desc">{{ item.description }}</span>
+          }
+        </span>
+        @if (item.kind === 'panel') {
+          <span class="lib__item-badge">Panel</span>
+        }
+        <span class="lib__item-size">{{ item.size }}</span>
+        <span class="lib__item-action">
+          <app-icon [name]="isPanelActive(item) ? 'check' : 'plus'" [size]="14" />
+        </span>
+      </button>
+    } @empty {
+      <div class="lib__empty">
+        <app-icon name="search" [size]="24" />
+        <span>No matching widgets</span>
+      </div>
+    }
+  </div>
+</div>

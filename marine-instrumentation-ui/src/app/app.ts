@@ -18,6 +18,8 @@ type ThemeMode = 'day' | 'night';
 
 const LEGACY_THEME_KEY = 'omi-theme';
 const PREFERENCES_STORAGE_KEY = 'omi-preferences';
+/** Canonical preferences store (PreferencesService v2) — single source of theme truth. */
+const PREFERENCES_V2_STORAGE_KEY = 'omi-preferences-v2';
 
 @Component({
   selector: 'app-root',
@@ -96,21 +98,30 @@ export class AppComponent implements OnInit {
   }
 
   private resolveInitialTheme(): ThemeMode {
+    // Canonical store first (where PreferencesService persists), then legacy fallbacks.
+    const v2Theme = this.readThemeFromStore(PREFERENCES_V2_STORAGE_KEY);
+    if (v2Theme) {
+      return v2Theme;
+    }
+
     const legacyTheme = localStorage.getItem(LEGACY_THEME_KEY);
     if (legacyTheme === 'day' || legacyTheme === 'night') {
       return legacyTheme;
     }
 
-    const preferencesRaw = localStorage.getItem(PREFERENCES_STORAGE_KEY);
-    if (!preferencesRaw) {
-      return 'night';
-    }
+    return this.readThemeFromStore(PREFERENCES_STORAGE_KEY) ?? 'night';
+  }
 
+  private readThemeFromStore(key: string): ThemeMode | null {
+    const raw = localStorage.getItem(key);
+    if (!raw) {
+      return null;
+    }
     try {
-      const parsed = JSON.parse(preferencesRaw) as { theme?: unknown };
-      return parsed.theme === 'day' || parsed.theme === 'night' ? parsed.theme : 'night';
+      const parsed = JSON.parse(raw) as { theme?: unknown };
+      return parsed.theme === 'day' || parsed.theme === 'night' ? parsed.theme : null;
     } catch {
-      return 'night';
+      return null;
     }
   }
 }

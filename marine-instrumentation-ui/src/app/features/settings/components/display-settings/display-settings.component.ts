@@ -37,31 +37,6 @@ import { ThemeService } from '../../../../core/theme/theme.service';
           </button>
         </div>
       </div>
-
-      <div class="setting-item">
-        <div class="setting-info">
-          <span class="setting-label">Density</span>
-          <span class="setting-description">Choose between comfortable and compact layout density.</span>
-        </div>
-        <div class="theme-toggle">
-          <button
-            type="button"
-            class="theme-btn"
-            [class.active]="p.density === 'comfortable'"
-            (click)="prefs.setDensity('comfortable')"
-          >
-            Comfortable
-          </button>
-          <button
-            type="button"
-            class="theme-btn"
-            [class.active]="p.density === 'compact'"
-            (click)="prefs.setDensity('compact')"
-          >
-            Compact
-          </button>
-        </div>
-      </div>
     </div>
   `,
   styles: [`

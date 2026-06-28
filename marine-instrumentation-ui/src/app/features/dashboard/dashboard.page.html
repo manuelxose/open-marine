@@ -1,4 +1,4 @@
-<div class="dashboard" [class.compact]="isCompact()" [class.dashboard--editing]="editMode()">
+<div class="dashboard" [class.dashboard--editing]="editMode()">
   <!-- ── Toolbar ── -->
   <header class="dashboard-toolbar">
     <div class="toolbar-start">
@@ -8,11 +8,6 @@
       }
     </div>
     <div class="toolbar-end">
-      <button class="tb-btn" type="button" (click)="toggleDensity()"
-        [title]="isCompact() ? 'Switch to comfortable' : 'Switch to compact'">
-        <app-icon name="layers" [size]="14" />
-        <span class="tb-label">{{ isCompact() ? 'Comfort' : 'Compact' }}</span>
-      </button>
       @if (editMode()) {
         <button class="tb-btn" type="button" (click)="togglePalette()"
           [class.tb-btn--active]="showPalette()">
@@ -68,9 +63,10 @@
 
         @for (card of visibleCards(); track card.config.id) {
           <article class="tile"
-            [class.tile--l]="card.definition?.size === 'L'"
-            [class.tile--m]="card.definition?.size === 'M'"
-            [class.tile--s]="!card.definition || card.definition.size === 'S'"
+            [class.tile--l]="card.config.size === 'L'"
+            [class.tile--m]="card.config.size === 'M'"
+            [class.tile--s]="card.config.size === 'S'"
+            [class.tile--instrument]="card.config.kind === 'instrument'"
             cdkDrag
             [cdkDragDisabled]="!editMode()">
 
@@ -78,17 +74,30 @@
             @if (editMode()) {
               <div class="tile__edit-bar">
                 <app-icon name="more-vertical" [size]="14" />
-                <span class="tile__edit-label">{{ widgetTitle(card.definition, card.config.id) }}</span>
+                <span class="tile__edit-label">{{ cardTitle(card) }}</span>
                 <button type="button" class="tile__remove"
                   title="Remove widget"
-                  (click)="toggleWidget(card.config.id)">
+                  (click)="removeCard(card)">
                   <app-icon name="x" [size]="12" />
                 </button>
               </div>
             }
 
             <!-- Widget content -->
-            @switch (card.config.id) {
+            @if (card.config.kind === 'instrument') {
+              @if (card.instrument; as inst) {
+                <app-dashboard-instrument-tile class="panel-host" [instrument]="inst" />
+              } @else {
+                <section class="simple-widget simple-widget--placeholder">
+                  <div class="simple-widget__head">
+                    <app-icon name="settings" [size]="16" />
+                    <span>{{ cardTitle(card) }}</span>
+                  </div>
+                  <p class="simple-widget__placeholder">Instrument unavailable.</p>
+                </section>
+              }
+            } @else {
+            @switch (card.config.refId) {
               @case ('navigation-card') {
                 @if (navigationVm(); as vm) {
                   <app-dashboard-navigation-panel class="panel-host" [vm]="vm" />
@@ -154,15 +163,21 @@
                   <p class="simple-widget__unit">{{ metricUnit(depthVm()?.metrics, 'dashboard.metrics.depth', 'm') }}</p>
                 </section>
               }
+              @case ('autopilot-compass') {
+                <section class="panel-host ap-compass-host">
+                  <app-autopilot-compass />
+                </section>
+              }
               @default {
                 <section class="simple-widget simple-widget--placeholder">
                   <div class="simple-widget__head">
                     <app-icon name="settings" [size]="16" />
-                    <span>{{ widgetTitle(card.definition, card.config.id) }}</span>
+                    <span>{{ cardTitle(card) }}</span>
                   </div>
                   <p class="simple-widget__placeholder">Widget available, implementation pending.</p>
                 </section>
               }
+            }
             }
           </article>
         } @empty {
@@ -178,31 +193,15 @@
       </div>
     </section>
 
-    <!-- ── Widget Palette Sidebar ── -->
-    <aside class="palette" [class.palette--open]="editMode() && showPalette()">
-      <div class="palette__header">
-        <div class="palette__title-row">
-          <app-icon name="plus" [size]="14" />
-          <span>Widget Library</span>
-        </div>
-        <span class="palette__count">{{ visibleCount() }} / {{ totalCount() }}</span>
-        <button type="button" class="palette__close" (click)="togglePalette()">
-          <app-icon name="x" [size]="14" />
-        </button>
-      </div>
-      <div class="palette__list">
-        @for (def of widgetDefinitions; track def.id) {
-          <button type="button" class="palette__item"
-            [class.palette__item--active]="isWidgetVisible(def.id)"
-            (click)="toggleWidget(def.id)">
-            <span class="palette__item-name">{{ widgetTitle(def, def.id) }}</span>
-            <span class="palette__item-size">{{ def.size }}</span>
-            <span class="palette__item-state">
-              {{ isWidgetVisible(def.id) ? '✓' : '+' }}
-            </span>
-          </button>
-        }
-      </div>
+    <!-- ── Widget Library Selector ── -->
+    @if (editMode() && showPalette()) {
+      <div class="library-backdrop" (click)="togglePalette()"></div>
+    }
+    <aside class="library-dock" [class.library-dock--open]="editMode() && showPalette()">
+      <app-dashboard-widget-library
+        [activePanelIds]="activePanelIds()"
+        (select)="onLibrarySelect($event)"
+        (closePanel)="togglePalette()" />
     </aside>
   </div>
 </div>

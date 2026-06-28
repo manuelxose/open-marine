@@ -38,11 +38,11 @@ export class AppShellComponent {
     map((alarms) => alarms.some((alarm) => alarm.state === AlarmState.Active))
   );
 
-  /** Whether current route is /chart (for chart mode: hide sidenav, compact top bar) */
+  /** Whether current route is exactly /chart (for chart mode: hide sidenav, compact top bar). */
   isChartRoute$ = this.router.events.pipe(
     filter((e): e is NavigationEnd => e instanceof NavigationEnd),
-    map((e) => e.urlAfterRedirects.startsWith('/chart')),
-    startWith(this.router.url.startsWith('/chart'))
+    map((e) => this.isChartRoute(e.urlAfterRedirects)),
+    startWith(this.isChartRoute(this.router.url))
   );
 
   navCollapsed = true;
@@ -61,7 +61,7 @@ export class AppShellComponent {
   }
 
   handleMainAreaClick(event: MouseEvent): void {
-    if (this.navCollapsed || !this.router.url.startsWith('/chart')) {
+    if (this.navCollapsed || !this.isChartRoute(this.router.url)) {
       return;
     }
 
@@ -81,5 +81,10 @@ export class AppShellComponent {
   private requestChartReflow(): void {
     // Single resize after the CSS transition (~300ms) so MapLibre repaints once on the final layout.
     setTimeout(() => window.dispatchEvent(new Event('resize')), 320);
+  }
+
+  private isChartRoute(url: string): boolean {
+    const path = url.split('?')[0]?.split('#')[0] ?? url;
+    return path === '/chart';
   }
 }

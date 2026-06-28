@@ -1,0 +1,24 @@
+[Unit]
+Description=Open Marine chart engine (local nautical chart catalog and tiles)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/manu/open-marine/marine-chart-engine
+ExecStart=/usr/bin/node /home/manu/open-marine/marine-chart-engine/dist/server.js
+Restart=on-failure
+RestartSec=5
+User=manu
+Environment=CHART_ENGINE_PORT=8088
+Environment=CHART_ENGINE_DATA_DIR=/var/lib/open-marine
+Environment=CHART_ENGINE_CACHE_DIR=/var/lib/open-marine/chart-cache
+Environment=CHART_ENGINE_UPLOAD_DIR=/var/lib/open-marine/chart-uploads
+Environment=CHART_ENGINE_REGISTRY_FILE=/var/lib/open-marine/charts/registry.local.json
+Environment=CHART_ENGINE_UPLOAD_MAX_MB=2048
+
+ReadWritePaths=/var/lib/open-marine
+NoNewPrivileges=yes
+
+[Install]
+WantedBy=multi-user.target

@@ -165,8 +165,17 @@ import { DegreesPipe } from '../../shared/pipes/degrees.pipe';
       font-weight: 800; letter-spacing: 0.08em; font-size: 0.72rem;
       background: var(--gb-bg-panel); border: 1px solid var(--gb-border-panel); color: var(--gb-text-muted);
     }
-    .state-chip[data-state="auto"], .state-chip[data-state="wind"], .state-chip[data-state="route"] {
-      background: var(--gb-arc-normal); border-color: var(--gb-data-good); color: var(--gb-data-good);
+    .state-chip[data-state="auto"] {
+      background: color-mix(in srgb, var(--ap-mode-auto) 16%, transparent);
+      border-color: var(--ap-mode-auto); color: var(--ap-mode-auto);
+    }
+    .state-chip[data-state="wind"] {
+      background: color-mix(in srgb, var(--ap-mode-wind) 16%, transparent);
+      border-color: var(--ap-mode-wind); color: var(--ap-mode-wind);
+    }
+    .state-chip[data-state="route"] {
+      background: color-mix(in srgb, var(--ap-mode-route) 16%, transparent);
+      border-color: var(--ap-mode-route); color: var(--ap-mode-route);
     }
     .state-chip[data-state="fault"] {
       background: var(--gb-alarm-emergency-bg); border-color: var(--gb-alarm-emergency-border); color: var(--gb-data-stale);

@@ -24,6 +24,12 @@
     </div>
   </header>
 
+  @if (facade.isOffline()) {
+    <div class="notice notice--info">
+      <span>Modo offline: Simulación local sin servidor. Los datos se generan en el navegador.</span>
+    </div>
+  }
+
   @if (facade.error()) {
     <div class="notice notice--warning">
       <span>{{ facade.error() }}</span>
@@ -144,6 +150,63 @@
                   <span><i class="ok"></i> PHYSICAL GPIO DISABLED</span>
                   <span><i [class.ok]="facade.api.online()" [class.bad]="!facade.api.online()"></i> ORCHESTRATOR</span>
                 </div>
+
+                @if (true) {
+                  <div class="wind-generator panel">
+                    <span class="panel-kicker">GENERADOR DE VIENTO ALEATORIO</span>
+                    <div class="parameter-grid">
+                      <label>
+                        <span>Base Wind Speed</span>
+                        <div class="input-with-unit">
+                          <input type="number" [(ngModel)]="windForm.baseWindSpeedKt" min="0" max="50" step="1">
+                          <small>kt</small>
+                        </div>
+                      </label>
+                      <label>
+                        <span>Base Wind Direction</span>
+                        <div class="input-with-unit">
+                          <input type="number" [(ngModel)]="windForm.baseWindDirDeg" min="0" max="360" step="1">
+                          <small>deg</small>
+                        </div>
+                      </label>
+                      <label>
+                        <span>Gust Probability</span>
+                        <div class="input-with-unit">
+                          <input type="number" [(ngModel)]="windForm.gustProbability" min="0" max="1" step="0.05">
+                          <small></small>
+                        </div>
+                      </label>
+                      <label>
+                        <span>Gust Max Delta</span>
+                        <div class="input-with-unit">
+                          <input type="number" [(ngModel)]="windForm.gustMaxDeltaKt" min="0" max="20" step="0.5">
+                          <small>kt</small>
+                        </div>
+                      </label>
+                      <label>
+                        <span>Duration</span>
+                        <div class="input-with-unit">
+                          <input type="number" [(ngModel)]="windForm.durationMs" min="30000" max="3600000" step="60000">
+                          <small>ms</small>
+                        </div>
+                      </label>
+                      <label>
+                        <span>Seed</span>
+                        <div class="input-with-unit">
+                          <input type="number" [(ngModel)]="windForm.seed" min="1" max="9999" step="1">
+                          <small></small>
+                        </div>
+                      </label>
+                    </div>
+                    <button
+                      type="button"
+                      class="run-button"
+                      [disabled]="facade.busy()"
+                      (click)="generateWindScenario()">
+                      GENERAR ESCENARIO DE VIENTO
+                    </button>
+                  </div>
+                }
 
                 <div class="scenario-actions">
                   <button
@@ -304,50 +367,74 @@
             <div class="panel-toolbar">
               <div>
                 <span class="panel-kicker">{{ 'simulation.charts.channels' | translate }}</span>
-                <strong>{{ facade.selectedChannelIds().length }} / 12</strong>
+                <strong>{{ selectedCount() }} / 12</strong>
               </div>
-              <button type="button" (click)="togglePause()">
-                {{ facade.paused() ? 'RESUME' : 'FREEZE' }}
-              </button>
+              <div class="channel-toolbar-actions">
+                <button type="button" (click)="resetChannels()">DEFAULT</button>
+                <button type="button" (click)="togglePause()">
+                  {{ facade.paused() ? 'RESUME' : 'FREEZE' }}
+                </button>
+              </div>
             </div>
-            <div class="channel-list">
-              @for (channelId of allChannelIds(); track channelId) {
-                @let snapshot = facade.channelForId(channelId);
-                <label class="channel-item">
-                  <input
-                    type="checkbox"
-                    [checked]="facade.selectedChannelIds().includes(channelId)"
-                    (change)="facade.toggleChannel(channelId)">
-                  <span class="channel-color" [attr.data-quality]="snapshot?.quality ?? 'unknown'"></span>
-                  <span>
-                    <strong>{{ channelId }}</strong>
-                    <small>{{ snapshot?.unit ?? '' }}</small>
-                  </span>
-                  <code>{{ formatValue(snapshot?.value) }}</code>
-                </label>
+            <div class="channel-groups">
+              @for (group of channelGroups(); track group.id) {
+                <details class="channel-group" [open]="true">
+                  <summary>
+                    <span>{{ group.label }}</span>
+                    <button
+                      type="button"
+                      class="group-toggle"
+                      (click)="selectGroup(group); $event.preventDefault(); $event.stopPropagation();">
+                      TOGGLE
+                    </button>
+                  </summary>
+                  <div class="channel-list">
+                    @for (channel of group.channels; track channel.id) {
+                      @let snapshot = facade.channelForId(channel.id);
+                      <label class="channel-item">
+                        <input
+                          type="checkbox"
+                          [checked]="isSelected(channel.id)"
+                          (change)="toggleChannel(channel.id)">
+                        <span class="channel-color" [attr.data-quality]="snapshot?.quality ?? 'unknown'"></span>
+                        <span>
+                          <strong>{{ channel.label }}</strong>
+                          <small>{{ channel.id }} · {{ channel.canonicalUnit }}</small>
+                        </span>
+                        <code>{{ formatValue(snapshot?.value) }}</code>
+                      </label>
+                    }
+                  </div>
+                </details>
               } @empty {
                 <div class="empty-message">{{ 'simulation.charts.no_channels' | translate }}</div>
               }
             </div>
           </aside>
 
-          <div class="panel chart-panel">
-            <div class="panel-toolbar">
-              <div>
-                <span class="panel-kicker">{{ 'simulation.charts.title' | translate }}</span>
-                <strong>uPLOT CANVAS</strong>
+          <div class="charts-stack">
+            @for (group of chartGroups(); track group.unit) {
+              <div class="panel chart-panel">
+                <div class="panel-toolbar">
+                  <div>
+                    <span class="panel-kicker">{{ group.label }}</span>
+                    <strong>{{ group.unit }}</strong>
+                  </div>
+                </div>
+                <div class="chart-container">
+                  <app-uplot-chart
+                    [data]="group.data"
+                    [config]="group.config">
+                  </app-uplot-chart>
+                </div>
               </div>
-            </div>
-            <div class="chart-container">
-              @if (facade.selectedChannelIds().length > 0 && facade.activeRun(); as run) {
-                <app-uplot-chart
-                  [data]="chartData()"
-                  [options]="chartOptions()">
-                </app-uplot-chart>
-              } @else {
-                <div class="empty-message">{{ 'simulation.charts.select_channels' | translate }}</div>
-              }
-            </div>
+            } @empty {
+              <div class="panel chart-panel">
+                <div class="chart-container empty-message">
+                  {{ facade.selectedChannelIds().length === 0 ? 'Selecciona canales para visualizar' : 'Esperando datos de la simulación...' }}
+                </div>
+              </div>
+            }
           </div>
         </section>
       }

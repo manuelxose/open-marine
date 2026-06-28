@@ -170,6 +170,11 @@
   background: color-mix(in srgb, var(--gb-needle-secondary) 25%, transparent);
 }
 
+.apply-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 .hint {
   margin-top: var(--space-1);
   font-size: 0.68rem;

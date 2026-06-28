@@ -63,23 +63,23 @@
 
 .battery-bar-fill.level-high {
   background: linear-gradient(90deg, var(--success), color-mix(in srgb, var(--success) 80%, var(--nord-14)));
-  box-shadow: 0 0 10px rgba(163, 190, 140, 0.45);
+  box-shadow: 0 0 10px rgba(var(--gb-data-good-rgb), 0.45);
 }
 
 .battery-bar-fill.level-mid {
   background: linear-gradient(90deg, var(--warn), color-mix(in srgb, var(--warn) 80%, var(--nord-13)));
-  box-shadow: 0 0 8px rgba(235, 203, 139, 0.3);
+  box-shadow: 0 0 8px rgba(var(--gb-data-warn-rgb), 0.3);
 }
 
 .battery-bar-fill.level-low {
   background: linear-gradient(90deg, var(--danger), color-mix(in srgb, var(--danger) 80%, var(--nord-11)));
-  box-shadow: 0 0 10px rgba(191, 97, 106, 0.45);
+  box-shadow: 0 0 10px rgba(var(--gb-data-stale-rgb), 0.45);
   animation: low-battery-pulse 1.5s ease-in-out infinite;
 }
 
 @keyframes low-battery-pulse {
-  0%, 100% { box-shadow: 0 0 8px rgba(191, 97, 106, 0.35); }
-  50% { box-shadow: 0 0 20px rgba(191, 97, 106, 0.65); }
+  0%, 100% { box-shadow: 0 0 8px rgba(var(--gb-data-stale-rgb), 0.35); }
+  50% { box-shadow: 0 0 20px rgba(var(--gb-data-stale-rgb), 0.65); }
 }
 
 /* Power metrics list */
@@ -119,7 +119,7 @@
 }
 
 .power-metric-label {
-  font-family: 'Space Grotesk', sans-serif;
+  font-family: var(--font-family);
   font-size: 0.65rem;
   font-weight: 700;
   text-transform: uppercase;
@@ -135,7 +135,7 @@
 }
 
 .power-metric-value {
-  font-family: 'Share Tech Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 1.7rem;
   font-weight: 500;
   color: var(--text-primary);
@@ -144,7 +144,7 @@
 }
 
 .power-metric-unit {
-  font-family: 'Space Grotesk', sans-serif;
+  font-family: var(--font-family);
   font-size: 0.75rem;
   font-weight: 600;
   color: var(--text-muted);
@@ -160,8 +160,3 @@
 .power-metric:hover .power-trend {
   opacity: 0.9;
 }
-
-/* Compact */
-:host-context(.compact) .power-metric { padding: var(--space-2) var(--space-3); }
-:host-context(.compact) .power-metric-value { font-size: 1.3rem; }
-:host-context(.compact) .battery-bar-track { height: 6px; }

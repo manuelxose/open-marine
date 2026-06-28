@@ -39,6 +39,10 @@
             (toggleOpenSeaMap)="toggleOpenSeaMap.emit()" />
         </section>
 
+        <section class="left-panel__tab-pane" *ngSwitchCase="'catalog'">
+          <app-chart-source-catalog />
+        </section>
+
         <section class="left-panel__tab-pane" *ngSwitchCase="'ais'">
           <app-ais-target-list
             [targets]="aisTargets"

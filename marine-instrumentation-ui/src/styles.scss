@@ -20,23 +20,4 @@
   }
 }
 
-body.compact-mode {
-  .instrument-grid {
-    gap: 0.5rem;
-    padding: 0.5rem;
-  }
-
-  .card, app-instrument-card {
-    padding: 0.5rem !important;
-  }
-
-  .title {
-    font-size: 0.65rem !important;
-  }
-
-  .value {
-    font-size: clamp(1.4rem, 4vw, 2.4rem) !important;
-  }
-}
-
 .modal-open { overflow: hidden; }
