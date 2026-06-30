@@ -50,6 +50,7 @@ Thumbs.db
 *.pid
 marine-test-bench/data/
 data/test-bench.sqlite*
+marine-simulation-platform/data/
 
 # Logs
 npm-debug.log*

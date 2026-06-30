@@ -30,6 +30,7 @@ const PERSISTED_HISTORY_PATHS = new Set<string>([
   PATHS.environment.wind.speedApparent,
   PATHS.environment.wind.angleApparent,
   PATHS.environment.wind.speedTrue,
+  PATHS.environment.wind.directionTrue,
   PATHS.environment.wind.angleTrueGround,
   PATHS.environment.wind.angleTrueWater,
   PATHS.electrical.batteries.house.voltage,
@@ -282,7 +283,15 @@ export class DatapointStoreService {
       source
     });
     
-    state.set(P.environment.wind.angleTrueGround, { // TWD
+    // Canonical TWD path (read by selectTwd / the map wind vector).
+    state.set(P.environment.wind.directionTrue, { // TWD
+      path: P.environment.wind.directionTrue,
+      value: result.twd,
+      timestamp,
+      source
+    });
+
+    state.set(P.environment.wind.angleTrueGround, { // TWD (legacy alias)
       path: P.environment.wind.angleTrueGround,
       value: result.twd,
       timestamp,

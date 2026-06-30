@@ -50,6 +50,7 @@ export interface SimulationStore {
   saveRun(run: SimulationRun): void;
   getRun(id: string): SimulationRun | null;
   listRuns(): SimulationRunSummary[];
+  clearRuns(): number;
   saveEvent(event: SimulationEvent): void;
   getEvents(runId: string, afterSequence?: number): SimulationEvent[];
   saveSampleBatch(batch: {

@@ -20,6 +20,8 @@ npm run dev -w marine-simulation-platform -- live --scenario wind-gps-demo --hos
 npm run dev -w marine-simulation-platform -- bench --port 4100
 ```
 
+`bench` starts the API and publishes started runs to Signal K at `http://localhost:3000` by default, so diagnostics scenarios drive the live UI instruments and chart. Use `--host <url>` to target another Signal K server, or `SIMULATION_PUBLISH_SIGNALK=0` for an isolated bench run with stored samples only.
+
 ## Compatibility
 
 The legacy root commands are preserved as aliases:

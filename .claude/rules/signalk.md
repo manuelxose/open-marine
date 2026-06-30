@@ -2,7 +2,7 @@
 paths:
   - "signalk-runtime/**/*"
   - "marine-data-contract/**/*"
-  - "marine-data-simulator/**/*"
+  - "marine-simulation-platform/**/*"
 ---
 
 # Signal K Rules

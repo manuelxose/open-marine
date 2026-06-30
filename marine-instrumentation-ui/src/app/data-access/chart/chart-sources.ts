@@ -78,7 +78,7 @@ export const NAUTICAL_RASTER_STYLE: StyleSpecification = {
       source: 'openseamap-overlay',
       paint: {
         'raster-opacity': 0.9,
-        'raster-fade-duration': 200,
+        'raster-fade-duration': 0,
       },
       minzoom: 8,
     },
@@ -150,7 +150,7 @@ const BATHYMETRY_STYLE: StyleSpecification = {
       source: 'emodnet-bathymetry',
       paint: {
         'raster-opacity': 0.62,
-        'raster-fade-duration': 200,
+        'raster-fade-duration': 0,
       },
       minzoom: 4,
     },
@@ -212,7 +212,17 @@ const NOAA_WMS_STYLE: StyleSpecification = {
   ],
 };
 
-const IHM_WMS_STYLE: StyleSpecification = {
+export const buildIhmWmsStyle = (chartEngineApiUrl: string): StyleSpecification => {
+  const baseUrl = chartEngineApiUrl.replace(/\/$/, '');
+  const ihmAttribution = '(c) Instituto Hidrografico de la Marina. Not valid for official navigation.';
+  const purposes = [
+    { id: 'ihm-enc-p2', minzoom: 4, maxzoom: 6, opacity: 0.76 },
+    { id: 'ihm-enc-p3', minzoom: 6, maxzoom: 9, opacity: 0.8 },
+    { id: 'ihm-enc-p4', minzoom: 9, maxzoom: 12, opacity: 0.84 },
+    { id: 'ihm-enc-p5', minzoom: 12, maxzoom: 16, opacity: 0.9 },
+  ] as const;
+
+  return {
   version: 8,
   sources: {
     'osm-base': {
@@ -222,14 +232,17 @@ const IHM_WMS_STYLE: StyleSpecification = {
       maxzoom: 19,
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
     },
-    'ihm-enc-wms': {
-      type: 'raster',
-      tiles: ['http://localhost:8088/proxy/wms/ihm-enc-wms/{z}/{x}/{y}.png'],
-      tileSize: 256,
-      minzoom: 4,
-      maxzoom: 16,
-      attribution: 'IHM - Not valid for official navigation',
-    },
+    ...Object.fromEntries(purposes.map((purpose) => [
+      purpose.id,
+      {
+        type: 'raster',
+        tiles: [`${baseUrl}/proxy/wms/${purpose.id}/{z}/{x}/{y}.png`],
+        tileSize: 256,
+        minzoom: purpose.minzoom,
+        maxzoom: purpose.maxzoom,
+        attribution: ihmAttribution,
+      },
+    ])),
   },
   layers: [
     {
@@ -237,17 +250,19 @@ const IHM_WMS_STYLE: StyleSpecification = {
       type: 'raster',
       source: 'osm-base',
     },
-    {
-      id: 'ihm-enc-wms-layer',
-      type: 'raster',
-      source: 'ihm-enc-wms',
+    ...purposes.map((purpose) => ({
+      id: `${purpose.id}-layer`,
+      type: 'raster' as const,
+      source: purpose.id,
       paint: {
-        'raster-opacity': 0.85,
-        'raster-fade-duration': 200,
+        'raster-opacity': purpose.opacity,
+        'raster-fade-duration': 0,
       },
-      minzoom: 4,
-    },
+      minzoom: purpose.minzoom,
+      maxzoom: purpose.maxzoom,
+    })),
   ],
+};
 };
 
 export const CHART_SOURCES: ChartSourceDefinition[] = [
@@ -326,7 +341,6 @@ export const CHART_SOURCES: ChartSourceDefinition[] = [
     id: IHM_WMS_CHART_SOURCE_ID,
     label: 'IHM Spain ENC',
     kind: 'raster',
-    style: IHM_WMS_STYLE,
     description: 'Spanish IHM ENC via WMS. Not valid for official navigation.',
     available: true,
   },
@@ -349,7 +363,7 @@ export const buildEngineChartStyle = (
     source: sourceId,
     paint: {
       'raster-opacity': chart.kind === 'bathymetry' ? 0.62 : 1,
-      'raster-fade-duration': 200,
+      'raster-fade-duration': 0,
     },
   };
 

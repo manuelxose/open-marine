@@ -1,4 +1,17 @@
 <div class="chart-controls">
+  <!-- Active base map / chart selection -->
+  <div class="control-group control-group--section" *ngIf="vm.baseChartSources.length || vm.localChartSources.length">
+    <div class="section-label">Active map</div>
+    <select class="source-select" [value]="vm.sourceId" (change)="onSelectSource($any($event.target).value)">
+      <optgroup label="Base maps">
+        <option *ngFor="let s of vm.baseChartSources" [value]="s.id">{{ s.label }}</option>
+      </optgroup>
+      <optgroup label="Local charts" *ngIf="vm.localChartSources.length">
+        <option *ngFor="let s of vm.localChartSources" [value]="s.id" [disabled]="!s.available">{{ s.label }}</option>
+      </optgroup>
+    </select>
+  </div>
+
   <div class="control-group">
     <!-- Track Toggle -->
     <button 

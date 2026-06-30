@@ -67,6 +67,10 @@ export class SimulationApiService {
     return this.get<RunSummary[]>('/api/v2/runs');
   }
 
+  async clearRuns(): Promise<{ deletedRuns: number }> {
+    return this.delete<{ deletedRuns: number }>('/api/v2/runs');
+  }
+
   async getRun(id: string): Promise<SimulationRun> {
     return this.get<SimulationRun>(`/api/v2/runs/${encodeURIComponent(id)}`);
   }
@@ -161,10 +165,11 @@ export class SimulationApiService {
     }
   }
 
-  private async delete(path: string): Promise<void> {
+  private async delete<T = void>(path: string): Promise<T> {
     try {
-      await firstValueFrom(this.http.delete(`${this.environment.testBenchApiUrl}${path}`));
+      const result = await firstValueFrom(this.http.delete<T>(`${this.environment.testBenchApiUrl}${path}`));
       this.online.set(true);
+      return result;
     } catch (error) {
       this.online.set(false);
       throw error;

@@ -300,6 +300,7 @@ export const es: Translations = {
     history: {
       title: 'Historial',
       empty: 'No hay ejecuciones registradas.',
+      clear: 'LIMPIAR HISTORIAL',
     },
   },
   dashboard: {
@@ -444,6 +445,30 @@ export const es: Translations = {
   // ═══════════════════════════════════════════════
   // LEGEND (P4)
   // ═══════════════════════════════════════════════
+  resources: {
+    guide: {
+      title: 'Guía de Recursos de Navegación',
+      dismiss: 'Entendido',
+      waypoint_title: 'Waypoints',
+      waypoint_desc: 'Un waypoint es un punto de interés o destino marcado en la carta. Crea waypoints tocando el mapa o desde esta página.',
+      route_title: 'Rutas',
+      route_desc: 'Una ruta es una secuencia ordenada de waypoints que forma un plan de navegación. Crea rutas combinando waypoints existentes.',
+      track_title: 'Tracks',
+      track_desc: 'Un track es un registro del recorrido real de tu embarcación. Graba tracks desde la pestaña Tracks.',
+      navigate_title: 'Navegar a',
+      navigate_desc: 'Pulsa \'Navegar\' en un waypoint o ruta para activarlo como destino. Luego activa el autopilot en modo TRACK (GPS) para seguirlo automáticamente.',
+    },
+    navigate: 'Navegar',
+    new_route: 'Nueva Ruta',
+    edit_route: 'Editar Ruta',
+    create_route: 'Crear Ruta',
+    route_name: 'Nombre de la ruta',
+    select_waypoints: 'Selecciona waypoints para añadir a la ruta:',
+    no_waypoints: 'Crea waypoints primero para construir una ruta.',
+    cancel: 'Cancelar',
+    save: 'Guardar',
+  },
+
   legend: {
     title: 'Leyenda de Carta Náutica',
     open_button: 'Abrir leyenda de carta',
@@ -748,4 +773,3 @@ export const es: Translations = {
     },
   },
 };
-

@@ -31,4 +31,29 @@ export class ProcessRunnerService {
       });
     });
   }
+
+  /**
+   * Run a command and resolve with its captured stdout.
+   */
+  capture(command: ExternalCommand): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const child = spawn(command.command, command.args, {
+        stdio: ['ignore', 'pipe', 'ignore'],
+        shell: process.platform === 'win32',
+      });
+
+      let stdout = '';
+      child.stdout?.on('data', (chunk) => {
+        stdout += chunk.toString();
+      });
+      child.on('error', reject);
+      child.on('exit', (code) => {
+        if (code === 0) {
+          resolve(stdout);
+          return;
+        }
+        reject(new Error(`${command.command} exited with code ${code ?? 'unknown'}`));
+      });
+    });
+  }
 }

@@ -3,7 +3,7 @@ import type { AddressInfo } from "node:net";
 import { randomUUID } from "node:crypto";
 import type { SimulationInjectionRequest, SimulationScenarioDocument } from "@omi/marine-data-contract";
 import type { RunManager } from "../runtime/run-manager.js";
-import type { SimulationStore } from "../core/types.js";
+import type { Publisher, SimulationStore } from "../core/types.js";
 import { generateWindScenario, type WindScenarioOptions } from "../scenarios/wind-scenario-generator.js";
 
 export interface SimulationApiServerOptions {
@@ -11,6 +11,7 @@ export interface SimulationApiServerOptions {
   host?: string;
   store: SimulationStore;
   runManager: RunManager;
+  publisherFactory?: (() => Publisher | undefined) | undefined;
 }
 
 export class SimulationApiServer {
@@ -101,14 +102,18 @@ export class SimulationApiServer {
       if (request.method === "GET" && url.pathname === "/api/v2/runs") {
         return sendJson(response, 200, this.options.runManager.listRuns());
       }
+      if (request.method === "DELETE" && url.pathname === "/api/v2/runs") {
+        return sendJson(response, 200, this.options.runManager.clearRunHistory());
+      }
       if (request.method === "POST" && url.pathname === "/api/v2/runs") {
         const body = await readJson(request);
         const scenarioId = typeof body["scenarioId"] === "string" ? body["scenarioId"] : "";
         const token = typeof body["armToken"] === "string" ? body["armToken"] : "";
         const mode = body["mode"] === "closed-loop" ? "closed-loop" : "data";
-        const speed = typeof body["speed"] === "number" ? body["speed"] : 1;
-        const seed = typeof body["seed"] === "number" ? body["seed"] : 42;
-        const run = await this.options.runManager.start(scenarioId, token, parameters(body["parameters"]), mode, speed, seed);
+        const runParameters = parameters(body["parameters"]);
+        const speed = typeof body["speed"] === "number" ? body["speed"] : finiteNumber(runParameters["speed"], 1);
+        const seed = typeof body["seed"] === "number" ? body["seed"] : finiteNumber(runParameters["seed"], 42);
+        const run = await this.options.runManager.start(scenarioId, token, runParameters, mode, speed, seed, this.options.publisherFactory?.());
         return sendJson(response, 201, run);
       }
 

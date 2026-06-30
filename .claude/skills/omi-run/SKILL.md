@@ -16,7 +16,7 @@ Use the narrowest command that proves the requested behavior.
 - Contract build: `npm run build:contract`
 - Sensor gateway check: `cd marine-sensor-gateway && npm test && npm run build`
 - Autopilot check: `cd marine-autopilot-engine && npm test && npm run build`
-- Test bench check: `cd marine-test-bench && npm test && npm run build`
+- Simulation/bench check: `npm run test:simulation` (bench server: `npm run start:simulation-bench`)
 - Chart toolkit: `cd marine-chart-toolkit && npm run build`
 - Tile server: `cd marine-tile-server && npm run build`
 

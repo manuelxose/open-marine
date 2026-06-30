@@ -40,9 +40,17 @@ const main = async (): Promise<void> => {
     );
     const runtime = new BenchRuntime(store);
     runtime.start();
-    const server = new SimulationApiServer({ port: config.apiPort ?? 4100, store, runManager: runtime.runManager });
+    const publishSignalk = process.env["SIMULATION_PUBLISH_SIGNALK"] !== "0";
+    const server = new SimulationApiServer({
+      port: config.apiPort ?? 4100,
+      store,
+      runManager: runtime.runManager,
+      publisherFactory: publishSignalk
+        ? () => new WsPublisher(config.signalKHost ?? defaultConfig.signalKHost!, config.signalKToken ?? process.env.SIGNALK_TOKEN)
+        : undefined,
+    });
     const { port } = await server.start();
-    console.log(`[sim] ${command} api=http://localhost:${port}`);
+    console.log(`[sim] ${command} api=http://localhost:${port}${publishSignalk ? ` signalk=${config.signalKHost}` : " signalk=disabled"}`);
     process.once("SIGINT", async () => {
       await server.stop();
       runtime.stop();

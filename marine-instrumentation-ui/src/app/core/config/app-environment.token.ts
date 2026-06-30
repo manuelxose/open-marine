@@ -16,8 +16,12 @@ export const APP_ENVIRONMENT = new InjectionToken<AppEnvironment>('APP_ENVIRONME
 
 // Raspberry Pi running Signal K + GPS/IMU/AIS sensors, see docs/RASPBERRY_CONNECTION.md
 const RASPBERRY_LAN_HOST = '192.168.1.43';
+const SIGNALK_HOST_OVERRIDE_KEY = 'omi.signalKHost';
 
 function resolveSignalKHost(): string {
+  const override = resolveSignalKHostOverride();
+  if (override) return override;
+
   if (typeof window !== 'undefined' && window.location?.hostname) {
     const hostname = window.location.hostname;
     if (hostname === 'localhost' || hostname === '127.0.0.1') {
@@ -27,6 +31,28 @@ function resolveSignalKHost(): string {
   }
 
   return RASPBERRY_LAN_HOST;
+}
+
+function resolveSignalKHostOverride(): string | null {
+  if (typeof window === 'undefined') return null;
+
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const queryOverride = params.get('signalKHost') ?? params.get('signalkHost');
+    if (queryOverride) {
+      const normalized = queryOverride.trim();
+      if (normalized === 'auto') {
+        window.localStorage.removeItem(SIGNALK_HOST_OVERRIDE_KEY);
+        return null;
+      }
+      window.localStorage.setItem(SIGNALK_HOST_OVERRIDE_KEY, normalized);
+      return normalized;
+    }
+
+    return window.localStorage.getItem(SIGNALK_HOST_OVERRIDE_KEY);
+  } catch {
+    return null;
+  }
 }
 
 function resolveProtocols(): { httpProtocol: 'http' | 'https'; wsProtocol: 'ws' | 'wss' } {

@@ -51,18 +51,30 @@ export class AisStoreService {
   private readonly TRACK_MAX_AGE_MS = 30 * 60 * 1000; // 30 minutes
   private readonly TRACK_MIN_DISTANCE_M = 50; // 50 meters
   private readonly TRACK_MAX_POINTS_PER_TARGET = 120;
+  private cleanupTimer: ReturnType<typeof setTimeout> | null = null;
   
   constructor(
     private datapointStore: DatapointStoreService,
     private alarmSettings: AlarmSettingsService,
     private zone: NgZone,
   ) {
-    this.zone.runOutsideAngular(() => {
-      setInterval(() => this.cleanupStaleTargets(), this.CLEANUP_INTERVAL_MS);
-    });
+    this.scheduleCleanup();
 
     // Keep risk assessment tied to own-ship motion too (not only target updates).
     this.bindOwnShipRiskUpdates();
+  }
+
+  private scheduleCleanup(): void {
+    if (this.cleanupTimer) {
+      return;
+    }
+    this.zone.runOutsideAngular(() => {
+      this.cleanupTimer = setTimeout(() => {
+        this.cleanupTimer = null;
+        this.cleanupStaleTargets();
+        this.scheduleCleanup();
+      }, this.CLEANUP_INTERVAL_MS);
+    });
   }
 
   /**
@@ -159,7 +171,8 @@ export class AisStoreService {
     this.zone.runOutsideAngular(() => {
       setTimeout(() => {
         this.flushScheduled = false;
-        this._targets.set(new Map(this._live));
+        const snapshot = new Map(this._live);
+        this.zone.run(() => this._targets.set(snapshot));
       }, this.FLUSH_INTERVAL_MS);
     });
   }
@@ -244,14 +257,22 @@ export class AisStoreService {
     }
 
     for (const [mmsi, points] of this._trackBuffer.entries()) {
-      const fresh = points.filter((point) => now - point.timestamp <= this.TRACK_MAX_AGE_MS);
-      if (fresh.length === 0) {
+      const first = points[0];
+      if (!first || now - first.timestamp <= this.TRACK_MAX_AGE_MS) {
+        continue;
+      }
+      let firstFreshIndex = 0;
+      while (
+        firstFreshIndex < points.length &&
+        now - points[firstFreshIndex]!.timestamp > this.TRACK_MAX_AGE_MS
+      ) {
+        firstFreshIndex += 1;
+      }
+      if (firstFreshIndex >= points.length) {
         this._trackBuffer.delete(mmsi);
         continue;
       }
-      if (fresh.length !== points.length) {
-        this._trackBuffer.set(mmsi, fresh);
-      }
+      this._trackBuffer.set(mmsi, points.slice(firstFreshIndex));
     }
 
     if (changed) {

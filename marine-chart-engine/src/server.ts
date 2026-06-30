@@ -66,6 +66,29 @@ xyzProxy.registerProvider({
   attribution: '&copy; <a href="https://www.openseamap.org">OpenSeaMap</a> contributors',
 });
 
+// Register OpenWeatherMap weather overlays (only when an API key is configured).
+// The key stays server-side; the UI consumes the proxied tiles. Weather tiles are
+// cached briefly (30 min) so they stay fresh without hammering the OWM API.
+if (config.owmApiKey) {
+  const owmLayers: { id: string; layer: string }[] = [
+    { id: 'owm-temperature', layer: 'temp_new' },
+    { id: 'owm-wind', layer: 'wind_new' },
+    { id: 'owm-precipitation', layer: 'precipitation_new' },
+    { id: 'owm-clouds', layer: 'clouds_new' },
+    { id: 'owm-pressure', layer: 'pressure_new' },
+  ];
+  for (const { id, layer } of owmLayers) {
+    xyzProxy.registerProvider({
+      id,
+      tileUrlTemplate: `https://tile.openweathermap.org/map/${layer}/{z}/{x}/{y}.png?appid=${config.owmApiKey}`,
+      minZoom: 0,
+      maxZoom: 18,
+      attribution: 'Weather data &copy; OpenWeatherMap',
+      cacheTtlMinutes: 30,
+    });
+  }
+}
+
 // Register built-in WMS providers
 wmsProxy.registerProvider({
   id: 'emodnet-bathymetry',
@@ -79,17 +102,27 @@ wmsProxy.registerProvider({
   attribution: 'EMODnet Bathymetry Consortium',
 });
 
-wmsProxy.registerProvider({
-  id: 'ihm-enc-wms',
-  baseUrl: 'https://ideihm.covam.es/ihm/wms/ENC',
-  layers: 'ENC',
-  format: 'image/png',
-  transparent: true,
-  srs: 'EPSG:3857',
-  minZoom: 4,
-  maxZoom: 16,
-  attribution: 'Instituto Hidrográfico de la Marina (IHM) - Not valid for official navigation',
-});
+for (const purpose of [
+  { id: 'ihm-enc-p2', service: 'cartaENCp2', layer: 'ENC_ES2', minZoom: 4, maxZoom: 10 },
+  { id: 'ihm-enc-p3', service: 'cartaENCp3', layer: 'ENC_ES3', minZoom: 6, maxZoom: 12 },
+  { id: 'ihm-enc-p4', service: 'cartaENCp4', layer: 'ENC_ES4', minZoom: 8, maxZoom: 15 },
+  { id: 'ihm-enc-p5', service: 'cartaENCp5', layer: 'ENC_ES5', minZoom: 10, maxZoom: 16 },
+]) {
+  wmsProxy.registerProvider({
+    id: purpose.id,
+    catalogGroupId: 'ihm-enc-wms',
+    baseUrl: `https://ideihm.covam.es/wms/${purpose.service}`,
+    layers: purpose.layer,
+    format: 'image/png',
+    transparent: true,
+    srs: 'EPSG:3857',
+    version: '1.3.0',
+    minZoom: purpose.minZoom,
+    maxZoom: purpose.maxZoom,
+    attribution: 'Instituto Hidrografico de la Marina (IHM) - Not valid for official navigation',
+    expectedContentTypes: ['image/png'],
+  });
+}
 
 wmsProxy.registerProvider({
   id: 'noaa-wms',
@@ -107,15 +140,15 @@ wmsProxy.registerProvider({
 
 wmsProxy.registerProvider({
   id: 'gebco',
-  baseUrl: 'https://www.gebco.net/data_and_products/gebco_web_services/web_map_service/mapserv',
-  layers: 'GEBCO_Latest',
+  baseUrl: 'https://wms.gebco.net/mapserv',
+  layers: 'GEBCO_LATEST',
   format: 'image/png',
   transparent: true,
   srs: 'EPSG:3857',
   version: '1.1.1',
   minZoom: 0,
   maxZoom: 18,
-  attribution: 'GEBCO',
+  attribution: 'Imagery reproduced from the GEBCO Compilation / GEBCO Grid',
 });
 
 // Routes

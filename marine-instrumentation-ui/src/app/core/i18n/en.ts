@@ -298,6 +298,7 @@ export const en = {
     history: {
       title: 'History',
       empty: 'No runs recorded.',
+      clear: 'CLEAR HISTORY',
     },
   },
   dashboard: {
@@ -443,6 +444,30 @@ export const en = {
   // ═══════════════════════════════════════════════
   // LEGEND (P4)
   // ═══════════════════════════════════════════════
+  resources: {
+    guide: {
+      title: 'Navigation Resources Guide',
+      dismiss: 'Got it',
+      waypoint_title: 'Waypoints',
+      waypoint_desc: 'A waypoint is a point of interest or destination marked on the chart. Create waypoints by tapping the map or from this page.',
+      route_title: 'Routes',
+      route_desc: 'A route is an ordered sequence of waypoints forming a navigation plan. Create routes by combining existing waypoints.',
+      track_title: 'Tracks',
+      track_desc: 'A track is a recorded path of your vessel\'s actual movement. Record tracks from the Tracks tab.',
+      navigate_title: 'Navigate To',
+      navigate_desc: 'Press \'Navigate\' on a waypoint or route to set it as your destination. Then engage the autopilot in TRACK (GPS) mode to follow it automatically.',
+    },
+    navigate: 'Navigate',
+    new_route: 'New Route',
+    edit_route: 'Edit Route',
+    create_route: 'Create Route',
+    route_name: 'Route name',
+    select_waypoints: 'Select waypoints to add to the route:',
+    no_waypoints: 'Create waypoints first to build a route.',
+    cancel: 'Cancel',
+    save: 'Save',
+  },
+
   legend: {
     title: 'Nautical Chart Legend',
     open_button: 'Open chart legend',

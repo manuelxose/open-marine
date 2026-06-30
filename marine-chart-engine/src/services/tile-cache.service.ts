@@ -30,8 +30,11 @@ export class TileCacheService {
   /**
    * Try to read a tile from cache. Returns null if not found or expired.
    */
-  async get(providerId: string, z: number, x: number, y: number): Promise<CachedTile | null> {
-    const filePath = this.tilePath(providerId, z, x, y);
+  async get(providerId: string, z: number, x: number, y: number, ttlMsOverride?: number): Promise<CachedTile | null> {
+    const filePath = this.resolveExistingTilePath(providerId, z, x, y);
+    if (!filePath) {
+      return null;
+    }
     if (!fsSync.existsSync(filePath)) {
       return null;
     }
@@ -42,7 +45,7 @@ export class TileCacheService {
     }
 
     const ageMs = Date.now() - stat.mtimeMs;
-    const ttlMs = this.config.ttlDays * 24 * 60 * 60 * 1000;
+    const ttlMs = ttlMsOverride ?? this.config.ttlDays * 24 * 60 * 60 * 1000;
     if (ageMs > ttlMs) {
       await fs.rm(filePath, { force: true }).catch(() => {});
       return null;
@@ -82,6 +85,16 @@ export class TileCacheService {
 
   private tilePath(providerId: string, z: number, x: number, y: number): string {
     return path.join(this.config.cacheDir, providerId, String(z), String(x), String(y));
+  }
+
+  private resolveExistingTilePath(providerId: string, z: number, x: number, y: number): string | null {
+    const basePath = this.tilePath(providerId, z, x, y);
+    for (const candidate of [basePath, `${basePath}.png`, `${basePath}.jpg`, `${basePath}.jpeg`, `${basePath}.webp`, `${basePath}.pbf`]) {
+      if (fsSync.existsSync(candidate)) {
+        return candidate;
+      }
+    }
+    return null;
   }
 
   private ensureExtension(filePath: string, ext: string): string {

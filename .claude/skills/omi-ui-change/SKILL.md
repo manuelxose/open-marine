@@ -14,8 +14,11 @@ Start from these files (don't grep to rediscover them) — all under `marine-ins
 - Endpoints: `core/config/app-environment.token.ts` (`APP_ENVIRONMENT`)
 - Signal K client: `data-access/signalk/signalk-client.service.ts`
 - State hubs: `state/datapoints/datapoint-store.service.ts`, `state/ais/ais-store.service.ts`
-- Chart: `features/chart/chart.page.ts` + `features/chart/services/` (incl. `maplibre-engine.service.ts`)
+- Chart (map): `features/chart/chart.page.ts` + `features/chart/services/` (incl. `maplibre-engine.service.ts`) — vessel marker, true/apparent wind vectors
+- Signal charts: `shared/components/uplot-chart/` rendered by `features/diagnostics/` (simulation/autopilot/motor signals over time)
 - Shared: `shared/components/`, `shared/styles/`
+
+For simulation/diagnostics, scenario and signal-chart UX, prefer the `omi-simulation-platform` skill.
 
 Full key-file index, data flow and performance rules: `.claude/references/architecture.md` (load on demand).
 Aesthetic / design system (read before any styling): `.claude/references/design-system.md` — Glass

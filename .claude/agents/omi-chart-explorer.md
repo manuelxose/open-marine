@@ -7,6 +7,11 @@ model: haiku
 
 You are a chart and tiles exploration agent for Open Marine.
 
+Scope note — "chart" is overloaded. This agent covers **chart *data*** (MBTiles, tiles, MapLibre
+source config). For the **map view** (`marine-instrumentation-ui/.../features/chart`, vessel + wind
+vectors) use `omi-ui-explorer`/`omi-simulation-platform`; for the **signal charts** (uplot in
+`features/diagnostics`) use `omi-simulation-platform`.
+
 Focus on `marine-chart-toolkit/` and `marine-tile-server/`. Verify:
 1. Chart data logic is separate from UI rendering.
 2. No chart data logic inside Angular components.

@@ -10,16 +10,16 @@ export class RemoteChartCatalogService {
   private readonly emodnet = new EmodnetCatalogClient();
   private readonly gebco = new GebcoCatalogClient();
 
-  async listCharts(providerId: string, _filter?: ChartCatalogFilter): Promise<RemoteChartEntry[]> {
+  async listCharts(providerId: string, filter?: ChartCatalogFilter): Promise<RemoteChartEntry[]> {
     switch (providerId) {
       case 'noaa-enc':
-        return this.noaa.fetchCatalog();
+        return this.noaa.fetchCatalog(filter);
       case 'ihm-enc-wms':
-        return this.ihm.fetchCatalog();
+        return this.ihm.fetchCatalog(filter);
       case 'emodnet-bathymetry':
-        return this.emodnet.fetchCatalog();
+        return this.emodnet.fetchCatalog(filter);
       case 'gebco':
-        return this.gebco.fetchCatalog();
+        return this.gebco.fetchCatalog(filter);
       default:
         return [];
     }

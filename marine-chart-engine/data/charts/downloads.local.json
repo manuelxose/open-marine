@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "downloads": [
+    {
+      "chartId": "offline-ihm-enc-wms-ihm-enc-galicia",
+      "providerId": "ihm-enc-wms",
+      "localChartId": "offline-ihm-enc-wms-ihm-enc-galicia",
+      "label": "IHM Galicia Rías (WMS) (Offline)",
+      "format": "xyz-cache",
+      "bounds": [
+        -9.5,
+        41.8,
+        -8.2,
+        43.8
+      ],
+      "downloadedAt": "2026-06-28T21:25:21.668Z",
+      "status": "failed"
+    }
+  ]
+}

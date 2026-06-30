@@ -4,7 +4,6 @@ import { AppIconComponent } from '../../../../shared/components/app-icon/app-ico
 import { ChartControlsComponent } from '../chart-controls/chart-controls.component';
 import { AisTargetListComponent } from '../../../ais/components/ais-target-list/ais-target-list.component';
 import { ChartWaypointListComponent } from '../chart-waypoint-list/chart-waypoint-list.component';
-import { ChartSourceCatalogComponent } from '../chart-source-catalog/chart-source-catalog.component';
 import { AisTarget } from '../../../../core/models/ais.model';
 import {
   ChartControlsVm,
@@ -22,7 +21,6 @@ import {
     ChartControlsComponent,
     AisTargetListComponent,
     ChartWaypointListComponent,
-    ChartSourceCatalogComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './left-panel.component.html',
@@ -40,6 +38,7 @@ export class LeftPanelComponent {
 
   @Output() toggleOpen = new EventEmitter<void>();
   @Output() tabChange = new EventEmitter<ChartLeftPanelTab>();
+  @Output() selectChartSource = new EventEmitter<string>();
   @Output() selectAisTarget = new EventEmitter<string>();
   @Output() aisSortByChange = new EventEmitter<'distance' | 'cpa' | 'name'>();
   @Output() followTarget = new EventEmitter<string>();
@@ -57,6 +56,7 @@ export class LeftPanelComponent {
   @Output() selectWaypoint = new EventEmitter<string>();
   @Output() renameWaypoint = new EventEmitter<{ id: string; name: string }>();
   @Output() deleteWaypoint = new EventEmitter<string>();
+  @Output() navigateWaypoint = new EventEmitter<string>();
   @Output() clearActiveWaypoint = new EventEmitter<void>();
 
   @Output() exportWaypointsGpx = new EventEmitter<void>();
@@ -64,7 +64,6 @@ export class LeftPanelComponent {
 
   readonly tabs: { id: ChartLeftPanelTab; label: string; icon: 'layers' | 'ais' | 'waypoint' | 'route' | 'catalog' }[] = [
     { id: 'layers', label: 'Layers', icon: 'layers' },
-    { id: 'catalog', label: 'Catalog', icon: 'catalog' },
     { id: 'ais', label: 'AIS', icon: 'ais' },
     { id: 'waypoints', label: 'Waypoints', icon: 'waypoint' },
     { id: 'routes', label: 'Routes', icon: 'route' },

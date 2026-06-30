@@ -1,33 +1,40 @@
 ---
 name: omi-test-bench
-description: Work with marine-test-bench in complete isolation from production. Use for simulation orchestration, data recording, replay, and isolated validation.
+description: Work with marine-simulation-platform in complete isolation from production. Use for simulation orchestration, scenario runs, data recording, replay, and isolated validation.
 ---
 
 # OMI Test Bench
 
+Test-bench duties live in the `marine-simulation-platform` package (there is no separate
+`marine-test-bench` package). For scenario/preset/chart/wind/vessel UI work, prefer
+`omi-simulation-platform`; use this skill for isolation, ports, persistence and replay.
+
 ## When to use
-- Changes to `marine-test-bench/src/`
-- Isolated simulation runs
-- Data recording and replay scenarios
+- Changes to `marine-simulation-platform/src/` (orchestration, runs, persistence).
+- Isolated simulation runs (`bench` / `closed-loop` commands, API on port 4100).
+- Data recording (SQLite store) and replay scenarios.
 
 ## Files to inspect
-- `marine-test-bench/src/index.ts` — entry
-- `marine-test-bench/src/` — orchestration, DB, publishers
+- `marine-simulation-platform/src/cli/index.ts` — entry / commands (`live`, `bench`, `closed-loop`).
+- `marine-simulation-platform/src/api/server.ts` — REST + SSE API, `publisherFactory`.
+- `marine-simulation-platform/src/runtime/run-manager.ts` — run lifecycle, sampling, persistence.
+- `marine-simulation-platform/src/persistence/` — SQLite / memory stores.
 
 ## Files to avoid
-- Production Signal K runtime (use separate Docker Compose or ports)
-- Real hardware drivers
-- Production databases
+- Production Signal K runtime (use separate ports; API defaults to 4100).
+- Real hardware drivers.
+- Production databases.
 
 ## Rules
-1. Ports must not overlap production (check `marine-test-bench` config vs `signalk-runtime`).
-2. Database path must be local/test-only (e.g., `./test-bench.db` or in-memory).
-3. Never control real hardware from test bench.
-4. Retention rules must be explicit (time or size limit).
+1. Ports must not overlap production (API 4100 vs `signalk-runtime` 3000).
+2. Database path must be local/test-only (e.g. `./data/simulation-platform.sqlite` or in-memory).
+3. Never control real hardware from the bench. Signal K publishing is opt-out via
+   `SIMULATION_PUBLISH_SIGNALK=0`.
+4. Retention rules must be explicit (`BENCH_RETENTION_DAYS`, `BENCH_RETENTION_MAX_BYTES`).
 
 ## Validation
-- `cd marine-test-bench && npm test && npm run build`
-- Run `npm run dev` and verify it does not bind to production ports.
+- `npm run test:simulation` (root) or `cd marine-simulation-platform && npm test && npm run build`.
+- Run `npm run start:simulation-bench` and verify it binds 4100, not production ports.
 
 ## Expected output
 - Isolation confirmation
