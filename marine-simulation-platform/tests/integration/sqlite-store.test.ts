@@ -8,16 +8,16 @@ import { getPresetScenario } from "../../src/scenarios/presets.js";
 
 test("SqliteStore persists scenarios, runs, events and sample batches", () => {
   const dir = mkdtempSync(join(tmpdir(), "omi-sim-"));
+  const store = new SqliteStore(join(dir, "sim.sqlite"));
   try {
-    const store = new SqliteStore(join(dir, "sim.sqlite"));
     store.open();
-    const scenario = getPresetScenario("basic-cruise");
+    const scenario = getPresetScenario("ap-sail");
     assert.ok(scenario);
     store.saveScenario(scenario);
-    assert.equal(store.getScenario("basic-cruise")?.id, "basic-cruise");
+    assert.equal(store.getScenario("ap-sail")?.id, "ap-sail");
     store.saveRun({
       id: "run-1",
-      scenarioId: "basic-cruise",
+      scenarioId: "ap-sail",
       scenarioVersion: "1.0.0",
       status: "running",
       mode: "data",
@@ -48,9 +48,12 @@ test("SqliteStore persists scenarios, runs, events and sample batches", () => {
     assert.equal(store.getRun("run-1")?.id, "run-1");
     assert.equal(store.getEvents("run-1").length, 1);
     assert.equal(store.getSamples("run-1")[0]?.samples[0]?.channelId, "nav.sog");
-    store.close();
+    assert.equal(store.clearRuns(), 1);
+    assert.equal(store.listRuns().length, 0);
+    assert.equal(store.getEvents("run-1").length, 0);
+    assert.equal(store.getSamples("run-1").length, 0);
   } finally {
+    store.close();
     rmSync(dir, { recursive: true, force: true });
   }
 });
-

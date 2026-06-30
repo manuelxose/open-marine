@@ -20,6 +20,23 @@
   box-shadow: none;
 }
 
+.source-select {
+  width: 100%;
+  min-height: 38px;
+  padding: 0 var(--space-2);
+  background: var(--gb-bg-glass);
+  border: 1px solid var(--gb-border-panel);
+  border-radius: var(--radius-sm);
+  color: var(--gb-text-value);
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.source-select:focus {
+  outline: none;
+  border-color: var(--gb-border-active);
+}
+
 .control-group .control-btn {
   border-radius: 0;
   border: none;

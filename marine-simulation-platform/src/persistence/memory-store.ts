@@ -63,6 +63,14 @@ export class MemoryStore implements SimulationStore {
     }));
   }
 
+  clearRuns(): number {
+    const count = this.runs.size;
+    this.runs.clear();
+    this.events.length = 0;
+    this.samples.length = 0;
+    return count;
+  }
+
   saveEvent(event: SimulationEvent): void {
     this.events.push(structuredClone(event));
   }

@@ -74,6 +74,7 @@ const createEntry = (path: SignalKPath): DiagnosticEntry => ({
 })
 export class DiagnosticsService {
   private readonly entries = new Map<SignalKPath, DiagnosticEntry>();
+  private publishTimer: ReturnType<typeof setTimeout> | null = null;
   private readonly stateSubject = new BehaviorSubject<DiagnosticsState>({
     entries: [],
     avgLatencyMs: null,
@@ -93,10 +94,19 @@ export class DiagnosticsService {
       });
     });
 
+    this.schedulePublish(zone);
+  }
+
+  private schedulePublish(zone: NgZone): void {
+    if (this.publishTimer) {
+      return;
+    }
     zone.runOutsideAngular(() => {
-      setInterval(() => {
+      this.publishTimer = setTimeout(() => {
+        this.publishTimer = null;
         const newState = this.computeState();
         zone.run(() => this.stateSubject.next(newState));
+        this.schedulePublish(zone);
       }, 5000);
     });
   }

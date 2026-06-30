@@ -1,5 +1,5 @@
 import { Injectable, OnDestroy } from '@angular/core';
-import { BehaviorSubject, Observable, Subscription, interval, map } from 'rxjs';
+import { BehaviorSubject, Observable, map } from 'rxjs';
 import { HistoryService } from '../../core/services/history.service';
 import { HistoryPoint } from '../datapoints/datapoint.models';
 import { PlaybackEvent, PlaybackLoadRequest, PlaybackState } from './playback.models';
@@ -27,7 +27,7 @@ export class PlaybackStoreService implements OnDestroy {
   private readonly dataSubject = new BehaviorSubject<PlaybackData>({});
   readonly data$ = this.dataSubject.asObservable();
 
-  private tickSub: Subscription | null = null;
+  private tickTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(private historyService: HistoryService) {}
 
@@ -65,7 +65,7 @@ export class PlaybackStoreService implements OnDestroy {
     if (state.status === 'playing') return;
     if (state.status === 'idle') return;
     this.updateState({ status: 'playing' });
-    this.startTick();
+    this.scheduleTick();
   }
 
   pause(): void {
@@ -111,9 +111,10 @@ export class PlaybackStoreService implements OnDestroy {
     );
   }
 
-  private startTick(): void {
+  private scheduleTick(): void {
     this.stopTick();
-    this.tickSub = interval(250).subscribe(() => {
+    this.tickTimer = setTimeout(() => {
+      this.tickTimer = null;
       const state = this.stateSubject.value;
       if (state.status !== 'playing') return;
       const nextTime = state.currentTime + 250 * state.speed;
@@ -123,13 +124,14 @@ export class PlaybackStoreService implements OnDestroy {
         return;
       }
       this.updateState({ currentTime: nextTime });
-    });
+      this.scheduleTick();
+    }, 250);
   }
 
   private stopTick(): void {
-    if (this.tickSub) {
-      this.tickSub.unsubscribe();
-      this.tickSub = null;
+    if (this.tickTimer) {
+      clearTimeout(this.tickTimer);
+      this.tickTimer = null;
     }
   }
 

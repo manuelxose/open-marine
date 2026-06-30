@@ -1,4 +1,4 @@
-import { Injectable, OnDestroy, inject, PLATFORM_ID } from '@angular/core';
+import { Injectable, NgZone, OnDestroy, PLATFORM_ID, inject } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { DatapointStoreService } from '../../../state/datapoints/datapoint-store.service';
 import { AlarmStoreService } from '../../../state/alarms/alarm-store.service';
@@ -6,11 +6,12 @@ import { AudioService } from '../../../core/services/audio.service';
 import { AlarmSeverity, AlarmState, AlarmType } from '../../../state/alarms/alarm.models';
 import { PATHS } from '@omi/marine-data-contract';
 import { haversineDistanceMeters } from '../../../state/calculations/navigation';
-import { Subscription, combineLatest, debounceTime, distinctUntilChanged, filter, interval, map, startWith } from 'rxjs';
+import { Subscription, combineLatest, debounceTime, distinctUntilChanged, filter, map, startWith } from 'rxjs';
 import { AisStoreService } from '../../../state/ais/ais-store.service';
 import { toObservable } from '@angular/core/rxjs-interop';
 import { AlarmSettings, AlarmSettingsService } from '../../../state/alarms/alarm-settings.service';
 import { PlaybackStoreService } from '../../../state/playback/playback-store.service';
+import { outsideZoneTicker } from '../../../shared/rxjs/outside-zone-ticker';
 
 const METERS_PER_NM = 1852;
 const ANCHOR_STORAGE_KEY = 'omi-anchor-watch';
@@ -26,6 +27,7 @@ export class AlarmsFacadeService implements OnDestroy {
   private readonly alarmSettings = inject(AlarmSettingsService);
   private readonly playbackStore = inject(PlaybackStoreService);
   private readonly platformId = inject(PLATFORM_ID);
+  private readonly zone = inject(NgZone);
   private readonly isBrowser = isPlatformBrowser(this.platformId);
 
   readonly alarms$ = this.alarmStore.alarms$;
@@ -478,7 +480,7 @@ export class AlarmsFacadeService implements OnDestroy {
       combineLatest([
         positionTimestamp$,
         this.alarmSettings.settings$,
-        interval(1000).pipe(startWith(0)),
+        outsideZoneTicker(this.zone, 1000),
         this.playbackActive$,
       ]).subscribe(([timestamp, settings, , playbackActive]) => {
         if (!settings.showGpsLostAlarm) {

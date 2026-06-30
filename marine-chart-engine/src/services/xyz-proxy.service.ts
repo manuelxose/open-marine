@@ -7,6 +7,8 @@ export interface XyzProviderConfig {
   maxZoom?: number;
   attribution?: string;
   headers?: Record<string, string>;
+  /** Optional cache freshness override (minutes); used for fast-changing layers like weather. */
+  cacheTtlMinutes?: number;
 }
 
 /**
@@ -35,8 +37,9 @@ export class XyzProxyService {
       return null;
     }
 
-    // Check cache first
-    const cached = await this.cache.get(providerId, z, x, y);
+    // Check cache first (weather and other fast-changing layers use a short TTL).
+    const ttlMsOverride = provider.cacheTtlMinutes ? provider.cacheTtlMinutes * 60 * 1000 : undefined;
+    const cached = await this.cache.get(providerId, z, x, y, ttlMsOverride);
     if (cached) {
       return { data: cached.data, contentType: cached.contentType };
     }

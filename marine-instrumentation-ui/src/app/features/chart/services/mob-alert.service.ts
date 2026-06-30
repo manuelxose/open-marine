@@ -1,5 +1,5 @@
-import { Injectable, OnDestroy } from '@angular/core';
-import { BehaviorSubject, Observable, interval, map } from 'rxjs';
+import { Injectable, NgZone, OnDestroy, inject } from '@angular/core';
+import { BehaviorSubject, Observable, map } from 'rxjs';
 import { haversineDistanceMeters, bearingDegrees, GeoPoint, METERS_PER_NM } from '../../../state/calculations/navigation';
 
 export interface MOBEvent {
@@ -31,24 +31,18 @@ const SESSION_KEY = 'omi-mob-event';
 
 @Injectable({ providedIn: 'root' })
 export class MOBAlertService implements OnDestroy {
+  private readonly zone = inject(NgZone);
   private readonly _state$ = new BehaviorSubject<MOBState>(INITIAL_STATE);
-  private _audioInterval: ReturnType<typeof setInterval> | null = null;
+  private readonly _elapsed$ = new BehaviorSubject<string>('00:00');
+  private _audioTimer: ReturnType<typeof setTimeout> | null = null;
+  private _elapsedTimer: ReturnType<typeof setTimeout> | null = null;
   private _audioCtx: AudioContext | null = null;
 
   readonly state$: Observable<MOBState> = this._state$.asObservable();
   readonly isActive$: Observable<boolean> = this._state$.pipe(map(s => s.active));
 
   /** Elapsed time observable (ticks every second while MOB is active) */
-  readonly elapsed$: Observable<string> = interval(1000).pipe(
-    map(() => {
-      const event = this._state$.value.event;
-      if (!event) return '00:00';
-      const elapsed = Math.floor((Date.now() - event.timestamp) / 1000);
-      const minutes = Math.floor(elapsed / 60).toString().padStart(2, '0');
-      const seconds = (elapsed % 60).toString().padStart(2, '0');
-      return `${minutes}:${seconds}`;
-    }),
-  );
+  readonly elapsed$: Observable<string> = this._elapsed$.asObservable();
 
   get snapshot(): MOBState {
     return this._state$.value;
@@ -60,6 +54,7 @@ export class MOBAlertService implements OnDestroy {
 
   ngOnDestroy(): void {
     this._stopAudioAlarm();
+    this._stopElapsedClock();
   }
 
   /**
@@ -84,6 +79,7 @@ export class MOBAlertService implements OnDestroy {
 
     this._persistToSession(event);
     this._startAudioAlarm();
+    this._startElapsedClock();
 
     // eslint-disable-next-line no-console
     console.error(`🚨 MOB TRIGGERED at [${vesselPosition}] — ${new Date().toISOString()}`);
@@ -96,6 +92,8 @@ export class MOBAlertService implements OnDestroy {
     this._state$.next(INITIAL_STATE);
     this._clearSession();
     this._stopAudioAlarm();
+    this._stopElapsedClock();
+    this._elapsed$.next('00:00');
   }
 
   /**
@@ -149,6 +147,7 @@ export class MOBAlertService implements OnDestroy {
           bearingDeg: null,
         });
         this._startAudioAlarm();
+        this._startElapsedClock();
       }
     } catch {
       this._clearSession();
@@ -158,14 +157,19 @@ export class MOBAlertService implements OnDestroy {
   // ---- Audio Alarm (repeating beep) ----
 
   private _startAudioAlarm(): void {
+    if (this._audioTimer !== null) {
+      return;
+    }
     this._playBeep(); // Immediate beep
-    this._audioInterval = setInterval(() => this._playBeep(), 2000);
+    this.zone.runOutsideAngular(() => {
+      this._audioTimer = setTimeout(() => this._audioAlarmTick(), 2000);
+    });
   }
 
   private _stopAudioAlarm(): void {
-    if (this._audioInterval) {
-      clearInterval(this._audioInterval);
-      this._audioInterval = null;
+    if (this._audioTimer !== null) {
+      clearTimeout(this._audioTimer);
+      this._audioTimer = null;
     }
     if (this._audioCtx) {
       this._audioCtx.close().catch(() => {});
@@ -173,12 +177,68 @@ export class MOBAlertService implements OnDestroy {
     }
   }
 
+  private _audioAlarmTick(): void {
+    this._audioTimer = null;
+    if (!this._state$.value.active) {
+      return;
+    }
+    this._playBeep();
+    this.zone.runOutsideAngular(() => {
+      this._audioTimer = setTimeout(() => this._audioAlarmTick(), 2000);
+    });
+  }
+
+  private _startElapsedClock(): void {
+    if (this._elapsedTimer !== null) {
+      return;
+    }
+    this._publishElapsed();
+    this.zone.runOutsideAngular(() => {
+      this._elapsedTimer = setTimeout(() => this._elapsedTick(), 1000);
+    });
+  }
+
+  private _stopElapsedClock(): void {
+    if (this._elapsedTimer !== null) {
+      clearTimeout(this._elapsedTimer);
+      this._elapsedTimer = null;
+    }
+  }
+
+  private _elapsedTick(): void {
+    this._elapsedTimer = null;
+    if (!this._state$.value.active) {
+      return;
+    }
+    this._publishElapsed();
+    this.zone.runOutsideAngular(() => {
+      this._elapsedTimer = setTimeout(() => this._elapsedTick(), 1000);
+    });
+  }
+
+  private _publishElapsed(): void {
+    const event = this._state$.value.event;
+    const value = event ? this._formatElapsed(event.timestamp) : '00:00';
+    this.zone.run(() => this._elapsed$.next(value));
+  }
+
+  private _formatElapsed(timestamp: number): string {
+    const elapsed = Math.floor((Date.now() - timestamp) / 1000);
+    const minutes = Math.floor(elapsed / 60).toString().padStart(2, '0');
+    const seconds = (elapsed % 60).toString().padStart(2, '0');
+    return `${minutes}:${seconds}`;
+  }
+
   private _playBeep(): void {
     try {
       const AudioCtor = window.AudioContext || (window as any).webkitAudioContext;
       if (!AudioCtor) return;
 
-      const ctx = new AudioCtor();
+      const ctx = this._audioCtx ?? new AudioCtor();
+      this._audioCtx = ctx;
+      if (ctx.state === 'suspended') {
+        ctx.resume().catch(() => {});
+      }
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
 

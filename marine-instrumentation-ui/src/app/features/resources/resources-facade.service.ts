@@ -2,6 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { WaypointStoreService } from '../../state/resources/waypoint-store.service';
 import { RouteStoreService } from '../../state/resources/route-store.service';
 import { TrackStoreService, Track } from '../../state/resources/track-store.service';
+import { SignalKCourseService } from '../../data-access/signalk/course/signalk-course.service';
 import { WaypointFormValue } from './components/waypoint-form/waypoint-form.component';
 import { GpxParseResult } from './utils/gpx-parser';
 
@@ -12,6 +13,7 @@ export class ResourcesFacadeService {
   private readonly waypointStore = inject(WaypointStoreService);
   private readonly routeStore = inject(RouteStoreService);
   private readonly trackStore = inject(TrackStoreService);
+  private readonly courseService = inject(SignalKCourseService);
 
   readonly waypoints$ = this.waypointStore.waypoints$;
   readonly routes$ = this.routeStore.routes$;
@@ -46,8 +48,55 @@ export class ResourcesFacadeService {
   }
 
   // Routes
+  createRoute(name: string, waypoints: Array<{ lat: number; lon: number }>) {
+      this.routeStore.createRoute({
+          name,
+          feature: {
+              type: 'Feature',
+              geometry: {
+                  type: 'LineString',
+                  coordinates: waypoints.map(wp => [wp.lon, wp.lat]),
+              },
+              properties: {},
+          },
+      });
+  }
+
+  updateRoute(id: string, name: string, waypoints: Array<{ lat: number; lon: number }>) {
+      this.routeStore.updateRoute(id, {
+          name,
+          feature: {
+              type: 'Feature',
+              geometry: {
+                  type: 'LineString',
+                  coordinates: waypoints.map(wp => [wp.lon, wp.lat]),
+              },
+              properties: {},
+          },
+      });
+  }
+
   deleteRoute(id: string) {
       this.routeStore.deleteRoute(id);
+  }
+
+  // Navigation (Signal K Course API)
+  navigateToWaypoint(id: string) {
+      this.courseService.setDestination(id).subscribe({
+          error: (err) => console.error('Failed to set destination', err),
+      });
+  }
+
+  navigateToRoute(id: string) {
+      this.courseService.activateRoute(id).subscribe({
+          error: (err) => console.error('Failed to activate route', err),
+      });
+  }
+
+  clearNavigation() {
+      this.courseService.clearCourse().subscribe({
+          error: (err) => console.error('Failed to clear course', err),
+      });
   }
 
   // Tracks
@@ -70,10 +119,9 @@ export class ResourcesFacadeService {
   deleteTrack(id: Track['id']) {
       this.trackStore.deleteTrack(id);
   }
-  
+
   // Import
   importGpx(data: GpxParseResult) {
-      // Import Waypoints
       for (const wp of data.waypoints) {
           const payload = {
               name: wp.name || 'Imported Waypoint',
@@ -87,12 +135,20 @@ export class ResourcesFacadeService {
           });
       }
 
-      // Import Routes
-      // Routes in GPX contain waypoints. 
-      // Should we create waypoints for route points? Or just store them in the route?
-      // Signal K routes usually reference waypoints by ID or have coordinates.
-      // For simplicity here, we assume route points are inline coordinates or we create waypoints first.
-      // Let's skipping route import details for MVP or implement simple inline.
-      console.log('Routes import not fully implemented in facade logic yet');
+      for (const route of data.routes) {
+          if (route.points.length < 2) continue;
+          this.routeStore.createRoute({
+              name: route.name || 'Imported Route',
+              ...(route.desc ? { description: route.desc } : {}),
+              feature: {
+                  type: 'Feature',
+                  geometry: {
+                      type: 'LineString',
+                      coordinates: route.points.map(p => [p.lon, p.lat]),
+                  },
+                  properties: {},
+              },
+          });
+      }
   }
 }

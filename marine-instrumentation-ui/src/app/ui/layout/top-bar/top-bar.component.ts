@@ -1,11 +1,12 @@
-import { Component, ChangeDetectionStrategy, Input, EventEmitter, Output, inject } from '@angular/core';
+import { Component, ChangeDetectionStrategy, Input, EventEmitter, Output, NgZone, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
-import { BehaviorSubject, combineLatest, interval, map, startWith } from 'rxjs';
+import { BehaviorSubject, combineLatest, map, startWith } from 'rxjs';
 import { DatapointStoreService } from '../../../state/datapoints/datapoint-store.service';
 import { PATHS } from '@omi/marine-data-contract';
 import { HeadingPipe } from '../../../shared/pipes/heading.pipe';
 import { LatLonPipe } from '../../../shared/pipes/lat-lon.pipe';
+import { outsideZoneTicker } from '../../../shared/rxjs/outside-zone-ticker';
 
 /** Staleness threshold in ms — data older than this is considered stale */
 const STALE_THRESHOLD_MS = 10_000;
@@ -404,6 +405,7 @@ interface GlobalTopBarVm {
 })
 export class TopBarComponent {
   private readonly store = inject(DatapointStoreService);
+  private readonly zone = inject(NgZone);
 
   private readonly connected$ = new BehaviorSubject<boolean>(false);
   private readonly isNight$ = new BehaviorSubject<boolean>(false);
@@ -429,7 +431,7 @@ export class TopBarComponent {
   private readonly hdg$ = this.store.observe<number>(PATHS.navigation.headingTrue);
   private readonly pos$ = this.store.observe<{ latitude: number; longitude: number }>(PATHS.navigation.position);
 
-  readonly clock$ = interval(1000).pipe(startWith(0), map(() => {
+  readonly clock$ = outsideZoneTicker(this.zone, 1000).pipe(map(() => {
     const iso = new Date().toISOString();
     return { time: iso.substring(11, 19), iso };
   }));

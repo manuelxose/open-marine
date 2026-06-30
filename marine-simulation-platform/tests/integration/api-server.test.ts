@@ -7,7 +7,7 @@ import { getPresetScenario } from "../../src/scenarios/presets.js";
 
 test("SimulationApiServer exposes compatible API v2 scenario and run endpoints", async () => {
   const store = new MemoryStore();
-  const scenario = getPresetScenario("basic-cruise");
+  const scenario = getPresetScenario("ap-sail");
   assert.ok(scenario);
   store.saveScenario(scenario);
   const runManager = new RunManager(store);
@@ -20,7 +20,7 @@ test("SimulationApiServer exposes compatible API v2 scenario and run endpoints",
     const arm = await postJson<{ token: string }>(`${base}/api/v2/arm`, {});
     assert.ok(arm.token);
     const run = await postJson<{ id: string; status: string }>(`${base}/api/v2/runs`, {
-      scenarioId: "basic-cruise",
+      scenarioId: "ap-sail",
       armToken: arm.token,
       parameters: {},
       speed: 1,
@@ -32,6 +32,10 @@ test("SimulationApiServer exposes compatible API v2 scenario and run endpoints",
     const report = await fetch(`${base}/api/v2/runs/${run.id}/report?format=json`);
     assert.equal(report.ok, true);
     await postJson(`${base}/api/v2/runs/${run.id}/abort`, {});
+    const cleared = await deleteJson<{ deletedRuns: number }>(`${base}/api/v2/runs`);
+    assert.equal(cleared.deletedRuns, 1);
+    const runs = await getJson<unknown[]>(`${base}/api/v2/runs`);
+    assert.equal(runs.length, 0);
   } finally {
     runManager.shutdown();
     await server.stop();
@@ -51,6 +55,13 @@ const postJson = async <T>(url: string, body: unknown): Promise<T> => {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
+  const text = await response.text();
+  assert.equal(response.ok, true, text);
+  return JSON.parse(text) as T;
+};
+
+const deleteJson = async <T>(url: string): Promise<T> => {
+  const response = await fetch(url, { method: "DELETE" });
   const text = await response.text();
   assert.equal(response.ok, true, text);
   return JSON.parse(text) as T;

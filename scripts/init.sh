@@ -16,6 +16,89 @@ warn() { echo -e "${YELLOW}[OMI]${NC} $1"; }
 err()  { echo -e "${RED}[OMI]${NC} $1"; }
 info() { echo -e "${BLUE}[OMI]${NC} $1"; }
 
+describe_tcp_port() {
+  local port="$1"
+  local owner=""
+
+  if command -v ss >/dev/null 2>&1; then
+    owner="$(ss -ltnp "sport = :$port" 2>/dev/null | awk 'NR==2 {print $0}' || true)"
+  elif command -v lsof >/dev/null 2>&1; then
+    owner="$(lsof -nP -iTCP:"$port" -sTCP:LISTEN 2>/dev/null | awk 'NR==2 {print $1 " pid=" $2}' || true)"
+  elif command -v netstat >/dev/null 2>&1; then
+    owner="$(netstat -ltnp 2>/dev/null | awk -v p=":$port" '$4 ~ p"$" {print $0; exit}' || true)"
+  fi
+
+  echo "$owner"
+}
+
+find_tcp_port_pid() {
+  local port="$1"
+  local pid=""
+
+  if command -v lsof >/dev/null 2>&1; then
+    pid="$(lsof -nP -t -iTCP:"$port" -sTCP:LISTEN 2>/dev/null | head -n 1 || true)"
+  fi
+
+  if [[ -z "$pid" ]] && command -v ss >/dev/null 2>&1; then
+    pid="$(ss -ltnp "sport = :$port" 2>/dev/null | sed -n 's/.*pid=\([0-9][0-9]*\).*/\1/p' | head -n 1 || true)"
+  fi
+
+  if [[ -z "$pid" ]] && command -v netstat >/dev/null 2>&1; then
+    pid="$(netstat -ltnp 2>/dev/null | awk -v p=":$port" '$4 ~ p"$" {split($7,a,"/"); print a[1]; exit}' || true)"
+  fi
+
+  [[ "$pid" =~ ^[0-9]+$ ]] && echo "$pid"
+}
+
+stop_pid_file_process() {
+  local name="$1"
+  local pid_file="$2"
+  local pid=""
+
+  [[ -f "$pid_file" ]] || return 0
+  pid="$(head -n 1 "$pid_file" 2>/dev/null || true)"
+  if [[ "$pid" =~ ^[0-9]+$ ]] && kill -0 "$pid" >/dev/null 2>&1; then
+    warn "Reiniciando $name: cerrando proceso previo pid=$pid."
+    kill "$pid" >/dev/null 2>&1 || true
+    sleep 1
+    if kill -0 "$pid" >/dev/null 2>&1; then
+      kill -9 "$pid" >/dev/null 2>&1 || true
+      sleep 0.3
+    fi
+  fi
+
+  rm -f "$pid_file"
+}
+
+stop_tcp_port_owner() {
+  local name="$1"
+  local port="$2"
+  local pid owner
+
+  pid="$(find_tcp_port_pid "$port" || true)"
+  [[ -n "$pid" ]] || return 0
+
+  owner="$(describe_tcp_port "$port")"
+  warn "Liberando puerto $port para $name: cerrando pid=$pid${owner:+ ($owner)}."
+  kill "$pid" >/dev/null 2>&1 || true
+  sleep 1
+  if kill -0 "$pid" >/dev/null 2>&1; then
+    kill -9 "$pid" >/dev/null 2>&1 || true
+    sleep 0.3
+  fi
+}
+
+reset_init_dev_ports() {
+  stop_pid_file_process "Chart Engine" "$PROJECT_ROOT/.omi-charts.pid"
+  stop_pid_file_process "UI" "$PROJECT_ROOT/.omi-ui.pid"
+  stop_pid_file_process "Simulation platform API" "$PROJECT_ROOT/.omi-simulation-bench.pid"
+  stop_pid_file_process "Simulation platform API legacy pid" "$PROJECT_ROOT/.omi-test-bench.pid"
+
+  stop_tcp_port_owner "Chart Engine" "$CHART_ENGINE_PORT_DEFAULT"
+  stop_tcp_port_owner "UI" "4200"
+  stop_tcp_port_owner "Simulation platform API" "4100"
+}
+
 AIS_PPM_DEFAULT="-50"
 AIS_GAIN_DEFAULT="33"
 AIS_HOST_DEFAULT="127.0.0.1"
@@ -1029,8 +1112,8 @@ print_summary() {
   if [[ -n "$lan_ip" ]]; then
     echo -e "  ${YELLOW}UI en red:${NC}   http://${lan_ip}:4200"
   fi
-  echo -e "  ${YELLOW}Simulation API:${NC}  npm run start:simulation-bench"
-  echo -e "  ${YELLOW}Simulator:${NC}  npm run start:simulator"
+  echo -e "  ${YELLOW}Simulation platform API:${NC}  npm run start:simulation-bench"
+  echo -e "  ${YELLOW}Live Signal K simulator:${NC}  npm run start:simulator"
   echo -e "  ${YELLOW}Nota:${NC}        localhost solo funciona en la Raspberry."
   echo ""
   echo -e "  ${YELLOW}Chart Engine:${NC}"
@@ -1086,6 +1169,8 @@ start_post_init_services() {
   local start_chart_engine_response
   read -r -p "Deseas arrancar Chart Engine ahora? [s/N]: " start_chart_engine_response
   if [[ "$start_chart_engine_response" =~ ^[sSyY]$ ]]; then
+    stop_pid_file_process "Chart Engine" "$PROJECT_ROOT/.omi-charts.pid"
+    stop_tcp_port_owner "Chart Engine" "$CHART_ENGINE_PORT_DEFAULT"
     (
       cd "$PROJECT_ROOT"
       nohup npm run start:charts > "$PROJECT_ROOT/.omi-charts.log" 2>&1 &
@@ -1098,6 +1183,8 @@ start_post_init_services() {
   local start_ui_response
   read -r -p "Deseas arrancar UI ahora? [s/N]: " start_ui_response
   if [[ "$start_ui_response" =~ ^[sSyY]$ ]]; then
+    stop_pid_file_process "UI" "$PROJECT_ROOT/.omi-ui.pid"
+    stop_tcp_port_owner "UI" "4200"
     (
       cd "$PROJECT_ROOT/marine-instrumentation-ui"
       nohup npm run start:lan > "$PROJECT_ROOT/.omi-ui.log" 2>&1 &
@@ -1108,20 +1195,24 @@ start_post_init_services() {
   fi
 
   local start_test_bench_response
-  read -r -p "Deseas arrancar el servidor de simulacion enterprise ahora? [s/N]: " start_test_bench_response
+  read -r -p "Deseas arrancar la API enterprise de simulacion ahora? [s/N]: " start_test_bench_response
   if [[ "$start_test_bench_response" =~ ^[sSyY]$ ]]; then
+    stop_pid_file_process "Simulation platform API" "$PROJECT_ROOT/.omi-simulation-bench.pid"
+    stop_pid_file_process "Simulation platform API legacy pid" "$PROJECT_ROOT/.omi-test-bench.pid"
+    stop_tcp_port_owner "Simulation platform API" "4100"
     (
       cd "$PROJECT_ROOT"
-      nohup npm run start:simulation-bench > "$PROJECT_ROOT/.omi-test-bench.log" 2>&1 &
-      echo $! > "$PROJECT_ROOT/.omi-test-bench.pid"
+      nohup npm run start:simulation-bench > "$PROJECT_ROOT/.omi-simulation-bench.log" 2>&1 &
+      echo $! > "$PROJECT_ROOT/.omi-simulation-bench.pid"
     )
-    log "Simulation API arrancada en background."
-    info "Log Simulation API: $PROJECT_ROOT/.omi-test-bench.log"
+    log "Simulation platform API arrancada en background."
+    info "Log Simulation platform API: $PROJECT_ROOT/.omi-simulation-bench.log"
   fi
 
   local start_sim_response
-  read -r -p "Deseas arrancar Simulator ahora? [s/N]: " start_sim_response
+  read -r -p "Deseas arrancar tambien el simulador live hacia Signal K? (opcional) [s/N]: " start_sim_response
   if [[ "$start_sim_response" =~ ^[sSyY]$ ]]; then
+    stop_pid_file_process "Live Signal K simulator" "$PROJECT_ROOT/.omi-simulator.pid"
     local scenario_choice scenario rate_input rate
 
     echo "Escenarios disponibles:"
@@ -1169,8 +1260,8 @@ start_post_init_services() {
       echo $! > "$PROJECT_ROOT/.omi-simulator.pid"
     )
 
-    log "Simulator arrancado en background (scenario=$scenario, rate=${rate}Hz)."
-    info "Log Simulator: $PROJECT_ROOT/.omi-simulator.log"
+    log "Live Signal K simulator arrancado en background (scenario=$scenario, rate=${rate}Hz)."
+    info "Log Live Signal K simulator: $PROJECT_ROOT/.omi-simulator.log"
   fi
 
   if [[ -x "$PROJECT_ROOT/tools/ais-catcher/AIS-catcher" ]]; then
@@ -1240,6 +1331,7 @@ main() {
   setup_gps_publisher
   setup_wind_publisher
   setup_chart_engine
+  reset_init_dev_ports
   print_summary
   start_post_init_services
 }

@@ -1,12 +1,13 @@
-import { Component, ChangeDetectionStrategy, inject, computed } from '@angular/core';
+import { Component, ChangeDetectionStrategy, NgZone, inject, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { combineLatest, map, startWith, timer } from 'rxjs';
+import { combineLatest, map, startWith } from 'rxjs';
 import { DatapointStoreService } from '../../../state/datapoints/datapoint-store.service';
 import { PATHS } from '@omi/marine-data-contract';
 import { formatSpeed, formatAngleDegrees, formatCoordinate } from '../../../core/formatting/formatters';
 import { SparklineComponent } from '../sparkline/sparkline.component';
 import { PreferencesService } from '../../../services/preferences.service';
+import { outsideZoneTicker } from '../../../shared/rxjs/outside-zone-ticker';
 
 interface PositionValue {
   latitude: number;
@@ -242,6 +243,7 @@ interface PositionValue {
 export class NavigationPanelComponent {
   private store = inject(DatapointStoreService);
   private prefs = inject(PreferencesService);
+  private zone = inject(NgZone);
 
   private sog$ = this.store.observe<number>(PATHS.navigation.speedOverGround);
   private hdg$ = this.store.observe<number>(PATHS.navigation.headingTrue);
@@ -249,7 +251,7 @@ export class NavigationPanelComponent {
   private position$ = this.store.observe<PositionValue>(PATHS.navigation.position);
   private sogHistory$ = this.store.series$(PATHS.navigation.speedOverGround, 60);
 
-  private tick$ = timer(0, 1000);
+  private tick$ = outsideZoneTicker(this.zone, 1000);
 
   private data = toSignal(
     combineLatest([

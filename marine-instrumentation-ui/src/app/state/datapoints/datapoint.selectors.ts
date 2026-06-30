@@ -74,7 +74,9 @@ export const selectTws = (
 export const selectTwd = (
   store: DatapointStoreService,
 ): Observable<DataPoint<number> | undefined> => {
-  return selectPoint<number>(store, PATHS.environment.wind.angleTrueGround);
+  // Canonical TWD path. Direct true-wind sources (sensors, simulator) publish `directionTrue`;
+  // the derived true-wind calculator also writes it (see datapoint-store.service.ts).
+  return selectPoint<number>(store, PATHS.environment.wind.directionTrue);
 };
 
 export const selectTwa = (

@@ -86,7 +86,7 @@ export const BUILT_IN_PROVIDERS: ChartSourceProvider[] = [
     'Instituto Hidrográfico de la Marina (IHM)',
     'IHM Terms of Use',
     {
-      wms: 'https://ideihm.covam.es/ihm/wms/ENC',
+      wms: 'https://ideihm.covam.es/wms/cartaENCp2, https://ideihm.covam.es/wms/cartaENCp3, https://ideihm.covam.es/wms/cartaENCp4, https://ideihm.covam.es/wms/cartaENCp5',
       catalog: 'https://www.armada.mde.es/ihm/Catalogo-de-cartas-nauticas',
     },
   ),
@@ -115,8 +115,8 @@ export const BUILT_IN_PROVIDERS: ChartSourceProvider[] = [
     'GEBCO',
     'GEBCO Terms of Use',
     {
-      wms: 'https://www.gebco.net/data_and_products/gebco_web_services/web_map_service/mapserv',
-      tiles: 'https://www.gebco.net/data_and_products/gebco_web_services/web_map_service/mapserv?layers=GEBCO_Latest&styles=&service=WMS&version=1.1.1&request=GetMap&format=image/png&srs=EPSG:3857&bbox={bbox}&width=256&height=256',
+      wms: 'https://wms.gebco.net/mapserv',
+      tiles: 'https://wms.gebco.net/mapserv?layers=GEBCO_LATEST&styles=&service=WMS&version=1.1.1&request=GetMap&format=image/png&srs=EPSG:3857&bbox={bbox}&width=256&height=256',
     },
     { minZoom: 0, maxZoom: 18 },
   ),

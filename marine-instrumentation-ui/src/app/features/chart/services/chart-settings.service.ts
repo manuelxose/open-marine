@@ -31,6 +31,7 @@ export interface ChartSettings {
   showTrack: boolean;
   showVector: boolean;
   showTrueWind: boolean;
+  showApparentWind: boolean;
   showRangeRings: boolean;
   rangeRingIntervals: number[];
   showOpenSeaMap: boolean;
@@ -69,14 +70,20 @@ export interface ChartSettings {
   showTemperature: boolean;
   showWindSpeed: boolean;
   showWaves: boolean;
+  showPrecipitation: boolean;
+  showClouds: boolean;
+  showPressure: boolean;
+  weatherOpacity: number;
   enableVesselEnrichment: boolean;
+  showSavedTracks: boolean;
 }
 
 const DEFAULT_SETTINGS: ChartSettings = {
   autoCenter: true,
   showTrack: true,
   showVector: true,
-  showTrueWind: false,
+  showTrueWind: true,
+  showApparentWind: true,
   showRangeRings: false,
   rangeRingIntervals: [0.25, 0.5, 1.0],
   showOpenSeaMap: false,
@@ -104,7 +111,7 @@ const DEFAULT_SETTINGS: ChartSettings = {
   cogLineMinutes: 10,
   showLaylines: false,
   laylineAngleDeg: 45,
-  windTrackMinZoom: 15,
+  windTrackMinZoom: 0,
   rangeRingsMinZoom: 8,
   rangeRingCount: 4,
   rangeRingStepNm: 0.25,
@@ -120,7 +127,12 @@ const DEFAULT_SETTINGS: ChartSettings = {
   showTemperature: false,
   showWindSpeed: false,
   showWaves: false,
+  showPrecipitation: false,
+  showClouds: false,
+  showPressure: false,
+  weatherOpacity: 0.6,
   enableVesselEnrichment: true,
+  showSavedTracks: true,
 };
 
 const STORAGE_KEY = 'omi-chart-settings';
@@ -168,6 +180,10 @@ export class ChartSettingsService {
 
   toggleTrueWind(): void {
     this.update({ showTrueWind: !this.settingsSubject.value.showTrueWind });
+  }
+
+  toggleApparentWind(): void {
+    this.update({ showApparentWind: !this.settingsSubject.value.showApparentWind });
   }
 
   enableAutoCenter(): void {
@@ -281,6 +297,10 @@ export class ChartSettingsService {
     this.update({ showAisTracks: !this.settingsSubject.value.showAisTracks });
   }
 
+  toggleSavedTracks(): void {
+    this.update({ showSavedTracks: !this.settingsSubject.value.showSavedTracks });
+  }
+
   toggleVesselEnrichment(): void {
     this.update({ enableVesselEnrichment: !this.settingsSubject.value.enableVesselEnrichment });
   }
@@ -366,6 +386,23 @@ export class ChartSettingsService {
     this.update({ showWaves: !this.settingsSubject.value.showWaves });
   }
 
+  togglePrecipitation(): void {
+    this.update({ showPrecipitation: !this.settingsSubject.value.showPrecipitation });
+  }
+
+  toggleClouds(): void {
+    this.update({ showClouds: !this.settingsSubject.value.showClouds });
+  }
+
+  togglePressure(): void {
+    this.update({ showPressure: !this.settingsSubject.value.showPressure });
+  }
+
+  setWeatherOpacity(opacity: number): void {
+    const clamped = Math.max(0, Math.min(1, opacity));
+    this.update({ weatherOpacity: clamped });
+  }
+
   update(partial: Partial<ChartSettings>): void {
     this.settingsSubject.next({ ...this.settingsSubject.value, ...partial });
   }
@@ -392,6 +429,7 @@ export class ChartSettingsService {
     normalized.rangeRingCount = rangeRingCount;
     normalized.rangeRingStepNm = rangeRingStepNm;
     normalized.rangeRingIntervals = this.buildRangeIntervals(rangeRingCount, rangeRingStepNm);
+    normalized.weatherOpacity = this.clampNumber(saved.weatherOpacity, DEFAULT_SETTINGS.weatherOpacity, 0, 1);
     normalized.ownVesselIconScale = this.clampNumber(saved.ownVesselIconScale, DEFAULT_SETTINGS.ownVesselIconScale, 0.5, 2.5);
     normalized.aisTargetIconScale = this.clampNumber(saved.aisTargetIconScale, DEFAULT_SETTINGS.aisTargetIconScale, 0.4, 2.0);
     normalized.headingLineMinutes = this.clampNumber(saved.headingLineMinutes, DEFAULT_SETTINGS.headingLineMinutes, 1, 120);
@@ -407,6 +445,8 @@ export class ChartSettingsService {
       saved.windVectorSource === 'apparent' || saved.windVectorSource === 'true'
         ? saved.windVectorSource
         : DEFAULT_SETTINGS.windVectorSource;
+    normalized.showTrueWind = this.toBoolean(saved.showTrueWind, DEFAULT_SETTINGS.showTrueWind);
+    normalized.showApparentWind = this.toBoolean(saved.showApparentWind, DEFAULT_SETTINGS.showApparentWind);
     normalized.showHeadingLine = this.toBoolean(saved.showHeadingLine, DEFAULT_SETTINGS.showHeadingLine);
     normalized.showLaylines = this.toBoolean(saved.showLaylines, DEFAULT_SETTINGS.showLaylines);
     normalized.showAisTracks = this.toBoolean(saved.showAisTracks, DEFAULT_SETTINGS.showAisTracks);
@@ -419,6 +459,7 @@ export class ChartSettingsService {
       saved.enableVesselEnrichment,
       DEFAULT_SETTINGS.enableVesselEnrichment,
     );
+    normalized.showSavedTracks = this.toBoolean(saved.showSavedTracks, DEFAULT_SETTINGS.showSavedTracks);
 
     return normalized;
   }

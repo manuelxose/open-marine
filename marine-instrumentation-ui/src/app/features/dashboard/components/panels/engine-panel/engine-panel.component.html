@@ -14,6 +14,7 @@
             [width]="200"
             [height]="40"
             stroke="var(--nord-13)"
+            mode="scope"
           ></app-shared-sparkline>
         </div>
       </div>
@@ -30,12 +31,12 @@
             [class.level-low]="fuelLevelClass === 'level-low'"
           ></div>
         </div>
-        <span class="fuel-pct">{{ fuelPercent | number:'1.0-0' }}%</span>
+        <span class="fuel-pct">{{ fuelPercent | number: '1.0-0' }}%</span>
       </div>
 
       <!-- Secondary Metrics -->
       <div class="engine-metrics">
-        <div class="engine-metric" *ngFor="let m of vm.metrics | slice:1; trackBy: trackByMetric">
+        <div class="engine-metric" *ngFor="let m of vm.metrics | slice: 1; trackBy: trackByMetric">
           <span class="engine-metric-label">{{ m.label | translate }}</span>
           <div class="engine-metric-reading">
             <span class="engine-metric-value">{{ displayValue(m.value) }}</span>

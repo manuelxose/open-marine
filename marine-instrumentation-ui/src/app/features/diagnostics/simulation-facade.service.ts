@@ -1,6 +1,8 @@
-import { Injectable, computed, inject, signal } from '@angular/core';
+import { Injectable, NgZone, computed, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { combineLatest, map, timer } from 'rxjs';
+import { combineLatest, map } from 'rxjs';
+
+import { outsideZoneTicker } from '../../shared/rxjs/outside-zone-ticker';
 import type {
   SimulationChannelDefinition,
   SimulationChannelSnapshot,
@@ -41,148 +43,257 @@ export interface ChannelSample {
 const MAX_EVENTS = 500;
 const MAX_SAMPLES = 400;
 const SAMPLE_POLL_INTERVAL_MS = 500;
+const OFFLINE_UI_PUBLISH_INTERVAL_MS = 250;
 
 // ── Offline mock scenarios (same as test-bench presets) ─────────────────────
 
+// Reusable channel definitions (paths match @omi/marine-data-contract PATHS) shared by the curated
+// offline scenarios, kept in sync with the backend channel-registry.
+const MOCK_NAV: SimulationChannelDefinition[] = [
+  { id: 'nav.position', label: 'Position', path: 'navigation.position', kind: 'text', dimension: 'position', canonicalUnit: 'deg', allowedUnits: ['deg'], precision: 6 },
+  { id: 'nav.sog', label: 'SOG', path: 'navigation.speedOverGround', kind: 'analog', dimension: 'speed', canonicalUnit: 'm/s', allowedUnits: ['m/s', 'kn'], precision: 2, range: { min: 0, max: 15 } },
+  { id: 'nav.cog', label: 'COG', path: 'navigation.courseOverGroundTrue', kind: 'analog', dimension: 'angle', canonicalUnit: 'rad', allowedUnits: ['rad', 'deg'], precision: 3, range: { min: 0, max: 6.283 } },
+  { id: 'nav.heading', label: 'Heading', path: 'navigation.headingTrue', kind: 'analog', dimension: 'angle', canonicalUnit: 'rad', allowedUnits: ['rad', 'deg'], precision: 3, range: { min: 0, max: 6.283 } },
+];
+const MOCK_WIND: SimulationChannelDefinition[] = [
+  { id: 'wind.aws', label: 'AWS', path: 'environment.wind.speedApparent', kind: 'analog', dimension: 'speed', canonicalUnit: 'm/s', allowedUnits: ['m/s', 'kn'], precision: 2, range: { min: 0, max: 30 } },
+  { id: 'wind.awa', label: 'AWA', path: 'environment.wind.angleApparent', kind: 'analog', dimension: 'angle', canonicalUnit: 'rad', allowedUnits: ['rad', 'deg'], precision: 3, range: { min: -3.142, max: 3.142 } },
+  { id: 'wind.tws', label: 'TWS', path: 'environment.wind.speedTrue', kind: 'analog', dimension: 'speed', canonicalUnit: 'm/s', allowedUnits: ['m/s', 'kn'], precision: 2, range: { min: 0, max: 30 } },
+  { id: 'wind.twd', label: 'TWD', path: 'environment.wind.directionTrue', kind: 'analog', dimension: 'angle', canonicalUnit: 'rad', allowedUnits: ['rad', 'deg'], precision: 3, range: { min: 0, max: 6.283 } },
+];
+const MOCK_ELEC: SimulationChannelDefinition[] = [
+  { id: 'elec.voltage', label: 'Battery Voltage', path: 'electrical.batteries.house.voltage', kind: 'analog', dimension: 'voltage', canonicalUnit: 'V', allowedUnits: ['V'], precision: 2, range: { min: 10, max: 16 }, limits: { low: 11.5, criticalLow: 10.8 } },
+  { id: 'elec.current', label: 'Battery Current', path: 'electrical.batteries.house.current', kind: 'analog', dimension: 'current', canonicalUnit: 'A', allowedUnits: ['A'], precision: 2, range: { min: -20, max: 20 } },
+];
+const MOCK_ENGINE: SimulationChannelDefinition[] = [
+  { id: 'motor.rpm', label: 'Engine RPM', path: 'propulsion.main.revolutions', kind: 'analog', dimension: 'frequency', canonicalUnit: 'Hz', allowedUnits: ['Hz', 'rpm'], precision: 1, range: { min: 0, max: 50 } },
+  { id: 'motor.coolant', label: 'Coolant Temp', path: 'propulsion.main.temperature', kind: 'analog', dimension: 'temperature', canonicalUnit: 'K', allowedUnits: ['K', '°C'], precision: 1, range: { min: 273, max: 400 }, limits: { high: 368, criticalHigh: 383 } },
+];
+const MOCK_AP: SimulationChannelDefinition[] = [
+  { id: 'ap.state', label: 'AP State', path: 'steering.autopilot.state', kind: 'text', dimension: 'state', canonicalUnit: 'text', allowedUnits: ['text'], precision: 0 },
+  { id: 'ap.mode', label: 'AP Mode', path: 'steering.autopilot.mode', kind: 'text', dimension: 'state', canonicalUnit: 'text', allowedUnits: ['text'], precision: 0 },
+  { id: 'ap.engaged', label: 'AP Engaged', path: 'steering.autopilot.engaged', kind: 'digital', dimension: 'state', canonicalUnit: 'bool', allowedUnits: ['bool'], precision: 0 },
+  { id: 'ap.fault', label: 'AP Fault', path: 'steering.autopilot.fault', kind: 'text', dimension: 'state', canonicalUnit: 'text', allowedUnits: ['text'], precision: 0 },
+  { id: 'ap.windHazard', label: 'Wind Hazard', path: 'steering.autopilot.windHazard', kind: 'text', dimension: 'state', canonicalUnit: 'text', allowedUnits: ['text'], precision: 0 },
+  { id: 'ap.driveEnabled', label: 'Drive Enabled', path: 'steering.autopilot.drive.enabled', kind: 'digital', dimension: 'state', canonicalUnit: 'bool', allowedUnits: ['bool'], precision: 0 },
+  { id: 'ap.targetHeading', label: 'Target Heading', path: 'steering.autopilot.target.headingTrue', kind: 'analog', dimension: 'angle', canonicalUnit: 'rad', allowedUnits: ['rad', 'deg'], precision: 3, range: { min: 0, max: 6.283 } },
+  { id: 'ap.targetWindAngle', label: 'Target Wind Angle', path: 'steering.autopilot.target.windAngleApparent', kind: 'analog', dimension: 'angle', canonicalUnit: 'rad', allowedUnits: ['rad', 'deg'], precision: 3, range: { min: -3.142, max: 3.142 } },
+  { id: 'ap.targetRudderAngle', label: 'Target Rudder', path: 'steering.autopilot.target.rudderAngle', kind: 'analog', dimension: 'angle', canonicalUnit: 'rad', allowedUnits: ['rad', 'deg'], precision: 3, range: { min: -0.61, max: 0.61 }, limits: { low: -0.52, high: 0.52 } },
+  { id: 'ap.rudderAngle', label: 'Rudder Angle', path: 'steering.rudderAngle', kind: 'analog', dimension: 'angle', canonicalUnit: 'rad', allowedUnits: ['rad', 'deg'], precision: 3, range: { min: -0.61, max: 0.61 }, limits: { low: -0.52, high: 0.52 } },
+  { id: 'ap.driveCurrent', label: 'Drive Current', path: 'steering.autopilot.drive.motorCurrent', kind: 'analog', dimension: 'current', canonicalUnit: 'A', allowedUnits: ['A'], precision: 2, range: { min: 0, max: 30 }, limits: { high: 10, criticalHigh: 15 } },
+];
+
+const MOCK_DEPTH: SimulationChannelDefinition = {
+  id: 'depth.belowTransducer', label: 'Depth', path: 'environment.depth.belowTransducer', kind: 'analog', dimension: 'depth', canonicalUnit: 'm', allowedUnits: ['m', 'ft'], precision: 2, range: { min: 0, max: 100 }, limits: { low: 2, criticalLow: 1 },
+};
+
+const generalParams = (durationMs: number): SimulationScenarioDocument['parameters'] => [
+  { id: 'seed', label: 'Random Seed', type: 'number', defaultValue: 42, min: 1, max: 9999, step: 1, group: 'General' },
+  { id: 'speed', label: 'Simulation Speed', type: 'number', defaultValue: 1, min: 0.25, max: 4, step: 0.25, unit: 'x', group: 'General' },
+  { id: 'durationMs', label: 'Duration', type: 'number', defaultValue: durationMs, min: 30_000, max: 3_600_000, step: 60_000, unit: 'ms', group: 'General' },
+];
+const WIND_PARAMS: SimulationScenarioDocument['parameters'] = [
+  { id: 'windSpeedKt', label: 'True Wind Speed', type: 'number', defaultValue: 12, min: 0, max: 50, step: 1, unit: 'kt', group: 'Wind' },
+  { id: 'windDirDeg', label: 'True Wind Direction', type: 'number', defaultValue: 45, min: 0, max: 360, step: 1, unit: 'deg', group: 'Wind' },
+  { id: 'gustProbability', label: 'Gust Probability', type: 'number', defaultValue: 0.2, min: 0, max: 1, step: 0.05, unit: 'ratio', group: 'Wind' },
+  { id: 'gustMaxDeltaKt', label: 'Gust Max Delta', type: 'number', defaultValue: 6, min: 0, max: 20, step: 0.5, unit: 'kt', group: 'Wind' },
+];
+const NAV_PARAMS: SimulationScenarioDocument['parameters'] = [
+  { id: 'boatSpeedKt', label: 'Boat Speed', type: 'number', defaultValue: 6.5, min: 0, max: 20, step: 0.5, unit: 'kt', group: 'Navigation' },
+  { id: 'courseDeg', label: 'Base Course', type: 'number', defaultValue: 66, min: 0, max: 360, step: 1, unit: 'deg', group: 'Navigation' },
+];
+
 const MOCK_SCENARIOS: SimulationScenarioDocument[] = [
   {
-    id: 'basic-cruise',
+    id: 'ap-sail',
     version: '1.0.0',
-    name: 'Basic Cruise',
-    description: 'Cruise navegación básica con viento variable, batería con ciclos carga/descarga, eventos de aguas someras y blanco AIS intruso.',
-    category: 'navigation',
-    mode: 'data',
-    defaultDurationMs: 300_000,
-    defaultSpeed: 1,
-    parameters: [
-      { id: 'seed', label: 'Random Seed', type: 'number', defaultValue: 42, min: 1, max: 9999, step: 1, group: 'General' },
-      { id: 'speed', label: 'Simulation Speed', type: 'number', defaultValue: 1, min: 0.25, max: 4, step: 0.25, unit: 'x', group: 'General' },
-      { id: 'durationMs', label: 'Duration', type: 'number', defaultValue: 300_000, min: 30_000, max: 3_600_000, step: 60_000, unit: 'ms', group: 'General' },
-    ],
-    channels: [
-      { id: 'nav.position', label: 'Position', path: 'navigation.position', kind: 'text', dimension: 'position', canonicalUnit: 'deg', allowedUnits: ['deg'], precision: 6 },
-      { id: 'nav.sog', label: 'SOG', path: 'navigation.speedOverGround', kind: 'analog', dimension: 'speed', canonicalUnit: 'm/s', allowedUnits: ['m/s', 'kn'], precision: 2, range: { min: 0, max: 15 } },
-      { id: 'nav.cog', label: 'COG', path: 'navigation.courseOverGroundTrue', kind: 'analog', dimension: 'angle', canonicalUnit: 'rad', allowedUnits: ['rad', 'deg'], precision: 3, range: { min: 0, max: 6.283 } },
-      { id: 'nav.heading', label: 'Heading', path: 'navigation.headingTrue', kind: 'analog', dimension: 'angle', canonicalUnit: 'rad', allowedUnits: ['rad', 'deg'], precision: 3, range: { min: 0, max: 6.283 } },
-      { id: 'wind.aws', label: 'AWS', path: 'environment.wind.speedApparent', kind: 'analog', dimension: 'speed', canonicalUnit: 'm/s', allowedUnits: ['m/s', 'kn'], precision: 2, range: { min: 0, max: 20 } },
-      { id: 'wind.awa', label: 'AWA', path: 'environment.wind.angleApparent', kind: 'analog', dimension: 'angle', canonicalUnit: 'rad', allowedUnits: ['rad', 'deg'], precision: 3, range: { min: -3.142, max: 3.142 } },
-      { id: 'depth.belowTransducer', label: 'Depth', path: 'environment.depth.belowTransducer', kind: 'analog', dimension: 'depth', canonicalUnit: 'm', allowedUnits: ['m', 'ft'], precision: 2, range: { min: 0, max: 100 }, limits: { low: 2, criticalLow: 1 } },
-      { id: 'elec.voltage', label: 'Battery Voltage', path: 'electrical.batteries.house.voltage', kind: 'analog', dimension: 'voltage', canonicalUnit: 'V', allowedUnits: ['V'], precision: 2, range: { min: 10, max: 16 }, limits: { low: 11.5, criticalLow: 10.8 } },
-      { id: 'elec.current', label: 'Battery Current', path: 'electrical.batteries.house.current', kind: 'analog', dimension: 'current', canonicalUnit: 'A', allowedUnits: ['A'], precision: 2, range: { min: -20, max: 20 } },
-      { id: 'motor.rpm', label: 'Engine RPM', path: 'propulsion.main.revolutions', kind: 'analog', dimension: 'frequency', canonicalUnit: 'Hz', allowedUnits: ['Hz', 'rpm'], precision: 1, range: { min: 0, max: 50 } },
-    ],
-    timeline: [
-      { id: 't1', atSimulatedMs: 0, type: 'marker', label: 'Inicio de navegación' },
-      { id: 't2', atSimulatedMs: 60_000, type: 'marker', label: 'Primer ciclo de batería' },
-      { id: 't3', atSimulatedMs: 120_000, type: 'marker', label: 'Evento de aguas someras' },
-      { id: 't4', atSimulatedMs: 180_000, type: 'marker', label: 'Ráfaga de viento' },
-      { id: 't5', atSimulatedMs: 240_000, type: 'marker', label: 'Segundo ciclo de batería' },
-    ],
-    tags: ['cruise', 'navigation', 'wind', 'battery', 'ais'],
-    isPreset: true,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: 'harbor-traffic',
-    version: '1.0.0',
-    name: 'Harbor Traffic',
-    description: 'Tráfico denso en puerto con múltiples blancos AIS, maniobras lentas, fondo irregular y corrientes.',
-    category: 'navigation',
+    name: 'Autopilot — Sail (Wind Mode)',
+    description: 'Piloto en modo viento: gobierna a un ángulo de viento aparente objetivo. Velero en movimiento, viento real + aparente, detección de racha, respuesta de timón y drive.',
+    category: 'safety',
     mode: 'data',
     defaultDurationMs: 180_000,
     defaultSpeed: 1,
     parameters: [
-      { id: 'seed', label: 'Random Seed', type: 'number', defaultValue: 42, min: 1, max: 9999, step: 1, group: 'General' },
-      { id: 'speed', label: 'Simulation Speed', type: 'number', defaultValue: 1, min: 0.25, max: 4, step: 0.25, unit: 'x', group: 'General' },
-      { id: 'durationMs', label: 'Duration', type: 'number', defaultValue: 180_000, min: 30_000, max: 3_600_000, step: 60_000, unit: 'ms', group: 'General' },
+      ...generalParams(180_000),
+      ...WIND_PARAMS,
+      ...NAV_PARAMS,
+      { id: 'targetAwaDeg', label: 'Target Apparent Wind Angle', type: 'number', defaultValue: 42, min: 20, max: 160, step: 1, unit: 'deg', group: 'Autopilot' },
     ],
-    channels: [
-      { id: 'nav.position', label: 'Position', path: 'navigation.position', kind: 'text', dimension: 'position', canonicalUnit: 'deg', allowedUnits: ['deg'], precision: 6 },
-      { id: 'nav.sog', label: 'SOG', path: 'navigation.speedOverGround', kind: 'analog', dimension: 'speed', canonicalUnit: 'm/s', allowedUnits: ['m/s', 'kn'], precision: 2, range: { min: 0, max: 15 } },
-      { id: 'nav.cog', label: 'COG', path: 'navigation.courseOverGroundTrue', kind: 'analog', dimension: 'angle', canonicalUnit: 'rad', allowedUnits: ['rad', 'deg'], precision: 3, range: { min: 0, max: 6.283 } },
-      { id: 'wind.aws', label: 'AWS', path: 'environment.wind.speedApparent', kind: 'analog', dimension: 'speed', canonicalUnit: 'm/s', allowedUnits: ['m/s', 'kn'], precision: 2, range: { min: 0, max: 20 } },
-      { id: 'depth.belowTransducer', label: 'Depth', path: 'environment.depth.belowTransducer', kind: 'analog', dimension: 'depth', canonicalUnit: 'm', allowedUnits: ['m', 'ft'], precision: 2, range: { min: 0, max: 100 } },
-    ],
+    channels: [...MOCK_NAV, ...MOCK_WIND, ...MOCK_ELEC, ...MOCK_AP],
     timeline: [
-      { id: 't1', atSimulatedMs: 0, type: 'marker', label: 'Entrada a puerto' },
-      { id: 't2', atSimulatedMs: 45_000, type: 'marker', label: 'Primer cruce de tráfico' },
-      { id: 't3', atSimulatedMs: 90_000, type: 'marker', label: 'Zona de fondeo' },
+      { id: 'start', atSimulatedMs: 0, type: 'marker', label: 'Engage wind mode' },
+      { id: 'settle', atSimulatedMs: 30_000, type: 'marker', label: 'AWA holding on target' },
+      { id: 'gust', atSimulatedMs: 42_000, type: 'marker', label: 'Apparent wind gust' },
     ],
-    tags: ['harbor', 'traffic', 'ais', 'maneuvering'],
+    tags: ['autopilot', 'sail', 'wind', 'gust'],
     isPreset: true,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   },
   {
-    id: 'combined-failures',
+    id: 'ap-motor',
     version: '1.0.0',
-    name: 'Combined Failures',
-    description: 'Escenario con fallos múltiples: pérdida de GPS, batería crítica, sobrecalentamiento del motor, pérdida de presión de aceite.',
+    name: 'Autopilot — Motor (Heading Hold)',
+    description: 'Piloto manteniendo rumbo de compás a motor: velero en movimiento, RPM/temperatura de motor, corriente de drive, timón y heading objetivo vs real.',
     category: 'safety',
     mode: 'data',
-    defaultDurationMs: 120_000,
-    defaultSpeed: 0.5,
+    defaultDurationMs: 180_000,
+    defaultSpeed: 1,
     parameters: [
-      { id: 'seed', label: 'Random Seed', type: 'number', defaultValue: 42, min: 1, max: 9999, step: 1, group: 'General' },
-      { id: 'speed', label: 'Simulation Speed', type: 'number', defaultValue: 0.5, min: 0.25, max: 4, step: 0.25, unit: 'x', group: 'General' },
-      { id: 'durationMs', label: 'Duration', type: 'number', defaultValue: 120_000, min: 30_000, max: 3_600_000, step: 60_000, unit: 'ms', group: 'General' },
+      ...generalParams(180_000),
+      ...NAV_PARAMS,
+      { id: 'targetHeadingDeg', label: 'Target Heading', type: 'number', defaultValue: 66, min: 0, max: 360, step: 1, unit: 'deg', group: 'Autopilot' },
+      { id: 'batteryV', label: 'Battery Voltage', type: 'number', defaultValue: 12.8, min: 10, max: 16, step: 0.1, unit: 'V', group: 'Electrical' },
+      { id: 'engineRpm', label: 'Engine RPM', type: 'number', defaultValue: 1800, min: 0, max: 3000, step: 50, unit: 'rpm', group: 'Engine' },
+      ...WIND_PARAMS.slice(0, 2),
     ],
-    channels: [
-      { id: 'nav.position', label: 'Position', path: 'navigation.position', kind: 'text', dimension: 'position', canonicalUnit: 'deg', allowedUnits: ['deg'], precision: 6 },
-      { id: 'nav.sog', label: 'SOG', path: 'navigation.speedOverGround', kind: 'analog', dimension: 'speed', canonicalUnit: 'm/s', allowedUnits: ['m/s', 'kn'], precision: 2, range: { min: 0, max: 15 } },
-      { id: 'nav.cog', label: 'COG', path: 'navigation.courseOverGroundTrue', kind: 'analog', dimension: 'angle', canonicalUnit: 'rad', allowedUnits: ['rad', 'deg'], precision: 3, range: { min: 0, max: 6.283 } },
-      { id: 'elec.voltage', label: 'Battery Voltage', path: 'electrical.batteries.house.voltage', kind: 'analog', dimension: 'voltage', canonicalUnit: 'V', allowedUnits: ['V'], precision: 2, range: { min: 10, max: 16 }, limits: { low: 11.5, criticalLow: 10.8 } },
-      { id: 'elec.current', label: 'Battery Current', path: 'electrical.batteries.house.current', kind: 'analog', dimension: 'current', canonicalUnit: 'A', allowedUnits: ['A'], precision: 2, range: { min: -20, max: 20 } },
-      { id: 'motor.rpm', label: 'Engine RPM', path: 'propulsion.main.revolutions', kind: 'analog', dimension: 'frequency', canonicalUnit: 'Hz', allowedUnits: ['Hz', 'rpm'], precision: 1, range: { min: 0, max: 50 } },
-      { id: 'motor.coolant', label: 'Coolant Temp', path: 'propulsion.main.temperature', kind: 'analog', dimension: 'temperature', canonicalUnit: 'K', allowedUnits: ['K', '°C'], precision: 1, range: { min: 273, max: 400 }, limits: { high: 368, criticalHigh: 383 } },
-      { id: 'motor.oil', label: 'Oil Pressure', path: 'propulsion.main.oilPressure', kind: 'analog', dimension: 'pressure', canonicalUnit: 'Pa', allowedUnits: ['Pa', 'bar'], precision: 0, range: { min: 0, max: 700_000 } },
-    ],
+    channels: [...MOCK_NAV, ...MOCK_WIND, ...MOCK_ELEC, ...MOCK_ENGINE, ...MOCK_AP],
     timeline: [
-      { id: 't1', atSimulatedMs: 0, type: 'marker', label: 'Navegación normal' },
-      { id: 't2', atSimulatedMs: 20_000, type: 'fault-enable', channelId: 'nav.position', label: 'Pérdida de GPS' },
-      { id: 't3', atSimulatedMs: 40_000, type: 'fault-enable', channelId: 'elec.voltage', label: 'Batería crítica' },
-      { id: 't4', atSimulatedMs: 60_000, type: 'fault-enable', channelId: 'motor.coolant', label: 'Sobrecalentamiento' },
-      { id: 't5', atSimulatedMs: 80_000, type: 'fault-enable', channelId: 'motor.oil', label: 'Pérdida de presión de aceite' },
-      { id: 't6', atSimulatedMs: 100_000, type: 'fault-disable', channelId: 'nav.position', label: 'GPS recuperado' },
+      { id: 'start', atSimulatedMs: 0, type: 'marker', label: 'Engage compass mode' },
+      { id: 'settle', atSimulatedMs: 30_000, type: 'marker', label: 'Heading settled on target' },
+      { id: 'disturb', atSimulatedMs: 90_000, type: 'marker', label: 'Course disturbance' },
     ],
-    tags: ['failure', 'safety', 'alarm', 'gps', 'engine', 'battery'],
+    tags: ['autopilot', 'motor', 'heading', 'engine'],
     isPreset: true,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   },
   {
-    id: 'wind-gps-demo',
+    id: 'ap-safety',
     version: '1.0.0',
-    name: 'Wind GPS Demo',
-    description: 'Demostración de instrumentos de viento y GPS con patrones predecibles para calibración de displays.',
-    category: 'sensors',
+    name: 'Autopilot — Safety / Failsafe',
+    description: 'Caso failsafe: a motor con heading hold hasta que la tensión cae bajo el corte, forzando FAULT y deshabilitando el drive.',
+    category: 'safety',
     mode: 'data',
     defaultDurationMs: 120_000,
     defaultSpeed: 1,
     parameters: [
-      { id: 'seed', label: 'Random Seed', type: 'number', defaultValue: 42, min: 1, max: 9999, step: 1, group: 'General' },
-      { id: 'speed', label: 'Simulation Speed', type: 'number', defaultValue: 1, min: 0.25, max: 4, step: 0.25, unit: 'x', group: 'General' },
-      { id: 'durationMs', label: 'Duration', type: 'number', defaultValue: 120_000, min: 30_000, max: 3_600_000, step: 60_000, unit: 'ms', group: 'General' },
+      ...generalParams(120_000),
+      { id: 'faultStartSec', label: 'Fault Onset', type: 'number', defaultValue: 30, min: 5, max: 300, step: 5, unit: 's', group: 'Safety' },
+      ...NAV_PARAMS,
+      { id: 'targetHeadingDeg', label: 'Target Heading', type: 'number', defaultValue: 66, min: 0, max: 360, step: 1, unit: 'deg', group: 'Autopilot' },
+      { id: 'batteryV', label: 'Battery Voltage', type: 'number', defaultValue: 12.8, min: 10, max: 16, step: 0.1, unit: 'V', group: 'Electrical' },
     ],
-    channels: [
-      { id: 'nav.position', label: 'Position', path: 'navigation.position', kind: 'text', dimension: 'position', canonicalUnit: 'deg', allowedUnits: ['deg'], precision: 6 },
-      { id: 'nav.sog', label: 'SOG', path: 'navigation.speedOverGround', kind: 'analog', dimension: 'speed', canonicalUnit: 'm/s', allowedUnits: ['m/s', 'kn'], precision: 2, range: { min: 0, max: 15 } },
-      { id: 'nav.cog', label: 'COG', path: 'navigation.courseOverGroundTrue', kind: 'analog', dimension: 'angle', canonicalUnit: 'rad', allowedUnits: ['rad', 'deg'], precision: 3, range: { min: 0, max: 6.283 } },
-      { id: 'nav.heading', label: 'Heading', path: 'navigation.headingTrue', kind: 'analog', dimension: 'angle', canonicalUnit: 'rad', allowedUnits: ['rad', 'deg'], precision: 3, range: { min: 0, max: 6.283 } },
-      { id: 'wind.aws', label: 'AWS', path: 'environment.wind.speedApparent', kind: 'analog', dimension: 'speed', canonicalUnit: 'm/s', allowedUnits: ['m/s', 'kn'], precision: 2, range: { min: 0, max: 20 } },
-      { id: 'wind.awa', label: 'AWA', path: 'environment.wind.angleApparent', kind: 'analog', dimension: 'angle', canonicalUnit: 'rad', allowedUnits: ['rad', 'deg'], precision: 3, range: { min: -3.142, max: 3.142 } },
-      { id: 'wind.tws', label: 'TWS', path: 'environment.wind.speedTrue', kind: 'analog', dimension: 'speed', canonicalUnit: 'm/s', allowedUnits: ['m/s', 'kn'], precision: 2, range: { min: 0, max: 20 } },
-      { id: 'wind.twd', label: 'TWD', path: 'environment.wind.angleTrueGround', kind: 'analog', dimension: 'angle', canonicalUnit: 'rad', allowedUnits: ['rad', 'deg'], precision: 3, range: { min: 0, max: 6.283 } },
-      { id: 'depth.belowTransducer', label: 'Depth', path: 'environment.depth.belowTransducer', kind: 'analog', dimension: 'depth', canonicalUnit: 'm', allowedUnits: ['m', 'ft'], precision: 2, range: { min: 0, max: 100 } },
-    ],
+    channels: [...MOCK_NAV, ...MOCK_WIND, ...MOCK_ELEC, ...MOCK_ENGINE, ...MOCK_AP],
     timeline: [
-      { id: 't1', atSimulatedMs: 0, type: 'marker', label: 'Inicio de calibración' },
-      { id: 't2', atSimulatedMs: 30_000, type: 'marker', label: 'Rosa de viento completa' },
-      { id: 't3', atSimulatedMs: 60_000, type: 'marker', label: 'Patrón de rumbo' },
-      { id: 't4', atSimulatedMs: 90_000, type: 'marker', label: 'Patrón de velocidad' },
+      { id: 'start', atSimulatedMs: 0, type: 'marker', label: 'Heading hold engaged' },
+      { id: 'fault', atSimulatedMs: 30_000, type: 'marker', label: 'Low-voltage cutoff → FAULT' },
     ],
-    tags: ['demo', 'calibration', 'wind', 'gps', 'instruments'],
+    tags: ['autopilot', 'safety', 'failsafe', 'battery'],
+    isPreset: true,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: 'ap-sail-adverse',
+    version: '1.0.0',
+    name: 'Autopilot — Sail · Adverse',
+    description: 'Prueba de estrés en modo viento: viento fuerte y rolón, rachas frecuentes, guiñada por olas y peligro de trasluchada accidental. El piloto recupera el AWA con grandes movimientos de timón y corriente de drive.',
+    category: 'safety',
+    mode: 'data',
+    defaultDurationMs: 180_000,
+    defaultSpeed: 1,
+    parameters: [
+      ...generalParams(180_000),
+      { id: 'windSpeedKt', label: 'True Wind Speed', type: 'number', defaultValue: 22, min: 0, max: 50, step: 1, unit: 'kt', group: 'Wind' },
+      { id: 'windDirDeg', label: 'True Wind Direction', type: 'number', defaultValue: 45, min: 0, max: 360, step: 1, unit: 'deg', group: 'Wind' },
+      { id: 'gustProbability', label: 'Gust Probability', type: 'number', defaultValue: 0.6, min: 0, max: 1, step: 0.05, unit: 'ratio', group: 'Wind' },
+      { id: 'gustMaxDeltaKt', label: 'Gust Max Delta', type: 'number', defaultValue: 14, min: 0, max: 20, step: 0.5, unit: 'kt', group: 'Wind' },
+      ...NAV_PARAMS,
+      { id: 'targetAwaDeg', label: 'Target Apparent Wind Angle', type: 'number', defaultValue: 42, min: 20, max: 160, step: 1, unit: 'deg', group: 'Autopilot' },
+    ],
+    channels: [...MOCK_NAV, ...MOCK_WIND, ...MOCK_ELEC, ...MOCK_AP],
+    timeline: [
+      { id: 'start', atSimulatedMs: 0, type: 'marker', label: 'Engage wind mode (rough)' },
+      { id: 'gust', atSimulatedMs: 18_000, type: 'marker', label: 'Heavy gust front' },
+      { id: 'tack', atSimulatedMs: 36_000, type: 'marker', label: 'Accidental-tack hazard' },
+      { id: 'shift', atSimulatedMs: 60_000, type: 'marker', label: 'Large wind shift' },
+    ],
+    tags: ['autopilot', 'sail', 'adverse', 'gust', 'stress'],
+    isPreset: true,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: 'ap-motor-adverse',
+    version: '1.0.0',
+    name: 'Autopilot — Motor · Adverse',
+    description: 'Prueba de estrés en heading-hold a motor con mar de través/corriente cruzada: fuertes guiñadas desvían la proa y el piloto aplica correcciones de timón grandes y frecuentes a alta corriente de drive.',
+    category: 'safety',
+    mode: 'data',
+    defaultDurationMs: 180_000,
+    defaultSpeed: 1,
+    parameters: [
+      ...generalParams(180_000),
+      { id: 'boatSpeedKt', label: 'Boat Speed', type: 'number', defaultValue: 5.5, min: 0, max: 20, step: 0.5, unit: 'kt', group: 'Navigation' },
+      { id: 'courseDeg', label: 'Base Course', type: 'number', defaultValue: 66, min: 0, max: 360, step: 1, unit: 'deg', group: 'Navigation' },
+      { id: 'targetHeadingDeg', label: 'Target Heading', type: 'number', defaultValue: 66, min: 0, max: 360, step: 1, unit: 'deg', group: 'Autopilot' },
+      { id: 'batteryV', label: 'Battery Voltage', type: 'number', defaultValue: 12.8, min: 10, max: 16, step: 0.1, unit: 'V', group: 'Electrical' },
+      { id: 'engineRpm', label: 'Engine RPM', type: 'number', defaultValue: 1800, min: 0, max: 3000, step: 50, unit: 'rpm', group: 'Engine' },
+      { id: 'windSpeedKt', label: 'True Wind Speed', type: 'number', defaultValue: 20, min: 0, max: 50, step: 1, unit: 'kt', group: 'Wind' },
+      { id: 'windDirDeg', label: 'True Wind Direction', type: 'number', defaultValue: 45, min: 0, max: 360, step: 1, unit: 'deg', group: 'Wind' },
+    ],
+    channels: [...MOCK_NAV, ...MOCK_WIND, ...MOCK_ELEC, ...MOCK_ENGINE, ...MOCK_AP],
+    timeline: [
+      { id: 'start', atSimulatedMs: 0, type: 'marker', label: 'Engage compass mode (rough)' },
+      { id: 'seaway', atSimulatedMs: 20_000, type: 'marker', label: 'Beam sea building' },
+      { id: 'set', atSimulatedMs: 60_000, type: 'marker', label: 'Cross-current set' },
+    ],
+    tags: ['autopilot', 'motor', 'adverse', 'seaway', 'stress'],
+    isPreset: true,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: 'nav-sail',
+    version: '1.0.0',
+    name: 'Navigation — Sailing (Free Helm)',
+    description: 'Velero navegando libre con viento, profundidad y datos eléctricos. Sin autopilot — practica creando waypoints y rutas en la carta, luego activa el autopilot en modo TRACK para seguirlas.',
+    category: 'navigation' as SimulationScenarioDocument['category'],
+    mode: 'data',
+    defaultDurationMs: 300_000,
+    defaultSpeed: 1,
+    parameters: [
+      ...generalParams(300_000),
+      ...WIND_PARAMS,
+      ...NAV_PARAMS,
+      { id: 'depthM', label: 'Base Depth', type: 'number', defaultValue: 15, min: 1, max: 200, step: 1, unit: 'm', group: 'Environment' },
+    ],
+    channels: [...MOCK_NAV, ...MOCK_WIND, MOCK_DEPTH, ...MOCK_ELEC],
+    timeline: [
+      { id: 'start', atSimulatedMs: 0, type: 'marker', label: 'Departure' },
+      { id: 'wind-shift', atSimulatedMs: 60_000, type: 'marker', label: 'Wind shift' },
+      { id: 'shallow', atSimulatedMs: 120_000, type: 'marker', label: 'Shallow water approach' },
+    ],
+    tags: ['navigation', 'sail', 'wind', 'depth', 'free'],
+    isPreset: true,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: 'nav-motor',
+    version: '1.0.0',
+    name: 'Navigation — Motor Cruising (Free Helm)',
+    description: 'Barco a motor navegando libre con motor, profundidad y datos eléctricos. Sin autopilot — practica creando waypoints y rutas en la carta, luego activa el autopilot en modo TRACK para seguirlas.',
+    category: 'navigation' as SimulationScenarioDocument['category'],
+    mode: 'data',
+    defaultDurationMs: 300_000,
+    defaultSpeed: 1,
+    parameters: [
+      ...generalParams(300_000),
+      ...NAV_PARAMS,
+      { id: 'engineRpm', label: 'Engine RPM', type: 'number', defaultValue: 1800, min: 0, max: 3000, step: 50, unit: 'rpm', group: 'Engine' },
+      { id: 'batteryV', label: 'Battery Voltage', type: 'number', defaultValue: 12.8, min: 10, max: 16, step: 0.1, unit: 'V', group: 'Electrical' },
+      { id: 'depthM', label: 'Base Depth', type: 'number', defaultValue: 15, min: 1, max: 200, step: 1, unit: 'm', group: 'Environment' },
+      ...WIND_PARAMS.slice(0, 2),
+    ],
+    channels: [...MOCK_NAV, ...MOCK_WIND, MOCK_DEPTH, ...MOCK_ELEC, ...MOCK_ENGINE],
+    timeline: [
+      { id: 'start', atSimulatedMs: 0, type: 'marker', label: 'Departure' },
+      { id: 'channel', atSimulatedMs: 90_000, type: 'marker', label: 'Channel transit' },
+      { id: 'approach', atSimulatedMs: 180_000, type: 'marker', label: 'Anchoring approach' },
+    ],
+    tags: ['navigation', 'motor', 'engine', 'depth', 'free'],
     isPreset: true,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
@@ -196,15 +307,18 @@ interface OfflineRunState {
   events: SimulationEvent[];
   samples: Map<string, ChannelSample[]>;
   snapshots: Map<string, SimulationChannelSnapshot>;
-  timer: ReturnType<typeof setInterval> | null;
+  timer: ReturnType<typeof setTimeout> | null;
+  intervalMs: number;
   simulatedMs: number;
   tick: number;
+  lastPublishedAt: number;
 }
 
 @Injectable({ providedIn: 'root' })
 export class SimulationFacadeService {
   private readonly store = inject(DatapointStoreService);
   readonly api = inject(SimulationApiService);
+  private readonly zone = inject(NgZone);
 
   readonly activeTab = signal<SimulationTab>('scenarios');
   readonly filterText = signal('');
@@ -236,9 +350,10 @@ export class SimulationFacadeService {
   readonly useOffline = signal(false);
   private offlineRun: OfflineRunState | null = null;
   private lastSequence = 0;
-  private samplePollTimer: ReturnType<typeof setInterval> | null = null;
+  private samplePollTimer: ReturnType<typeof setTimeout> | null = null;
+  private leaseTimer: ReturnType<typeof setTimeout> | null = null;
 
-  private readonly ticker$ = timer(0, 500);
+  private readonly ticker$ = outsideZoneTicker(this.zone, 500);
   private readonly liveRows = toSignal(
     combineLatest([this.store.state$, this.ticker$]).pipe(
       map(([dataMap]) => this.toLiveRows(dataMap)),
@@ -265,6 +380,11 @@ export class SimulationFacadeService {
   readonly selectedScenario = computed(() =>
     this.scenarios().find((item) => item.id === this.selectedScenarioId()) ?? null,
   );
+
+  readonly canAbortActiveRun = computed(() => {
+    const run = this.activeRun();
+    return Boolean(run && run.status !== 'passed' && run.status !== 'failed' && run.status !== 'aborted');
+  });
 
   readonly currentChannels = computed(() =>
     this.selectedChannelIds()
@@ -348,7 +468,10 @@ export class SimulationFacadeService {
         this.startOfflineRun(scenario);
       } else {
         const armed = await this.api.arm();
-        const run = await this.api.startRun(scenario.id, armed.token, this.parameters());
+        const params = this.parameters();
+        const speed = Number(params['speed'] ?? scenario.defaultSpeed);
+        const seed = Number(params['seed'] ?? 42);
+        const run = await this.api.startRun(scenario.id, armed.token, params, scenario.mode, speed, seed);
         this.activeRun.set(run);
         this.events.set([]);
         this.channelSnapshots.set(new Map());
@@ -394,13 +517,38 @@ export class SimulationFacadeService {
       return;
     }
     const run = this.activeRun();
-    if (!run || run.status !== 'running') return;
+    if (!run || !this.canAbortActiveRun()) return;
     this.busy.set(true);
     try {
       this.activeRun.set(await this.api.abortRun(run.id));
-      this.stopSamplePolling();
-      this.api.disconnectEvents();
       await this.refreshHistory();
+    } catch (error) {
+      this.error.set(this.errorMessage(error));
+      this.activeRun.set({
+        ...run,
+        status: 'aborted',
+        completedAtUtc: new Date().toISOString(),
+        failureReason: 'Abort requested locally; server response unavailable',
+      });
+    } finally {
+      this.stopSamplePolling();
+      this.stopLeaseRenewal();
+      this.api.disconnectEvents();
+      this.busy.set(false);
+    }
+  }
+
+  async clearRunHistory(): Promise<void> {
+    if (this.busy() || this.activeRun()?.status === 'running') return;
+    this.busy.set(true);
+    this.error.set(null);
+    try {
+      if (this.useOffline()) {
+        this.runHistory.set([]);
+      } else {
+        await this.api.clearRuns();
+        this.runHistory.set([]);
+      }
     } catch (error) {
       this.error.set(this.errorMessage(error));
     } finally {
@@ -414,6 +562,7 @@ export class SimulationFacadeService {
       return;
     }
     this.stopSamplePolling();
+    this.stopLeaseRenewal();
     this.api.disconnectEvents();
     this.activeRun.set(null);
     this.events.set([]);
@@ -429,6 +578,23 @@ export class SimulationFacadeService {
     try {
       await this.api.leaseRun(run.id);
     } catch (error) {
+      if (this.isNotFoundError(error)) {
+        this.stopLeaseRenewal();
+        this.stopSamplePolling();
+        this.api.disconnectEvents();
+        try {
+          this.activeRun.set(await this.api.getRun(run.id));
+          await this.refreshHistory();
+        } catch {
+          this.activeRun.set({
+            ...run,
+            status: 'aborted',
+            completedAtUtc: new Date().toISOString(),
+            failureReason: 'Run process is no longer active; returned to safe state',
+          });
+        }
+        return;
+      }
       this.error.set(this.errorMessage(error));
     }
   }
@@ -484,8 +650,10 @@ export class SimulationFacadeService {
       samples: new Map(),
       snapshots: new Map(),
       timer: null,
+      intervalMs: Math.max(100, 1000 / (run.speed * 10)),
       simulatedMs: 0,
       tick: 0,
+      lastPublishedAt: 0,
     };
     this.offlineRun = state;
 
@@ -495,10 +663,19 @@ export class SimulationFacadeService {
     this.addOfflineEvent(state, 'step', 10, 'Inicialización completada');
 
     // Start simulation loop
-    const intervalMs = 1000 / (run.speed * 10); // 10 Hz base
-    state.timer = setInterval(() => {
-      this.offlineTick(state, scenario);
-    }, Math.max(50, intervalMs));
+    this.scheduleOfflineTick(state, scenario);
+  }
+
+  private scheduleOfflineTick(state: OfflineRunState, scenario: SimulationScenarioDocument): void {
+    this.zone.runOutsideAngular(() => {
+      state.timer = setTimeout(() => {
+        state.timer = null;
+        this.offlineTick(state, scenario);
+        if (this.offlineRun === state && state.run.status === 'running') {
+          this.scheduleOfflineTick(state, scenario);
+        }
+      }, state.intervalMs);
+    });
   }
 
   private offlineTick(state: OfflineRunState, scenario: SimulationScenarioDocument): void {
@@ -518,7 +695,7 @@ export class SimulationFacadeService {
 
     // Generate channel values
     for (const channel of scenario.channels) {
-      const value = this.generateOfflineValue(channel.id, state.simulatedMs, state.run.seed);
+      const value = this.generateOfflineValue(channel.id, state.simulatedMs, state.run.seed, scenario.id);
       const snapshot: SimulationChannelSnapshot = {
         channelId: channel.id,
         value,
@@ -546,30 +723,108 @@ export class SimulationFacadeService {
       return;
     }
 
-    // Update signals
-    this.channelSnapshots.set(new Map(state.snapshots));
-    this.sampleHistory.set(new Map(state.samples));
-    this.events.set([...state.events]);
-    this.activeRun.set({ ...state.run });
+    const now = Date.now();
+    if (now - state.lastPublishedAt >= OFFLINE_UI_PUBLISH_INTERVAL_MS) {
+      state.lastPublishedAt = now;
+      this.publishOfflineState(state);
+      // Feed the shared datapoint store so the chart map, instruments and wind vectors move
+      // during a run, exactly as they would from a live backend over Signal K.
+      this.injectToStore(Array.from(state.snapshots.values()));
+    }
   }
 
-  private generateOfflineValue(channelId: string, simulatedMs: number, seed: number): unknown {
+  /**
+   * Mirrors simulation channel values into the shared datapoint store so the chart map, instruments
+   * and wind vectors update from the same source the rest of the UI reads. Used for both offline and
+   * backend runs (the backend may publish Signal K to a different host than the UI reads). Faulted
+   * channels are skipped to emulate sensor dropout (e.g. GPS loss freezes the vessel on the map).
+   */
+  private injectToStore(entries: Array<{ channelId: string; value: unknown; quality: string }>): void {
+    const defs = this.channelDefinitions();
+    const timestamp = Date.now();
+    const points: DataPoint[] = [];
+    for (const entry of entries) {
+      const path = defs.get(entry.channelId)?.path;
+      if (!path || entry.quality === 'bad') continue;
+      points.push({ path, value: entry.value, timestamp, source: 'simulation' });
+    }
+    if (points.length > 0) {
+      this.zone.runOutsideAngular(() => this.store.update(points));
+    }
+  }
+
+  private publishOfflineState(state: OfflineRunState): void {
+    const snapshots = new Map(state.snapshots);
+    const samples = new Map(state.samples);
+    const events = [...state.events];
+    const run = { ...state.run };
+    this.zone.run(() => {
+      this.channelSnapshots.set(snapshots);
+      this.sampleHistory.set(samples);
+      this.events.set(events);
+      this.activeRun.set(run);
+    });
+  }
+
+  /**
+   * Deterministic boat motion + coupled true/apparent wind for the offline run, so the vessel
+   * actually travels and the apparent wind is the true wind plus the boat's velocity (matching the
+   * backend physics). Pure function of (t, seed) so every channel stays mutually consistent.
+   */
+  private offlineKinematics(t: number, seed: number, adverse: boolean): {
+    courseRad: number; headingRad: number; sogMs: number; latitude: number; longitude: number;
+    twsMs: number; twdRad: number; awsMs: number; awaRad: number;
+  } {
+    // Adverse runs add big wave/current yaw and wind shifts so the offline pilot has to fight back.
+    const isGust = adverse ? t % 30 >= 18 && t % 30 < 27 : t % 60 >= 42 && t % 60 < 54;
+    const disturbance = adverse
+      ? 0.32 * Math.sin(t / 6.5) + 0.16 * Math.sin(t / 2.1) + (isGust ? 0.28 * Math.sin(t * 1.7) : 0)
+      : 0;
+    const courseRad = wrapRadians((66 * Math.PI) / 180 + (seed % 31) * 0.003 + 0.18 * Math.sin(t / 90) + disturbance);
+    const headingRad = wrapRadians(courseRad + 0.06 * Math.sin(t * 0.05));
+    const sogMs = Math.max(0, (adverse ? 3.2 : 4.0) + 0.6 * Math.sin(t / 30) + (adverse ? 0.5 * Math.sin(t / 4) : 0));
+
+    const originLat = 42.2406;
+    const originLon = -8.7207;
+    const distanceMeters = sogMs * t;
+    const north = Math.cos(courseRad) * distanceMeters;
+    const east = Math.sin(courseRad) * distanceMeters;
+    const latitude = originLat + north / 111_320;
+    const longitude = originLon + east / (111_320 * Math.cos((originLat * Math.PI) / 180));
+
+    const twsMs = (adverse ? 10 : 6) + 2 * Math.sin(t * 0.05);
+    const twdRad = wrapRadians((45 * Math.PI) / 180 + 0.2 * Math.sin(t / 120) + (adverse ? 0.45 * Math.sin(t / 17) : 0));
+    const twa = wrapToPi(twdRad - headingRad);
+    const awsMs = Math.sqrt(twsMs * twsMs + sogMs * sogMs + 2 * twsMs * sogMs * Math.cos(twa));
+    const awaRad = Math.atan2(twsMs * Math.sin(twa), twsMs * Math.cos(twa) + sogMs);
+
+    return { courseRad, headingRad, sogMs, latitude, longitude, twsMs, twdRad, awsMs, awaRad };
+  }
+
+  private generateOfflineValue(channelId: string, simulatedMs: number, seed: number, scenarioId: string): unknown {
     const t = simulatedMs / 1000;
     const phase = (t * 0.1) + (seed % 100);
+    const adverse = scenarioId.endsWith('-adverse');
+    const k = this.offlineKinematics(t, seed, adverse);
+    const ap = this.offlineAutopilot(t, scenarioId, k.headingRad);
     switch (channelId) {
-      case 'nav.sog': return 2.5 + 1.5 * Math.sin(phase) + Math.random() * 0.2;
-      case 'nav.cog': return (phase % 6.283);
-      case 'nav.heading': return ((phase + 0.1) % 6.283);
-      case 'nav.position': return { latitude: 42.2406 + Math.sin(phase * 0.01) * 0.01, longitude: -8.7207 + Math.cos(phase * 0.01) * 0.01 };
-      case 'wind.aws': return 5 + 3 * Math.sin(phase * 2) + Math.random() * 0.5;
-      case 'wind.awa': return Math.sin(phase) * 1.5;
-      case 'wind.tws': return 6 + 2 * Math.sin(phase * 1.5);
-      case 'wind.twd': return (phase * 0.5) % 6.283;
-      case 'depth.belowTransducer': return 12 + 4 * Math.sin(phase * 0.3) + Math.random() * 0.3;
-      case 'elec.voltage': return 12.6 + 0.8 * Math.sin(phase * 0.5) + Math.random() * 0.1;
+      case 'nav.sog': return k.sogMs;
+      case 'nav.cog': return k.courseRad;
+      case 'nav.heading': return k.headingRad;
+      case 'nav.position': return { latitude: k.latitude, longitude: k.longitude };
+      case 'wind.aws': return k.awsMs;
+      case 'wind.awa': return ap.awaTarget ?? k.awaRad;
+      case 'wind.tws': return k.twsMs;
+      case 'wind.twd': return k.twdRad;
+      case 'depth.belowTransducer': {
+        const depthParam = this.parameters()['depthM'];
+        const baseDepth = typeof depthParam === 'number' ? depthParam : 12;
+        return baseDepth + 4 * Math.sin(phase * 0.3) + Math.random() * 0.3;
+      }
+      case 'elec.voltage': return ap.voltage ?? (12.6 + 0.8 * Math.sin(phase * 0.5) + Math.random() * 0.1);
       case 'elec.current': return 5 + 3 * Math.sin(phase * 0.8) + Math.random() * 0.5;
       case 'elec.soc': return 0.7 + 0.2 * Math.sin(phase * 0.2);
-      case 'motor.rpm': return 25 + 10 * Math.sin(phase * 0.4) + Math.random() * 2;
+      case 'motor.rpm': return Number(this.parameters()['engineRpm'] ?? 1800) / 60 + 4 * Math.sin(phase * 0.4) + Math.random();
       case 'motor.coolant': return 355 + 10 * Math.sin(phase * 0.3) + Math.random() * 2;
       case 'motor.oil': return 300_000 + 50_000 * Math.sin(phase * 0.6);
       case 'motor.fuel': return 0.6 + 0.1 * Math.sin(phase * 0.1);
@@ -578,8 +833,69 @@ export class SimulationFacadeService {
       case 'env.airTemp': return 295 + 3 * Math.sin(phase * 0.15);
       case 'env.baro': return 101_325 + 200 * Math.sin(phase * 0.1);
       case 'env.humidity': return 0.65 + 0.1 * Math.sin(phase * 0.25);
+      case 'ap.state': return ap.state;
+      case 'ap.mode': return ap.mode;
+      case 'ap.engaged': return ap.engaged;
+      case 'ap.driveEnabled':
+      case 'ap.clutch': return ap.driveEnabled;
+      case 'ap.fault': return ap.fault;
+      case 'ap.windHazard': return ap.windHazard;
+      case 'ap.noGo': return false;
+      case 'ap.targetHeading': return ap.targetHeading;
+      case 'ap.targetWindAngle': return ap.targetWindAngle;
+      case 'ap.targetRudderAngle': return ap.targetRudder;
+      case 'ap.rudderAngle': return ap.rudder;
+      case 'ap.driveCurrent': return ap.driveCurrent;
       default: return Math.random() * 100;
     }
+  }
+
+  /**
+   * Compact mirror of the backend autopilot model for the three curated scenarios, so the offline
+   * run shows the same piloto/motor signals and steers the moving vessel.
+   */
+  private offlineAutopilot(t: number, scenarioId: string, headingRad: number): {
+    state: string; mode: string; engaged: boolean; driveEnabled: boolean; fault: string;
+    windHazard: string; targetHeading: number; targetWindAngle: number; targetRudder: number;
+    rudder: number; driveCurrent: number; voltage: number | null; awaTarget: number | null;
+  } {
+    const adverse = scenarioId.endsWith('-adverse');
+    const baseId = scenarioId.replace(/-adverse$/, '');
+    const kind = baseId === 'ap-sail' ? 'sail' : baseId === 'ap-motor' ? 'motor' : baseId === 'ap-safety' ? 'safety' : null;
+    const params = this.parameters();
+    const num = (key: string, fallback: number): number => typeof params[key] === 'number' ? params[key] as number : fallback;
+    const d2r = (deg: number): number => deg * Math.PI / 180;
+    const clampN = (v: number, a: number, b: number): number => Math.max(a, Math.min(b, v));
+    if (!kind) {
+      return { state: 'standby', mode: 'compass', engaged: false, driveEnabled: false, fault: 'none', windHazard: 'none', targetHeading: headingRad, targetWindAngle: 0, targetRudder: 0, rudder: 0, driveCurrent: 0, voltage: null, awaTarget: null };
+    }
+    const targetAwaDeg = num('targetAwaDeg', 42);
+    const targetHeadingDeg = num('targetHeadingDeg', num('courseDeg', 66));
+    const faultStart = num('faultStartSec', 30);
+    const faulted = kind === 'safety' && t >= faultStart;
+    const isGust = adverse ? t % 30 >= 18 && t % 30 < 27 : t % 60 >= 42 && t % 60 < 54;
+    const isAccidentalTack = adverse && kind === 'sail' && t % 48 >= 36 && t % 48 < 41;
+    const awaHeld = clampN(d2r(targetAwaDeg) + (isGust ? d2r(adverse ? 26 : 12) * Math.sin(t * 1.3) : d2r(adverse ? 7 : 3) * Math.sin(t / 9)), -Math.PI, Math.PI);
+    const targetHeading = kind === 'motor' || kind === 'safety' ? d2r(targetHeadingDeg) : wrapRadians(headingRad);
+    // Compass modes steer on heading error; wind mode steers to cancel the apparent-wind-angle error.
+    const error = kind === 'sail' ? wrapToPi(awaHeld - d2r(targetAwaDeg)) : wrapToPi(targetHeading - headingRad);
+    const targetRudder = clampN(error * (kind === 'sail' ? 1.6 : 1.3), -0.5, 0.5);
+    const rudder = clampN(targetRudder * 0.85, -0.61, 0.61);
+    return {
+      state: faulted ? 'fault' : kind === 'sail' ? 'wind' : 'auto',
+      mode: kind === 'sail' ? 'wind' : 'compass',
+      engaged: !faulted,
+      driveEnabled: !faulted,
+      fault: faulted ? 'low-battery' : 'none',
+      windHazard: kind !== 'sail' ? 'none' : isAccidentalTack ? 'accidental-tack' : isGust ? 'gust' : 'none',
+      targetHeading,
+      targetWindAngle: d2r(targetAwaDeg),
+      targetRudder: faulted ? 0 : targetRudder,
+      rudder: faulted ? 0 : rudder,
+      driveCurrent: faulted ? 0 : Math.max(0, 1.2 + Math.abs(rudder) * 9),
+      voltage: faulted ? 10.6 : null,
+      awaTarget: kind === 'sail' ? awaHeld : null,
+    };
   }
 
   private computeOfflineQuality(channelId: string): 'good' | 'warn' | 'bad' | 'unknown' {
@@ -621,7 +937,7 @@ export class SimulationFacadeService {
     const state = this.offlineRun;
     if (!state) return;
     if (state.timer) {
-      clearInterval(state.timer);
+      clearTimeout(state.timer);
       state.timer = null;
     }
     state.run.status = finalStatus;
@@ -632,17 +948,18 @@ export class SimulationFacadeService {
       this.addOfflineEvent(state, 'run', state.simulatedMs, 'Escenario completado exitosamente');
       state.run.steps = state.run.steps.map((s) => ({ ...s, status: 'passed' as const }));
     }
-    this.activeRun.set({ ...state.run });
-    this.events.set([...state.events]);
-    this.runHistory.update((history) => [{
-      id: state.run.id,
-      scenarioId: state.run.scenarioId,
-      status: state.run.status,
-      startedAtUtc: state.run.startedAtUtc,
-      completedAtUtc: state.run.completedAtUtc,
-      simulatedTimeMs: state.run.simulatedTimeMs,
-      mode: state.run.mode,
-    }, ...history]);
+    this.publishOfflineState(state);
+    this.zone.run(() => {
+      this.runHistory.update((history) => [{
+        id: state.run.id,
+        scenarioId: state.run.scenarioId,
+        status: state.run.status,
+        startedAtUtc: state.run.startedAtUtc,
+        completedAtUtc: state.run.completedAtUtc,
+        simulatedTimeMs: state.run.simulatedTimeMs,
+        mode: state.run.mode,
+      }, ...history]);
+    });
     this.offlineRun = null;
   }
 
@@ -651,6 +968,7 @@ export class SimulationFacadeService {
   private connectRun(run: SimulationRun): void {
     this.lastSequence = 0;
     this.stopSamplePolling();
+    this.stopLeaseRenewal();
     this.api.connectEvents(
       run.id,
       this.lastSequence,
@@ -661,15 +979,47 @@ export class SimulationFacadeService {
         }
       },
     );
-    this.samplePollTimer = setInterval(() => {
-      void this.pollSamples(run.id);
-    }, SAMPLE_POLL_INTERVAL_MS);
+    this.scheduleSamplePoll(run.id);
+    this.scheduleLeaseRenewal();
+  }
+
+  private scheduleSamplePoll(runId: string): void {
+    this.zone.runOutsideAngular(() => {
+      this.samplePollTimer = setTimeout(() => {
+        this.samplePollTimer = null;
+        void this.pollSamples(runId).finally(() => {
+          if (this.activeRun()?.id === runId && this.activeRun()?.status === 'running') {
+            this.scheduleSamplePoll(runId);
+          }
+        });
+      }, SAMPLE_POLL_INTERVAL_MS);
+    });
+  }
+
+  private scheduleLeaseRenewal(): void {
+    this.zone.runOutsideAngular(() => {
+      this.leaseTimer = setTimeout(() => {
+        this.leaseTimer = null;
+        void this.leaseActiveRun().finally(() => {
+          if (this.activeRun()?.status === 'running') {
+            this.scheduleLeaseRenewal();
+          }
+        });
+      }, 10_000);
+    });
   }
 
   private stopSamplePolling(): void {
     if (this.samplePollTimer) {
-      clearInterval(this.samplePollTimer);
+      clearTimeout(this.samplePollTimer);
       this.samplePollTimer = null;
+    }
+  }
+
+  private stopLeaseRenewal(): void {
+    if (this.leaseTimer) {
+      clearTimeout(this.leaseTimer);
+      this.leaseTimer = null;
     }
   }
 
@@ -681,10 +1031,14 @@ export class SimulationFacadeService {
       if (batches.length === 0) return;
       let maxTick = after;
       for (const batch of batches) {
-        this.addSampleBatch(batch);
         if (batch.tick > maxTick) maxTick = batch.tick;
       }
-      this.lastSampleTick.set(maxTick);
+      this.zone.run(() => {
+        for (const batch of batches) {
+          this.addSampleBatch(batch);
+        }
+        this.lastSampleTick.set(maxTick);
+      });
     } catch {
       // Ignore transient sample load errors; the SSE connection will surface real failures.
     }
@@ -709,7 +1063,6 @@ export class SimulationFacadeService {
     this.sampleHistory.update((current) => {
       const next = new Map(current);
       for (const sample of batch.samples) {
-        if (typeof sample.value !== 'number') continue;
         const history = next.get(sample.channelId) ?? [];
         history.push({
           timestamp: Date.now(),
@@ -721,6 +1074,8 @@ export class SimulationFacadeService {
       }
       return next;
     });
+    // Mirror to the shared store so the chart map + instruments move during a backend run too.
+    this.injectToStore(batch.samples);
   }
 
   private consumeEvent(event: SimulationEvent): void {
@@ -756,9 +1111,11 @@ export class SimulationFacadeService {
       if (event.assertion) {
         next.assertions = [...next.assertions, event.assertion];
       }
-      if (event.kind === 'run' && /superada|fallida|abortada|desconectada/i.test(event.message)) {
+      if (event.kind === 'safe-state' || (event.kind === 'run' && /superada|fallida|abortada|desconectada/i.test(event.message))) {
         void this.api.getRun(run.id).then((updated) => {
           this.activeRun.set(updated);
+          this.stopLeaseRenewal();
+          this.stopSamplePolling();
           void this.refreshHistory();
         });
       } else {
@@ -853,4 +1210,14 @@ export class SimulationFacadeService {
     if (status === 401) return 'El token de armado ha caducado. Vuelve a iniciar la ejecución.';
     return 'No se pudo ejecutar la operación de simulación.';
   }
+
+  private isNotFoundError(error: unknown): boolean {
+    return typeof error === 'object' && error !== null && 'status' in error && (error as { status: unknown }).status === 404;
+  }
 }
+
+const wrapRadians = (value: number): number => ((value % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+const wrapToPi = (value: number): number => {
+  const wrapped = wrapRadians(value);
+  return wrapped > Math.PI ? wrapped - Math.PI * 2 : wrapped;
+};

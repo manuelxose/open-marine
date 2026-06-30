@@ -1,10 +1,11 @@
-import { Component, ChangeDetectionStrategy, inject } from '@angular/core';
+import { Component, ChangeDetectionStrategy, NgZone, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
-import { combineLatest, interval, map, startWith } from 'rxjs';
+import { combineLatest, map } from 'rxjs';
 import { AlarmsFacadeService } from '../../../features/alarms/services/alarms-facade.service';
 import { AlarmSeverity, AlarmState, Alarm } from '../../../state/alarms/alarm.models';
 import { AppIconComponent, IconName } from '../../../shared/components/app-icon/app-icon.component';
+import { outsideZoneTicker } from '../../../shared/rxjs/outside-zone-ticker';
 
 type BannerSeverity = 'warning' | 'critical' | 'emergency';
 
@@ -234,10 +235,8 @@ interface AlarmBannerVm {
 })
 export class AlarmBannerComponent {
   private readonly facade = inject(AlarmsFacadeService);
-  private readonly now$ = interval(1000).pipe(
-    startWith(0),
-    map(() => Date.now()),
-  );
+  private readonly zone = inject(NgZone);
+  private readonly now$ = outsideZoneTicker(this.zone, 1000);
 
   readonly vm$ = combineLatest([
     this.facade.activeAlarms$,

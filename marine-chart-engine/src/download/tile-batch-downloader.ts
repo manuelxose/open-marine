@@ -14,6 +14,8 @@ export interface AreaDownloadRequest {
   maxZoom: number;
   description?: string;
   attribution?: string;
+  /** Optional WMS layer override (when caching a specific layer of a WMS provider). */
+  layers?: string;
 }
 
 export interface DownloadProgress {
@@ -21,6 +23,11 @@ export interface DownloadProgress {
   downloadedTiles: number;
   failedTiles: number;
   currentZoom: number;
+}
+
+export interface AreaDownloadOptions {
+  onProgress?: (progress: DownloadProgress) => void;
+  signal?: AbortSignal;
 }
 
 /**
@@ -37,7 +44,8 @@ export class TileBatchDownloader {
     private readonly dataDir: string,
   ) {}
 
-  async downloadArea(request: AreaDownloadRequest, onProgress?: (progress: DownloadProgress) => void): Promise<string> {
+  async downloadArea(request: AreaDownloadRequest, options: AreaDownloadOptions = {}): Promise<string> {
+    const { onProgress, signal } = options;
     const targetFile = path.join(this.dataDir, 'charts', `${request.id}.mbtiles`);
     await fs.mkdir(path.dirname(targetFile), { recursive: true });
 
@@ -65,11 +73,15 @@ export class TileBatchDownloader {
 
       // Process in batches with concurrency limit
       for (let i = 0; i < tiles.length; i += this.concurrency) {
+        if (signal?.aborted) {
+          generator.close();
+          throw new Error('Area download cancelled');
+        }
         const batch = tiles.slice(i, i + this.concurrency);
         const results = await Promise.all(
           batch.map(async (t) => {
             try {
-              const tile = await this.fetchTile(request.providerId, t.z, t.x, t.y);
+              const tile = await this.fetchTile(request.providerId, t.z, t.x, t.y, request.layers);
               if (tile) {
                 return { ...t, data: tile.data, success: true };
               }
@@ -103,15 +115,15 @@ export class TileBatchDownloader {
     return targetFile;
   }
 
-  private async fetchTile(providerId: string, z: number, x: number, y: number): Promise<{ data: Buffer } | null> {
+  private async fetchTile(providerId: string, z: number, x: number, y: number, layers?: string): Promise<{ data: Buffer } | null> {
     // Try XYZ proxy first
     if (this.xyzProxy.hasProvider(providerId)) {
       const tile = await this.xyzProxy.fetchTile(providerId, z, x, y);
       if (tile) return tile;
     }
-    // Fall back to WMS proxy
+    // Fall back to WMS proxy (with optional layer override)
     if (this.wmsProxy.hasProvider(providerId)) {
-      const tile = await this.wmsProxy.fetchTile(providerId, z, x, y);
+      const tile = await this.wmsProxy.fetchTile(providerId, z, x, y, layers);
       if (tile) return tile;
     }
     return null;

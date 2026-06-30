@@ -139,6 +139,7 @@
 
 /* Item Buttons */
 .waypoint-select,
+.waypoint-navigate,
 .waypoint-delete {
   background: transparent;
   border: none;
@@ -155,9 +156,15 @@
 }
 
 .waypoint-select:hover,
+.waypoint-navigate:hover,
 .waypoint-delete:hover {
   background: color-mix(in srgb, var(--bg-surface-secondary) 70%, transparent);
   color: var(--gb-text-value);
+}
+
+.waypoint-navigate:hover {
+  color: var(--gb-needle-secondary);
+  background: color-mix(in srgb, var(--gb-needle-secondary) 10%, transparent);
 }
 
 .waypoint-delete:hover {

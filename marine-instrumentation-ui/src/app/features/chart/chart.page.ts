@@ -19,6 +19,7 @@ import { ChartFullscreenService } from './services/chart-fullscreen.service';
 import { AnchorWatchService } from './services/anchor-watch.service';
 import { MeasurementService } from './services/measurement.service';
 import { GpxExportService } from './services/gpx-export.service';
+import { SignalKCourseService } from '../../data-access/signalk/course/signalk-course.service';
 import { InstrumentsFacadeService } from '../instruments/instruments-facade.service';
 import { DatapointStoreService } from '../../state/datapoints/datapoint-store.service';
 import { AisStoreService } from '../../state/ais/ais-store.service';
@@ -32,6 +33,8 @@ import { MapControlsComponent } from './components/map-controls/map-controls.com
 
 import { QuickInstrumentsComponent } from './components/quick-instruments/quick-instruments.component';
 import { LeftPanelComponent } from './components/left-panel/left-panel.component';
+import { ChartManagerComponent } from './components/chart-manager/chart-manager.component';
+import { APP_ENVIRONMENT } from '../../core/config/app-environment.token';
 import { FullscreenToggleComponent } from './components/fullscreen-toggle/fullscreen-toggle.component';
 import { AlarmStatusWidgetComponent } from './components/alarm-status-widget/alarm-status-widget.component';
 import { ChartTopBarComponent } from './components/chart-top-bar/chart-top-bar.component';
@@ -45,12 +48,33 @@ import { AutopilotChartControlComponent } from '../autopilot/components/autopilo
 import { TranslatePipe } from '../../shared/pipes/translate.pipe';
 
 // Utils & Types
-import { selectSog, selectCog, selectDepth, selectPosition, selectHeading, selectAws, selectAwa } from '../../state/datapoints/datapoint.selectors';
-import { bearingDistanceNm, metersPerSecondToKnots, toDegrees } from '../../state/calculations/navigation';
-import { ChartLayerMode, ChartLeftPanelTab, MapOrientation } from './types/chart-vm';
+import {
+  selectSog,
+  selectCog,
+  selectDepth,
+  selectPosition,
+  selectHeading,
+  selectAws,
+  selectAwa,
+} from '../../state/datapoints/datapoint.selectors';
+import {
+  bearingDistanceNm,
+  metersPerSecondToKnots,
+  toDegrees,
+} from '../../state/calculations/navigation';
+import {
+  ChartImportRequestVm,
+  ChartLayerMode,
+  ChartLeftPanelTab,
+  MapOrientation,
+} from './types/chart-vm';
 import { FeatureCollection, LineString, Point } from 'geojson';
 import { RouteFeatureCollection, WaypointFeatureCollection } from './types/chart-geojson';
-import { PLAYBACK_POSITION_LAT_PATH, PLAYBACK_POSITION_LON_PATH, PlaybackState } from '../../state/playback/playback.models';
+import {
+  PLAYBACK_POSITION_LAT_PATH,
+  PLAYBACK_POSITION_LON_PATH,
+  PlaybackState,
+} from '../../state/playback/playback.models';
 import { AisTarget } from '../../core/models/ais.model';
 
 const INITIAL_PLAYBACK_STATE: PlaybackState = {
@@ -71,6 +95,7 @@ const INITIAL_PLAYBACK_STATE: PlaybackState = {
     MapControlsComponent,
     QuickInstrumentsComponent,
     LeftPanelComponent,
+    ChartManagerComponent,
     FullscreenToggleComponent,
     AlarmStatusWidgetComponent,
     ChartTopBarComponent,
@@ -85,24 +110,16 @@ const INITIAL_PLAYBACK_STATE: PlaybackState = {
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div 
-      class="chart-page" 
+    <div
+      class="chart-page"
       [class.fullscreen]="isFullscreen()"
       [class.left-panel-open]="leftPanelOpen()"
     >
       <!-- Map Canvas -->
-      <app-chart-canvas 
-        *ngIf="canvasVm$ | async as vm"
-        class="chart-map" 
-        [vm]="vm" 
-      />
+      <app-chart-canvas *ngIf="canvasVm$ | async as vm" class="chart-map" [vm]="vm" />
 
-      <app-chart-top-bar
-        *ngIf="topBarVm$ | async as vm"
-        class="chart-top-bar-host"
-        [vm]="vm"
-      />
-      
+      <app-chart-top-bar *ngIf="topBarVm$ | async as vm" class="chart-top-bar-host" [vm]="vm" />
+
       <!-- ZONA: Top Left - Map Controls -->
       <div class="chart-zone chart-zone--top-left">
         <app-map-controls
@@ -133,7 +150,7 @@ const INITIAL_PLAYBACK_STATE: PlaybackState = {
           (toggleSettingsPanel)="handleToggleSettingsPanel()"
         />
       </div>
-      
+
       <!-- ZONA: Top Right - Alarm Badge -->
       <div class="chart-zone chart-zone--top-right">
         <app-alarm-status-widget />
@@ -143,7 +160,7 @@ const INITIAL_PLAYBACK_STATE: PlaybackState = {
       <div class="chart-zone chart-zone--autopilot">
         <app-autopilot-chart-control />
       </div>
-      
+
       <!-- ZONA: Left Panel (M2) -->
       <div class="chart-zone chart-zone--left-panel">
         <app-left-panel
@@ -157,6 +174,7 @@ const INITIAL_PLAYBACK_STATE: PlaybackState = {
           [aisSortBy]="aisSortBy()"
           (toggleOpen)="handleToggleLeftPanel()"
           (tabChange)="handleLeftPanelTabChange($event)"
+          (selectChartSource)="handleSelectChartSource($event)"
           (selectAisTarget)="handleSelectAisTarget($event)"
           (aisSortByChange)="handleAisSortChange($event)"
           (toggleTrack)="handleToggleTrack()"
@@ -171,15 +189,17 @@ const INITIAL_PLAYBACK_STATE: PlaybackState = {
           (selectWaypoint)="handleSelectWaypoint($event)"
           (renameWaypoint)="handleRenameWaypoint($event)"
           (deleteWaypoint)="handleDeleteWaypoint($event)"
+          (navigateWaypoint)="handleNavigateToWaypoint($event)"
           (clearActiveWaypoint)="handleClearActiveWaypoint()"
           (exportWaypointsGpx)="handleExportWaypointsGpx()"
           (exportRouteGpx)="handleExportRouteGpx()"
-          (followTarget)="handleFollowAisTarget($event)" />
+          (followTarget)="handleFollowAisTarget($event)"
+        />
       </div>
-      
+
       <!-- ZONA: Bottom Right - Quick Instruments -->
       <div class="chart-zone chart-zone--bottom-right">
-        <app-quick-instruments 
+        <app-quick-instruments
           [sog]="sog() ?? null"
           [cog]="cog() ?? null"
           [hdg]="hdg() ?? null"
@@ -191,7 +211,7 @@ const INITIAL_PLAYBACK_STATE: PlaybackState = {
           (openDrawer)="handleOpenInstruments()"
         />
       </div>
-      
+
       <!-- ZONA: Bottom Center - Playback (M8) -->
       <div class="chart-zone chart-zone--bottom-center" *ngIf="isPlaybackActive()">
         <app-playback-bar
@@ -204,9 +224,9 @@ const INITIAL_PLAYBACK_STATE: PlaybackState = {
           (skipBackward)="handlePlaybackSkipBackward()"
         />
       </div>
-      
+
       <!-- Fullscreen Toggle (FAB) -->
-      <app-fullscreen-toggle 
+      <app-fullscreen-toggle
         class="fullscreen-fab"
         [isFullscreen]="isFullscreen()"
         (toggle)="handleToggleFullscreen()"
@@ -219,9 +239,9 @@ const INITIAL_PLAYBACK_STATE: PlaybackState = {
         (navigateTo)="handleNavigateTo($event)"
         (closePanel)="settingsPanelOpen.set(false)"
       />
-      
+
       <!-- Instruments Drawer (M6) -->
-      <app-instruments-drawer 
+      <app-instruments-drawer
         [isOpen]="showInstruments()"
         [widgets]="instrumentWidgets()"
         [data]="instrumentData()"
@@ -230,12 +250,13 @@ const INITIAL_PLAYBACK_STATE: PlaybackState = {
         (reorder)="handleInstrumentReorder($event)"
         (configure)="handleInstrumentConfigure()"
       />
-      
+
       <!-- AIS Details Modal -->
       <div
         *ngIf="selectedAisTarget()"
         class="ais-details-overlay"
-        (click)="handleCloseAisDetails()">
+        (click)="handleCloseAisDetails()"
+      >
         <app-ais-target-details
           [target]="selectedAisTarget()!"
           (close)="handleCloseAisDetails()"
@@ -243,6 +264,26 @@ const INITIAL_PLAYBACK_STATE: PlaybackState = {
           (click)="$event.stopPropagation()"
         />
       </div>
+
+      <!-- Charts: open the chart manager modal -->
+      <button
+        class="charts-btn"
+        (click)="chartManagerOpen.set(true)"
+        aria-label="Open chart manager"
+        title="Charts"
+      >
+        <app-icon name="map" [size]="20" />
+      </button>
+
+      <app-chart-manager
+        [open]="chartManagerOpen()"
+        [vm]="(controlsVm$ | async) ?? null"
+        (close)="chartManagerOpen.set(false)"
+        (selectSource)="handleSelectChartSource($event)"
+        (importChart)="handleImportChart($event)"
+        (deleteChart)="handleDeleteChart($event)"
+        (refreshCatalog)="handleRefreshCatalog()"
+      />
 
       <!-- Chart Legend: "?" button + fullscreen modal -->
       <button
@@ -255,350 +296,386 @@ const INITIAL_PLAYBACK_STATE: PlaybackState = {
         <app-icon name="info" [size]="22" class="legend-btn-icon" />
       </button>
 
-      <app-chart-legend
-        [isOpen]="showLegend()"
-        (close)="showLegend.set(false)"
-      />
+      <app-chart-legend [isOpen]="showLegend()" (close)="showLegend.set(false)" />
     </div>
   `,
-  styles: [`
-    :host {
-      display: block;
-      height: 100%;
-      width: 100%;
-    }
-
-    .chart-page {
-      --chart-top-bar-height: 48px;
-      --chart-top-controls-offset: calc(var(--chart-top-bar-height) + (var(--chart-edge-gap) * 0.25));
-      --chart-left-panel-anchor: 48px;
-      --chart-left-panel-width: 340px;
-
-      position: relative;
-      width: 100%;
-      height: 100%;
-      overflow: hidden;
-      background: var(--gb-bg-canvas);
-      
-      &.fullscreen {
-        position: fixed;
-        inset: 0;
-        z-index: var(--z-fullscreen, 100);
+  styles: [
+    `
+      :host {
+        display: block;
+        height: 100%;
+        width: 100%;
       }
-    }
 
-    .chart-map {
-      position: absolute;
-      inset: 0;
-      z-index: var(--z-map);
-    }
+      .chart-page {
+        --chart-top-bar-height: 48px;
+        --chart-top-controls-offset: calc(
+          var(--chart-top-bar-height) + (var(--chart-edge-gap) * 0.25)
+        );
+        --chart-left-panel-anchor: 48px;
+        --chart-left-panel-width: 340px;
 
-    .chart-top-bar-host {
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      z-index: calc(var(--z-map-controls) + 1);
-      animation: chart-zone-enter-slide-down 0.35s var(--ease-out) both;
-    }
+        position: relative;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: var(--gb-bg-canvas);
 
-    // ═══════════════════════════════════════════════
-    // FLOATING ZONES
-    // ═══════════════════════════════════════════════
+        &.fullscreen {
+          position: fixed;
+          inset: 0;
+          z-index: var(--z-fullscreen, 100);
+        }
+      }
 
-    .chart-zone {
-      position: absolute;
-      z-index: var(--z-map-controls);
-      pointer-events: none;
-      
-      > * {
+      .chart-map {
+        position: absolute;
+        inset: 0;
+        z-index: var(--z-map);
+      }
+
+      .chart-top-bar-host {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: calc(var(--z-map-controls) + 1);
+        animation: chart-zone-enter-slide-down 0.35s var(--ease-out) both;
+      }
+
+      // ═══════════════════════════════════════════════
+      // FLOATING ZONES
+      // ═══════════════════════════════════════════════
+
+      .chart-zone {
+        position: absolute;
+        z-index: var(--z-map-controls);
+        pointer-events: none;
+
+        > * {
+          pointer-events: auto;
+        }
+      }
+
+      // TOP LEFT: Map Controls
+      .chart-zone--top-left {
+        top: var(--chart-top-controls-offset);
+        left: var(--chart-edge-gap);
+        z-index: var(--z-chart-panels);
+        animation: chart-zone-enter 0.4s var(--ease-out) both;
+        animation-delay: 0.1s;
+      }
+
+      // TOP RIGHT: Alarm badge (next to fullscreen FAB)
+      .chart-zone--top-right {
+        top: var(--chart-top-controls-offset);
+        right: calc(var(--chart-edge-gap) + 52px);
+        z-index: calc(var(--z-chart-panels) + 2);
+        animation: chart-zone-enter-right 0.35s var(--ease-out) both;
+        animation-delay: 0.15s;
+      }
+
+      // TOP CENTER: Autopilot control overlay
+      .chart-zone--autopilot {
+        top: var(--chart-top-controls-offset);
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: calc(var(--z-chart-panels) + 2);
+        animation: chart-zone-enter 0.4s var(--ease-out) both;
+        animation-delay: 0.18s;
+      }
+
+      @media (max-width: 768px) {
+        .chart-zone--autopilot {
+          left: auto;
+          right: var(--chart-edge-gap);
+          top: calc(var(--chart-top-controls-offset) + 44px);
+          transform: none;
+        }
+      }
+
+      // LEFT PANEL: Floating tabs panel
+      .chart-zone--left-panel {
+        top: var(--chart-top-controls-offset);
+        bottom: var(--chart-edge-gap);
+        left: calc(var(--chart-edge-gap) + var(--chart-left-panel-anchor));
+        z-index: var(--z-chart-panels);
+        animation: chart-zone-enter 0.4s var(--ease-out) both;
+        animation-delay: 0.2s;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .chart-zone--left-panel > app-left-panel {
+        display: block;
+        flex: 1 1 auto;
+        min-height: 0;
+      }
+
+      // BOTTOM RIGHT: Quick Instruments
+      .chart-zone--bottom-right {
+        bottom: var(--chart-edge-gap);
+        right: var(--chart-edge-gap);
+        z-index: var(--z-chart-panels);
+        animation: chart-zone-enter-bottom 0.5s var(--ease-out) both;
+        animation-delay: 0.3s;
+      }
+
+      // BOTTOM CENTER: Playback Bar
+      .chart-zone--bottom-center {
+        bottom: var(--chart-edge-gap);
+        left: 50%;
+        transform: translateX(-50%);
+        width: min(720px, calc(100% - 400px));
+        z-index: var(--z-chart-panels);
+        animation: chart-zone-enter-bottom 0.4s var(--ease-out) both;
+      }
+
+      // SETTINGS PANEL: Below map controls on the left
+      .chart-zone--settings-panel {
+        top: var(--chart-top-controls-offset);
+        left: calc(var(--chart-edge-gap) + 48px);
+        bottom: var(--chart-edge-gap);
+        z-index: calc(var(--z-chart-panels) + 1);
+        animation: chart-zone-enter 0.3s var(--ease-out) both;
         pointer-events: auto;
       }
-    }
 
-    // TOP LEFT: Map Controls
-    .chart-zone--top-left {
-      top: var(--chart-top-controls-offset);
-      left: var(--chart-edge-gap);
-      z-index: var(--z-chart-panels);
-      animation: chart-zone-enter 0.4s var(--ease-out) both;
-      animation-delay: 0.1s;
-    }
+      // ═══════════════════════════════════════════════
+      // FULLSCREEN FAB
+      // ═══════════════════════════════════════════════
 
-    // TOP RIGHT: Alarm badge (next to fullscreen FAB)
-    .chart-zone--top-right {
-      top: var(--chart-top-controls-offset);
-      right: calc(var(--chart-edge-gap) + 52px);
-      z-index: calc(var(--z-chart-panels) + 2);
-      animation: chart-zone-enter-right 0.35s var(--ease-out) both;
-      animation-delay: 0.15s;
-    }
-
-    // TOP CENTER: Autopilot control overlay
-    .chart-zone--autopilot {
-      top: var(--chart-top-controls-offset);
-      left: 50%;
-      transform: translateX(-50%);
-      z-index: calc(var(--z-chart-panels) + 2);
-      animation: chart-zone-enter 0.4s var(--ease-out) both;
-      animation-delay: 0.18s;
-    }
-
-    @media (max-width: 768px) {
-      .chart-zone--autopilot {
-        left: auto;
+      .fullscreen-fab {
+        position: absolute;
+        top: var(--chart-top-controls-offset);
         right: var(--chart-edge-gap);
-        top: calc(var(--chart-top-controls-offset) + 44px);
-        transform: none;
-      }
-    }
+        z-index: var(--z-chart-panels);
+        transition: all var(--duration-normal) var(--ease-out);
+        animation: chart-zone-enter 0.3s var(--ease-out) both;
+        animation-delay: 0.35s;
 
-    // LEFT PANEL: Floating tabs panel
-    .chart-zone--left-panel {
-      top: var(--chart-top-controls-offset);
-      bottom: var(--chart-edge-gap);
-      left: calc(var(--chart-edge-gap) + var(--chart-left-panel-anchor));
-      z-index: var(--z-chart-panels);
-      animation: chart-zone-enter 0.4s var(--ease-out) both;
-      animation-delay: 0.2s;
-      display: flex;
-      flex-direction: column;
-    }
-
-    .chart-zone--left-panel > app-left-panel {
-      display: block;
-      flex: 1 1 auto;
-      min-height: 0;
-    }
-
-    // BOTTOM RIGHT: Quick Instruments
-    .chart-zone--bottom-right {
-      bottom: var(--chart-edge-gap);
-      right: var(--chart-edge-gap);
-      z-index: var(--z-chart-panels);
-      animation: chart-zone-enter-bottom 0.5s var(--ease-out) both;
-      animation-delay: 0.3s;
-    }
-
-    // BOTTOM CENTER: Playback Bar
-    .chart-zone--bottom-center {
-      bottom: var(--chart-edge-gap);
-      left: 50%;
-      transform: translateX(-50%);
-      width: min(720px, calc(100% - 400px));
-      z-index: var(--z-chart-panels);
-      animation: chart-zone-enter-bottom 0.4s var(--ease-out) both;
-    }
-
-    // SETTINGS PANEL: Below map controls on the left
-    .chart-zone--settings-panel {
-      top: var(--chart-top-controls-offset);
-      left: calc(var(--chart-edge-gap) + 48px);
-      bottom: var(--chart-edge-gap);
-      z-index: calc(var(--z-chart-panels) + 1);
-      animation: chart-zone-enter 0.3s var(--ease-out) both;
-      pointer-events: auto;
-    }
-
-    // ═══════════════════════════════════════════════
-    // FULLSCREEN FAB
-    // ═══════════════════════════════════════════════
-
-    .fullscreen-fab {
-      position: absolute;
-      top: var(--chart-top-controls-offset);
-      right: var(--chart-edge-gap);
-      z-index: var(--z-chart-panels);
-      transition: all var(--duration-normal) var(--ease-out);
-      animation: chart-zone-enter 0.3s var(--ease-out) both;
-      animation-delay: 0.35s;
-      
-      @media(max-width: 768px) {
-        right: var(--chart-edge-gap);
-        top: auto;
-        bottom: calc(var(--chart-edge-gap) + 200px);
-      }
-    }
-
-    // ═══════════════════════════════════════════════
-    // AIS DETAILS MODAL
-    // ═══════════════════════════════════════════════
-
-    .ais-details-modal {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      z-index: var(--z-chart-modals);
-      max-width: 420px;
-      width: 90%;
-      max-height: min(80vh, 600px);
-      border-radius: 14px;
-      border: 1px solid var(--chart-overlay-border);
-      background: var(--chart-overlay-bg);
-      backdrop-filter: var(--chart-overlay-blur);
-      box-shadow: var(--chart-overlay-shadow);
-      overflow: hidden;
-      animation: modal-enter 0.3s var(--ease-out) both;
-    }
-
-    .ais-details-overlay {
-      position: absolute;
-      inset: 0;
-      z-index: var(--z-chart-modals);
-      background: color-mix(in srgb, #000 28%, transparent);
-      backdrop-filter: blur(2px);
-      -webkit-backdrop-filter: blur(2px);
-      pointer-events: auto;
-    }
-
-    // ═══════════════════════════════════════════════
-    // ENTRANCE ANIMATIONS
-    // ═══════════════════════════════════════════════
-
-    @keyframes chart-zone-enter {
-      from {
-        opacity: 0;
-        transform: translateX(-12px);
-      }
-      to {
-        opacity: 1;
-        transform: translateX(0);
-      }
-    }
-
-    @keyframes chart-zone-enter-slide-down {
-      from {
-        opacity: 0;
-        transform: translateY(-10px);
-      }
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
-    }
-
-    @keyframes chart-zone-enter-top {
-      from {
-        opacity: 0;
-        transform: translateX(-50%) translateY(-10px);
-      }
-      to {
-        opacity: 1;
-        transform: translateX(-50%) translateY(0);
-      }
-    }
-
-    @keyframes chart-zone-enter-right {
-      from {
-        opacity: 0;
-        transform: translateX(12px);
-      }
-      to {
-        opacity: 1;
-        transform: translateX(0);
-      }
-    }
-
-    @keyframes chart-zone-enter-bottom {
-      from {
-        opacity: 0;
-        transform: translateY(12px);
-      }
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
-    }
-
-    @keyframes modal-enter {
-      from {
-        opacity: 0;
-        transform: translate(-50%, -50%) scale(0.92);
-      }
-      to {
-        opacity: 1;
-        transform: translate(-50%, -50%) scale(1);
-      }
-    }
-
-    // ═══════════════════════════════════════════════
-    // LEGEND BUTTON
-    // ═══════════════════════════════════════════════
-
-    .legend-btn {
-      position: absolute;
-      bottom: var(--chart-edge-gap);
-      left: var(--chart-edge-gap);
-      z-index: var(--z-chart-panels);
-      width: 40px;
-      height: 40px;
-      border-radius: 50%;
-      border: 1px solid var(--chart-overlay-border, rgba(255,255,255,0.12));
-      background: var(--chart-overlay-bg, rgba(46,52,64,0.85));
-      backdrop-filter: var(--chart-overlay-blur, blur(12px));
-      color: var(--gb-text-value);
-      font-size: 1.1rem;
-      font-weight: bold;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      box-shadow: var(--chart-overlay-shadow, 0 2px 8px rgba(0,0,0,0.3));
-      transition: all 0.2s ease;
-      pointer-events: auto;
-      animation: chart-zone-enter-bottom 0.5s var(--ease-out) both;
-      animation-delay: 0.4s;
-
-      &:hover {
-        background: color-mix(in srgb, var(--chart-overlay-bg, rgba(46,52,64,0.85)) 80%, white);
-        transform: scale(1.1);
-        border-color: rgba(74, 144, 217, 0.5);
-      }
-    }
-
-    .legend-btn-icon {
-      font-family: 'Space Grotesk', sans-serif;
-      font-weight: 700;
-      line-height: 1;
-    }
-
-    // ═══════════════════════════════════════════════
-    // RESPONSIVE
-    // ═══════════════════════════════════════════════
-
-    @media (max-width: 768px) {
-      .chart-zone--top-right {
-        top: calc(var(--chart-top-bar-height) + var(--space-2));
-        right: var(--chart-edge-gap);
+        @media (max-width: 768px) {
+          right: var(--chart-edge-gap);
+          top: auto;
+          bottom: calc(var(--chart-edge-gap) + 200px);
+        }
       }
 
-      .chart-zone--left-panel {
-        top: auto;
+      // ═══════════════════════════════════════════════
+      // AIS DETAILS MODAL
+      // ═══════════════════════════════════════════════
+
+      .ais-details-modal {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        z-index: var(--z-chart-modals);
+        max-width: 420px;
+        width: 90%;
+        max-height: min(80vh, 600px);
+        border-radius: 14px;
+        border: 1px solid var(--chart-overlay-border);
+        background: var(--chart-overlay-bg);
+        backdrop-filter: var(--chart-overlay-blur);
+        box-shadow: var(--chart-overlay-shadow);
+        overflow: hidden;
+        animation: modal-enter 0.3s var(--ease-out) both;
+      }
+
+      .ais-details-overlay {
+        position: absolute;
+        inset: 0;
+        z-index: var(--z-chart-modals);
+        background: color-mix(in srgb, #000 28%, transparent);
+        backdrop-filter: blur(2px);
+        -webkit-backdrop-filter: blur(2px);
+        pointer-events: auto;
+      }
+
+      // ═══════════════════════════════════════════════
+      // ENTRANCE ANIMATIONS
+      // ═══════════════════════════════════════════════
+
+      @keyframes chart-zone-enter {
+        from {
+          opacity: 0;
+          transform: translateX(-12px);
+        }
+        to {
+          opacity: 1;
+          transform: translateX(0);
+        }
+      }
+
+      @keyframes chart-zone-enter-slide-down {
+        from {
+          opacity: 0;
+          transform: translateY(-10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      @keyframes chart-zone-enter-top {
+        from {
+          opacity: 0;
+          transform: translateX(-50%) translateY(-10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateX(-50%) translateY(0);
+        }
+      }
+
+      @keyframes chart-zone-enter-right {
+        from {
+          opacity: 0;
+          transform: translateX(12px);
+        }
+        to {
+          opacity: 1;
+          transform: translateX(0);
+        }
+      }
+
+      @keyframes chart-zone-enter-bottom {
+        from {
+          opacity: 0;
+          transform: translateY(12px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      @keyframes modal-enter {
+        from {
+          opacity: 0;
+          transform: translate(-50%, -50%) scale(0.92);
+        }
+        to {
+          opacity: 1;
+          transform: translate(-50%, -50%) scale(1);
+        }
+      }
+
+      // ═══════════════════════════════════════════════
+      // LEGEND BUTTON
+      // ═══════════════════════════════════════════════
+
+      .legend-btn {
+        position: absolute;
+        bottom: var(--chart-edge-gap);
         left: var(--chart-edge-gap);
-        right: var(--chart-edge-gap);
-        bottom: calc(var(--chart-edge-gap) + 88px);
+        z-index: var(--z-chart-panels);
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        border: 1px solid var(--chart-overlay-border, rgba(255, 255, 255, 0.12));
+        background: var(--chart-overlay-bg, rgba(46, 52, 64, 0.85));
+        backdrop-filter: var(--chart-overlay-blur, blur(12px));
+        color: var(--gb-text-value);
+        font-size: 1.1rem;
+        font-weight: bold;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: var(--chart-overlay-shadow, 0 2px 8px rgba(0, 0, 0, 0.3));
+        transition: all 0.2s ease;
+        pointer-events: auto;
+        animation: chart-zone-enter-bottom 0.5s var(--ease-out) both;
+        animation-delay: 0.4s;
+
+        &:hover {
+          background: color-mix(
+            in srgb,
+            var(--chart-overlay-bg, rgba(46, 52, 64, 0.85)) 80%,
+            white
+          );
+          transform: scale(1.1);
+          border-color: rgba(74, 144, 217, 0.5);
+        }
       }
 
-      .chart-zone--bottom-center {
-        width: calc(100% - 2 * var(--chart-edge-gap));
-        bottom: calc(var(--chart-edge-gap) + 140px);
+      .legend-btn-icon {
+        font-family: 'Space Grotesk', sans-serif;
+        font-weight: 700;
+        line-height: 1;
       }
-    }
-  `]
+
+      .charts-btn {
+        position: absolute;
+        bottom: calc(var(--chart-edge-gap) + 48px);
+        left: var(--chart-edge-gap);
+        z-index: var(--z-chart-panels);
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        border: 1px solid var(--chart-overlay-border);
+        background: var(--chart-overlay-bg);
+        backdrop-filter: var(--chart-overlay-blur);
+        color: var(--gb-text-value);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: var(--chart-overlay-shadow);
+        transition: all 0.2s ease;
+        pointer-events: auto;
+        animation: chart-zone-enter-bottom 0.5s var(--ease-out) both;
+        animation-delay: 0.45s;
+
+        &:hover {
+          background: color-mix(in srgb, var(--chart-overlay-bg) 80%, var(--gb-tick-reference));
+          transform: scale(1.1);
+          border-color: var(--gb-border-active);
+        }
+      }
+
+      // ═══════════════════════════════════════════════
+      // RESPONSIVE
+      // ═══════════════════════════════════════════════
+
+      @media (max-width: 768px) {
+        .chart-zone--top-right {
+          top: calc(var(--chart-top-bar-height) + var(--space-2));
+          right: var(--chart-edge-gap);
+        }
+
+        .chart-zone--left-panel {
+          top: auto;
+          left: var(--chart-edge-gap);
+          right: var(--chart-edge-gap);
+          bottom: calc(var(--chart-edge-gap) + 88px);
+        }
+
+        .chart-zone--bottom-center {
+          width: calc(100% - 2 * var(--chart-edge-gap));
+          bottom: calc(var(--chart-edge-gap) + 140px);
+        }
+      }
+    `,
+  ],
 })
 export class ChartPage implements AfterViewInit, OnDestroy {
   private readonly facade = inject(ChartFacadeService);
+  private readonly environment = inject(APP_ENVIRONMENT);
   private readonly fullscreenService = inject(ChartFullscreenService);
   private readonly anchorWatchService = inject(AnchorWatchService);
   private readonly measurementService = inject(MeasurementService);
   private readonly gpxExportService = inject(GpxExportService);
+  private readonly courseService = inject(SignalKCourseService);
   private readonly instrumentsFacade = inject(InstrumentsFacadeService);
   private readonly datapointStore = inject(DatapointStoreService);
   private readonly aisStore = inject(AisStoreService);
   private readonly playbackStore = inject(PlaybackStoreService);
   private readonly zone = inject(NgZone);
-  
+
   private readonly engine = new MapLibreEngineService(); // Engine logic maintained
   private canvasComponent: ChartCanvasComponent | undefined;
   private mapInitialized = false;
@@ -615,11 +692,12 @@ export class ChartPage implements AfterViewInit, OnDestroy {
   readonly topBarVm$ = this.facade.topBarVm$;
   readonly waypointVm$ = this.facade.waypointListVm$;
   readonly routesVm$ = this.facade.routesPanelVm$;
-  
+
   // UI State
   readonly isFullscreen = this.fullscreenService.isFullscreen;
   readonly showInstruments = signal(false);
   readonly showLegend = signal(false);
+  readonly chartManagerOpen = signal(false);
   readonly leftPanelOpen = signal(true);
   readonly leftPanelTab = signal<ChartLeftPanelTab>('layers');
   readonly aisSortBy = signal<'distance' | 'cpa' | 'name'>('distance');
@@ -651,13 +729,17 @@ export class ChartPage implements AfterViewInit, OnDestroy {
   });
 
   // AIS State
-  private readonly ownPositionSignal = toSignal(selectPosition(this.datapointStore), { initialValue: null });
-  readonly aisTargets = computed(() => this.sortAisTargets(
-    Array.from(this.aisStore.targets().values()),
-    this.aisSortBy(),
-    this.ownPositionSignal()?.value?.latitude ?? null,
-    this.ownPositionSignal()?.value?.longitude ?? null,
-  ));
+  private readonly ownPositionSignal = toSignal(selectPosition(this.datapointStore), {
+    initialValue: null,
+  });
+  readonly aisTargets = computed(() =>
+    this.sortAisTargets(
+      Array.from(this.aisStore.targets().values()),
+      this.aisSortBy(),
+      this.ownPositionSignal()?.value?.latitude ?? null,
+      this.ownPositionSignal()?.value?.longitude ?? null,
+    ),
+  );
   readonly selectedAisMmsi = signal<string | null>(null);
   readonly selectedAisTarget = computed(() => {
     const mmsi = this.selectedAisMmsi();
@@ -674,14 +756,16 @@ export class ChartPage implements AfterViewInit, OnDestroy {
 
   readonly sog = computed(() => {
     const val = this.rawSog();
-    return val?.value !== undefined && val.value !== null ? metersPerSecondToKnots(val.value) : null;
+    return val?.value !== undefined && val.value !== null
+      ? metersPerSecondToKnots(val.value)
+      : null;
   });
-  
+
   readonly cog = computed(() => {
     const val = this.rawCog();
     return val?.value !== undefined && val.value !== null ? toDegrees(val.value) : null;
   });
-  
+
   readonly depth = computed(() => {
     const val = this.rawDepth();
     return val?.value;
@@ -694,7 +778,9 @@ export class ChartPage implements AfterViewInit, OnDestroy {
 
   readonly aws = computed(() => {
     const val = this.rawAws();
-    return val?.value !== undefined && val.value !== null ? metersPerSecondToKnots(val.value) : null;
+    return val?.value !== undefined && val.value !== null
+      ? metersPerSecondToKnots(val.value)
+      : null;
   });
 
   readonly awa = computed(() => {
@@ -713,19 +799,53 @@ export class ChartPage implements AfterViewInit, OnDestroy {
     return this.facade.currentLayerMode;
   });
   private readonly controlsVmSignal = toSignal(this.facade.controlsVm$, { initialValue: null });
-  private readonly openSeaMapSignal = toSignal(this.facade.openSeaMapVisible$, { initialValue: false });
+  private readonly openSeaMapSignal = toSignal(this.facade.openSeaMapVisible$, {
+    initialValue: false,
+  });
+  private readonly weatherTempSignal = toSignal(this.facade.weatherTemperatureVisible$, {
+    initialValue: false,
+  });
+  private readonly weatherWindSignal = toSignal(this.facade.weatherWindVisible$, {
+    initialValue: false,
+  });
+  private readonly weatherPrecipSignal = toSignal(this.facade.weatherPrecipitationVisible$, {
+    initialValue: false,
+  });
+  private readonly weatherCloudsSignal = toSignal(this.facade.weatherCloudsVisible$, {
+    initialValue: false,
+  });
+  private readonly weatherPressureSignal = toSignal(this.facade.weatherPressureVisible$, {
+    initialValue: false,
+  });
+  private readonly weatherOpacitySignal = toSignal(this.facade.weatherOpacity$, {
+    initialValue: 0.6,
+  });
   readonly showAisTracksSignal = toSignal(this.facade.showAisTracks$, { initialValue: true });
-  private readonly showAisTargetsSignal = toSignal(this.facade.showAisTargets$, { initialValue: true });
-  private readonly showAisLabelsSignal = toSignal(this.facade.showAisLabels$, { initialValue: true });
+  private readonly showAisTargetsSignal = toSignal(this.facade.showAisTargets$, {
+    initialValue: true,
+  });
+  private readonly showAisLabelsSignal = toSignal(this.facade.showAisLabels$, {
+    initialValue: true,
+  });
   private readonly showCpaLinesSignal = toSignal(this.facade.showCpaLines$, { initialValue: true });
   private readonly aisVesselTypeColorsSignal = toSignal(this.facade.vesselTypeColors$, {
     initialValue: { ...DEFAULT_VESSEL_TYPE_COLORS },
   });
-  private readonly ownVesselIconScaleSignal = toSignal(this.facade.ownVesselIconScale$, { initialValue: 1.15 });
-  private readonly aisTargetIconScaleSignal = toSignal(this.facade.aisTargetIconScale$, { initialValue: 0.8 });
-  private readonly windTrackMinZoomSignal = toSignal(this.facade.windTrackMinZoom$, { initialValue: 15 });
-  private readonly rangeRingsMinZoomSignal = toSignal(this.facade.rangeRingsMinZoom$, { initialValue: 8 });
-  readonly orientation = toSignal(this.facade.orientation$, { initialValue: 'north-up' as MapOrientation });
+  private readonly ownVesselIconScaleSignal = toSignal(this.facade.ownVesselIconScale$, {
+    initialValue: 1.15,
+  });
+  private readonly aisTargetIconScaleSignal = toSignal(this.facade.aisTargetIconScale$, {
+    initialValue: 0.8,
+  });
+  private readonly windTrackMinZoomSignal = toSignal(this.facade.windTrackMinZoom$, {
+    initialValue: 0,
+  });
+  private readonly rangeRingsMinZoomSignal = toSignal(this.facade.rangeRingsMinZoom$, {
+    initialValue: 8,
+  });
+  readonly orientation = toSignal(this.facade.orientation$, {
+    initialValue: 'north-up' as MapOrientation,
+  });
   readonly isTracking = computed(() => this.controlsVmSignal()?.autoCenter ?? false);
   private readonly waypointListVmSignal = toSignal(this.waypointVm$, {
     initialValue: { waypoints: [], activeId: null },
@@ -744,10 +864,19 @@ export class ChartPage implements AfterViewInit, OnDestroy {
     initialValue: [] as [number, number][],
   });
   private readonly vectorSignal = toSignal(this.facade.vectorUpdate$, {
-    initialValue: { coords: [] as [number, number][], visible: false },
+    initialValue: {
+      coords: [] as [number, number][],
+      visible: false,
+      label: null as { cogDeg: number; sogKnots: number } | null,
+      timeTicks: [] as { label: string; coords: [number, number] }[],
+    },
   });
   private readonly headingLineSignal = toSignal(this.facade.headingLineUpdate$, {
-    initialValue: { coords: [] as [number, number][], visible: false },
+    initialValue: {
+      coords: [] as [number, number][],
+      visible: false,
+      headingDeg: null as number | null,
+    },
   });
   private readonly autopilotTargetSignal = toSignal(this.facade.autopilotTargetUpdate$, {
     initialValue: { coords: [] as [number, number][], visible: false },
@@ -765,6 +894,16 @@ export class ChartPage implements AfterViewInit, OnDestroy {
       source: 'true' as 'true' | 'apparent',
     },
   });
+  private readonly apparentWindSignal = toSignal(this.facade.apparentWindUpdate$, {
+    initialValue: {
+      coords: [] as [number, number][],
+      visible: false,
+      directionDeg: 0,
+      speedMps: 0,
+      gustMps: null as number | null,
+      source: 'apparent' as 'true' | 'apparent',
+    },
+  });
   private readonly rangeRingsSignal = toSignal(this.facade.rangeRingsUpdate$, {
     initialValue: { center: null as [number, number] | null, intervals: [] as number[] },
   });
@@ -779,6 +918,9 @@ export class ChartPage implements AfterViewInit, OnDestroy {
   });
   private readonly routeSignal = toSignal(this.facade.routeGeoJson$, {
     initialValue: { type: 'FeatureCollection', features: [] } as RouteFeatureCollection,
+  });
+  private readonly savedTracksSignal = toSignal(this.facade.savedTracksGeoJson$, {
+    initialValue: { type: 'FeatureCollection', features: [] } as FeatureCollection<LineString>,
   });
   private readonly benchRouteSignal = toSignal(this.facade.benchRouteUpdate$, {
     initialValue: {
@@ -800,16 +942,20 @@ export class ChartPage implements AfterViewInit, OnDestroy {
   });
 
   // Playback Logic
-  readonly playbackState = toSignal(this.playbackStore.state$, { initialValue: INITIAL_PLAYBACK_STATE });
+  readonly playbackState = toSignal(this.playbackStore.state$, {
+    initialValue: INITIAL_PLAYBACK_STATE,
+  });
   readonly isPlaybackActive = computed(() => {
     const status = this.playbackState().status;
     return status === 'ready' || status === 'playing' || status === 'paused';
   });
   private readonly playbackLatSignal = toSignal(
-    this.playbackStore.frameForPath(PLAYBACK_POSITION_LAT_PATH), { initialValue: null }
+    this.playbackStore.frameForPath(PLAYBACK_POSITION_LAT_PATH),
+    { initialValue: null },
   );
   private readonly playbackLonSignal = toSignal(
-    this.playbackStore.frameForPath(PLAYBACK_POSITION_LON_PATH), { initialValue: null }
+    this.playbackStore.frameForPath(PLAYBACK_POSITION_LON_PATH),
+    { initialValue: null },
   );
   private readonly playbackVesselSignal = computed(() => {
     if (!this.isPlaybackActive()) return null;
@@ -830,20 +976,30 @@ export class ChartPage implements AfterViewInit, OnDestroy {
     effect(() => {
       const vessel = this.playbackVesselSignal() ?? this.vesselSignal();
       if (!vessel) return;
-      this.runMapUpdate(() => this.engine.updateVesselPosition(vessel.lngLat, vessel.rotationDeg, vessel.state));
+      this.runMapUpdate(() =>
+        this.engine.updateVesselPosition(vessel.lngLat, vessel.rotationDeg, vessel.state),
+      );
     });
 
     effect(() => {
       const track = this.trackSignal();
       this.runMapUpdate(() => this.engine.updateTrack(track));
     });
-    effect(() => { 
-      const vector = this.vectorSignal(); 
-      this.runMapUpdate(() => this.engine.updateVector(vector.coords, vector.visible));
+    effect(() => {
+      const vector = this.vectorSignal();
+      this.runMapUpdate(() =>
+        this.engine.updateVector(vector.coords, vector.visible, vector.label, vector.timeTicks),
+      );
     });
     effect(() => {
       const headingLine = this.headingLineSignal();
-      this.runMapUpdate(() => this.engine.updateHeadingLine(headingLine.coords, headingLine.visible));
+      this.runMapUpdate(() =>
+        this.engine.updateHeadingLine(
+          headingLine.coords,
+          headingLine.visible,
+          headingLine.headingDeg,
+        ),
+      );
     });
     effect(() => {
       const apTarget = this.autopilotTargetSignal();
@@ -858,12 +1014,20 @@ export class ChartPage implements AfterViewInit, OnDestroy {
       this.runMapUpdate(() => this.engine.updateTrueWind(wind));
     });
     effect(() => {
+      const wind = this.apparentWindSignal();
+      this.runMapUpdate(() => this.engine.updateApparentWind(wind));
+    });
+    effect(() => {
       const waypoints = this.waypointsSignal();
       this.runMapUpdate(() => this.engine.updateWaypoints(waypoints));
     });
     effect(() => {
       const route = this.routeSignal();
       this.runMapUpdate(() => this.engine.updateRoute(route));
+    });
+    effect(() => {
+      const savedTracks = this.savedTracksSignal();
+      this.runMapUpdate(() => this.engine.updateSavedTracks(savedTracks));
     });
     effect(() => {
       const bench = this.benchRouteSignal();
@@ -891,7 +1055,9 @@ export class ChartPage implements AfterViewInit, OnDestroy {
       const source = this.baseSourceSignal();
       if (source) this.engine.setBaseSource(source);
     });
-    effect(() => { this.engine.setOrientation(this.orientation()); });
+    effect(() => {
+      this.engine.setOrientation(this.orientation());
+    });
     effect(() => {
       const targets = this.aisTargetsSignal();
       this.runMapUpdate(() => this.engine.updateAisTargets(targets));
@@ -908,15 +1074,76 @@ export class ChartPage implements AfterViewInit, OnDestroy {
       const cpaLines = this.cpaLinesSignal();
       this.runMapUpdate(() => this.engine.updateCpaLines(cpaLines));
     });
-    effect(() => { this.engine.setAisVesselTypeColors(this.aisVesselTypeColorsSignal()); });
-    effect(() => { this.engine.setOwnVesselIconScale(this.ownVesselIconScaleSignal()); });
-    effect(() => { this.engine.setAisTargetIconScale(this.aisTargetIconScaleSignal()); });
-    effect(() => { this.engine.setWindTrackMinZoom(this.windTrackMinZoomSignal()); });
-    effect(() => { this.engine.setRangeRingsMinZoom(this.rangeRingsMinZoomSignal()); });
-    effect(() => { this.engine.setOpenSeaMapVisible(this.openSeaMapSignal()); });
-    effect(() => { this.engine.setAisTargetsVisible(this.showAisTargetsSignal()); });
-    effect(() => { this.engine.setAisLabelsVisible(this.showAisLabelsSignal()); });
-    effect(() => { this.engine.setCpaLinesVisible(this.showCpaLinesSignal()); });
+    effect(() => {
+      this.engine.setAisVesselTypeColors(this.aisVesselTypeColorsSignal());
+    });
+    effect(() => {
+      this.engine.setOwnVesselIconScale(this.ownVesselIconScaleSignal());
+    });
+    effect(() => {
+      this.engine.setAisTargetIconScale(this.aisTargetIconScaleSignal());
+    });
+    effect(() => {
+      this.engine.setWindTrackMinZoom(this.windTrackMinZoomSignal());
+    });
+    effect(() => {
+      this.engine.setRangeRingsMinZoom(this.rangeRingsMinZoomSignal());
+    });
+    effect(() => {
+      this.engine.setOpenSeaMapVisible(this.openSeaMapSignal());
+    });
+    effect(() => {
+      this.engine.setWeatherLayer(
+        'owm-temperature',
+        this.weatherTileUrl('owm-temperature'),
+        this.weatherTempSignal(),
+        this.weatherOpacitySignal(),
+      );
+    });
+    effect(() => {
+      this.engine.setWeatherLayer(
+        'owm-wind',
+        this.weatherTileUrl('owm-wind'),
+        this.weatherWindSignal(),
+        this.weatherOpacitySignal(),
+      );
+    });
+    effect(() => {
+      this.engine.setWeatherLayer(
+        'owm-precipitation',
+        this.weatherTileUrl('owm-precipitation'),
+        this.weatherPrecipSignal(),
+        this.weatherOpacitySignal(),
+      );
+    });
+    effect(() => {
+      this.engine.setWeatherLayer(
+        'owm-clouds',
+        this.weatherTileUrl('owm-clouds'),
+        this.weatherCloudsSignal(),
+        this.weatherOpacitySignal(),
+      );
+    });
+    effect(() => {
+      this.engine.setWeatherLayer(
+        'owm-pressure',
+        this.weatherTileUrl('owm-pressure'),
+        this.weatherPressureSignal(),
+        this.weatherOpacitySignal(),
+      );
+    });
+    effect(() => {
+      this.engine.setWeatherOpacity(this.weatherOpacitySignal());
+    });
+    effect(() => {
+      this.engine.setAisTargetsVisible(this.showAisTargetsSignal());
+    });
+    effect(() => {
+      this.engine.setAisLabelsVisible(this.showAisLabelsSignal());
+    });
+    effect(() => {
+      this.engine.setCpaLinesVisible(this.showCpaLinesSignal());
+    });
 
     // Measurement tool — sync to map engine
     effect(() => {
@@ -965,15 +1192,17 @@ export class ChartPage implements AfterViewInit, OnDestroy {
       return;
     }
 
-    this.engine.setClickHandler((lngLat) => this.zone.run(() => {
-      if (this.measurementActive()) {
-        this.measurementService.addPoint(lngLat);
-        return;
-      }
-      if (this.addWaypointMode()) {
-        this.facade.addWaypointAt(lngLat);
-      }
-    }));
+    this.engine.setClickHandler((lngLat) =>
+      this.zone.run(() => {
+        if (this.measurementActive()) {
+          this.measurementService.addPoint(lngLat);
+          return;
+        }
+        if (this.addWaypointMode()) {
+          this.facade.addWaypointAt(lngLat);
+        }
+      }),
+    );
     this.engine.setFeatureClickHandler((event) => {
       this.zone.run(() => {
         if (event.layerId === 'chart-waypoints-layer') {
@@ -1009,16 +1238,20 @@ export class ChartPage implements AfterViewInit, OnDestroy {
     this.engine.destroy();
     this.mapInitialized = false;
   }
-  
+
   // ---- Event Handlers ----
-  
-  handleZoomIn() { this.engine.zoomIn(); } // Using engine directly for standard zoom
-  handleZoomOut() { this.engine.zoomOut(); }
-  
+
+  handleZoomIn() {
+    this.engine.zoomIn();
+  } // Using engine directly for standard zoom
+  handleZoomOut() {
+    this.engine.zoomOut();
+  }
+
   handleCenter() {
     this.facade.centerOnVessel();
   }
-  
+
   handleCenterAndFollow() {
     // Single button behavior:
     // - If tracking is active: disable it.
@@ -1030,15 +1263,17 @@ export class ChartPage implements AfterViewInit, OnDestroy {
 
     this.facade.centerOnVessel();
   }
-  
-  handleToggleOrientation() { this.facade.toggleOrientation(); }
+
+  handleToggleOrientation() {
+    this.facade.toggleOrientation();
+  }
 
   handleToggleAutoCenter() {
     this.facade.toggleAutoCenter();
   }
-  
+
   handleToggleBaseLayer() {
-     this.facade.toggleLayer();
+    this.facade.toggleLayer();
   }
 
   handleToggleOpenSeaMap() {
@@ -1106,6 +1341,27 @@ export class ChartPage implements AfterViewInit, OnDestroy {
     this.leftPanelTab.set(tab);
   }
 
+  handleSelectChartSource(sourceId: string) {
+    void this.facade.selectChartSource(sourceId);
+  }
+
+  handleImportChart(request: ChartImportRequestVm) {
+    this.facade.importChart(request);
+  }
+
+  handleDeleteChart(chartId: string) {
+    this.facade.deleteChart(chartId);
+  }
+
+  handleRefreshCatalog() {
+    this.facade.refreshChartCatalog();
+  }
+
+  private weatherTileUrl(providerId: string): string {
+    const base = this.environment.chartEngineApiUrl.replace(/\/$/, '');
+    return `${base}/proxy/xyz/${providerId}/{z}/{x}/{y}.png`;
+  }
+
   handleAisSortChange(sortBy: 'distance' | 'cpa' | 'name') {
     this.aisSortBy.set(sortBy);
   }
@@ -1140,7 +1396,9 @@ export class ChartPage implements AfterViewInit, OnDestroy {
     const allIndex = widgets.findIndex((w) => w.id === widget.id);
     if (allIndex === -1) return;
     const targetWidget = visible[event.currentIndex];
-    const targetIndex = targetWidget ? widgets.findIndex((w) => w.id === targetWidget.id) : widgets.length - 1;
+    const targetIndex = targetWidget
+      ? widgets.findIndex((w) => w.id === targetWidget.id)
+      : widgets.length - 1;
     this.instrumentsFacade.moveWidget(widget.id, targetIndex);
   }
 
@@ -1149,13 +1407,13 @@ export class ChartPage implements AfterViewInit, OnDestroy {
   handleInstrumentConfigure() {
     this.router.navigate(['/instruments']);
   }
-  
+
   handleSelectAisTarget(mmsi: string) {
-     this.selectedAisMmsi.set(mmsi);
+    this.selectedAisMmsi.set(mmsi);
   }
 
   handleFollowAisTarget(mmsi: string) {
-    const target = this.aisTargets().find(t => t.mmsi === mmsi);
+    const target = this.aisTargets().find((t) => t.mmsi === mmsi);
     if (target) {
       this.engine.flyTo([target.longitude, target.latitude], 14);
     }
@@ -1177,6 +1435,12 @@ export class ChartPage implements AfterViewInit, OnDestroy {
     this.facade.deleteWaypoint(id);
   }
 
+  handleNavigateToWaypoint(id: string) {
+    this.courseService.setDestination(id).subscribe({
+      error: (err) => console.error('Failed to set destination', err),
+    });
+  }
+
   handleDeleteActiveWaypoint() {
     const activeId = this.activeWaypointId();
     if (!activeId) {
@@ -1196,7 +1460,7 @@ export class ChartPage implements AfterViewInit, OnDestroy {
   handleExportRouteGpx() {
     this.gpxExportService.exportRoute();
   }
-    
+
   handleToggleAnchorWatch() {
     const pos = this.ownPositionSignal();
     const vesselPos: [number, number] | null =
@@ -1278,5 +1542,4 @@ export class ChartPage implements AfterViewInit, OnDestroy {
       })
       .slice(0, 50);
   }
-  
 }

@@ -8,7 +8,7 @@ import type {
   SimulationRunStatus,
   SimulationRunSummary,
 } from "@omi/marine-data-contract";
-import { SignalGenerator } from "../core/signal-generator.js";
+import { SignalGenerator, buildGeneratorOptions } from "../core/signal-generator.js";
 import type { Publisher, SimulationStore } from "../core/types.js";
 import { samplesToDataPoints } from "../publishers/utils.js";
 
@@ -30,6 +30,14 @@ export class RunManager {
   private readonly listeners = new Map<string, Set<EventListener>>();
 
   constructor(private readonly store: SimulationStore) {}
+
+  cleanupStaleRuns(): void {
+    for (const summary of this.store.listRuns()) {
+      if (summary.status !== "running" && summary.status !== "queued") continue;
+      const run = this.store.getRun(summary.id);
+      if (run) this.abortStaleRun(run, "Run process was not active after service startup; returned to safe state");
+    }
+  }
 
   arm(): { token: string; expiresAtUtc: string } {
     const token = randomUUID();
@@ -76,12 +84,7 @@ export class RunManager {
     };
     this.store.saveRun(run);
 
-    const generator = new SignalGenerator(seed, scenario, {
-      wind: {
-        twsKt: asNumber(parameters["windSpeedKt"], 12),
-        twdDeg: asNumber(parameters["windDirDeg"], 45),
-      },
-    });
+    const generator = new SignalGenerator(seed, scenario, buildGeneratorOptions(parameters));
     const execution: ActiveExecution = {
       run,
       startedPerf: performance.now(),
@@ -94,6 +97,7 @@ export class RunManager {
     clearInterval(execution.timer);
     this.active.set(run.id, execution);
     this.emit(execution, "run", `Started ${scenario.name}`);
+    await this.tick(execution);
     execution.timer = setInterval(() => void this.tick(execution), 50 / Math.max(speed, 0.25));
     return structuredClone(run);
   }
@@ -103,6 +107,9 @@ export class RunManager {
     if (!execution) {
       const run = this.getRun(runId);
       if (!run) throw new Error("run-not-found");
+      if (run.status === "running" || run.status === "queued") {
+        return this.abortStaleRun(run, reason);
+      }
       return run;
     }
     this.finish(execution, "aborted", reason);
@@ -111,7 +118,13 @@ export class RunManager {
 
   lease(runId: string): SimulationLeaseResponse {
     const execution = this.active.get(runId);
-    if (!execution) throw new Error("run-not-found");
+    if (!execution) {
+      const run = this.getRun(runId);
+      if (run?.status === "running" || run?.status === "queued") {
+        this.abortStaleRun(run, "Run process is no longer active; returned to safe state");
+      }
+      throw new Error("run-not-active");
+    }
     execution.leaseExpiry = Date.now() + 30_000;
     return { expiresAtUtc: new Date(execution.leaseExpiry).toISOString(), remainingMs: 30_000 };
   }
@@ -132,6 +145,11 @@ export class RunManager {
 
   listRuns(): SimulationRunSummary[] {
     return this.store.listRuns();
+  }
+
+  clearRunHistory(): { deletedRuns: number } {
+    if (this.active.size > 0) throw new Error("run-busy");
+    return { deletedRuns: this.store.clearRuns() };
   }
 
   getEvents(id: string, afterSequence = 0): SimulationEvent[] {
@@ -213,6 +231,12 @@ export class RunManager {
       }
     }
 
+    const durationMs = asNumber(execution.run.parameters["durationMs"], scenario.defaultDurationMs);
+    if (execution.run.simulatedTimeMs >= durationMs) {
+      this.finish(execution, "passed", "Scenario duration completed");
+      return;
+    }
+
     if (Date.now() > execution.leaseExpiry) {
       this.finish(execution, "aborted", "Lease expired; returned to safe state");
     }
@@ -236,6 +260,33 @@ export class RunManager {
     this.store.saveRun(execution.run);
     this.store.applyRetention();
     this.active.delete(execution.run.id);
+  }
+
+  private abortStaleRun(run: SimulationRun, reason: string): SimulationRun {
+    const completedAtUtc = new Date().toISOString();
+    const safeStep = run.steps.find((step) => step.id === "safe-state");
+    if (safeStep) {
+      safeStep.status = "passed";
+      safeStep.startedAtUtc = completedAtUtc;
+      safeStep.completedAtUtc = completedAtUtc;
+    }
+    const stimulus = run.steps.find((step) => step.id === "stimulus");
+    if (stimulus?.status === "running") stimulus.status = "skipped";
+    run.status = "aborted";
+    run.completedAtUtc = completedAtUtc;
+    run.failureReason = reason;
+    run.lastSequence += 1;
+    this.store.saveEvent({
+      id: randomUUID(),
+      runId: run.id,
+      sequence: run.lastSequence,
+      kind: "safe-state",
+      atSimulatedMs: run.simulatedTimeMs,
+      atUtc: completedAtUtc,
+      message: reason,
+    });
+    this.store.saveRun(run);
+    return structuredClone(run);
   }
 
   private emit(

@@ -1,6 +1,6 @@
-import { Injectable, inject } from '@angular/core';
+import { Injectable, NgZone, inject } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
-import { BehaviorSubject, EMPTY, catchError, interval, startWith, switchMap, takeWhile, tap } from 'rxjs';
+import { BehaviorSubject, EMPTY, catchError, switchMap, takeWhile, tap } from 'rxjs';
 import {
   ChartEngineApiService,
   type EngineChartImportKind,
@@ -8,12 +8,14 @@ import {
   type EngineChartKind,
   type EngineChartSource,
 } from './chart-engine-api.service';
+import { outsideZoneTicker } from '../../shared/rxjs/outside-zone-ticker';
 
 export type ChartEngineConnectionStatus = 'unknown' | 'checking' | 'online' | 'offline' | 'error';
 
 @Injectable({ providedIn: 'root' })
 export class ChartCatalogService {
   private readonly api = inject(ChartEngineApiService);
+  private readonly zone = inject(NgZone);
   private readonly chartsSubject = new BehaviorSubject<EngineChartSource[]>([]);
   private readonly onlineSubject = new BehaviorSubject<boolean>(false);
   private readonly statusSubject = new BehaviorSubject<ChartEngineConnectionStatus>('unknown');
@@ -92,8 +94,7 @@ export class ChartCatalogService {
   }
 
   private watchJob(jobId: string): void {
-    interval(1500).pipe(
-      startWith(0),
+    outsideZoneTicker(this.zone, 1500).pipe(
       switchMap(() => this.api.getJob(jobId)),
       tap((job) => {
         this.upsertJob(job);

@@ -2,6 +2,7 @@ import type { TileCacheService } from './tile-cache.service.js';
 
 export interface WmsProviderConfig {
   id: string;
+  catalogGroupId?: string;
   baseUrl: string;
   layers: string;
   styles?: string;
@@ -14,6 +15,19 @@ export interface WmsProviderConfig {
   attribution?: string;
   headers?: Record<string, string>;
   additionalParams?: Record<string, string>;
+  expectedContentTypes?: string[];
+}
+
+export class RemoteWmsTileError extends Error {
+  constructor(
+    message: string,
+    readonly statusCode = 502,
+    readonly remoteStatus?: number,
+    readonly contentType?: string,
+  ) {
+    super(message);
+    this.name = 'RemoteWmsTileError';
+  }
 }
 
 /**
@@ -36,20 +50,30 @@ export class WmsProxyService {
   /**
    * Fetch a tile via WMS GetMap, using cache if available.
    */
-  async fetchTile(providerId: string, z: number, x: number, y: number): Promise<{ data: Buffer; contentType: string } | null> {
+  async fetchTile(
+    providerId: string,
+    z: number,
+    x: number,
+    y: number,
+    layersOverride?: string,
+  ): Promise<{ data: Buffer; contentType: string } | null> {
     const provider = this.providers.get(providerId);
     if (!provider) {
       return null;
     }
 
+    // A specific layer is cached separately from the provider's default layer.
+    const cacheId = layersOverride ? `${providerId}__${layersOverride}` : providerId;
+
     // Check cache first
-    const cached = await this.cache.get(providerId, z, x, y);
+    const cached = await this.cache.get(cacheId, z, x, y);
     if (cached) {
       return { data: cached.data, contentType: cached.contentType };
     }
 
     const bbox = this.tileToBbox(z, x, y);
-    const url = this.buildWmsUrl(provider, bbox);
+    const effectiveProvider = layersOverride ? { ...provider, layers: layersOverride } : provider;
+    const url = this.buildWmsUrl(effectiveProvider, bbox);
 
     const response = await fetch(url, {
       headers: {
@@ -59,14 +83,27 @@ export class WmsProxyService {
     });
 
     if (!response.ok) {
-      return null;
+      throw new RemoteWmsTileError(
+        `Remote WMS tile request failed for ${providerId}: ${response.status} ${response.statusText}`,
+        502,
+        response.status,
+        response.headers.get('content-type') ?? undefined,
+      );
     }
 
     const data = Buffer.from(await response.arrayBuffer());
     const contentType = response.headers.get('content-type') ?? 'image/png';
+    if (!this.isExpectedTileResponse(provider, contentType, data)) {
+      throw new RemoteWmsTileError(
+        `Remote WMS returned non-image content for ${providerId}`,
+        502,
+        response.status,
+        contentType,
+      );
+    }
 
     // Store in cache
-    await this.cache.set(providerId, z, x, y, data, contentType);
+    await this.cache.set(cacheId, z, x, y, data, contentType);
 
     return { data, contentType };
   }
@@ -74,7 +111,7 @@ export class WmsProxyService {
   /**
    * Get the MapLibre style JSON for a WMS provider.
    */
-  buildStyle(providerId: string): { version: 8; sources: Record<string, unknown>; layers: unknown[] } | null {
+  buildStyle(providerId: string, publicBaseUrl = 'http://localhost:8088'): { version: 8; sources: Record<string, unknown>; layers: unknown[] } | null {
     const provider = this.providers.get(providerId);
     if (!provider) {
       return null;
@@ -86,7 +123,7 @@ export class WmsProxyService {
       sources: {
         [sourceId]: {
           type: 'raster',
-          tiles: [`http://localhost:8088/proxy/wms/${providerId}/{z}/{x}/{y}`],
+          tiles: [`${publicBaseUrl.replace(/\/$/, '')}/proxy/wms/${providerId}/{z}/{x}/{y}.png`],
           tileSize: 256,
           minzoom: provider.minZoom ?? 0,
           maxzoom: provider.maxZoom ?? 18,
@@ -104,18 +141,20 @@ export class WmsProxyService {
   }
 
   private buildWmsUrl(provider: WmsProviderConfig, bbox: [number, number, number, number]): string {
+    const version = provider.version ?? '1.1.1';
+    const crsParam = version.startsWith('1.3') ? 'CRS' : 'SRS';
     const params = new URLSearchParams({
       SERVICE: 'WMS',
-      VERSION: provider.version ?? '1.1.1',
+      VERSION: version,
       REQUEST: 'GetMap',
       LAYERS: provider.layers,
       STYLES: provider.styles ?? '',
       FORMAT: provider.format ?? 'image/png',
       TRANSPARENT: String(provider.transparent ?? true),
-      SRS: provider.srs ?? 'EPSG:3857',
       BBOX: bbox.join(','),
       WIDTH: '256',
       HEIGHT: '256',
+      [crsParam]: provider.srs ?? 'EPSG:3857',
       ...(provider.additionalParams ?? {}),
     });
 
@@ -139,5 +178,15 @@ export class WmsProxyService {
     const maxy = -y * res * tileSize + originShift;
 
     return [minx, miny, maxx, maxy];
+  }
+
+  private isExpectedTileResponse(provider: WmsProviderConfig, contentType: string, data: Buffer): boolean {
+    const allowed = provider.expectedContentTypes ?? ['image/png', 'image/jpeg', 'image/webp'];
+    const normalized = contentType.toLowerCase();
+    if (!allowed.some((expected) => normalized.includes(expected))) {
+      return false;
+    }
+    const prefix = data.subarray(0, Math.min(data.length, 256)).toString('utf8').trimStart().toLowerCase();
+    return !prefix.startsWith('<?xml') && !prefix.includes('<serviceexception');
   }
 }
