@@ -192,6 +192,210 @@ export const es: Translations = {
       no_active: 'Sin alarmas activas',
     },
   },
+  autopilot: {
+    title: 'Piloto automático',
+    subtitle: 'Piloto de vela · rumbo · viento · derrota',
+    engine: {
+      online: 'MOTOR EN LÍNEA',
+      offline: 'MOTOR DESCONECTADO',
+    },
+    calibration: 'CALIBRACIÓN',
+    manual: 'MANUAL',
+    estop: 'PARADA',
+    panels: {
+      helm: 'CONTROL DE GOBIERNO',
+      telemetry: 'TELEMETRÍA',
+    },
+    alerts: {
+      title: 'ALERTAS',
+      nominal: 'SISTEMA NOMINAL',
+    },
+    disconnected: 'PILOTO DESCONECTADO',
+    command_rejected: 'ORDEN RECHAZADA',
+    state: {
+      standby: 'EN ESPERA',
+      auto: 'AUTO',
+      wind: 'VIENTO',
+      track: 'DERROTA',
+      fault: 'FALLO',
+    },
+    fault: {
+      title: 'FALLO DEL PILOTO · MOTOR APAGADO',
+      clear: 'BORRAR FALLO',
+      unknown: 'desconocido',
+    },
+    console: {
+      status: 'ESTADO',
+      engage: 'ACTIVAR',
+      disengage: 'DESACTIVAR',
+      target: 'OBJETIVO',
+      rudder: 'TIMÓN',
+      off_course: 'FUERA DE RUMBO',
+      no_go: 'ZONA MUERTA · RUMBO DEMASIADO CERCA DEL VIENTO',
+      route_complete: 'RUTA COMPLETADA',
+      leg: 'TRAMO',
+      modes: {
+        auto: 'Auto',
+        wind: 'Viento',
+        route: 'Ruta',
+      },
+      hazard: {
+        gybe: 'RIESGO DE TRASLUCHADA',
+        tack: 'RIESGO DE VIRADA',
+        gust: 'RACHA',
+      },
+    },
+    tele: {
+      heading: 'RUMBO',
+      actual: 'ACTUAL',
+      target: 'OBJETIVO',
+      rudder_cmd: 'ORDEN TIMÓN',
+      app_wind: 'VIENTO AP.',
+      motor: 'MOTOR',
+      battery: 'BATERÍA',
+      track: 'DERROTA',
+      xte: 'XTE',
+      waypoint_brg: 'DEMORA WPT',
+    },
+    legend: {
+      title: 'Referencia del piloto automático',
+      modes: {
+        heading: 'Modos de operación',
+        standby_label: 'EN ESPERA',
+        standby_desc:
+          'El piloto está inactivo. El controlador del motor está desarmado; no se envían órdenes de gobierno. Debe estar EN ESPERA para abrir la calibración, ejecutar pruebas de motor o ajustar el sintonizado.',
+        auto_label: 'AUTO',
+        auto_desc:
+          'Modo compás. El motor mantiene una consigna de rumbo magnético o verdadero. Use los botones de esquiva (±1° / ±10°) para corregir el objetivo. El rumbo actual se captura como consigna al activar.',
+        wind_label: 'VIENTO',
+        wind_desc:
+          'Modo veleta. El motor gobierna a un ángulo de viento aparente fijo. Si el viento pasa por la popa más allá del umbral de guarda de trasluchada, genera un aviso de trasluchada accidental y contragobierna hasta el ángulo fijado.',
+        track_label: 'DERROTA',
+        track_desc:
+          'Modo seguimiento de ruta. El motor lee el tramo de waypoint activo desde Signal K y gobierna para minimizar el error de derrota (XTE). La consola muestra el tramo actual, el total de tramos y la demora al siguiente waypoint. Al llegar al final indica RUTA COMPLETADA.',
+      },
+      engage: {
+        heading: 'Activar y desactivar',
+        engage_label: 'ACTIVAR',
+        engage_desc:
+          'Seleccione una pestaña de modo (Auto / Viento / Ruta) y pulse ACTIVAR. El motor arma el controlador, valida las comprobaciones previas e inicia el gobierno en lazo cerrado. Si alguna comprobación falla, la orden se rechaza con un motivo.',
+        disengage_label: 'DESACTIVAR',
+        disengage_desc:
+          'Devuelve el piloto a EN ESPERA de inmediato. El controlador del motor se desarma y se restablece el gobierno manual. También puede pulsar el botón físico de parada de emergencia para un corte a nivel de hardware.',
+      },
+      dodge: {
+        heading: 'Esquiva (ajuste de rumbo)',
+        intro:
+          'Disponible en los modos AUTO y VIENTO. Cada pulsación suma o resta grados a la consigna actual. El motor aplica un cambio de rumbo suave a la velocidad de giro configurada.',
+        note:
+          'Los ajustes de esquiva no son persistentes: una nueva activación o cambio de modo restablece la consigna al rumbo / ángulo de viento actual.',
+      },
+      safety: {
+        heading: 'Funciones de seguridad',
+        fault_label: 'Estado de FALLO',
+        fault_desc:
+          'Corte de motor enclavado. Provocado por sobrecorriente, subtensión, tiempo de espera del vigilante, pulsación de parada de emergencia o desvío persistente más allá del umbral de fallo. El motivo se muestra en el banner rojo. Pulse BORRAR FALLO para reconocer y volver a EN ESPERA.',
+        gybe_label: 'Aviso de viento · Trasluchada accidental',
+        gybe_desc:
+          'En modo VIENTO, si el viento aparente cruza la popa más allá del ángulo de guarda configurado, el motor genera un aviso y contragobierna para evitar un giro incontrolado de la botavara. La consola muestra un aviso naranja.',
+        nogo_label: 'Zona muerta (DERROTA)',
+        nogo_desc:
+          'El motor rechaza tramos de ruta cuya demora cae dentro del ángulo de zona muerta de navegación (configurable). El panel de DERROTA muestra ZONA MUERTA · RUMBO DEMASIADO CERCA DEL VIENTO.',
+        estop_label: 'Parada de emergencia',
+        estop_desc:
+          'Parada de emergencia por software (enclavada). Equivale a un interruptor físico de corte: interrumpe la alimentación del motor hasta pulsar BORRAR FALLO. Úsela para desactivar de inmediato en cualquier situación.',
+      },
+      tele: {
+        heading: 'Panel de telemetría',
+        heading_label: 'RUMBO ACTUAL / OBJETIVO',
+        heading_desc:
+          'Rumbo magnético/verdadero actual del compás del barco frente a la consigna del piloto. El valor verde es el objetivo activo.',
+        rudder_label: 'ORDEN TIMÓN',
+        rudder_desc:
+          'Ángulo de timón que el motor está ordenando (no necesariamente la posición real). Positivo = timón a estribor.',
+        wind_label: 'VIENTO AP.',
+        wind_desc:
+          'Ángulo de viento aparente (AWA). Se usa como fuente de consigna en modo VIENTO. El valor proviene del sensor de viento del tope del palo vía Signal K.',
+        motor_label: 'MOTOR (A)',
+        motor_desc:
+          'Corriente instantánea del motor de accionamiento en amperios. Una corriente alta sostenida puede indicar un timón agarrotado o mar dura. El umbral de fallo es configurable en la calibración.',
+        battery_label: 'BATERÍA (V)',
+        battery_desc:
+          'Tensión de alimentación en el controlador del motor. Se pone naranja por debajo de 11,8 V: el motor rechazará activarse con subtensión.',
+        xte_label: 'XTE (modo DERROTA)',
+        xte_desc:
+          'Error de derrota en metros. Positivo = a estribor de la derrota (gobierne a babor). Se muestra con un prefijo de banda B/E.',
+        wp_label: 'DEMORA WPT (modo DERROTA)',
+        wp_desc: 'Demora verdadera desde la posición actual al waypoint activo.',
+      },
+      status: {
+        heading: 'Indicadores de estado',
+        online_label: 'MOTOR EN LÍNEA',
+        online_desc:
+          'La API HTTP del motor del piloto responde en el puerto 3990. Si muestra DESCONECTADO, el servicio del motor puede estar detenido, caído o inalcanzable en la red.',
+        chips_label: 'Etiquetas de estado',
+        chips_desc:
+          'Las píldoras de color de la cabecera reflejan el estado operativo actual del motor en tiempo real vía deltas de Signal K: AUTO, VIENTO, DERROTA, FALLO.',
+        rudder_label: 'Barra del timón',
+        rudder_desc:
+          'La barra horizontal de la consola muestra el ángulo de timón real informado por el sensor de realimentación. Una barra centrada significa timón a la vía.',
+      },
+      calibration: {
+        heading: 'Calibración y sintonizado',
+        intro:
+          'Pulse el botón CALIBRACIÓN de la cabecera para abrir el panel de sintonizado (solo EN ESPERA). Parámetros ajustables:',
+        pid: 'Ganancias PID',
+        deadband: 'Tolerancia de error de rumbo antes de corregir',
+        rudder_limit: 'Ángulo máximo de timón ordenado',
+        pwm: 'Rango de ancho de pulso del controlador del motor',
+        current_limit: 'Umbral de fallo por sobrecorriente',
+        voltage_cutoff: 'Bloqueo por subtensión',
+        note:
+          'Los cambios se aplican de inmediato y los valida el motor. Los valores no válidos se limitan a rangos seguros.',
+      },
+    },
+    log: {
+      title: 'Registro de decisiones',
+      subtitle: 'Decisiones y motivos del piloto en vivo',
+      empty: 'Aún no hay decisiones registradas.',
+      clear: 'Limpiar',
+      filter_all: 'Todas',
+      severity: {
+        info: 'INFO',
+        action: 'ACCIÓN',
+        warn: 'AVISO',
+        critical: 'CRÍTICO',
+      },
+      follow: {
+        banner: 'Destino fijado',
+        action: 'SEGUIR EN TRACK',
+        hint: 'Activa el piloto para gobernar hacia el destino activo.',
+      },
+      msg: {
+        ENGAGED_TRACK: 'TRACK activado — siguiendo el destino activo',
+        ENGAGED_AUTO: 'AUTO activado — manteniendo rumbo de compás',
+        ENGAGED_WIND: 'VIENTO activado — manteniendo ángulo de viento aparente',
+        MODE_CHANGED: 'Modo cambiado',
+        DISENGAGED: 'Desactivado — vuelta a EN ESPERA',
+        COMMAND_REJECTED: 'Orden rechazada por el piloto',
+        FAULT_RAISED: 'FALLO — motor cortado',
+        FAULT_CLEARED: 'Fallo borrado — de vuelta a EN ESPERA',
+        WIND_HAZARD: 'Aviso de viento — contragobernando al ángulo fijado',
+        NO_GO_ON:
+          'Zona muerta: demora de ruta dentro de la zona muerta — sujeto al borde navegable',
+        NO_GO_OFF: 'Zona muerta despejada — retomando la demora de ruta',
+        WAYPOINT_ADVANCE: 'Waypoint alcanzado — avanzando al siguiente tramo',
+        ROUTE_COMPLETE: 'Ruta completada — último waypoint alcanzado',
+        TRACK_FOLLOWING: 'Curso adquirido — gobernando hacia el destino',
+        TRACK_NO_COURSE:
+          'TRACK activado pero sin destino/curso activo — manteniendo rumbo, NO siguiendo. Fija un destino.',
+        XTE_CORRECTION: 'Corrigiendo error de derrota',
+        DESTINATION_SET: 'Destino fijado — listo para seguir en TRACK',
+        DESTINATION_FAILED: 'No se pudo fijar el destino',
+        FOLLOW_REQUESTED: 'Seguimiento solicitado — activando TRACK',
+      },
+    },
+  },
   diagnostics: {
     title: 'Banco de pruebas',
     subtitle: 'Diagnóstico del sistema real y simulación aislada y reproducible del hardware',

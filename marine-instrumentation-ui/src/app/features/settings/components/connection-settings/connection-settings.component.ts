@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { BehaviorSubject } from 'rxjs';
 import { SignalKClientService } from '../../../../data-access/signalk/signalk-client.service';
 import { NetworkStatusService } from '../../../../core/services/network-status.service';
+import { APP_ENVIRONMENT } from '../../../../core/config/app-environment.token';
 
 type TestStatus = 'idle' | 'testing' | 'success' | 'error';
 
@@ -20,15 +21,17 @@ type TestStatus = 'idle' | 'testing' | 'success' | 'error';
         <div class="setting-info">
           <span class="setting-label">Server URL</span>
           <span class="setting-description">
-            WebSocket URL of your Signal K server.
-            Typically <code>ws://[hostname]:3000</code>.
+            Detected: <code>{{ activeUrl }}</code><br>
+            Host is resolved from the browser origin. Use
+            <code>?signalKHost=&lt;host&gt;</code> for Signal K or
+            <code>?testBenchHost=&lt;host&gt;</code> for the simulator API.
           </span>
         </div>
         <div class="input-action-group">
           <input
             type="url"
             class="setting-input setting-input--wide"
-            [(ngModel)]="serverUrl"
+            [(ngModel)]="testUrl"
             placeholder="ws://localhost:3000"
             autocomplete="off"
             spellcheck="false"
@@ -50,8 +53,8 @@ type TestStatus = 'idle' | 'testing' | 'success' | 'error';
         [attr.data-status]="(connected$ | async) ? 'connected' : (online$ | async) ? 'disconnected' : 'offline'"
       >
         <span class="status-dot"></span>
-        <span class="status-text" *ngIf="connected$ | async">Connected</span>
-        <span class="status-text" *ngIf="!(connected$ | async) && (online$ | async)">Disconnected</span>
+        <span class="status-text" *ngIf="connected$ | async">Connected to {{ activeHost }}</span>
+        <span class="status-text" *ngIf="!(connected$ | async) && (online$ | async)">Disconnected from {{ activeHost }}</span>
         <span class="status-text" *ngIf="!(online$ | async)">Offline</span>
       </div>
 
@@ -71,20 +74,6 @@ type TestStatus = 'idle' | 'testing' | 'success' | 'error';
           <span class="setting-description">Automatically reconnect if connection drops.</span>
         </div>
         <span class="status-badge status-badge--on">Enabled</span>
-      </div>
-
-      <div class="settings-divider"></div>
-
-      <div class="setting-item">
-        <div class="setting-info">
-          <span class="setting-label">Demo Mode</span>
-          <span class="setting-description">
-            Use built-in simulator for testing. Real Signal K connection will be disabled.
-          </span>
-        </div>
-        <button type="button" class="action-btn action-btn--secondary">
-          Enable Demo Mode
-        </button>
       </div>
     </div>
   `,
@@ -123,6 +112,7 @@ type TestStatus = 'idle' | 'testing' | 'success' | 'error';
     .setting-description {
       font-size: 0.75rem;
       color: var(--gb-text-muted);
+      line-height: 1.5;
     }
 
     .setting-description code {
@@ -178,10 +168,6 @@ type TestStatus = 'idle' | 'testing' | 'success' | 'error';
 
     .action-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
-    .action-btn--secondary {
-      color: var(--gb-text-muted);
-    }
-
     .connection-status {
       display: flex;
       align-items: center;
@@ -236,22 +222,20 @@ type TestStatus = 'idle' | 'testing' | 'success' | 'error';
     [data-status='testing'] .test-dot { background: var(--gb-data-warn); }
     [data-status='success'] .test-dot { background: var(--gb-data-good); }
     [data-status='error']   .test-dot { background: var(--gb-data-stale); }
-
-    .settings-divider {
-      height: 1px;
-      background: var(--gb-border-panel);
-      margin: var(--space-4) 0;
-    }
   `],
 })
 export class ConnectionSettingsComponent {
   private readonly signalK = inject(SignalKClientService);
   private readonly networkStatus = inject(NetworkStatusService);
+  private readonly env = inject(APP_ENVIRONMENT);
 
   readonly connected$ = this.signalK.connected$;
   readonly online$ = this.networkStatus.online$;
 
-  serverUrl = this.defaultServerUrl();
+  readonly activeUrl = this.extractWsBase(this.env.signalKWsUrl);
+  readonly activeHost = this.extractHostname(this.env.signalKWsUrl);
+
+  testUrl = this.activeUrl;
 
   readonly testStatus$ = new BehaviorSubject<TestStatus>('idle');
   readonly testMessage$ = new BehaviorSubject<string>('');
@@ -262,7 +246,9 @@ export class ConnectionSettingsComponent {
     this.testStatus$.next('testing');
     this.testMessage$.next('Connecting…');
 
-    const url = this.serverUrl.replace(/\/+$/, '') + '/signalk/v1/stream?subscribe=none';
+    const base = this.testUrl.replace(/\/+$/, '');
+    const wsBase = base.startsWith('ws') ? base : `ws://${base}`;
+    const url = `${wsBase}/signalk/v1/stream?subscribe=none`;
     let ws: WebSocket | null = null;
 
     const timeout = setTimeout(() => {
@@ -291,12 +277,20 @@ export class ConnectionSettingsComponent {
     }
   }
 
-  private defaultServerUrl(): string {
-    if (typeof window !== 'undefined' && window.location?.hostname) {
-      const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-      return `${protocol}://${window.location.hostname}:3000`;
+  private extractWsBase(wsUrl: string): string {
+    try {
+      const url = new URL(wsUrl);
+      return `${url.protocol}//${url.hostname}:${url.port || '3000'}`;
+    } catch {
+      return 'ws://localhost:3000';
     }
+  }
 
-    return 'ws://localhost:3000';
+  private extractHostname(wsUrl: string): string {
+    try {
+      return new URL(wsUrl).hostname;
+    } catch {
+      return 'localhost';
+    }
   }
 }

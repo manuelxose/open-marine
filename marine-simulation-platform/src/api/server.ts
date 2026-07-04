@@ -1,7 +1,7 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import type { AddressInfo } from "node:net";
 import { randomUUID } from "node:crypto";
-import type { SimulationInjectionRequest, SimulationScenarioDocument } from "@omi/marine-data-contract";
+import type { SimulationInjectionRequest, SimulationRunOrigin, SimulationScenarioDocument } from "@omi/marine-data-contract";
 import type { RunManager } from "../runtime/run-manager.js";
 import type { Publisher, SimulationStore } from "../core/types.js";
 import { generateWindScenario, type WindScenarioOptions } from "../scenarios/wind-scenario-generator.js";
@@ -113,7 +113,16 @@ export class SimulationApiServer {
         const runParameters = parameters(body["parameters"]);
         const speed = typeof body["speed"] === "number" ? body["speed"] : finiteNumber(runParameters["speed"], 1);
         const seed = typeof body["seed"] === "number" ? body["seed"] : finiteNumber(runParameters["seed"], 42);
-        const run = await this.options.runManager.start(scenarioId, token, runParameters, mode, speed, seed, this.options.publisherFactory?.());
+        const run = await this.options.runManager.start(
+          scenarioId,
+          token,
+          runParameters,
+          mode,
+          speed,
+          seed,
+          this.options.publisherFactory?.(),
+          parseOrigin(body["origin"]),
+        );
         return sendJson(response, 201, run);
       }
 
@@ -245,10 +254,43 @@ const parseScenario = (body: Record<string, unknown>): SimulationScenarioDocumen
     channels: Array.isArray(body["channels"]) ? body["channels"] as SimulationScenarioDocument["channels"] : [],
     timeline: Array.isArray(body["timeline"]) ? body["timeline"] as SimulationScenarioDocument["timeline"] : [],
     tags: Array.isArray(body["tags"]) ? body["tags"] as string[] : [],
+    ...(parseExpectation(body["expectation"]) ? { expectation: parseExpectation(body["expectation"])! } : {}),
     isPreset: body["isPreset"] === true,
     createdAt: typeof body["createdAt"] === "string" ? body["createdAt"] : now,
     updatedAt: now,
   };
+};
+
+const parseExpectation = (value: unknown): SimulationScenarioDocument["expectation"] | null => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const record = value as Record<string, unknown>;
+  const objective = record["objective"];
+  if (
+    objective !== "heading" &&
+    objective !== "wind" &&
+    objective !== "waypoint" &&
+    objective !== "route" &&
+    objective !== "safety"
+  ) {
+    return null;
+  }
+  return {
+    objective,
+    summary: typeof record["summary"] === "string" ? record["summary"] : "",
+    expectedMapBehavior: typeof record["expectedMapBehavior"] === "string" ? record["expectedMapBehavior"] : "",
+    expectedAutopilotBehavior: typeof record["expectedAutopilotBehavior"] === "string" ? record["expectedAutopilotBehavior"] : "",
+  };
+};
+
+const parseOrigin = (value: unknown): SimulationRunOrigin | undefined => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+  const record = value as Record<string, unknown>;
+  const latitude = record["latitude"];
+  const longitude = record["longitude"];
+  const source = record["source"];
+  if (typeof latitude !== "number" || typeof longitude !== "number" || !Number.isFinite(latitude) || !Number.isFinite(longitude)) return undefined;
+  if (source !== "live-gps" && source !== "live-ais" && source !== "fallback") return undefined;
+  return { latitude, longitude, source };
 };
 
 const parseWindScenarioOptions = (body: Record<string, unknown>): WindScenarioOptions => ({
@@ -302,7 +344,11 @@ const finiteNumber = (value: unknown, fallback: number): number => {
 const errorStatus = (error: unknown): number => {
   const message = error instanceof Error ? error.message : String(error);
   if (message === "run-not-found" || message === "scenario-not-found") return 404;
-  if (message === "run-busy") return 409;
+  if (
+    message === "run-busy" ||
+    message === "closed-loop-unavailable" ||
+    message.startsWith("closed-loop autopilot request failed:")
+  ) return 409;
   if (message === "invalid-arm-token") return 401;
   if (message === "preset-readonly") return 403;
   return 400;

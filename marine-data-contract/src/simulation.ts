@@ -1,4 +1,10 @@
 export type SimulationMode = "data" | "closed-loop";
+export type SimulationControlObjective =
+  | "heading"
+  | "wind"
+  | "waypoint"
+  | "route"
+  | "safety";
 export type SimulationRunStatus =
   | "queued"
   | "running"
@@ -24,6 +30,35 @@ export type SimulationTimelineActionType =
   | "fault-disable"
   | "command"
   | "marker";
+
+export interface SimulationScenarioExpectation {
+  objective: SimulationControlObjective;
+  summary: string;
+  expectedMapBehavior: string;
+  expectedAutopilotBehavior: string;
+}
+
+export interface SimulationRunOrigin {
+  latitude: number;
+  longitude: number;
+  source: "live-gps" | "live-ais" | "fallback";
+}
+
+export interface SimulationRouteLeg {
+  bearingDeg: number;
+  distanceNm: number;
+}
+
+export interface SimulationBenchResetRequest {
+  origin: { latitude: number; longitude: number };
+  cruiseSpeedKt: number;
+  trueWindDirDeg: number;
+  trueWindSpeedKt: number;
+  currentSetDeg?: number | undefined;
+  currentDriftKt?: number | undefined;
+  routeLegs?: SimulationRouteLeg[] | undefined;
+  waypoint?: SimulationRouteLeg | undefined;
+}
 
 export interface SimulationParameterDefinition {
   id: string;
@@ -74,6 +109,7 @@ export interface SimulationScenarioDefinition {
   channels: SimulationChannelDefinition[];
   timeline: SimulationTimelineAction[];
   tags: string[];
+  expectation?: SimulationScenarioExpectation | undefined;
 }
 
 export interface SimulationScenarioDocument extends SimulationScenarioDefinition {
@@ -121,6 +157,7 @@ export interface SimulationRun {
   speed: number;
   seed: number;
   parameters: Record<string, number | boolean | string>;
+  origin?: SimulationRunOrigin | undefined;
   startedAtUtc: string;
   completedAtUtc?: string | undefined;
   simulatedTimeMs: number;

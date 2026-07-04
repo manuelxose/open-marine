@@ -16,6 +16,10 @@ export interface SimWorldConfig {
   turnGain: number;
   /** Physics step rate. */
   stepHz: number;
+  /** Current/tide set direction, degrees true. */
+  currentSetDeg: number;
+  /** Current/tide drift speed, knots. */
+  currentDriftKt: number;
 }
 
 const DEFAULTS: Omit<SimWorldConfig, "startLat" | "startLon"> = {
@@ -25,7 +29,20 @@ const DEFAULTS: Omit<SimWorldConfig, "startLat" | "startLon"> = {
   rudderSlewDegPerSec: 30,
   turnGain: 0.12,
   stepHz: 20,
+  currentSetDeg: 0,
+  currentDriftKt: 0,
 };
+
+export interface SimWorldResetOptions {
+  origin: { latitude: number; longitude: number };
+  cruiseSpeedKt?: number | undefined;
+  trueWindDirDeg?: number | undefined;
+  trueWindSpeedKt?: number | undefined;
+  currentSetDeg?: number | undefined;
+  currentDriftKt?: number | undefined;
+  routeLegs?: Array<{ bearingDeg: number; distanceNm: number }> | undefined;
+  waypoint?: { bearingDeg: number; distanceNm: number } | undefined;
+}
 
 export interface BoatState {
   headingDeg: number;
@@ -118,6 +135,47 @@ export class SimWorld {
 
   getState(): Readonly<BoatState> {
     return this.state;
+  }
+
+  reset(options: SimWorldResetOptions): void {
+    this.cfg.startLat = options.origin.latitude;
+    this.cfg.startLon = options.origin.longitude;
+    if (options.cruiseSpeedKt !== undefined) this.cfg.cruiseSpeedKt = options.cruiseSpeedKt;
+    if (options.trueWindDirDeg !== undefined) this.cfg.trueWindDirDeg = options.trueWindDirDeg;
+    if (options.trueWindSpeedKt !== undefined) this.cfg.trueWindSpeedKt = options.trueWindSpeedKt;
+    if (options.currentSetDeg !== undefined) this.cfg.currentSetDeg = options.currentSetDeg;
+    if (options.currentDriftKt !== undefined) this.cfg.currentDriftKt = options.currentDriftKt;
+
+    this.rudderDemandDeg = 0;
+    this.driveEnabled = false;
+    this.batteryVoltage = 13.2;
+    this.emergencyStop = false;
+    this.currentBiasA = 0;
+    this.route = [];
+    this.routeIndex = 0;
+    this.routeOrigin = null;
+    this.trackStart = null;
+    this.waypoint = null;
+    this.routeComplete = false;
+    this.lastStepMs = Date.now();
+    this.state = {
+      headingDeg: 0,
+      lat: options.origin.latitude,
+      lon: options.origin.longitude,
+      sogKt: this.cfg.cruiseSpeedKt,
+      cogDeg: 0,
+      rudderAngleDeg: 0,
+      awaDeg: 0,
+      awsKt: 0,
+      motorCurrentA: 0,
+    };
+    this.recomputeWind();
+
+    if (options.routeLegs?.length) {
+      this.activateRouteByLegs(options.routeLegs);
+    } else if (options.waypoint && options.waypoint.distanceNm > 0) {
+      this.activateWaypointByBearing(options.waypoint.bearingDeg, options.waypoint.distanceNm);
+    }
   }
 
   // --- Fault injection (bench) ---
@@ -280,13 +338,15 @@ export class SimWorld {
     const speedFactor = s.sogKt / Math.max(0.1, this.cfg.cruiseSpeedKt);
     const turnRateDegPerSec = this.cfg.turnGain * s.rudderAngleDeg * speedFactor;
     s.headingDeg = wrapTo360(s.headingDeg + turnRateDegPerSec * dt);
-    s.cogDeg = s.headingDeg; // bench ignores leeway/current
+    s.cogDeg = this.computeCogDeg();
 
     // Position integration (equirectangular, adequate for short bench runs).
     const speedMs = s.sogKt * KT_TO_MS;
     const hdgRad = s.headingDeg * DEG;
-    const dNorthM = speedMs * dt * Math.cos(hdgRad);
-    const dEastM = speedMs * dt * Math.sin(hdgRad);
+    const currentMs = Math.max(0, this.cfg.currentDriftKt) * KT_TO_MS;
+    const currentRad = this.cfg.currentSetDeg * DEG;
+    const dNorthM = (speedMs * Math.cos(hdgRad) + currentMs * Math.cos(currentRad)) * dt;
+    const dEastM = (speedMs * Math.sin(hdgRad) + currentMs * Math.sin(currentRad)) * dt;
     s.lat += dNorthM / METERS_PER_DEG_LAT;
     s.lon += dEastM / (METERS_PER_DEG_LAT * Math.cos(s.lat * DEG));
 
@@ -297,6 +357,15 @@ export class SimWorld {
 
     this.advanceRouteIfArrived();
     this.recomputeWind();
+  }
+
+  private computeCogDeg(): number {
+    const s = this.state;
+    const boatNorth = s.sogKt * Math.cos(s.headingDeg * DEG);
+    const boatEast = s.sogKt * Math.sin(s.headingDeg * DEG);
+    const currentNorth = Math.max(0, this.cfg.currentDriftKt) * Math.cos(this.cfg.currentSetDeg * DEG);
+    const currentEast = Math.max(0, this.cfg.currentDriftKt) * Math.sin(this.cfg.currentSetDeg * DEG);
+    return wrapTo360(Math.atan2(boatEast + currentEast, boatNorth + currentNorth) / DEG);
   }
 
   /** Auto-advance to the next route leg once within the arrival radius. */

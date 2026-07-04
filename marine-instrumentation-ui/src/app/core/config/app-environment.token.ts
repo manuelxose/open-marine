@@ -16,21 +16,63 @@ export const APP_ENVIRONMENT = new InjectionToken<AppEnvironment>('APP_ENVIRONME
 
 // Raspberry Pi running Signal K + GPS/IMU/AIS sensors, see docs/RASPBERRY_CONNECTION.md
 const RASPBERRY_LAN_HOST = '192.168.1.43';
+const AUTOPILOT_API_PORT = 3990;
+const TEST_BENCH_API_PORT = 4100;
+const CHART_ENGINE_API_PORT = 8088;
+
+/** localStorage key for manual user override (query param or settings UI). */
 const SIGNALK_HOST_OVERRIDE_KEY = 'omi.signalKHost';
 
-function resolveSignalKHost(): string {
+/** localStorage key for a simulator/test-bench host that differs from Signal K. */
+const TEST_BENCH_HOST_OVERRIDE_KEY = 'omi.testBenchHost';
+
+/** localStorage key written by SignalKHostDetectorService after auto-detection. */
+const AUTO_DETECTED_KEY = 'omi.autoDetectedHost';
+
+/**
+ * Build an {@link AppEnvironment} for a specific Signal K host.
+ *
+ * Callers that obtain a host via auto-detection can use this factory to
+ * produce correct HTTP / WebSocket URLs without duplicating the port and path
+ * constants.
+ */
+export function buildEnvironment(signalKHost: string, testBenchHost = resolveTestBenchHost(signalKHost)): AppEnvironment {
+  const benchHost = testBenchHost;
+  const { httpProtocol, wsProtocol } = resolveProtocols();
+
+  return {
+    signalKBaseUrl: `${httpProtocol}://${signalKHost}:3000/signalk/v1/api`,
+    signalKWsUrl: `${wsProtocol}://${signalKHost}:3000/signalk/v1/stream?subscribe=all`,
+    autopilotApiUrl: `${httpProtocol}://${signalKHost}:${AUTOPILOT_API_PORT}`,
+    testBenchApiUrl: `${httpProtocol}://${benchHost}:${TEST_BENCH_API_PORT}`,
+    chartEngineApiUrl: `${httpProtocol}://${benchHost}:${CHART_ENGINE_API_PORT}`,
+  };
+}
+
+export function resolveSignalKHost(): string {
   const override = resolveSignalKHostOverride();
   if (override) return override;
 
+  // Reuse the host auto-detected during a previous boot (if any).
+  const autoDetected = resolveAutoDetectedHost();
+  if (autoDetected) return autoDetected;
+
   if (typeof window !== 'undefined' && window.location?.hostname) {
-    const hostname = window.location.hostname;
-    if (hostname === 'localhost' || hostname === '127.0.0.1') {
-      return RASPBERRY_LAN_HOST;
-    }
-    return hostname;
+    return window.location.hostname || RASPBERRY_LAN_HOST;
   }
 
   return RASPBERRY_LAN_HOST;
+}
+
+export function resolveTestBenchHost(signalKHost = resolveSignalKHost()): string {
+  const override = resolveTestBenchHostOverride();
+  if (override) return override;
+
+  if (typeof window !== 'undefined' && window.location?.hostname) {
+    return window.location.hostname || signalKHost;
+  }
+
+  return signalKHost;
 }
 
 function resolveSignalKHostOverride(): string | null {
@@ -55,6 +97,37 @@ function resolveSignalKHostOverride(): string | null {
   }
 }
 
+function resolveAutoDetectedHost(): string | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    return window.localStorage.getItem(AUTO_DETECTED_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function resolveTestBenchHostOverride(): string | null {
+  if (typeof window === 'undefined') return null;
+
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const queryOverride = params.get('testBenchHost') ?? params.get('simulationHost');
+    if (queryOverride) {
+      const normalized = queryOverride.trim();
+      if (normalized === 'auto') {
+        window.localStorage.removeItem(TEST_BENCH_HOST_OVERRIDE_KEY);
+        return null;
+      }
+      window.localStorage.setItem(TEST_BENCH_HOST_OVERRIDE_KEY, normalized);
+      return normalized;
+    }
+
+    return window.localStorage.getItem(TEST_BENCH_HOST_OVERRIDE_KEY);
+  } catch {
+    return null;
+  }
+}
+
 function resolveProtocols(): { httpProtocol: 'http' | 'https'; wsProtocol: 'ws' | 'wss' } {
   if (typeof window !== 'undefined' && window.location?.protocol === 'https:') {
     return { httpProtocol: 'https', wsProtocol: 'wss' };
@@ -63,21 +136,18 @@ function resolveProtocols(): { httpProtocol: 'http' | 'https'; wsProtocol: 'ws' 
   return { httpProtocol: 'http', wsProtocol: 'ws' };
 }
 
-const signalKHost = resolveSignalKHost();
-const testBenchHost =
-  typeof window !== 'undefined' && window.location?.hostname
-    ? window.location.hostname
-    : RASPBERRY_LAN_HOST;
-const { httpProtocol, wsProtocol } = resolveProtocols();
-
-const AUTOPILOT_API_PORT = 3990;
-const TEST_BENCH_API_PORT = 4100;
-const CHART_ENGINE_API_PORT = 8088;
-
-export const environment: AppEnvironment = {
-  signalKBaseUrl: `${httpProtocol}://${signalKHost}:3000/signalk/v1/api`,
-  signalKWsUrl: `${wsProtocol}://${signalKHost}:3000/signalk/v1/stream?subscribe=all`,
-  autopilotApiUrl: `${httpProtocol}://${signalKHost}:${AUTOPILOT_API_PORT}`,
-  testBenchApiUrl: `${httpProtocol}://${testBenchHost}:${TEST_BENCH_API_PORT}`,
-  chartEngineApiUrl: `${httpProtocol}://${testBenchHost}:${CHART_ENGINE_API_PORT}`,
-};
+/**
+ * Default environment used at bootstrap.
+ *
+ * The Signal K host is resolved via {@link resolveSignalKHost} which checks
+ * (in order): query-param override → localStorage override → previously
+ * auto-detected host → browser hostname → hardcoded fallback.
+ *
+ * When the {@link SignalKHostDetectorService} runs a fresh detection during
+ * the splash screen it may discover a different host — the WebSocket client
+ * will reconnect accordingly.
+ */
+export const environment: AppEnvironment = (() => {
+  const signalKHost = resolveSignalKHost();
+  return buildEnvironment(signalKHost);
+})();

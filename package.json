@@ -37,8 +37,6 @@
     "start:signalk": "cd signalk-runtime && docker compose up -d",
     "stop:signalk": "cd signalk-runtime && docker compose down",
     "logs:signalk": "cd signalk-runtime && docker compose logs -f signalk",
-    "start:simulator": "npm run dev -w marine-simulation-platform -- live",
-    "start:simulation": "npm run dev -w marine-simulation-platform -- live",
     "start:simulation-bench": "npm run dev -w marine-simulation-platform -- bench",
     "start:wind-demo": "node scripts/start-wind-demo.mjs",
     "start:ui": "npm run start:lan -w marine-instrumentation-ui",

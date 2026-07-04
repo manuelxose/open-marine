@@ -49,3 +49,35 @@ test("rudder stays at zero while the drive is disabled", async () => {
   assert.ok(Math.abs(world.getState().rudderAngleDeg) < 1e-6);
   assert.ok(Math.abs(world.getState().headingDeg) < 1e-6);
 });
+
+test("SimWorld reset starts at the requested live origin", () => {
+  const world = new SimWorld({ startLat: 43, startLon: -3, cruiseSpeedKt: 5 });
+  world.reset({
+    origin: { latitude: 42.24, longitude: -8.72 },
+    cruiseSpeedKt: 4,
+    trueWindDirDeg: 210,
+    trueWindSpeedKt: 16,
+  });
+
+  const state = world.getState();
+  assert.equal(state.lat, 42.24);
+  assert.equal(state.lon, -8.72);
+  assert.equal(state.sogKt, 4);
+});
+
+test("SimWorld current changes COG separately from heading", () => {
+  const world = new SimWorld({ startLat: 43, startLon: -3, cruiseSpeedKt: 5 });
+  world.reset({
+    origin: { latitude: 43, longitude: -3 },
+    cruiseSpeedKt: 5,
+    trueWindDirDeg: 45,
+    trueWindSpeedKt: 12,
+    currentSetDeg: 90,
+    currentDriftKt: 2,
+  });
+  world.step(1);
+
+  const state = world.getState();
+  assert.equal(state.headingDeg, 0);
+  assert.ok(state.cogDeg > 10, `expected east-setting current to alter COG, got ${state.cogDeg}`);
+});

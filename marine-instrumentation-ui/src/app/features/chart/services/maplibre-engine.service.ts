@@ -157,6 +157,7 @@ export class MapLibreEngineService {
     | ((event: { featureId?: string; properties?: any; layerId: string }) => void)
     | null = null;
   private errorHandler: ((message: string, sourceId?: string) => void) | null = null;
+  private zoomHandler: ((zoom: number) => void) | null = null;
   private pendingCenter: [number, number] | null = null;
   private appliedCenter: [number, number] | null = null;
   private appliedBearing: number | null = null;
@@ -323,10 +324,13 @@ export class MapLibreEngineService {
       this.onStyleReady();
       // Ensure map fills container after CSS transitions complete
       setTimeout(() => this.scheduleResize(), 400);
+      // Seed the initial zoom so zoom-aware consumers (e.g. min-length vectors) start correct.
+      this.zoomHandler?.(this.map?.getZoom() ?? initialView.zoom);
     });
     this.map.on('style.load', () => this.onStyleReady());
     this.map.on('error', (event) => this.handleMapError(event));
     this.map.on('click', this.handleMapClick);
+    this.map.on('zoomend', () => this.zoomHandler?.(this.map?.getZoom() ?? initialView.zoom));
 
     // Watch for container size changes (grid transitions, sidenav toggle)
     this.resizeObserver = new ResizeObserver(() => {
@@ -547,6 +551,11 @@ export class MapLibreEngineService {
 
   setErrorHandler(handler: ((message: string, sourceId?: string) => void) | null): void {
     this.errorHandler = handler;
+  }
+
+  /** Notified on zoom changes (zoomend) so the view-model can size zoom-aware overlays. */
+  setZoomHandler(handler: ((zoom: number) => void) | null): void {
+    this.zoomHandler = handler;
   }
 
   // ---- Anchor Watch Layer ----

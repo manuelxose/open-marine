@@ -19,7 +19,7 @@ import { ChartFullscreenService } from './services/chart-fullscreen.service';
 import { AnchorWatchService } from './services/anchor-watch.service';
 import { MeasurementService } from './services/measurement.service';
 import { GpxExportService } from './services/gpx-export.service';
-import { SignalKCourseService } from '../../data-access/signalk/course/signalk-course.service';
+import { ResourcesFacadeService } from '../resources/resources-facade.service';
 import { InstrumentsFacadeService } from '../instruments/instruments-facade.service';
 import { DatapointStoreService } from '../../state/datapoints/datapoint-store.service';
 import { AisStoreService } from '../../state/ais/ais-store.service';
@@ -669,7 +669,7 @@ export class ChartPage implements AfterViewInit, OnDestroy {
   private readonly anchorWatchService = inject(AnchorWatchService);
   private readonly measurementService = inject(MeasurementService);
   private readonly gpxExportService = inject(GpxExportService);
-  private readonly courseService = inject(SignalKCourseService);
+  private readonly resourcesFacade = inject(ResourcesFacadeService);
   private readonly instrumentsFacade = inject(InstrumentsFacadeService);
   private readonly datapointStore = inject(DatapointStoreService);
   private readonly aisStore = inject(AisStoreService);
@@ -1223,6 +1223,9 @@ export class ChartPage implements AfterViewInit, OnDestroy {
     this.engine.setErrorHandler((message, sourceId) => {
       this.zone.run(() => this.facade.recordMapError(message, sourceId));
     });
+    // Feed the live map zoom into the view-model so zoom-aware overlays (min-length
+    // COG/heading/wind vectors) stay visible when zoomed out.
+    this.engine.setZoomHandler((zoom) => this.facade.setViewportZoom(zoom));
 
     this.zone.runOutsideAngular(() => {
       this.engine.init(container, this.facade.initialView);
@@ -1436,9 +1439,8 @@ export class ChartPage implements AfterViewInit, OnDestroy {
   }
 
   handleNavigateToWaypoint(id: string) {
-    this.courseService.setDestination(id).subscribe({
-      error: (err) => console.error('Failed to set destination', err),
-    });
+    // Sets the destination and, if the autopilot is already engaged, switches it to ROUTE.
+    this.resourcesFacade.navigateToWaypoint(id);
   }
 
   handleDeleteActiveWaypoint() {

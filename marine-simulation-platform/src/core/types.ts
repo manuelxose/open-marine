@@ -19,6 +19,7 @@ export interface ExecutionConfig {
   durationMs?: number;
   signalKHost?: string;
   signalKToken?: string;
+  autopilotApiUrl?: string;
   apiPort?: number;
   storePath?: string;
 }

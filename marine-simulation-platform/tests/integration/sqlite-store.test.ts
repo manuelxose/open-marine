@@ -11,13 +11,13 @@ test("SqliteStore persists scenarios, runs, events and sample batches", () => {
   const store = new SqliteStore(join(dir, "sim.sqlite"));
   try {
     store.open();
-    const scenario = getPresetScenario("ap-sail");
+    const scenario = getPresetScenario("ap-sail-wind-gusts");
     assert.ok(scenario);
     store.saveScenario(scenario);
-    assert.equal(store.getScenario("ap-sail")?.id, "ap-sail");
+    assert.equal(store.getScenario("ap-sail-wind-gusts")?.id, "ap-sail-wind-gusts");
     store.saveRun({
       id: "run-1",
-      scenarioId: "ap-sail",
+      scenarioId: "ap-sail-wind-gusts",
       scenarioVersion: "1.0.0",
       status: "running",
       mode: "data",

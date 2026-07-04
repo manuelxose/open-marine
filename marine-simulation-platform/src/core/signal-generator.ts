@@ -19,6 +19,9 @@ export interface SignalGeneratorOptions {
   nav?: {
     boatSpeedKt?: number | undefined;
     courseDeg?: number | undefined;
+    origin?: { latitude: number; longitude: number } | undefined;
+    currentSetDeg?: number | undefined;
+    currentDriftKt?: number | undefined;
   };
   depth?: { baseM?: number | undefined };
   electrical?: { batteryV?: number | undefined };
@@ -33,6 +36,7 @@ export interface SignalGeneratorOptions {
  */
 export const buildGeneratorOptions = (
   parameters: Record<string, number | boolean | string> = {},
+  origin?: { latitude: number; longitude: number } | undefined,
 ): SignalGeneratorOptions => {
   const num = (key: string): number | undefined =>
     typeof parameters[key] === "number" ? (parameters[key] as number) : undefined;
@@ -43,7 +47,13 @@ export const buildGeneratorOptions = (
       gustProbability: num("gustProbability"),
       gustMaxDeltaKt: num("gustMaxDeltaKt"),
     },
-    nav: { boatSpeedKt: num("boatSpeedKt"), courseDeg: num("courseDeg") },
+    nav: {
+      boatSpeedKt: num("boatSpeedKt"),
+      courseDeg: num("courseDeg"),
+      origin,
+      currentSetDeg: num("currentSetDeg"),
+      currentDriftKt: num("currentDriftKt"),
+    },
     depth: { baseM: num("depthM") },
     electrical: { batteryV: num("batteryV") },
     engine: { rpm: num("engineRpm") },
@@ -121,15 +131,23 @@ export class SignalGenerator {
     this.nav = {
       boatSpeedKt: options.nav?.boatSpeedKt ?? 8.16, // ~4.2 m/s baseline
       courseDeg: options.nav?.courseDeg ?? 65.9, // ~1.15 rad baseline
+      origin: options.nav?.origin ?? { latitude: 42.2406, longitude: -8.7207 },
+      currentSetDeg: options.nav?.currentSetDeg ?? 0,
+      currentDriftKt: options.nav?.currentDriftKt ?? 0,
     };
     this.autopilotTuning = {
       targetAwaDeg: options.autopilot?.targetAwaDeg ?? 42,
       targetHeadingDeg: options.autopilot?.targetHeadingDeg ?? (options.nav?.courseDeg ?? 65.9),
     };
     this.faultStartSec = options.safety?.faultStartSec ?? 30;
-    this.adverse = scenario.id.endsWith("-adverse");
-    const baseId = scenario.id.replace(/-adverse$/, "");
-    this.kind = baseId === "ap-sail" ? "sail" : baseId === "ap-motor" ? "motor" : baseId === "ap-safety" ? "safety" : null;
+    this.adverse = scenario.tags.includes("stress") || scenario.tags.includes("current") || scenario.id.includes("wind-shift");
+    this.kind = scenario.expectation?.objective === "safety" || scenario.id.includes("safety")
+      ? "safety"
+      : scenario.expectation?.objective === "wind" || scenario.id.includes("sail")
+        ? "sail"
+        : scenario.expectation?.objective === "heading" || scenario.id.includes("motor")
+          ? "motor"
+          : null;
     this.depthBaseM = options.depth?.baseM;
     this.batteryV = options.electrical?.batteryV;
     this.engineRpmHz = typeof options.engine?.rpm === "number" ? options.engine.rpm / 60 : undefined;
@@ -197,7 +215,7 @@ export class SignalGenerator {
 
     const position = this.cruisePosition(t);
     const sogMs = Math.max(0, this.boatSpeedMs() + 0.7 * Math.sin(phase * 0.6) + sogJitter + this.random.nextNoise(this.adverse ? 0.2 : 0.08));
-    const cogRad = wrapRadians(this.cruiseCourse(t) + disturbance);
+    const cogRad = this.courseOverGround(t, disturbance);
     const headingRad = wrapRadians(this.cruiseCourse(t) + 0.06 * Math.sin(phase) + disturbance);
 
     const twsMs = this.windSpeed(phase);
@@ -424,16 +442,28 @@ export class SignalGenerator {
   }
 
   private cruisePosition(timeSeconds: number): { latitude: number; longitude: number } {
-    const originLatitude = 42.2406;
-    const originLongitude = -8.7207;
+    const originLatitude = this.nav.origin.latitude;
+    const originLongitude = this.nav.origin.longitude;
     const speedMs = this.boatSpeedMs() + 0.4 * Math.sin(timeSeconds / 75);
     const distanceMeters = Math.max(0, speedMs * timeSeconds);
     const course = this.cruiseCourse(timeSeconds);
-    const northMeters = Math.cos(course) * distanceMeters;
-    const eastMeters = Math.sin(course) * distanceMeters;
+    const currentMeters = Math.max(0, this.nav.currentDriftKt) * KT_TO_MS * timeSeconds;
+    const currentSet = degToRad(this.nav.currentSetDeg);
+    const northMeters = Math.cos(course) * distanceMeters + Math.cos(currentSet) * currentMeters;
+    const eastMeters = Math.sin(course) * distanceMeters + Math.sin(currentSet) * currentMeters;
     const latitude = originLatitude + northMeters / 111_320;
     const longitude = originLongitude + eastMeters / (111_320 * Math.cos(originLatitude * Math.PI / 180));
     return { latitude, longitude };
+  }
+
+  private courseOverGround(timeSeconds: number, disturbance: number): number {
+    const course = this.cruiseCourse(timeSeconds) + disturbance;
+    const boatMs = this.boatSpeedMs();
+    const currentMs = Math.max(0, this.nav.currentDriftKt) * KT_TO_MS;
+    const currentSet = degToRad(this.nav.currentSetDeg);
+    const north = Math.cos(course) * boatMs + Math.cos(currentSet) * currentMs;
+    const east = Math.sin(course) * boatMs + Math.sin(currentSet) * currentMs;
+    return wrapRadians(Math.atan2(east, north));
   }
 
   private windSpeed(phase: number): number {

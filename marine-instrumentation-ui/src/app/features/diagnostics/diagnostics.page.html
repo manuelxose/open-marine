@@ -71,8 +71,9 @@
                   [class.preset]="scenario.isPreset"
                   (click)="facade.selectScenario(scenario.id)"
                 >
-                  <span>
+                  <span class="catalog-copy">
                     <strong>{{ scenario.name }}</strong>
+                    <span class="catalog-description">{{ scenarioCatalogSummary(scenario) }}</span>
                     <small>{{ scenario.category | uppercase }} · v{{ scenario.version }}</small>
                   </span>
                   @if (scenario.isPreset) {
@@ -92,10 +93,34 @@
                   <div>
                     <span class="panel-kicker">SCENARIO {{ scenario.version }}</span>
                     <h2>{{ scenario.name }}</h2>
-                    <p>{{ scenario.description }}</p>
+                    <p>{{ scenarioDescription(scenario) }}</p>
                   </div>
                   <span class="category-badge">{{ scenario.category | uppercase }}</span>
                 </div>
+
+                @if (scenario.expectation; as expectation) {
+                  <div class="timeline-panel scenario-expectation">
+                    <span class="panel-kicker">QUÉ PRUEBA ESTE ESCENARIO</span>
+                    <div class="expectation-grid">
+                      <div>
+                        <small>OBJETIVO</small>
+                        <strong>{{ expectation.objective | uppercase }}</strong>
+                      </div>
+                      <div>
+                        <small>CONDICIONES</small>
+                        <span>{{ expectation.summary }}</span>
+                      </div>
+                      <div>
+                        <small>MAPA</small>
+                        <span>{{ expectation.expectedMapBehavior }}</span>
+                      </div>
+                      <div>
+                        <small>PILOTO</small>
+                        <span>{{ expectation.expectedAutopilotBehavior }}</span>
+                      </div>
+                    </div>
+                  </div>
+                }
 
                 @if (scenario.parameters && scenario.parameters.length > 0) {
                   <div class="parameter-grid">

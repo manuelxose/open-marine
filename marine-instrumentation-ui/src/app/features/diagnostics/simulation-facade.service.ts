@@ -8,14 +8,17 @@ import type {
   SimulationChannelSnapshot,
   SimulationEvent,
   SimulationRun,
+  SimulationRunOrigin,
   SimulationSampleBatch,
+  SimulationScenarioExpectation,
   SimulationScenarioDocument,
   SimulationRunStatus,
   SimulationStep,
 } from '@omi/marine-data-contract';
+import { PATHS } from '@omi/marine-data-contract';
 import { DatapointStoreService } from '../../state/datapoints/datapoint-store.service';
 import type { DataPoint } from '../../state/datapoints/datapoint.models';
-import { SimulationApiService, type RunSummary } from './simulation-api.service';
+import { SimulationApiError, SimulationApiService, type RunSummary } from './simulation-api.service';
 
 export type SimulationTab = 'scenarios' | 'execution' | 'charts' | 'data' | 'history';
 
@@ -44,6 +47,110 @@ const MAX_EVENTS = 500;
 const MAX_SAMPLES = 400;
 const SAMPLE_POLL_INTERVAL_MS = 500;
 const OFFLINE_UI_PUBLISH_INTERVAL_MS = 250;
+const LIVE_ORIGIN_MAX_AGE_MS = 30_000;
+const FALLBACK_ORIGIN: SimulationRunOrigin = { latitude: 42.2406, longitude: -8.7207, source: 'fallback' };
+
+const MOCK_EXPECTATIONS: Record<string, SimulationScenarioExpectation> = {
+  'ap-motor-heading-calm': {
+    objective: 'heading',
+    summary: 'Motor heading hold in calm water.',
+    expectedMapBehavior: 'The vessel starts at the live GPS/AIS position and tracks a steady line on the selected heading.',
+    expectedAutopilotBehavior: 'Autopilot engages compass mode and holds the target heading.',
+  },
+  'ap-motor-cross-current': {
+    objective: 'heading',
+    summary: 'Motor heading hold with lateral current.',
+    expectedMapBehavior: 'The vessel keeps bow heading while COG shows cross-current set.',
+    expectedAutopilotBehavior: 'Autopilot corrects yaw disturbance without entering fault.',
+  },
+  'ap-sail-wind-gusts': {
+    objective: 'wind',
+    summary: 'Sailing wind mode with gusts.',
+    expectedMapBehavior: 'The vessel moves under sail while apparent wind and heading oscillate through gusts.',
+    expectedAutopilotBehavior: 'Autopilot holds the target apparent wind angle and reports gust hazards.',
+  },
+  'ap-sail-wind-shift': {
+    objective: 'wind',
+    summary: 'Sailing wind mode through a major wind shift.',
+    expectedMapBehavior: 'The vessel changes heading as wind direction shifts, then settles on a new line.',
+    expectedAutopilotBehavior: 'Autopilot remains in wind mode and recovers the target apparent wind angle.',
+  },
+  'ap-track-waypoint': {
+    objective: 'waypoint',
+    summary: 'Track mode to a single waypoint.',
+    expectedMapBehavior: 'The vessel starts from live position and reduces distance to the generated waypoint.',
+    expectedAutopilotBehavior: 'Autopilot engages GPS/TRACK and reduces cross-track error.',
+  },
+  'ap-track-route': {
+    objective: 'route',
+    summary: 'Track mode through a multi-leg route.',
+    expectedMapBehavior: 'The vessel follows the generated route and advances between legs.',
+    expectedAutopilotBehavior: 'Autopilot publishes active leg progress and completes the route.',
+  },
+  'ap-safety-low-voltage': {
+    objective: 'safety',
+    summary: 'Low-voltage failsafe.',
+    expectedMapBehavior: 'The vessel starts from live position, then confirms a safe stop on fault.',
+    expectedAutopilotBehavior: 'Autopilot enters FAULT and disables drive output.',
+  },
+};
+
+const LEGACY_EXPECTATION_ID: Record<string, string> = {
+  'ap-sail': 'ap-sail-wind-gusts',
+  'ap-motor': 'ap-motor-heading-calm',
+  'ap-safety': 'ap-safety-low-voltage',
+  'ap-sail-adverse': 'ap-sail-wind-shift',
+  'ap-motor-adverse': 'ap-motor-cross-current',
+  'nav-sail': 'ap-track-waypoint',
+  'nav-motor': 'ap-track-route',
+};
+
+const SCENARIO_DESCRIPTION_FALLBACKS: Record<string, string> = {
+  'ap-sail': 'Piloto en modo viento: mantiene el angulo de viento aparente objetivo con rachas y movimiento real del velero.',
+  'ap-motor': 'Piloto a motor en modo rumbo: mantiene el heading objetivo mientras publica motor, timon, bateria y movimiento del barco.',
+  'ap-safety': 'Prueba de seguridad: baja la tension hasta provocar FAULT y confirmar que el drive queda deshabilitado.',
+  'ap-sail-adverse': 'Prueba dura de viento: rachas, rolada fuerte y guiñada para comprobar que el piloto recupera el angulo de viento.',
+  'ap-motor-adverse': 'Prueba a motor con corriente lateral: el barco deriva de COG y el piloto corrige el heading sin entrar en fallo.',
+  'nav-sail': 'Seguimiento hacia waypoint desde la posicion live: comprueba bearing, distancia, XTE y respuesta del piloto en TRACK.',
+  'nav-motor': 'Ruta de varios tramos desde la posicion live: comprueba avance de leg, reduccion de XTE y finalizacion de ruta.',
+  'ap-track-waypoint': 'Seguimiento hacia waypoint desde la posicion live: comprueba bearing, distancia, XTE y respuesta del piloto en TRACK.',
+  'ap-track-route': 'Ruta de varios tramos desde la posicion live: comprueba avance de leg, reduccion de XTE y finalizacion de ruta.',
+};
+
+const LEGACY_SCENARIO_NAMES: Record<string, string> = {
+  'ap-sail': 'Autopilot - Sail Wind Gusts',
+  'ap-motor': 'Autopilot - Motor Heading Calm',
+  'ap-safety': 'Autopilot - Safety Low Voltage',
+  'ap-sail-adverse': 'Autopilot - Sail Wind Shift',
+  'ap-motor-adverse': 'Autopilot - Motor Cross Current',
+  'nav-sail': 'Autopilot - Track Waypoint',
+  'nav-motor': 'Autopilot - Track Route',
+};
+
+const enrichScenarioDefinition = (scenario: SimulationScenarioDocument): SimulationScenarioDocument => {
+  const expectation = scenario.expectation ?? MOCK_EXPECTATIONS[scenario.id] ?? MOCK_EXPECTATIONS[LEGACY_EXPECTATION_ID[scenario.id] ?? ''];
+  const description = SCENARIO_DESCRIPTION_FALLBACKS[scenario.id] || scenario.description?.trim() || expectation?.summary || 'Scenario ready for bench execution.';
+  return {
+    ...scenario,
+    name: LEGACY_SCENARIO_NAMES[scenario.id] ?? scenario.name,
+    description,
+    ...(expectation ? { expectation } : {}),
+  };
+};
+
+const scenarioCatalogKey = (scenario: SimulationScenarioDocument): string => LEGACY_EXPECTATION_ID[scenario.id] ?? scenario.id;
+
+const normalizeScenarioCatalog = (scenarios: SimulationScenarioDocument[]): SimulationScenarioDocument[] => {
+  const byKey = new Map<string, SimulationScenarioDocument>();
+  for (const scenario of scenarios.map(enrichScenarioDefinition)) {
+    const key = scenarioCatalogKey(scenario);
+    const current = byKey.get(key);
+    if (!current || (LEGACY_EXPECTATION_ID[current.id] && !LEGACY_EXPECTATION_ID[scenario.id])) {
+      byKey.set(key, scenario);
+    }
+  }
+  return Array.from(byKey.values());
+};
 
 // ── Offline mock scenarios (same as test-bench presets) ─────────────────────
 
@@ -102,12 +209,20 @@ const NAV_PARAMS: SimulationScenarioDocument['parameters'] = [
   { id: 'boatSpeedKt', label: 'Boat Speed', type: 'number', defaultValue: 6.5, min: 0, max: 20, step: 0.5, unit: 'kt', group: 'Navigation' },
   { id: 'courseDeg', label: 'Base Course', type: 'number', defaultValue: 66, min: 0, max: 360, step: 1, unit: 'deg', group: 'Navigation' },
 ];
+const CURRENT_PARAMS: SimulationScenarioDocument['parameters'] = [
+  { id: 'currentSetDeg', label: 'Current Set', type: 'number', defaultValue: 90, min: 0, max: 360, step: 1, unit: 'deg', group: 'Tide / Current' },
+  { id: 'currentDriftKt', label: 'Current Drift', type: 'number', defaultValue: 0.2, min: 0, max: 5, step: 0.1, unit: 'kt', group: 'Tide / Current' },
+];
+const WAYPOINT_PARAMS: SimulationScenarioDocument['parameters'] = [
+  { id: 'waypointBearingDeg', label: 'Waypoint Bearing', type: 'number', defaultValue: 0, min: 0, max: 360, step: 1, unit: 'deg', group: 'Track' },
+  { id: 'waypointDistanceNm', label: 'Waypoint Distance', type: 'number', defaultValue: 0.12, min: 0.03, max: 2, step: 0.01, unit: 'NM', group: 'Track' },
+];
 
 const MOCK_SCENARIOS: SimulationScenarioDocument[] = [
   {
-    id: 'ap-sail',
+    id: 'ap-sail-wind-gusts',
     version: '1.0.0',
-    name: 'Autopilot — Sail (Wind Mode)',
+    name: 'Autopilot - Sail Wind Gusts',
     description: 'Piloto en modo viento: gobierna a un ángulo de viento aparente objetivo. Velero en movimiento, viento real + aparente, detección de racha, respuesta de timón y drive.',
     category: 'safety',
     mode: 'data',
@@ -125,15 +240,16 @@ const MOCK_SCENARIOS: SimulationScenarioDocument[] = [
       { id: 'settle', atSimulatedMs: 30_000, type: 'marker', label: 'AWA holding on target' },
       { id: 'gust', atSimulatedMs: 42_000, type: 'marker', label: 'Apparent wind gust' },
     ],
+    expectation: MOCK_EXPECTATIONS['ap-sail-wind-gusts'],
     tags: ['autopilot', 'sail', 'wind', 'gust'],
     isPreset: true,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   },
   {
-    id: 'ap-motor',
+    id: 'ap-motor-heading-calm',
     version: '1.0.0',
-    name: 'Autopilot — Motor (Heading Hold)',
+    name: 'Autopilot - Motor Heading Calm',
     description: 'Piloto manteniendo rumbo de compás a motor: velero en movimiento, RPM/temperatura de motor, corriente de drive, timón y heading objetivo vs real.',
     category: 'safety',
     mode: 'data',
@@ -153,15 +269,16 @@ const MOCK_SCENARIOS: SimulationScenarioDocument[] = [
       { id: 'settle', atSimulatedMs: 30_000, type: 'marker', label: 'Heading settled on target' },
       { id: 'disturb', atSimulatedMs: 90_000, type: 'marker', label: 'Course disturbance' },
     ],
+    expectation: MOCK_EXPECTATIONS['ap-motor-heading-calm'],
     tags: ['autopilot', 'motor', 'heading', 'engine'],
     isPreset: true,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   },
   {
-    id: 'ap-safety',
+    id: 'ap-safety-low-voltage',
     version: '1.0.0',
-    name: 'Autopilot — Safety / Failsafe',
+    name: 'Autopilot - Safety Low Voltage',
     description: 'Caso failsafe: a motor con heading hold hasta que la tensión cae bajo el corte, forzando FAULT y deshabilitando el drive.',
     category: 'safety',
     mode: 'data',
@@ -179,15 +296,16 @@ const MOCK_SCENARIOS: SimulationScenarioDocument[] = [
       { id: 'start', atSimulatedMs: 0, type: 'marker', label: 'Heading hold engaged' },
       { id: 'fault', atSimulatedMs: 30_000, type: 'marker', label: 'Low-voltage cutoff → FAULT' },
     ],
+    expectation: MOCK_EXPECTATIONS['ap-safety-low-voltage'],
     tags: ['autopilot', 'safety', 'failsafe', 'battery'],
     isPreset: true,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   },
   {
-    id: 'ap-sail-adverse',
+    id: 'ap-sail-wind-shift',
     version: '1.0.0',
-    name: 'Autopilot — Sail · Adverse',
+    name: 'Autopilot - Sail Wind Shift',
     description: 'Prueba de estrés en modo viento: viento fuerte y rolón, rachas frecuentes, guiñada por olas y peligro de trasluchada accidental. El piloto recupera el AWA con grandes movimientos de timón y corriente de drive.',
     category: 'safety',
     mode: 'data',
@@ -209,15 +327,16 @@ const MOCK_SCENARIOS: SimulationScenarioDocument[] = [
       { id: 'tack', atSimulatedMs: 36_000, type: 'marker', label: 'Accidental-tack hazard' },
       { id: 'shift', atSimulatedMs: 60_000, type: 'marker', label: 'Large wind shift' },
     ],
+    expectation: MOCK_EXPECTATIONS['ap-sail-wind-shift'],
     tags: ['autopilot', 'sail', 'adverse', 'gust', 'stress'],
     isPreset: true,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   },
   {
-    id: 'ap-motor-adverse',
+    id: 'ap-motor-cross-current',
     version: '1.0.0',
-    name: 'Autopilot — Motor · Adverse',
+    name: 'Autopilot - Motor Cross Current',
     description: 'Prueba de estrés en heading-hold a motor con mar de través/corriente cruzada: fuertes guiñadas desvían la proa y el piloto aplica correcciones de timón grandes y frecuentes a alta corriente de drive.',
     category: 'safety',
     mode: 'data',
@@ -239,61 +358,66 @@ const MOCK_SCENARIOS: SimulationScenarioDocument[] = [
       { id: 'seaway', atSimulatedMs: 20_000, type: 'marker', label: 'Beam sea building' },
       { id: 'set', atSimulatedMs: 60_000, type: 'marker', label: 'Cross-current set' },
     ],
+    expectation: MOCK_EXPECTATIONS['ap-motor-cross-current'],
     tags: ['autopilot', 'motor', 'adverse', 'seaway', 'stress'],
     isPreset: true,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   },
   {
-    id: 'nav-sail',
+    id: 'ap-track-waypoint',
     version: '1.0.0',
-    name: 'Navigation — Sailing (Free Helm)',
-    description: 'Velero navegando libre con viento, profundidad y datos eléctricos. Sin autopilot — practica creando waypoints y rutas en la carta, luego activa el autopilot en modo TRACK para seguirlas.',
+    name: 'Autopilot - Track Waypoint',
+    description: 'TRACK mode to a generated waypoint from the live start position. Tunable speed, waypoint bearing/distance, wind and current.',
     category: 'navigation' as SimulationScenarioDocument['category'],
     mode: 'data',
     defaultDurationMs: 300_000,
     defaultSpeed: 1,
     parameters: [
       ...generalParams(300_000),
-      ...WIND_PARAMS,
-      ...NAV_PARAMS,
-      { id: 'depthM', label: 'Base Depth', type: 'number', defaultValue: 15, min: 1, max: 200, step: 1, unit: 'm', group: 'Environment' },
+      ...NAV_PARAMS.slice(0, 1),
+      ...WAYPOINT_PARAMS,
+      ...CURRENT_PARAMS,
+      ...WIND_PARAMS.slice(0, 2),
     ],
-    channels: [...MOCK_NAV, ...MOCK_WIND, MOCK_DEPTH, ...MOCK_ELEC],
+    channels: [...MOCK_NAV, ...MOCK_WIND, ...MOCK_ELEC, ...MOCK_ENGINE, ...MOCK_AP],
     timeline: [
-      { id: 'start', atSimulatedMs: 0, type: 'marker', label: 'Departure' },
-      { id: 'wind-shift', atSimulatedMs: 60_000, type: 'marker', label: 'Wind shift' },
-      { id: 'shallow', atSimulatedMs: 120_000, type: 'marker', label: 'Shallow water approach' },
+      { id: 'start', atSimulatedMs: 0, type: 'marker', label: 'Generate waypoint from live position' },
+      { id: 'track', atSimulatedMs: 10_000, type: 'marker', label: 'TRACK engaged' },
+      { id: 'approach', atSimulatedMs: 90_000, type: 'marker', label: 'Distance and XTE reducing' },
     ],
-    tags: ['navigation', 'sail', 'wind', 'depth', 'free'],
+    expectation: MOCK_EXPECTATIONS['ap-track-waypoint'],
+    tags: ['autopilot', 'track', 'waypoint', 'gps', 'closed-loop'],
     isPreset: true,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   },
   {
-    id: 'nav-motor',
+    id: 'ap-track-route',
     version: '1.0.0',
-    name: 'Navigation — Motor Cruising (Free Helm)',
-    description: 'Barco a motor navegando libre con motor, profundidad y datos eléctricos. Sin autopilot — practica creando waypoints y rutas en la carta, luego activa el autopilot en modo TRACK para seguirlas.',
+    name: 'Autopilot - Track Route',
+    description: 'TRACK mode through a generated three-leg route from the live start position. Watch active leg, XTE and completion.',
     category: 'navigation' as SimulationScenarioDocument['category'],
     mode: 'data',
     defaultDurationMs: 300_000,
     defaultSpeed: 1,
     parameters: [
       ...generalParams(300_000),
-      ...NAV_PARAMS,
+      ...NAV_PARAMS.slice(0, 1),
+      ...CURRENT_PARAMS,
       { id: 'engineRpm', label: 'Engine RPM', type: 'number', defaultValue: 1800, min: 0, max: 3000, step: 50, unit: 'rpm', group: 'Engine' },
       { id: 'batteryV', label: 'Battery Voltage', type: 'number', defaultValue: 12.8, min: 10, max: 16, step: 0.1, unit: 'V', group: 'Electrical' },
-      { id: 'depthM', label: 'Base Depth', type: 'number', defaultValue: 15, min: 1, max: 200, step: 1, unit: 'm', group: 'Environment' },
       ...WIND_PARAMS.slice(0, 2),
     ],
     channels: [...MOCK_NAV, ...MOCK_WIND, MOCK_DEPTH, ...MOCK_ELEC, ...MOCK_ENGINE],
     timeline: [
-      { id: 'start', atSimulatedMs: 0, type: 'marker', label: 'Departure' },
-      { id: 'channel', atSimulatedMs: 90_000, type: 'marker', label: 'Channel transit' },
-      { id: 'approach', atSimulatedMs: 180_000, type: 'marker', label: 'Anchoring approach' },
+      { id: 'start', atSimulatedMs: 0, type: 'marker', label: 'Generate three-leg route' },
+      { id: 'leg1', atSimulatedMs: 20_000, type: 'marker', label: 'Leg 1 tracking' },
+      { id: 'leg2', atSimulatedMs: 90_000, type: 'marker', label: 'Leg advance expected' },
+      { id: 'complete', atSimulatedMs: 180_000, type: 'marker', label: 'Route completion expected' },
     ],
-    tags: ['navigation', 'motor', 'engine', 'depth', 'free'],
+    expectation: MOCK_EXPECTATIONS['ap-track-route'],
+    tags: ['autopilot', 'track', 'route', 'gps', 'closed-loop'],
     isPreset: true,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
@@ -304,6 +428,7 @@ const MOCK_SCENARIOS: SimulationScenarioDocument[] = [
 
 interface OfflineRunState {
   run: SimulationRun;
+  origin: SimulationRunOrigin;
   events: SimulationEvent[];
   samples: Map<string, ChannelSample[]>;
   snapshots: Map<string, SimulationChannelSnapshot>;
@@ -404,10 +529,11 @@ export class SimulationFacadeService {
         this.api.loadScenarios(),
         this.api.loadRuns(),
       ]);
-      this.scenarios.set(scenarios);
+      const enrichedScenarios = normalizeScenarioCatalog(scenarios);
+      this.scenarios.set(enrichedScenarios);
       this.runHistory.set(runs);
       this.useOffline.set(false);
-      const first = scenarios[0];
+      const first = enrichedScenarios[0];
       if (first) this.selectScenario(first.id);
       const active = runs.find((run) => run.status === 'running');
       if (active) {
@@ -416,12 +542,13 @@ export class SimulationFacadeService {
         this.connectRun(run);
       }
     } catch {
-      // Backend unavailable — switch to offline mode with mock data
+      // Backend unavailable - switch to offline mode with mock data
       this.useOffline.set(true);
-      this.scenarios.set(MOCK_SCENARIOS);
+      const enrichedScenarios = normalizeScenarioCatalog(MOCK_SCENARIOS);
+      this.scenarios.set(enrichedScenarios);
       this.runHistory.set([]);
       this.error.set(null); // Clear error, we're in offline mode
-      const first = MOCK_SCENARIOS[0];
+      const first = enrichedScenarios[0];
       if (first) this.selectScenario(first.id);
     } finally {
       this.busy.set(false);
@@ -471,7 +598,8 @@ export class SimulationFacadeService {
         const params = this.parameters();
         const speed = Number(params['speed'] ?? scenario.defaultSpeed);
         const seed = Number(params['seed'] ?? 42);
-        const run = await this.api.startRun(scenario.id, armed.token, params, scenario.mode, speed, seed);
+        const origin = this.resolveRunOrigin();
+        const run = await this.api.startRun(scenario.id, armed.token, params, scenario.mode, speed, seed, origin);
         this.activeRun.set(run);
         this.events.set([]);
         this.channelSnapshots.set(new Map());
@@ -616,6 +744,7 @@ export class SimulationFacadeService {
   private startOfflineRun(scenario: SimulationScenarioDocument): void {
     this.stopOfflineRun();
     const runId = `offline-${Date.now()}`;
+    const origin = this.resolveRunOrigin();
     const steps: SimulationStep[] = [
       { id: 's1', label: 'Armado', status: 'passed' },
       { id: 's2', label: 'Inicialización', status: 'running' },
@@ -631,6 +760,7 @@ export class SimulationFacadeService {
       speed: Number(this.parameters()['speed'] ?? 1),
       seed: Number(this.parameters()['seed'] ?? 42),
       parameters: this.parameters(),
+      origin,
       steps,
       assertions: [],
       channelSnapshot: [],
@@ -646,6 +776,7 @@ export class SimulationFacadeService {
 
     const state: OfflineRunState = {
       run,
+      origin,
       events: [],
       samples: new Map(),
       snapshots: new Map(),
@@ -743,14 +874,40 @@ export class SimulationFacadeService {
     const defs = this.channelDefinitions();
     const timestamp = Date.now();
     const points: DataPoint[] = [];
+    const closedLoop = this.activeRun()?.mode === 'closed-loop' && !this.offlineRun;
     for (const entry of entries) {
       const path = defs.get(entry.channelId)?.path;
       if (!path || entry.quality === 'bad') continue;
+      if (closedLoop && path === PATHS.navigation.position) continue;
       points.push({ path, value: entry.value, timestamp, source: 'simulation' });
     }
     if (points.length > 0) {
       this.zone.runOutsideAngular(() => this.store.update(points));
     }
+  }
+
+  private resolveRunOrigin(): SimulationRunOrigin {
+    const point = this.store.get<{ latitude: number; longitude: number }>(PATHS.navigation.position);
+    const value = point?.value;
+    const ageMs = Date.now() - (point?.timestamp ?? 0);
+    if (
+      point &&
+      point.source !== 'simulation' &&
+      ageMs >= 0 &&
+      ageMs <= LIVE_ORIGIN_MAX_AGE_MS &&
+      value &&
+      typeof value.latitude === 'number' &&
+      typeof value.longitude === 'number' &&
+      Number.isFinite(value.latitude) &&
+      Number.isFinite(value.longitude)
+    ) {
+      return {
+        latitude: value.latitude,
+        longitude: value.longitude,
+        source: point.source?.toLowerCase().includes('ais') ? 'live-ais' : 'live-gps',
+      };
+    }
+    return FALLBACK_ORIGIN;
   }
 
   private publishOfflineState(state: OfflineRunState): void {
@@ -784,8 +941,9 @@ export class SimulationFacadeService {
     const headingRad = wrapRadians(courseRad + 0.06 * Math.sin(t * 0.05));
     const sogMs = Math.max(0, (adverse ? 3.2 : 4.0) + 0.6 * Math.sin(t / 30) + (adverse ? 0.5 * Math.sin(t / 4) : 0));
 
-    const originLat = 42.2406;
-    const originLon = -8.7207;
+    const origin = this.offlineRun?.origin ?? FALLBACK_ORIGIN;
+    const originLat = origin.latitude;
+    const originLon = origin.longitude;
     const distanceMeters = sogMs * t;
     const north = Math.cos(courseRad) * distanceMeters;
     const east = Math.sin(courseRad) * distanceMeters;
@@ -804,7 +962,7 @@ export class SimulationFacadeService {
   private generateOfflineValue(channelId: string, simulatedMs: number, seed: number, scenarioId: string): unknown {
     const t = simulatedMs / 1000;
     const phase = (t * 0.1) + (seed % 100);
-    const adverse = scenarioId.endsWith('-adverse');
+    const adverse = scenarioId === 'ap-sail-wind-shift' || scenarioId === 'ap-motor-cross-current';
     const k = this.offlineKinematics(t, seed, adverse);
     const ap = this.offlineAutopilot(t, scenarioId, k.headingRad);
     switch (channelId) {
@@ -859,9 +1017,12 @@ export class SimulationFacadeService {
     windHazard: string; targetHeading: number; targetWindAngle: number; targetRudder: number;
     rudder: number; driveCurrent: number; voltage: number | null; awaTarget: number | null;
   } {
-    const adverse = scenarioId.endsWith('-adverse');
-    const baseId = scenarioId.replace(/-adverse$/, '');
-    const kind = baseId === 'ap-sail' ? 'sail' : baseId === 'ap-motor' ? 'motor' : baseId === 'ap-safety' ? 'safety' : null;
+    const adverse = scenarioId === 'ap-sail-wind-shift' || scenarioId === 'ap-motor-cross-current';
+    const kind =
+      scenarioId === 'ap-sail-wind-gusts' || scenarioId === 'ap-sail-wind-shift' ? 'sail'
+      : scenarioId === 'ap-motor-heading-calm' || scenarioId === 'ap-motor-cross-current' || scenarioId === 'ap-track-waypoint' || scenarioId === 'ap-track-route' ? 'motor'
+      : scenarioId === 'ap-safety-low-voltage' ? 'safety'
+      : null;
     const params = this.parameters();
     const num = (key: string, fallback: number): number => typeof params[key] === 'number' ? params[key] as number : fallback;
     const d2r = (deg: number): number => deg * Math.PI / 180;
@@ -1203,7 +1364,11 @@ export class SimulationFacadeService {
   }
 
   private errorMessage(error: unknown): string {
-    const status = typeof error === 'object' && error && 'status' in error
+    return this.detailedErrorMessage(error);
+  }
+
+  /*
+    const status = typeof error === 'object' && error !== null && 'status' in (error as Record<string, unknown>)
       ? Number((error as { status: unknown }).status)
       : 0;
     if (status === 409) return 'Ya existe una ejecución activa.';
@@ -1211,8 +1376,36 @@ export class SimulationFacadeService {
     return 'No se pudo ejecutar la operación de simulación.';
   }
 
+  */
+
+  private detailedErrorMessage(error: unknown): string {
+    const status = error instanceof SimulationApiError
+      ? error.status
+      : typeof error === 'object' && error !== null && 'status' in (error as Record<string, unknown>)
+        ? Number((error as { status: unknown }).status)
+        : 0;
+    const code = error instanceof SimulationApiError
+      ? error.code
+      : error instanceof Error
+        ? error.message
+        : String(error ?? '');
+
+    if (code.includes('closed-loop-unavailable')) {
+      return 'El banco de simulacion no tiene el piloto automatico sim configurado. Arranca marine-autopilot-engine con AP_MOTOR_BACKEND=sim y AP_SENSOR_BACKEND=sim, y el banco con --autopilot http://<host>:3990.';
+    }
+    if (code.includes('closed-loop autopilot request failed')) {
+      return `El piloto automatico sim rechazo el escenario: ${code.replace('closed-loop autopilot request failed: ', '')}`;
+    }
+    if (code.includes('scenario-not-found')) return 'El escenario ya no existe en el catalogo del banco. Reinicia o refresca los escenarios.';
+    if (code.includes('run-busy') || status === 409) return 'Ya existe una ejecucion activa. Aborta la ejecucion actual antes de iniciar otra.';
+    if (code.includes('invalid-arm-token') || status === 401) return 'El token de armado ha caducado. Vuelve a iniciar la ejecucion.';
+    if (status === 0) return 'No se pudo conectar con el banco de simulacion. Revisa testBenchHost y que el servicio escuche en el puerto 4100.';
+
+    return code ? `No se pudo ejecutar la operacion de simulacion: ${code}` : 'No se pudo ejecutar la operacion de simulacion.';
+  }
+
   private isNotFoundError(error: unknown): boolean {
-    return typeof error === 'object' && error !== null && 'status' in error && (error as { status: unknown }).status === 404;
+    return typeof error === 'object' && error !== null && 'status' in (error as Record<string, unknown>) && (error as { status: unknown }).status === 404;
   }
 }
 

@@ -7,7 +7,7 @@ import { getPresetScenario } from "../../src/scenarios/presets.js";
 
 test("SimulationApiServer exposes compatible API v2 scenario and run endpoints", async () => {
   const store = new MemoryStore();
-  const scenario = getPresetScenario("ap-sail");
+  const scenario = getPresetScenario("ap-sail-wind-gusts");
   assert.ok(scenario);
   store.saveScenario(scenario);
   const runManager = new RunManager(store);
@@ -20,7 +20,7 @@ test("SimulationApiServer exposes compatible API v2 scenario and run endpoints",
     const arm = await postJson<{ token: string }>(`${base}/api/v2/arm`, {});
     assert.ok(arm.token);
     const run = await postJson<{ id: string; status: string }>(`${base}/api/v2/runs`, {
-      scenarioId: "ap-sail",
+      scenarioId: "ap-sail-wind-gusts",
       armToken: arm.token,
       parameters: {},
       speed: 1,
@@ -36,6 +36,36 @@ test("SimulationApiServer exposes compatible API v2 scenario and run endpoints",
     assert.equal(cleared.deletedRuns, 1);
     const runs = await getJson<unknown[]>(`${base}/api/v2/runs`);
     assert.equal(runs.length, 0);
+  } finally {
+    runManager.shutdown();
+    await server.stop();
+  }
+});
+
+test("SimulationApiServer reports unavailable closed-loop autopilot as 409", async () => {
+  const store = new MemoryStore();
+  const scenario = getPresetScenario("ap-sail-wind-gusts");
+  assert.ok(scenario);
+  store.saveScenario(scenario);
+  const runManager = new RunManager(store);
+  const server = new SimulationApiServer({ port: 0, host: "127.0.0.1", store, runManager });
+  const { port } = await server.start();
+  try {
+    const base = `http://127.0.0.1:${port}`;
+    const arm = await postJson<{ token: string }>(`${base}/api/v2/arm`, {});
+    const response = await fetch(`${base}/api/v2/runs`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        scenarioId: "ap-sail-wind-gusts",
+        armToken: arm.token,
+        parameters: {},
+        mode: "closed-loop",
+      }),
+    });
+    const body = await response.json() as { error?: string };
+    assert.equal(response.status, 409);
+    assert.equal(body.error, "closed-loop-unavailable");
   } finally {
     runManager.shutdown();
     await server.stop();

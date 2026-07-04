@@ -1,15 +1,7 @@
 import { Injectable, Inject, OnDestroy, PLATFORM_ID } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { WebSocketSubject, webSocket } from 'rxjs/webSocket';
-import { 
-  BehaviorSubject, 
-  retry, 
-  tap, 
-  bufferTime, 
-  map,
-  filter,
-  Subscription
-} from 'rxjs';
+import { BehaviorSubject, retry, tap, bufferTime, map, filter, Subscription } from 'rxjs';
 import { APP_ENVIRONMENT, AppEnvironment } from '../../core/config/app-environment.token';
 import { DatapointStoreService } from '../../state/datapoints/datapoint-store.service';
 import { AisStoreService } from '../../state/ais/ais-store.service';
@@ -40,7 +32,7 @@ const AIS_STATE_ALIAS: Record<string, AisNavStatus> = {
 };
 
 @Injectable({
-  providedIn: 'root'
+  providedIn: 'root',
 })
 export class SignalKClientService implements OnDestroy {
   private socket$: WebSocketSubject<SignalKMessage> | null = null;
@@ -55,69 +47,72 @@ export class SignalKClientService implements OnDestroy {
     @Inject(APP_ENVIRONMENT) private env: AppEnvironment,
     @Inject(PLATFORM_ID) private platformId: object,
     private store: DatapointStoreService,
-    private aisStore: AisStoreService
+    private aisStore: AisStoreService,
   ) {}
 
-  public connect(): void {
+  public connect(wsUrl?: string): void {
     if (!isPlatformBrowser(this.platformId)) return; // Don't connect in SSR
-    
-    if (this.socket$) return; // Already connected logic could be here, but simple start
 
-    console.log(`Connecting to Signal K WS at ${this.env.signalKWsUrl}`);
+    if (this.socket$) return; // Already connected
+
+    const url = wsUrl ?? this.env.signalKWsUrl;
+    console.log(`Connecting to Signal K WS at ${url}`);
 
     this.socket$ = webSocket<SignalKMessage>({
-      url: this.env.signalKWsUrl,
+      url,
       openObserver: {
         next: () => {
           console.log('Signal K WS Connected');
           this._connected.next(true);
-        }
+        },
       },
       closeObserver: {
         next: () => {
           console.log('Signal K WS Closed');
           this._connected.next(false);
           this.socket$ = null; // Allow reconnect
-        }
-      }
+        },
+      },
     });
 
     // Main subscription
-    this.connectionSubscription = this.socket$.pipe(
-      tap((msg) => this.captureSelfContext(msg)),
-      retry({ delay: 3000 }), // Simple retry logic
-      map((msg: SignalKMessage) => normalizeDelta(msg)),
-      filter(points => points.length > 0),
-      // Buffer updates to batch writes to store ~10 times a second
-      bufferTime(100),
-      filter(buffer => buffer.length > 0)
-    ).subscribe({
-      next: (bufferOfArrays: NormalizedDataPoint[][]) => {
-        // Flatten
-        const allPoints = bufferOfArrays.flat();
-        
-        const uniqueSelfUpdates = new Map<string, NormalizedDataPoint>();
+    this.connectionSubscription = this.socket$
+      .pipe(
+        tap((msg) => this.captureSelfContext(msg)),
+        retry({ delay: 3000 }), // Simple retry logic
+        map((msg: SignalKMessage) => normalizeDelta(msg)),
+        filter((points) => points.length > 0),
+        // Buffer updates to batch writes to store ~10 times a second
+        bufferTime(100),
+        filter((buffer) => buffer.length > 0),
+      )
+      .subscribe({
+        next: (bufferOfArrays: NormalizedDataPoint[][]) => {
+          // Flatten
+          const allPoints = bufferOfArrays.flat();
 
-        for (const p of allPoints) {
-          // Self check
-          if (this.isSelfContext(p.context)) {
-             // Ignore aggregate snapshots for self ("") - datapoint store is path-based.
-             if (p.path) {
-               uniqueSelfUpdates.set(p.path, p);
-             }
-          } 
-          // AIS check
-          else if (p.context && p.context.startsWith('vessels.')) {
-            this.processAisUpdate(p);
+          const uniqueSelfUpdates = new Map<string, NormalizedDataPoint>();
+
+          for (const p of allPoints) {
+            // Self check
+            if (this.isSelfContext(p.context)) {
+              // Ignore aggregate snapshots for self ("") - datapoint store is path-based.
+              if (p.path) {
+                uniqueSelfUpdates.set(p.path, p);
+              }
+            }
+            // AIS check
+            else if (p.context && p.context.startsWith('vessels.')) {
+              this.processAisUpdate(p);
+            }
           }
-        }
 
-        if (uniqueSelfUpdates.size > 0) {
-          this.store.update(Array.from(uniqueSelfUpdates.values()));
-        }
-      },
-      error: (err) => console.error('WS Error', err)
-    });
+          if (uniqueSelfUpdates.size > 0) {
+            this.store.update(Array.from(uniqueSelfUpdates.values()));
+          }
+        },
+        error: (err) => console.error('WS Error', err),
+      });
   }
 
   private processAisUpdate(point: NormalizedDataPoint): void {
@@ -256,7 +251,10 @@ export class SignalKClientService implements OnDestroy {
     return data;
   }
 
-  private fillFromAggregateSnapshot(snapshot: Record<string, unknown> | null, data: Partial<AisTarget>): void {
+  private fillFromAggregateSnapshot(
+    snapshot: Record<string, unknown> | null,
+    data: Partial<AisTarget>,
+  ): void {
     if (!snapshot) {
       return;
     }
@@ -302,8 +300,7 @@ export class SignalKClientService implements OnDestroy {
 
     const registrations = this.asRecord(snapshot['registrations']);
     const imo =
-      this.parseImo(registrations?.['imo']) ??
-      this.parseImo(registrations?.['imoNumber']);
+      this.parseImo(registrations?.['imo']) ?? this.parseImo(registrations?.['imoNumber']);
     if (imo !== undefined) data.imo = imo;
 
     const design = this.asRecord(snapshot['design']);
@@ -313,7 +310,13 @@ export class SignalKClientService implements OnDestroy {
     const beam = this.extractNumber(design?.['beam'], ['overall', 'value', 'meters', 'm']);
     if (beam !== undefined) data.beam = beam;
 
-    const draft = this.extractNumber(design?.['draft'], ['current', 'value', 'maximum', 'meters', 'm']);
+    const draft = this.extractNumber(design?.['draft'], [
+      'current',
+      'value',
+      'maximum',
+      'meters',
+      'm',
+    ]);
     if (draft !== undefined) data.draft = draft;
 
     const vesselType =
@@ -325,8 +328,7 @@ export class SignalKClientService implements OnDestroy {
     const sensors = this.asRecord(snapshot['sensors']);
     const aisSensor = this.asRecord(sensors?.['ais']);
     const vesselClass =
-      this.parseAisClass(aisSensor?.['class']) ??
-      this.parseAisClass(design?.['aisClass']);
+      this.parseAisClass(aisSensor?.['class']) ?? this.parseAisClass(design?.['aisClass']);
     if (vesselClass !== undefined) data.class = vesselClass;
   }
 
@@ -356,7 +358,12 @@ export class SignalKClientService implements OnDestroy {
     }
 
     const cleaned = value.trim();
-    if (!cleaned || cleaned === '--' || cleaned.toLowerCase() === 'unknown' || cleaned.toLowerCase() === 'n/a') {
+    if (
+      !cleaned ||
+      cleaned === '--' ||
+      cleaned.toLowerCase() === 'unknown' ||
+      cleaned.toLowerCase() === 'n/a'
+    ) {
       return undefined;
     }
 
@@ -399,12 +406,11 @@ export class SignalKClientService implements OnDestroy {
       return undefined;
     }
 
-    const parsed = (
+    const parsed =
       this.extractString(record['commonName']) ??
       this.extractString(record['name']) ??
       this.extractString(record['id']) ??
-      this.extractString(record['value'])
-    );
+      this.extractString(record['value']);
     return parsed ? this.normalizeDestinationText(parsed) : undefined;
   }
 
@@ -432,8 +438,19 @@ export class SignalKClientService implements OnDestroy {
       const normalized = text.toLowerCase().replace(/[\s_-]/g, '');
       if (normalized === 'a' || normalized === 'classa') return AisClass.A;
       if (normalized === 'b' || normalized === 'classb') return AisClass.B;
-      if (normalized === 'base' || normalized === 'basestation' || normalized === 'shorestation' || normalized === 'coaststation') return AisClass.BaseStation;
-      if (normalized === 'aton' || normalized === 'aidtonavigation' || normalized === 'navigationaid') return AisClass.AtoN;
+      if (
+        normalized === 'base' ||
+        normalized === 'basestation' ||
+        normalized === 'shorestation' ||
+        normalized === 'coaststation'
+      )
+        return AisClass.BaseStation;
+      if (
+        normalized === 'aton' ||
+        normalized === 'aidtonavigation' ||
+        normalized === 'navigationaid'
+      )
+        return AisClass.AtoN;
       if (normalized === 'sart' || normalized === 'aissart') return AisClass.SART;
     }
 
@@ -454,8 +471,7 @@ export class SignalKClientService implements OnDestroy {
     const record = this.asRecord(value);
     if (record) {
       const fromRecord =
-        this.extractString(record['name']) ??
-        this.extractString(record['description']);
+        this.extractString(record['name']) ?? this.extractString(record['description']);
       if (fromRecord !== undefined) {
         return fromRecord;
       }
@@ -471,10 +487,7 @@ export class SignalKClientService implements OnDestroy {
       return undefined;
     }
 
-    return (
-      this.parseVesselType(record['id']) ??
-      this.parseVesselType(record['value'])
-    );
+    return this.parseVesselType(record['id']) ?? this.parseVesselType(record['value']);
   }
 
   private parseImo(value: unknown): string | undefined {
@@ -502,12 +515,7 @@ export class SignalKClientService implements OnDestroy {
       return undefined;
     }
 
-    return this.parseImo(
-      record['number'] ??
-      record['value'] ??
-      record['id'] ??
-      record['imo'],
-    );
+    return this.parseImo(record['number'] ?? record['value'] ?? record['id'] ?? record['imo']);
   }
 
   private normalizeDestinationText(raw: string): string {
@@ -517,9 +525,7 @@ export class SignalKClientService implements OnDestroy {
     }
 
     if (cleaned === cleaned.toUpperCase() && /[,\s]/.test(cleaned)) {
-      return cleaned
-        .toLowerCase()
-        .replace(/\b\w/g, (char) => char.toUpperCase());
+      return cleaned.toLowerCase().replace(/\b\w/g, (char) => char.toUpperCase());
     }
 
     return cleaned;
@@ -536,15 +542,24 @@ export class SignalKClientService implements OnDestroy {
     if (code >= 50 && code <= 59) return 'Special Craft';
 
     switch (code) {
-      case 30: return 'Fishing';
-      case 31: return 'Towing';
-      case 32: return 'Towing (Long)';
-      case 33: return 'Dredging';
-      case 34: return 'Diving Ops';
-      case 35: return 'Military';
-      case 36: return 'Sailing';
-      case 37: return 'Pleasure Craft';
-      default: return `Type ${code}`;
+      case 30:
+        return 'Fishing';
+      case 31:
+        return 'Towing';
+      case 32:
+        return 'Towing (Long)';
+      case 33:
+        return 'Dredging';
+      case 34:
+        return 'Diving Ops';
+      case 35:
+        return 'Military';
+      case 36:
+        return 'Sailing';
+      case 37:
+        return 'Pleasure Craft';
+      default:
+        return `Type ${code}`;
     }
   }
 
