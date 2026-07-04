@@ -1113,7 +1113,6 @@ print_summary() {
     echo -e "  ${YELLOW}UI en red:${NC}   http://${lan_ip}:4200"
   fi
   echo -e "  ${YELLOW}Simulation platform API:${NC}  npm run start:simulation-bench"
-  echo -e "  ${YELLOW}Live Signal K simulator:${NC}  npm run start:simulator"
   echo -e "  ${YELLOW}Nota:${NC}        localhost solo funciona en la Raspberry."
   echo ""
   echo -e "  ${YELLOW}Chart Engine:${NC}"
@@ -1207,61 +1206,6 @@ start_post_init_services() {
     )
     log "Simulation platform API arrancada en background."
     info "Log Simulation platform API: $PROJECT_ROOT/.omi-simulation-bench.log"
-  fi
-
-  local start_sim_response
-  read -r -p "Deseas arrancar tambien el simulador live hacia Signal K? (opcional) [s/N]: " start_sim_response
-  if [[ "$start_sim_response" =~ ^[sSyY]$ ]]; then
-    stop_pid_file_process "Live Signal K simulator" "$PROJECT_ROOT/.omi-simulator.pid"
-    local scenario_choice scenario rate_input rate
-
-    echo "Escenarios disponibles:"
-    echo "  1) basic-cruise (default)"
-    echo "  2) harbor-traffic"
-    echo "  3) coastal-run"
-    echo "  4) anchored-stale"
-    echo "  5) busy-shipping-lane"
-    echo "  6) combined-failures"
-    echo "  7) anchor-drift"
-    echo "  8) wind-gps-demo"
-    read -r -p "Selecciona escenario [1-8 o nombre]: " scenario_choice
-
-    case "$scenario_choice" in
-      ""|"1") scenario="basic-cruise" ;;
-      "2") scenario="harbor-traffic" ;;
-      "3") scenario="coastal-run" ;;
-      "4") scenario="anchored-stale" ;;
-      "5") scenario="busy-shipping-lane" ;;
-      "6") scenario="combined-failures" ;;
-      "7") scenario="anchor-drift" ;;
-      "8") scenario="wind-gps-demo" ;;
-      "basic-cruise"|"harbor-traffic"|"coastal-run"|"anchored-stale"|"busy-shipping-lane"|"combined-failures"|"anchor-drift"|"wind-gps-demo")
-        scenario="$scenario_choice"
-        ;;
-      *)
-        warn "Escenario invalido. Se usara basic-cruise."
-        scenario="basic-cruise"
-        ;;
-    esac
-
-    read -r -p "Frecuencia del simulador en Hz [1]: " rate_input
-    if [[ -z "$rate_input" ]]; then
-      rate="1"
-    elif [[ "$rate_input" =~ ^[0-9]+([.][0-9]+)?$ ]] && [[ ! "$rate_input" =~ ^0+([.]0+)?$ ]]; then
-      rate="$rate_input"
-    else
-      warn "Rate invalido. Se usara 1 Hz."
-      rate="1"
-    fi
-
-    (
-      cd "$PROJECT_ROOT"
-      nohup npm run start:simulator -- --scenario "$scenario" --rate "$rate" > "$PROJECT_ROOT/.omi-simulator.log" 2>&1 &
-      echo $! > "$PROJECT_ROOT/.omi-simulator.pid"
-    )
-
-    log "Live Signal K simulator arrancado en background (scenario=$scenario, rate=${rate}Hz)."
-    info "Log Live Signal K simulator: $PROJECT_ROOT/.omi-simulator.log"
   fi
 
   if [[ -x "$PROJECT_ROOT/tools/ais-catcher/AIS-catcher" ]]; then

@@ -19,7 +19,7 @@ import {
   type OscilloscopeTrace,
 } from '../../shared/components/oscilloscope/oscilloscope.component';
 import { SimulationFacadeService, type SimulationTab } from './simulation-facade.service';
-import type { SimulationChannelDefinition } from '@omi/marine-data-contract';
+import type { SimulationChannelDefinition, SimulationScenarioDocument } from '@omi/marine-data-contract';
 
 interface ChannelGroup {
   id: string;
@@ -95,6 +95,16 @@ export class DiagnosticsPage {
     { label: '120 s', value: 120_000 },
     { label: 'ALL', value: 'all' },
   ];
+
+  scenarioDescription(scenario: SimulationScenarioDocument): string {
+    const description = scenario.description?.trim();
+    if (description) return description;
+    return scenario.expectation?.summary ?? 'Scenario ready for bench execution; no detailed description was provided by the catalog.';
+  }
+
+  scenarioCatalogSummary(scenario: SimulationScenarioDocument): string {
+    return scenario.expectation?.summary ?? this.scenarioDescription(scenario);
+  }
 
   readonly channelGroups = computed<ChannelGroup[]>(() => {
     const defs = Array.from(this.facade.channelDefinitions().values());

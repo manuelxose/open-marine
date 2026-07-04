@@ -5,12 +5,15 @@ import type {
   SimulationInjectionRequest,
   SimulationLeaseResponse,
   SimulationRun,
+  SimulationRunOrigin,
   SimulationRunStatus,
   SimulationRunSummary,
+  SimulationBenchResetRequest,
 } from "@omi/marine-data-contract";
 import { SignalGenerator, buildGeneratorOptions } from "../core/signal-generator.js";
 import type { Publisher, SimulationStore } from "../core/types.js";
 import { samplesToDataPoints } from "../publishers/utils.js";
+import type { ClosedLoopClient } from "./closed-loop-client.js";
 
 type EventListener = (event: SimulationEvent) => void;
 
@@ -22,6 +25,7 @@ interface ActiveExecution {
   generator: SignalGenerator;
   tick: number;
   publisher?: Publisher | undefined;
+  closedLoop?: ClosedLoopClient | undefined;
 }
 
 export class RunManager {
@@ -29,7 +33,10 @@ export class RunManager {
   private readonly active = new Map<string, ActiveExecution>();
   private readonly listeners = new Map<string, Set<EventListener>>();
 
-  constructor(private readonly store: SimulationStore) {}
+  constructor(
+    private readonly store: SimulationStore,
+    private readonly options: { closedLoop?: ClosedLoopClient | undefined } = {},
+  ) {}
 
   cleanupStaleRuns(): void {
     for (const summary of this.store.listRuns()) {
@@ -54,6 +61,7 @@ export class RunManager {
     speed = 1,
     seed = 42,
     publisher?: Publisher,
+    origin?: SimulationRunOrigin | undefined,
   ): Promise<SimulationRun> {
     this.consumeArmToken(token);
     const scenario = this.store.getScenario(scenarioId);
@@ -71,6 +79,7 @@ export class RunManager {
       speed,
       seed,
       parameters,
+      ...(origin ? { origin } : {}),
       startedAtUtc,
       simulatedTimeMs: 0,
       steps: [
@@ -82,9 +91,20 @@ export class RunManager {
       assertions: [],
       lastSequence: 0,
     };
+
+    const closedLoop = mode === "closed-loop" ? this.options.closedLoop : undefined;
+    if (mode === "closed-loop") {
+      if (!closedLoop) throw new Error("closed-loop-unavailable");
+      await closedLoop.reset(buildResetRequest(scenario, parameters, origin));
+      await closedLoop.configureAndEngage(scenario, parameters);
+    }
     this.store.saveRun(run);
 
-    const generator = new SignalGenerator(seed, scenario, buildGeneratorOptions(parameters));
+    const generator = new SignalGenerator(
+      seed,
+      scenario,
+      buildGeneratorOptions(parameters, origin ? { latitude: origin.latitude, longitude: origin.longitude } : undefined),
+    );
     const execution: ActiveExecution = {
       run,
       startedPerf: performance.now(),
@@ -93,6 +113,7 @@ export class RunManager {
       generator,
       tick: 0,
       publisher,
+      closedLoop,
     };
     clearInterval(execution.timer);
     this.active.set(run.id, execution);
@@ -225,7 +246,9 @@ export class RunManager {
 
     if (execution.publisher) {
       try {
-        await execution.publisher.publish(samplesToDataPoints(samples, scenario.channels, new Date().toISOString()));
+        await execution.publisher.publish(samplesToDataPoints(samples, scenario.channels, new Date().toISOString(), {
+          excludeOwnPosition: execution.run.mode === "closed-loop",
+        }));
       } catch (error) {
         this.emit(execution, "log", error instanceof Error ? error.message : String(error));
       }
@@ -244,6 +267,7 @@ export class RunManager {
 
   private finish(execution: ActiveExecution, status: SimulationRunStatus, reason?: string): void {
     clearInterval(execution.timer);
+    void execution.closedLoop?.disengage();
     void execution.publisher?.disconnect();
     const safeStep = execution.run.steps.find((step) => step.id === "safe-state");
     if (safeStep) {
@@ -320,6 +344,42 @@ export class RunManager {
 }
 
 const asNumber = (value: unknown, fallback: number): number => typeof value === "number" ? value : fallback;
+const asOptionalNumber = (value: unknown): number | undefined =>
+  typeof value === "number" && Number.isFinite(value) ? value : undefined;
 const csv = (value: string): string => `"${value.replaceAll("\"", "\"\"")}"`;
 const html = (value: string): string =>
   value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll("\"", "&quot;");
+
+const buildResetRequest = (
+  scenario: { expectation?: { objective: string } | undefined },
+  parameters: Record<string, number | boolean | string>,
+  origin?: SimulationRunOrigin | undefined,
+): SimulationBenchResetRequest => {
+  const request: SimulationBenchResetRequest = {
+    origin: {
+      latitude: origin?.latitude ?? 42.2406,
+      longitude: origin?.longitude ?? -8.7207,
+    },
+    cruiseSpeedKt: asNumber(parameters["boatSpeedKt"], 5),
+    trueWindDirDeg: asNumber(parameters["windDirDeg"], 45),
+    trueWindSpeedKt: asNumber(parameters["windSpeedKt"], 12),
+  };
+  const currentSetDeg = asOptionalNumber(parameters["currentSetDeg"]);
+  const currentDriftKt = asOptionalNumber(parameters["currentDriftKt"]);
+  if (currentSetDeg !== undefined) request.currentSetDeg = currentSetDeg;
+  if (currentDriftKt !== undefined) request.currentDriftKt = currentDriftKt;
+
+  if (scenario.expectation?.objective === "route") {
+    request.routeLegs = [
+      { bearingDeg: 0, distanceNm: 0.08 },
+      { bearingDeg: 90, distanceNm: 0.08 },
+      { bearingDeg: 180, distanceNm: 0.08 },
+    ];
+  } else if (scenario.expectation?.objective === "waypoint") {
+    request.waypoint = {
+      bearingDeg: asNumber(parameters["waypointBearingDeg"], asNumber(parameters["targetHeadingDeg"], 0)),
+      distanceNm: asNumber(parameters["waypointDistanceNm"], 0.12),
+    };
+  }
+  return request;
+};

@@ -1,15 +1,14 @@
 import type {
   SimulationChannelDefinition,
   SimulationParameterDefinition,
+  SimulationScenarioExpectation,
   SimulationScenarioDocument,
   SimulationTimelineAction,
 } from "@omi/marine-data-contract";
 import {
   AUTOPILOT_CHANNELS,
-  DEPTH_CHANNEL,
   ELECTRICAL_CHANNELS,
   ENGINE_CHANNELS,
-  ENV_CHANNELS,
   NAV_CHANNELS,
   WIND_CHANNELS,
 } from "../core/channel-registry.js";
@@ -64,6 +63,57 @@ const ENGINE_RPM_PARAM: SimulationParameterDefinition = { id: "engineRpm", label
 const TARGET_AWA_PARAM: SimulationParameterDefinition = { id: "targetAwaDeg", label: "Target Apparent Wind Angle", type: "number", defaultValue: 42, min: 20, max: 160, step: 1, unit: "deg", group: "Autopilot" };
 const TARGET_HEADING_PARAM: SimulationParameterDefinition = { id: "targetHeadingDeg", label: "Target Heading", type: "number", defaultValue: 66, min: 0, max: 360, step: 1, unit: "deg", group: "Autopilot" };
 const FAULT_START_PARAM: SimulationParameterDefinition = { id: "faultStartSec", label: "Fault Onset", type: "number", defaultValue: 30, min: 5, max: 300, step: 5, unit: "s", group: "Safety" };
+const CURRENT_SET_PARAM: SimulationParameterDefinition = { id: "currentSetDeg", label: "Current Set", type: "number", defaultValue: 90, min: 0, max: 360, step: 1, unit: "deg", group: "Tide / Current" };
+const CURRENT_DRIFT_PARAM: SimulationParameterDefinition = { id: "currentDriftKt", label: "Current Drift", type: "number", defaultValue: 0.8, min: 0, max: 5, step: 0.1, unit: "kt", group: "Tide / Current" };
+const WAYPOINT_BEARING_PARAM: SimulationParameterDefinition = { id: "waypointBearingDeg", label: "Waypoint Bearing", type: "number", defaultValue: 0, min: 0, max: 360, step: 1, unit: "deg", group: "Track" };
+const WAYPOINT_DISTANCE_PARAM: SimulationParameterDefinition = { id: "waypointDistanceNm", label: "Waypoint Distance", type: "number", defaultValue: 0.12, min: 0.03, max: 2, step: 0.01, unit: "NM", group: "Track" };
+
+const EXPECTATIONS: Record<string, SimulationScenarioExpectation> = {
+  "ap-motor-heading-calm": {
+    objective: "heading",
+    summary: "Motor heading hold in calm water.",
+    expectedMapBehavior: "The vessel starts at the live GPS/AIS position and tracks a steady line on the selected heading.",
+    expectedAutopilotBehavior: "Autopilot engages compass mode, holds the target heading and keeps rudder/current low.",
+  },
+  "ap-motor-cross-current": {
+    objective: "heading",
+    summary: "Motor heading hold with lateral current.",
+    expectedMapBehavior: "The bow holds heading while COG drifts with the current, showing a visible set across the track.",
+    expectedAutopilotBehavior: "Autopilot stays in compass mode and corrects yaw disturbances without entering fault.",
+  },
+  "ap-sail-wind-gusts": {
+    objective: "wind",
+    summary: "Sailing wind mode with gusts.",
+    expectedMapBehavior: "The vessel keeps moving under sail while apparent wind and heading oscillate through gusts.",
+    expectedAutopilotBehavior: "Autopilot engages wind mode, keeps the target apparent wind angle and raises gust hazards.",
+  },
+  "ap-sail-wind-shift": {
+    objective: "wind",
+    summary: "Sailing wind mode through a major wind shift.",
+    expectedMapBehavior: "The vessel changes heading as wind direction shifts, then settles on a new stable line.",
+    expectedAutopilotBehavior: "Autopilot remains in wind mode and recovers the target apparent wind angle.",
+  },
+  "ap-track-waypoint": {
+    objective: "waypoint",
+    summary: "Track mode to a single waypoint.",
+    expectedMapBehavior: "The vessel starts at the live position and reduces distance to the generated waypoint.",
+    expectedAutopilotBehavior: "Autopilot engages GPS/TRACK, follows bearing-to-waypoint and reduces XTE.",
+  },
+  "ap-track-route": {
+    objective: "route",
+    summary: "Track mode through a multi-leg route.",
+    expectedMapBehavior: "The vessel follows the generated route overlay and advances between legs.",
+    expectedAutopilotBehavior: "Autopilot engages GPS/TRACK, publishes active leg progress and completes the route.",
+  },
+  "ap-safety-low-voltage": {
+    objective: "safety",
+    summary: "Low-voltage failsafe.",
+    expectedMapBehavior: "The vessel starts from live position, then the scenario confirms a safe stop on fault.",
+    expectedAutopilotBehavior: "Autopilot enters FAULT and drive output is disabled when voltage falls below cutoff.",
+  },
+};
+
+const CLOSED_LOOP_PRESETS = new Set(Object.keys(EXPECTATIONS));
 
 const makePreset = (
   id: string,
@@ -81,32 +131,27 @@ const makePreset = (
   name,
   description,
   category,
-  mode: "data",
+  mode: CLOSED_LOOP_PRESETS.has(id) ? "closed-loop" : "data",
   defaultDurationMs: durationMs,
   defaultSpeed: 1,
   parameters: [SEED_PARAM, SPEED_PARAM, { ...DURATION_PARAM, defaultValue: durationMs }, ...params],
   channels,
   timeline,
   tags,
+  ...(EXPECTATIONS[id] ? { expectation: EXPECTATIONS[id] } : {}),
   isPreset: true,
   createdAt: now,
   updatedAt: now,
 });
 
-const DEPTH_PARAM: SimulationParameterDefinition = { id: "depthM", label: "Base Depth", type: "number", defaultValue: 15, min: 1, max: 200, step: 1, unit: "m", group: "Environment" };
-
 // Channel sets for the three curated autopilot test scenarios.
 const sailVessel = [...NAV_CHANNELS, ...WIND_CHANNELS, ...ELECTRICAL_CHANNELS, ...AUTOPILOT_CHANNELS];
 const motorVessel = [...NAV_CHANNELS, ...WIND_CHANNELS, ...ELECTRICAL_CHANNELS, ...ENGINE_CHANNELS, ...AUTOPILOT_CHANNELS];
 
-// Channel sets for navigation-only scenarios (no autopilot).
-const navSailVessel = [...NAV_CHANNELS, ...WIND_CHANNELS, DEPTH_CHANNEL, ...ELECTRICAL_CHANNELS];
-const navMotorVessel = [...NAV_CHANNELS, ...WIND_CHANNELS, DEPTH_CHANNEL, ...ELECTRICAL_CHANNELS, ...ENGINE_CHANNELS];
-
 export const SCENARIO_PRESETS: SimulationScenarioDocument[] = [
   makePreset(
-    "ap-sail",
-    "Autopilot — Sail (Wind Mode)",
+    "ap-sail-wind-gusts",
+    "Autopilot - Sail Wind Gusts",
     "Autopilot steering to a set apparent-wind angle under sail: moving vessel, true + apparent wind, gust detection, rudder and drive response. Tunable wind, gusts, boat speed/course and AWA target.",
     "safety",
     sailVessel,
@@ -120,8 +165,8 @@ export const SCENARIO_PRESETS: SimulationScenarioDocument[] = [
     [WIND_SPEED_PARAM, WIND_DIR_PARAM, GUST_PROB_PARAM, GUST_DELTA_PARAM, BOAT_SPEED_PARAM, COURSE_PARAM, TARGET_AWA_PARAM],
   ),
   makePreset(
-    "ap-motor",
-    "Autopilot — Motor (Heading Hold)",
+    "ap-motor-heading-calm",
+    "Autopilot - Motor Heading Calm",
     "Autopilot holding a compass heading while motoring: moving vessel, engine RPM/coolant, drive current, rudder response and target-vs-actual heading. Tunable boat speed/course, target heading, battery and engine RPM.",
     "safety",
     motorVessel,
@@ -134,8 +179,8 @@ export const SCENARIO_PRESETS: SimulationScenarioDocument[] = [
     [BOAT_SPEED_PARAM, COURSE_PARAM, TARGET_HEADING_PARAM, BATTERY_PARAM, ENGINE_RPM_PARAM, WIND_SPEED_PARAM, WIND_DIR_PARAM],
   ),
   makePreset(
-    "ap-safety",
-    "Autopilot — Safety / Failsafe",
+    "ap-safety-low-voltage",
+    "Autopilot - Safety Low Voltage",
     "Autopilot failsafe case: motoring with heading hold until house voltage drops below cutoff, forcing a FAULT that disables the drive. Tunable fault onset, boat speed/course, target heading and battery.",
     "safety",
     motorVessel,
@@ -148,8 +193,8 @@ export const SCENARIO_PRESETS: SimulationScenarioDocument[] = [
     120_000,
   ),
   makePreset(
-    "ap-sail-adverse",
-    "Autopilot — Sail · Adverse",
+    "ap-sail-wind-shift",
+    "Autopilot - Sail Wind Shift",
     "Stress test for wind-mode steering: strong shifting wind, frequent heavy gusts, big wave-driven yaw and accidental-tack hazards. Watch the pilot recover AWA with large rudder and drive-current swings.",
     "safety",
     sailVessel,
@@ -171,8 +216,8 @@ export const SCENARIO_PRESETS: SimulationScenarioDocument[] = [
     ],
   ),
   makePreset(
-    "ap-motor-adverse",
-    "Autopilot — Motor · Adverse",
+    "ap-motor-cross-current",
+    "Autopilot - Motor Cross Current",
     "Stress test for compass heading-hold while motoring in a beam sea/cross-current: strong yaw disturbances push the bow off heading so the pilot drives large, frequent rudder corrections at high drive current.",
     "safety",
     motorVessel,
@@ -186,6 +231,8 @@ export const SCENARIO_PRESETS: SimulationScenarioDocument[] = [
       { ...BOAT_SPEED_PARAM, defaultValue: 5.5 },
       COURSE_PARAM,
       TARGET_HEADING_PARAM,
+      CURRENT_SET_PARAM,
+      CURRENT_DRIFT_PARAM,
       BATTERY_PARAM,
       ENGINE_RPM_PARAM,
       { ...WIND_SPEED_PARAM, defaultValue: 20 },
@@ -193,34 +240,35 @@ export const SCENARIO_PRESETS: SimulationScenarioDocument[] = [
     ],
   ),
   makePreset(
-    "nav-sail",
-    "Navigation — Sailing (Free Helm)",
-    "Free-sailing vessel with wind, depth, and electrical data. No autopilot — practice creating waypoints and routes on the chart, then engage autopilot TRACK mode to follow them. Tunable wind, boat speed, course, and depth.",
+    "ap-track-waypoint",
+    "Autopilot - Track Waypoint",
+    "Closed-loop TRACK mode to a generated waypoint from the live start position. Tunable speed, waypoint bearing/distance, wind and current.",
     "navigation" as SimulationScenarioDocument["category"],
-    navSailVessel,
+    motorVessel,
     [
-      { id: "start", atSimulatedMs: 0, type: "marker", label: "Departure" },
-      { id: "wind-shift", atSimulatedMs: 60_000, type: "marker", label: "Wind shift" },
-      { id: "shallow", atSimulatedMs: 120_000, type: "marker", label: "Shallow water approach" },
+      { id: "start", atSimulatedMs: 0, type: "marker", label: "Generate waypoint from live position" },
+      { id: "track", atSimulatedMs: 10_000, type: "marker", label: "TRACK engaged" },
+      { id: "approach", atSimulatedMs: 90_000, type: "marker", label: "Distance and XTE reducing" },
     ],
-    ["navigation", "sail", "wind", "depth", "free"],
-    [WIND_SPEED_PARAM, WIND_DIR_PARAM, GUST_PROB_PARAM, GUST_DELTA_PARAM, BOAT_SPEED_PARAM, COURSE_PARAM, DEPTH_PARAM],
-    300_000,
+    ["autopilot", "track", "waypoint", "gps", "closed-loop"],
+    [BOAT_SPEED_PARAM, WAYPOINT_BEARING_PARAM, WAYPOINT_DISTANCE_PARAM, CURRENT_SET_PARAM, { ...CURRENT_DRIFT_PARAM, defaultValue: 0.2 }, WIND_SPEED_PARAM, WIND_DIR_PARAM],
+    180_000,
   ),
   makePreset(
-    "nav-motor",
-    "Navigation — Motor Cruising (Free Helm)",
-    "Motor-cruising vessel with engine, depth, and electrical data. No autopilot — practice creating waypoints and routes on the chart, then engage autopilot TRACK mode to follow them. Tunable speed, course, engine RPM, and depth.",
+    "ap-track-route",
+    "Autopilot - Track Route",
+    "Closed-loop TRACK mode through a generated three-leg route from the live start position. Watch route overlay, active leg, XTE and completion.",
     "navigation" as SimulationScenarioDocument["category"],
-    navMotorVessel,
+    motorVessel,
     [
-      { id: "start", atSimulatedMs: 0, type: "marker", label: "Departure" },
-      { id: "channel", atSimulatedMs: 90_000, type: "marker", label: "Channel transit" },
-      { id: "approach", atSimulatedMs: 180_000, type: "marker", label: "Anchoring approach" },
+      { id: "start", atSimulatedMs: 0, type: "marker", label: "Generate three-leg route" },
+      { id: "leg1", atSimulatedMs: 20_000, type: "marker", label: "Leg 1 tracking" },
+      { id: "leg2", atSimulatedMs: 90_000, type: "marker", label: "Leg advance expected" },
+      { id: "complete", atSimulatedMs: 180_000, type: "marker", label: "Route completion expected" },
     ],
-    ["navigation", "motor", "engine", "depth", "free"],
-    [BOAT_SPEED_PARAM, COURSE_PARAM, ENGINE_RPM_PARAM, BATTERY_PARAM, DEPTH_PARAM, WIND_SPEED_PARAM, WIND_DIR_PARAM],
-    300_000,
+    ["autopilot", "track", "route", "gps", "closed-loop"],
+    [BOAT_SPEED_PARAM, CURRENT_SET_PARAM, { ...CURRENT_DRIFT_PARAM, defaultValue: 0.1 }, WIND_SPEED_PARAM, WIND_DIR_PARAM],
+    240_000,
   ),
 ];
 

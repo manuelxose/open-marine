@@ -17,6 +17,7 @@ export const samplesToDataPoints = (
   samples: SimulationSample[],
   channels: SimulationChannelDefinition[],
   timestamp: string,
+  options: { excludeOwnPosition?: boolean } = {},
 ): SimulationDataPoint[] => {
   const byId = new Map(channels.map((channel) => [channel.id, channel]));
   const points: SimulationDataPoint[] = [];
@@ -36,6 +37,7 @@ export const samplesToDataPoints = (
       continue;
     }
     if (!channel?.path) continue;
+    if (options.excludeOwnPosition && channel.path === PATHS.navigation.position) continue;
     points.push({
       path: channel.path as SignalKPath,
       value: sample.value,

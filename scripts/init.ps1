@@ -570,7 +570,6 @@ function Show-Summary {
     Write-Host "  UI en red:   http://$($lanIp):4200" -ForegroundColor Yellow
   }
   Write-Host "  Simulation platform API: npm run start:simulation-bench" -ForegroundColor Yellow
-  Write-Host "  Live Signal K simulator: npm run start:simulator" -ForegroundColor Yellow
   Write-Host "  Nota:       localhost solo funciona en esta maquina." -ForegroundColor Yellow
   Write-Host ""
   Write-Host "  AIS real:" -ForegroundColor Yellow
@@ -776,23 +775,6 @@ function Start-PostInitServices {
       -Command "npm run start:simulation-bench" `
       -PidFile $pidFile
     Log "Simulation platform API arrancada en ventana separada."
-  }
-
-  $startSimResponse = Read-Host "Deseas arrancar tambien el simulador live hacia Signal K? (opcional) (s/n)"
-  if ($startSimResponse -in @("s", "S", "y", "Y")) {
-    $pidFile = Join-Path $ProjectRoot ".omi-simulator.pid"
-    Stop-PidFileProcess -Name "Live Signal K simulator" -PidFile $pidFile
-    $scenario = Select-SimulatorScenario
-    $rate = Select-SimulatorRate
-    $simCommand = "npm run start:simulator -- --scenario $scenario --rate $rate"
-
-    Start-BackgroundPowerShell `
-      -Name "Live Signal K simulator" `
-      -WorkingDir $ProjectRoot `
-      -Command $simCommand `
-      -PidFile $pidFile
-
-    Log "Live Signal K simulator arrancado en ventana separada (scenario=$scenario, rate=${rate}Hz)."
   }
 
   $aisPath = Join-Path $ProjectRoot "tools\ais-catcher\AIS-catcher.exe"

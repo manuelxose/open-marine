@@ -11,7 +11,7 @@ const valueFor = <T>(samples: Array<{ channelId: string; value: unknown }>, chan
 };
 
 test("SignalGenerator is deterministic for the same seed and scenario", () => {
-  const scenario = getPresetScenario("ap-sail");
+  const scenario = getPresetScenario("ap-sail-wind-gusts");
   assert.ok(scenario);
 
   const left = new SignalGenerator(42, scenario).generate(10_000).samples;
@@ -21,7 +21,7 @@ test("SignalGenerator is deterministic for the same seed and scenario", () => {
 });
 
 test("samplesToDataPoints exports only channels with Signal K paths", () => {
-  const scenario = getPresetScenario("ap-motor");
+  const scenario = getPresetScenario("ap-motor-heading-calm");
   assert.ok(scenario);
   const { samples } = new SignalGenerator(42, scenario).generate(1000);
   const points = samplesToDataPoints(samples, scenario.channels, "2026-01-01T00:00:00.000Z");
@@ -33,7 +33,7 @@ test("samplesToDataPoints exports only channels with Signal K paths", () => {
 
 test("all preset scenarios generate Signal K datapoints and vessel movement", () => {
   const presets = listPresetScenarios();
-  assert.equal(presets.length, 7, "three baseline scenarios + two adverse stress tests + two free-navigation scenarios");
+  assert.equal(presets.length, 7, "heading, wind, waypoint, route and safety scenarios");
   for (const scenario of presets) {
     const generator = new SignalGenerator(42, scenario);
     const first = generator.generate(0).samples;
@@ -41,6 +41,8 @@ test("all preset scenarios generate Signal K datapoints and vessel movement", ()
     const points = samplesToDataPoints(first, scenario.channels, "2026-01-01T00:00:00.000Z");
 
     assert.ok(first.length > 0, `${scenario.id}: no samples`);
+    assert.ok(scenario.description.trim().length > 0, `${scenario.id}: no description`);
+    assert.ok(scenario.expectation, `${scenario.id}: no expectation legend`);
     assert.ok(points.some((point) => point.context === "vessels.self"), `${scenario.id}: no own vessel data`);
     assert.ok(points.some((point) => point.path === "navigation.position"), `${scenario.id}: no position datapoint`);
     assert.ok(points.some((point) => point.path === "navigation.speedOverGround"), `${scenario.id}: no SOG datapoint`);
@@ -51,8 +53,25 @@ test("all preset scenarios generate Signal K datapoints and vessel movement", ()
   }
 });
 
+test("closed-loop publishing can exclude own-vessel position", () => {
+  const scenario = getPresetScenario("ap-track-route");
+  assert.ok(scenario);
+  const { samples } = new SignalGenerator(42, scenario).generate(1000);
+  const points = samplesToDataPoints(samples, scenario.channels, "2026-01-01T00:00:00.000Z", { excludeOwnPosition: true });
+  assert.ok(points.some((point) => point.path === "navigation.speedOverGround"), "SOG still published");
+  assert.ok(!points.some((point) => point.path === "navigation.position"), "own position must be owned by AP sim");
+});
+
+test("SignalGenerator starts from the provided live origin", () => {
+  const scenario = getPresetScenario("ap-motor-heading-calm");
+  assert.ok(scenario);
+  const origin = { latitude: 41.5, longitude: -8.1 };
+  const samples = new SignalGenerator(42, scenario, buildGeneratorOptions({}, origin)).generate(0).samples;
+  assert.deepEqual(valueFor(samples, "nav.position"), origin);
+});
+
 test("ap-sail steers in wind mode with gust detection", () => {
-  const scenario = getPresetScenario("ap-sail");
+  const scenario = getPresetScenario("ap-sail-wind-gusts");
   assert.ok(scenario);
   const generator = new SignalGenerator(42, scenario);
   const settled = generator.generate(20_000).samples;
@@ -66,7 +85,7 @@ test("ap-sail steers in wind mode with gust detection", () => {
 });
 
 test("ap-motor holds heading while motoring", () => {
-  const scenario = getPresetScenario("ap-motor");
+  const scenario = getPresetScenario("ap-motor-heading-calm");
   assert.ok(scenario);
   const generator = new SignalGenerator(42, scenario);
   const samples = generator.generate(30_000).samples;
@@ -80,7 +99,7 @@ test("ap-motor holds heading while motoring", () => {
 });
 
 test("ap-safety forces FAULT and cuts the drive after the fault onset", () => {
-  const scenario = getPresetScenario("ap-safety");
+  const scenario = getPresetScenario("ap-safety-low-voltage");
   assert.ok(scenario);
   const generator = new SignalGenerator(42, scenario);
   const healthy = generator.generate(10_000).samples;
@@ -106,12 +125,12 @@ test("adverse scenarios demand larger autopilot corrections than calm ones", () 
     }
     return peak;
   };
-  assert.ok(peakRudder("ap-motor-adverse") > peakRudder("ap-motor"), "adverse motor needs bigger rudder");
-  assert.ok(peakRudder("ap-sail-adverse") > peakRudder("ap-sail"), "adverse sail needs bigger rudder");
+  assert.ok(peakRudder("ap-motor-cross-current") > peakRudder("ap-motor-heading-calm"), "adverse motor needs bigger rudder");
+  assert.ok(peakRudder("ap-sail-wind-shift") > peakRudder("ap-sail-wind-gusts"), "adverse sail needs bigger rudder");
 });
 
 test("adverse sail trips gust and accidental-tack hazards", () => {
-  const scenario = getPresetScenario("ap-sail-adverse");
+  const scenario = getPresetScenario("ap-sail-wind-shift");
   assert.ok(scenario);
   const generator = new SignalGenerator(42, scenario);
   const hazards = new Set<string>();
@@ -123,7 +142,7 @@ test("adverse sail trips gust and accidental-tack hazards", () => {
 });
 
 test("apparent wind is derived from true wind plus boat motion (not a copy of TWS)", () => {
-  const scenario = getPresetScenario("ap-motor");
+  const scenario = getPresetScenario("ap-motor-heading-calm");
   assert.ok(scenario);
   const generator = new SignalGenerator(42, scenario, buildGeneratorOptions({ windSpeedKt: 14, windDirDeg: 30, boatSpeedKt: 8 }));
 
@@ -141,7 +160,7 @@ test("apparent wind is derived from true wind plus boat motion (not a copy of TW
 });
 
 test("scenario parameters drive the generated signal", () => {
-  const scenario = getPresetScenario("ap-motor");
+  const scenario = getPresetScenario("ap-motor-heading-calm");
   assert.ok(scenario);
   const light = new SignalGenerator(42, scenario, buildGeneratorOptions({ windSpeedKt: 6 })).generate(20_000).samples;
   const strong = new SignalGenerator(42, scenario, buildGeneratorOptions({ windSpeedKt: 30 })).generate(20_000).samples;

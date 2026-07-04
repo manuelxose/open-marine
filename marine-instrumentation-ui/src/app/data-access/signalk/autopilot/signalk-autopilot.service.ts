@@ -1,39 +1,54 @@
-import { Injectable, Inject } from '@angular/core';
+import { Injectable, OnDestroy } from '@angular/core';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
-import { Observable, catchError, switchMap, throwError } from 'rxjs';
-import { APP_ENVIRONMENT, AppEnvironment } from '../../../core/config/app-environment.token';
+import { Observable, catchError, switchMap, throwError, Subscription, filter } from 'rxjs';
+import { AppEnvironment } from '../../../core/config/app-environment.token';
+import { EnvironmentStateService } from '../../../core/services/environment-state.service';
 
 @Injectable({
-  providedIn: 'root'
+  providedIn: 'root',
 })
-export class SignalKAutopilotService {
-  private readonly apiV2Url: string;
+export class SignalKAutopilotService implements OnDestroy {
+  private apiV2Url: string;
+  private envSub: Subscription;
 
   constructor(
     private http: HttpClient,
-    @Inject(APP_ENVIRONMENT) private env: AppEnvironment
+    envState: EnvironmentStateService,
   ) {
-    // Commands go to the marine-autopilot-engine, which serves the same
-    // Signal K v2 autopilot routes the UI already speaks. Status is still read
-    // back via Signal K (the engine publishes steering.autopilot.* deltas).
-    const base = this.env.autopilotApiUrl.replace(/\/$/, '');
-    this.apiV2Url = `${base}/v2/api`;
+    this.apiV2Url = this.buildApiUrl(envState.snapshot);
+
+    // Rebuild URL whenever the environment is updated (after host detection).
+    this.envSub = envState.env$
+      .pipe(filter((e): e is AppEnvironment => e !== null))
+      .subscribe((env) => {
+        this.apiV2Url = this.buildApiUrl(env);
+      });
+  }
+
+  private buildApiUrl(env: AppEnvironment | null): string {
+    if (!env) return '';
+    const base = env.autopilotApiUrl.replace(/\/$/, '');
+    return `${base}/v2/api`;
+  }
+
+  ngOnDestroy(): void {
+    this.envSub?.unsubscribe();
   }
 
   private putAutopilot(path: string, body: Record<string, unknown>): Observable<void> {
     const url = `${this.apiV2Url}/vessels/self/autopilots/_default/${path}`;
     return this.http.put<void>(url, body).pipe(
-      catchError(err => {
+      catchError((err) => {
         console.error(`Error putting autopilot ${path}:`, err);
         return throwError(() => err);
-      })
+      }),
     );
   }
 
   private postAutopilot(path: string, body: Record<string, unknown> = {}): Observable<void> {
     const url = `${this.apiV2Url}/vessels/self/autopilots/_default/${path}`;
     return this.http.post<void>(url, body).pipe(
-      catchError(err => {
+      catchError((err) => {
         const message = this.errorMessage(err);
         if (err instanceof HttpErrorResponse && err.status === 409) {
           console.warn(`Autopilot rejected ${path}: ${message}`);
@@ -41,7 +56,7 @@ export class SignalKAutopilotService {
           console.error(`Error posting autopilot ${path}:`, err);
         }
         return throwError(() => new Error(message));
-      })
+      }),
     );
   }
 
@@ -61,10 +76,10 @@ export class SignalKAutopilotService {
   private getAutopilot<T>(path: string): Observable<T> {
     const url = `${this.apiV2Url}/vessels/self/autopilots/_default/${path}`;
     return this.http.get<T>(url).pipe(
-      catchError(err => {
+      catchError((err) => {
         console.error(`Error getting autopilot ${path}:`, err);
         return throwError(() => err);
-      })
+      }),
     );
   }
 
@@ -135,10 +150,10 @@ export class SignalKAutopilotService {
   setTuning(partial: Partial<AutopilotTuning>): Observable<{ tuning: AutopilotTuning }> {
     const url = `${this.apiV2Url}/vessels/self/autopilots/_default/tuning`;
     return this.http.put<{ tuning: AutopilotTuning }>(url, partial).pipe(
-      catchError(err => {
+      catchError((err) => {
         console.error('Error setting autopilot tuning:', err);
         return throwError(() => err);
-      })
+      }),
     );
   }
 

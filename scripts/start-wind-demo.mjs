@@ -1,5 +1,11 @@
 import { execFileSync, spawn } from "node:child_process";
-import { closeSync, existsSync, openSync, readFileSync, writeFileSync } from "node:fs";
+import {
+  closeSync,
+  existsSync,
+  openSync,
+  readFileSync,
+  writeFileSync,
+} from "node:fs";
 import { createServer } from "node:net";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -41,10 +47,17 @@ const portAvailable = (port) =>
 const describePortOwner = (port) => {
   if (process.platform !== "win32") {
     try {
-      return execFileSync("sh", ["-c", `lsof -nP -iTCP:${port} -sTCP:LISTEN 2>/dev/null | awk 'NR==2 {print $1 " pid=" $2}'`], {
-        encoding: "utf8",
-        windowsHide: true,
-      }).trim();
+      return execFileSync(
+        "sh",
+        [
+          "-c",
+          `lsof -nP -iTCP:${port} -sTCP:LISTEN 2>/dev/null | awk 'NR==2 {print $1 " pid=" $2}'`,
+        ],
+        {
+          encoding: "utf8",
+          windowsHide: true,
+        },
+      ).trim();
     } catch {
       return "";
     }
@@ -85,11 +98,11 @@ const startDetached = (name, cwd, args, logName, pidName) => {
   console.log(`[wind-demo] ${name} pid=${child.pid} log=${logPath}`);
 };
 
-execFileSync(
-  "docker",
-  ["compose", "up", "-d"],
-  { cwd: join(projectRoot, "signalk-runtime"), stdio: "inherit", windowsHide: true },
-);
+execFileSync("docker", ["compose", "up", "-d"], {
+  cwd: join(projectRoot, "signalk-runtime"),
+  stdio: "inherit",
+  windowsHide: true,
+});
 
 if (isPidRunning(".omi-wind-demo-simulator.pid")) {
   console.log("[wind-demo] simulator already running");
@@ -97,7 +110,7 @@ if (isPidRunning(".omi-wind-demo-simulator.pid")) {
   startDetached(
     "simulator",
     projectRoot,
-    ["run", "start:simulator", "--", "--scenario", "wind-gps-demo", "--rate", "2"],
+    ["run", "start:simulation-bench", "--", "--host", "http://localhost:3000"],
     ".omi-wind-demo-simulator.log",
     ".omi-wind-demo-simulator.pid",
   );
@@ -107,7 +120,9 @@ if (await endpointAvailable("http://localhost:4200/")) {
   console.log("[wind-demo] UI already available at http://localhost:4200/");
 } else if (!(await portAvailable(4200))) {
   const owner = describePortOwner(4200);
-  console.log(`[wind-demo] UI not started because port 4200 is already in use${owner ? ` by ${owner}` : ""}`);
+  console.log(
+    `[wind-demo] UI not started because port 4200 is already in use${owner ? ` by ${owner}` : ""}`,
+  );
 } else {
   startDetached(
     "ui",

@@ -14,7 +14,7 @@ export * from "./publishers/noop-publisher.js";
 export * from "./publishers/utils.js";
 export * from "./publishers/ws-publisher.js";
 export * from "./runtime/bench-runtime.js";
-export * from "./runtime/live-runtime.js";
 export * from "./runtime/run-manager.js";
+export * from "./runtime/closed-loop-client.js";
 export * from "./scenarios/presets.js";
 export * from "./scenarios/wind-scenario-generator.js";

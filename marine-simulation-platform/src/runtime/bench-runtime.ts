@@ -1,12 +1,13 @@
 import { RunManager } from "./run-manager.js";
 import type { SimulationStore } from "../core/types.js";
 import { listPresetScenarios } from "../scenarios/presets.js";
+import type { ClosedLoopClient } from "./closed-loop-client.js";
 
 export class BenchRuntime {
   readonly runManager: RunManager;
 
-  constructor(readonly store: SimulationStore) {
-    this.runManager = new RunManager(store);
+  constructor(readonly store: SimulationStore, closedLoop?: ClosedLoopClient | undefined) {
+    this.runManager = new RunManager(store, { closedLoop });
   }
 
   start(): void {

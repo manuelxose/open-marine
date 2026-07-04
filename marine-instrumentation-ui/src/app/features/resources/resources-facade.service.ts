@@ -1,8 +1,13 @@
 import { Injectable, inject } from '@angular/core';
+import { Router } from '@angular/router';
 import { WaypointStoreService } from '../../state/resources/waypoint-store.service';
 import { RouteStoreService } from '../../state/resources/route-store.service';
 import { TrackStoreService, Track } from '../../state/resources/track-store.service';
 import { SignalKCourseService } from '../../data-access/signalk/course/signalk-course.service';
+import { SignalKAutopilotService } from '../../data-access/signalk/autopilot/signalk-autopilot.service';
+import { AutopilotStoreService, AUTOPILOT_PATHS } from '../../state/autopilot/autopilot-store.service';
+import { AutopilotDecisionLogService } from '../autopilot/autopilot-decision-log.service';
+import { AppToastService } from '../../shared/components/app-toast/app-toast.service';
 import { WaypointFormValue } from './components/waypoint-form/waypoint-form.component';
 import { GpxParseResult } from './utils/gpx-parser';
 
@@ -14,6 +19,11 @@ export class ResourcesFacadeService {
   private readonly routeStore = inject(RouteStoreService);
   private readonly trackStore = inject(TrackStoreService);
   private readonly courseService = inject(SignalKCourseService);
+  private readonly autopilotService = inject(SignalKAutopilotService);
+  private readonly autopilotStore = inject(AutopilotStoreService);
+  private readonly decisionLog = inject(AutopilotDecisionLogService);
+  private readonly router = inject(Router);
+  private readonly toast = inject(AppToastService);
 
   readonly waypoints$ = this.waypointStore.waypoints$;
   readonly routes$ = this.routeStore.routes$;
@@ -83,13 +93,23 @@ export class ResourcesFacadeService {
   // Navigation (Signal K Course API)
   navigateToWaypoint(id: string) {
       this.courseService.setDestination(id).subscribe({
-          error: (err) => console.error('Failed to set destination', err),
+          next: () => this.engageRouteIfActive(),
+          error: (err) => {
+              console.error('Failed to set destination', err);
+              this.decisionLog.record('warn', 'DESTINATION_FAILED', this.errorText(err));
+              this.toast.show({ message: 'No se pudo fijar el destino', type: 'error' });
+          },
       });
   }
 
   navigateToRoute(id: string) {
       this.courseService.activateRoute(id).subscribe({
-          error: (err) => console.error('Failed to activate route', err),
+          next: () => this.engageRouteIfActive(),
+          error: (err) => {
+              console.error('Failed to activate route', err);
+              this.decisionLog.record('warn', 'DESTINATION_FAILED', this.errorText(err));
+              this.toast.show({ message: 'No se pudo activar la ruta', type: 'error' });
+          },
       });
   }
 
@@ -97,6 +117,39 @@ export class ResourcesFacadeService {
       this.courseService.clearCourse().subscribe({
           error: (err) => console.error('Failed to clear course', err),
       });
+  }
+
+  /**
+   * Once a destination is set, follow it with the autopilot only if it is already
+   * engaged (AUTO/WIND/ROUTE) — switch it to ROUTE so it tracks the waypoint. From
+   * STANDBY we never auto-engage (safety: STANDBY by default); the explicit,
+   * persistent confirmation lives on the autopilot page ("FOLLOW IN TRACK" banner),
+   * so we route the operator there instead of engaging silently.
+   */
+  private engageRouteIfActive() {
+      const state = this.autopilotStore.getSnapshot<string>(AUTOPILOT_PATHS.state) ?? 'standby';
+      if (state === 'auto' || state === 'wind' || state === 'route') {
+          this.autopilotService.engage('route').subscribe({
+              next: () => this.toast.show({ message: 'Piloto en modo ROUTE: siguiendo al destino', type: 'success' }),
+              error: () => this.toast.show({ message: 'No se pudo activar el modo ROUTE', type: 'error' }),
+          });
+      } else if (state === 'standby') {
+          this.toast.show({
+              message: 'Destino fijado. Abre el Piloto y pulsa SEGUIR EN TRACK.',
+              type: 'info',
+              action: {
+                  label: 'Ir al Piloto',
+                  callback: () => { void this.router.navigate(['/autopilot']); },
+              },
+          });
+      } else {
+          this.toast.show({ message: 'Piloto en FALLO: resuélvelo antes de navegar', type: 'warning' });
+      }
+  }
+
+  private errorText(err: unknown): string {
+      const e = err as { error?: { error?: string }; message?: string; status?: number };
+      return e?.error?.error ?? e?.message ?? (typeof e?.status === 'number' ? `HTTP ${e.status}` : 'error');
   }
 
   // Tracks

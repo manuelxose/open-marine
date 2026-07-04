@@ -21,6 +21,7 @@ const DEFAULT_POSITION_STATIONARY_SOG_MPS = 0.7; // ~1.4 kn
 const DEFAULT_POSITION_MAX_DRIFT_METERS_WHEN_STATIONARY = 150;
 const DEFAULT_POSITION_STATIONARY_WINDOW_SECONDS = 30;
 const DEFAULT_POSITION_MIN_JUMP_FILTER_METERS = 50;
+const LIVE_POSITION_PROTECTION_MS = 30_000;
 const DERIVED_HEADING_SOURCE = "derived:headingMagneticFallback";
 const PERSISTED_HISTORY_PATHS = new Set<string>([
   PATHS.navigation.speedOverGround,
@@ -67,6 +68,7 @@ export class DatapointStoreService {
   public readonly trackPoints$ = this.track$;
   private lastTrackSample: TrackPoint | null = null;
   private lastAcceptedPositionSample: TrackPoint | null = null;
+  private lastAcceptedPositionSource: string | null = null;
 
   private readonly _lastUpdate = new BehaviorSubject<number | null>(null);
   public readonly lastUpdate$ = this._lastUpdate.asObservable();
@@ -112,8 +114,12 @@ export class DatapointStoreService {
       if (point.path === PATHS.navigation.position && point.value && typeof point.value === 'object') {
         const pos = point.value as { latitude?: number; longitude?: number };
         if (typeof pos.latitude === 'number' && typeof pos.longitude === 'number') {
+          const previous = next.get(PATHS.navigation.position);
+          if (this.shouldKeepLivePosition(previous, point)) {
+            continue;
+          }
           const sample: TrackPoint = { lat: pos.latitude, lon: pos.longitude, ts: point.timestamp };
-          if (!this.shouldAcceptPositionSample(sample, next)) {
+          if (!this.shouldAcceptPositionSample(sample, next, point.source)) {
             continue;
           }
         }
@@ -349,7 +355,7 @@ export class DatapointStoreService {
     return Array.from(this._state.value.values());
   }
 
-  private shouldAcceptPositionSample(sample: TrackPoint, state: DataPointMap): boolean {
+  private shouldAcceptPositionSample(sample: TrackPoint, state: DataPointMap, source: string): boolean {
     const safety = this.alarmSettings.snapshot;
     const maxSpeedMps = this.positiveOr(safety.gpsOutlierMaxSpeedMps, DEFAULT_POSITION_MAX_SPEED_MPS);
     const minJumpDistanceMeters = this.positiveOr(
@@ -381,8 +387,12 @@ export class DatapointStoreService {
       return false;
     }
 
-    if (!this.lastAcceptedPositionSample) {
+    const sourceChangedFromSimulation =
+      this.lastAcceptedPositionSource === 'simulation' && source !== 'simulation';
+
+    if (!this.lastAcceptedPositionSample || sourceChangedFromSimulation) {
       this.lastAcceptedPositionSample = sample;
+      this.lastAcceptedPositionSource = source;
       return true;
     }
 
@@ -398,6 +408,7 @@ export class DatapointStoreService {
         return false;
       }
       this.lastAcceptedPositionSample = sample;
+      this.lastAcceptedPositionSource = source;
       return true;
     }
 
@@ -418,7 +429,19 @@ export class DatapointStoreService {
     }
 
     this.lastAcceptedPositionSample = sample;
+    this.lastAcceptedPositionSource = source;
     return true;
+  }
+
+  private shouldKeepLivePosition(previous: DataPoint | undefined, incoming: DataPoint): boolean {
+    if (
+      incoming.source !== 'simulation' ||
+      !previous ||
+      previous.source === 'simulation'
+    ) {
+      return false;
+    }
+    return Date.now() - previous.timestamp <= LIVE_POSITION_PROTECTION_MS;
   }
 
   private positiveOr(value: number, fallback: number): number {

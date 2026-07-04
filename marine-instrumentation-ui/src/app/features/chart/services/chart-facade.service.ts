@@ -101,6 +101,8 @@ const FIX_THRESHOLD_MS = 2000;
 const STALE_THRESHOLD_MS = 5000;
 const VECTOR_TIME_SECONDS = 120;
 const DEFAULT_VECTOR_NM = 0.5;
+// Minimum on-screen length (px) for direction vectors, so they stay visible when zoomed out.
+const MIN_VECTOR_PIXELS = 40;
 const MIN_VECTOR_SPEED_MPS = 1.028888; // 2 kn, matches the GPS stopped filter default.
 const MIN_SPEED_FOR_ETA_KTS = 0.1;
 const AIS_TRACK_MAX_AGE_MS = 30 * 60 * 1000;
@@ -125,11 +127,16 @@ const buildWindUpdate = (
   timestamp: number,
   source: WindMapUpdate['source'],
   gustMps: number | null,
+  minScreenMeters = 0,
 ): WindMapUpdate => {
   if (timestamp <= 0 || Date.now() - timestamp > WIND_STALE_THRESHOLD_MS) {
     return { ...hiddenWind(source), directionDeg, speedMps };
   }
-  const vectorMeters = Math.max(DEFAULT_VECTOR_NM * METERS_PER_NM, speedMps * VECTOR_TIME_SECONDS);
+  const vectorMeters = Math.max(
+    DEFAULT_VECTOR_NM * METERS_PER_NM,
+    speedMps * VECTOR_TIME_SECONDS,
+    minScreenMeters,
+  );
   const destination = projectDestination(
     { lat: position.latitude, lon: position.longitude },
     directionDeg,
@@ -274,6 +281,9 @@ export class ChartFacadeService {
   private readonly zone = inject(NgZone);
   private readonly _orientation$ = new BehaviorSubject<MapOrientation>('north-up');
   readonly orientation$ = this._orientation$.asObservable();
+  // Live map zoom, fed by the engine. Drives the minimum on-screen length of
+  // direction vectors so they stay visible when zoomed out (see vectorUpdate$).
+  private readonly viewportZoom$ = new BehaviorSubject<number>(12);
   private readonly tick$ = outsideZoneTicker(this.zone, 1000, { emitInsideAngular: false }).pipe(
     shareReplay({ bufferSize: 1, refCount: true }),
   );
@@ -284,6 +294,18 @@ export class ChartFacadeService {
   toggleOrientation(): void {
     const current = this._orientation$.value;
     this._orientation$.next(current === 'north-up' ? 'course-up' : 'north-up');
+  }
+
+  /** Called by the chart page on map zoom changes to keep zoom-aware overlays sized. */
+  setViewportZoom(zoom: number): void {
+    if (Number.isFinite(zoom) && zoom !== this.viewportZoom$.value) {
+      this.viewportZoom$.next(zoom);
+    }
+  }
+
+  /** Web Mercator ground resolution (meters per screen pixel) at a latitude and zoom. */
+  private metersPerPixel(lat: number, zoom: number): number {
+    return (156543.03392804097 * Math.cos((lat * Math.PI) / 180)) / Math.pow(2, zoom);
   }
 
   readonly aisTargetsGeoJson$ = combineLatest([
@@ -982,9 +1004,10 @@ export class ChartFacadeService {
     cog: this.cog$,
     sog: this.sog$,
     settings: this.settingsService.settings$,
+    zoom: this.viewportZoom$,
   }).pipe(
     auditTime(200),
-    map(({ position, cog, sog, settings }) => {
+    map(({ position, cog, sog, settings, zoom }) => {
       if (!settings.showVector || !position) {
         return {
           coords: [] as [number, number][],
@@ -1008,7 +1031,12 @@ export class ChartFacadeService {
       const sogKnots = sogMps * 1.943844;
       const totalMinutes = settings.cogLineMinutes;
       const totalSeconds = Math.max(60, totalMinutes * 60);
-      const vectorMeters = Math.max(DEFAULT_VECTOR_NM * METERS_PER_NM, sogMps * totalSeconds);
+      const minScreenMeters = MIN_VECTOR_PIXELS * this.metersPerPixel(position.latitude, zoom);
+      const vectorMeters = Math.max(
+        DEFAULT_VECTOR_NM * METERS_PER_NM,
+        sogMps * totalSeconds,
+        minScreenMeters,
+      );
       const destination = projectDestination(
         { lat: position.latitude, lon: position.longitude },
         cogDeg,
@@ -1052,9 +1080,10 @@ export class ChartFacadeService {
     cog: this.cog$,
     sog: this.sog$,
     settings: this.settingsService.settings$,
+    zoom: this.viewportZoom$,
   }).pipe(
     auditTime(200),
-    map(({ position, heading, cog, sog, settings }) => {
+    map(({ position, heading, cog, sog, settings, zoom }) => {
       if (!settings.showHeadingLine || !position) {
         return {
           coords: [] as [number, number][],
@@ -1071,7 +1100,12 @@ export class ChartFacadeService {
       const headingDeg = normalizeDegrees(toDegrees(headingRad));
       const sogMps = coerceNumber(sog?.value) ?? 0;
       const vectorSeconds = Math.max(60, settings.headingLineMinutes * 60);
-      const vectorMeters = Math.max(DEFAULT_VECTOR_NM * METERS_PER_NM, sogMps * vectorSeconds);
+      const minScreenMeters = MIN_VECTOR_PIXELS * this.metersPerPixel(position.latitude, zoom);
+      const vectorMeters = Math.max(
+        DEFAULT_VECTOR_NM * METERS_PER_NM,
+        sogMps * vectorSeconds,
+        minScreenMeters,
+      );
       const destination = projectDestination(
         { lat: position.latitude, lon: position.longitude },
         headingDeg,
@@ -1278,9 +1312,10 @@ export class ChartFacadeService {
     twd: this.twd$,
     tws: this.tws$,
     settings: this.settingsService.settings$,
+    zoom: this.viewportZoom$,
   }).pipe(
     auditTime(200),
-    map(({ position, twd, tws, settings }): WindMapUpdate => {
+    map(({ position, twd, tws, settings, zoom }): WindMapUpdate => {
       const hidden = hiddenWind('true');
       if (!settings.showTrueWind || !position) return hidden;
       const twdRad = coerceNumber(twd?.value);
@@ -1288,7 +1323,8 @@ export class ChartFacadeService {
       const directionDeg = normalizeDegrees(toDegrees(twdRad));
       const speedMps = coerceNumber(tws?.value) ?? 0;
       const timestamp = Math.min(twd?.timestamp ?? 0, tws?.timestamp ?? 0);
-      return buildWindUpdate(position, directionDeg, speedMps, timestamp, 'true', null);
+      const minScreenMeters = MIN_VECTOR_PIXELS * this.metersPerPixel(position.latitude, zoom);
+      return buildWindUpdate(position, directionDeg, speedMps, timestamp, 'true', null, minScreenMeters);
     }),
     shareReplay({ bufferSize: 1, refCount: true }),
   );
@@ -1303,9 +1339,10 @@ export class ChartFacadeService {
     aws: this.aws$,
     awsHistory: this.awsHistory$,
     settings: this.settingsService.settings$,
+    zoom: this.viewportZoom$,
   }).pipe(
     auditTime(200),
-    map(({ position, heading, cog, awa, aws, awsHistory, settings }): WindMapUpdate => {
+    map(({ position, heading, cog, awa, aws, awsHistory, settings, zoom }): WindMapUpdate => {
       const hidden = hiddenWind('apparent');
       if (!settings.showApparentWind || !position) return hidden;
       const headingRad = coerceNumber(heading?.value) ?? coerceNumber(cog?.value);
@@ -1322,7 +1359,8 @@ export class ChartFacadeService {
         .filter((point) => Date.now() - point.timestamp <= GUST_WINDOW_MS)
         .map((point) => point.value);
       const gustMps = gustValues.length > 0 ? Math.max(...gustValues) : null;
-      return buildWindUpdate(position, directionDeg, speedMps, timestamp, 'apparent', gustMps);
+      const minScreenMeters = MIN_VECTOR_PIXELS * this.metersPerPixel(position.latitude, zoom);
+      return buildWindUpdate(position, directionDeg, speedMps, timestamp, 'apparent', gustMps, minScreenMeters);
     }),
     shareReplay({ bufferSize: 1, refCount: true }),
   );
