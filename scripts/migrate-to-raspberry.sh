@@ -104,8 +104,6 @@ get_generic_ssh_candidates() {
 
 # ── Argument parsing ─────────────────────────────────────────────
 RUN_INIT=0
-SELECTIVE_MIGRATE=0
-SELECTIVE_MODULES=("marine-data-contract" "marine-sensor-gateway" "marine-autopilot-engine" "marine-instrumentation-ui" "marine-simulation-platform" "marine-chart-engine" "scripts" "config" "signalk-runtime" "tools" "marine-sensor-gateway/rpi")
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -114,25 +112,19 @@ while [[ $# -gt 0 ]]; do
       shift
       ;;
     --selective)
-      SELECTIVE_MIGRATE=1
-      shift
+      err "El despliegue selectivo ya no esta permitido: OMI se despliega siempre completo."
+      exit 2
       ;;
     --modules)
-      shift
-      SELECTIVE_MIGRATE=1
-      SELECTIVE_MODULES=()
-      while [[ $# -gt 0 && ! "$1" =~ ^-- ]]; do
-        SELECTIVE_MODULES+=("$1")
-        shift
-      done
+      err "La seleccion parcial de modulos ya no esta permitida: OMI se despliega siempre completo."
+      exit 2
       ;;
     --help|-h)
       echo "Usage: migrate-to-raspberry.sh [options] [HOST] [USER] [PORT] [PATH]"
       echo ""
       echo "Options:"
       echo "  --run-init      Ejecutar 'npm run init' remotamente tras extraer"
-      echo "  --selective     Migrar solo modulos esenciales para Raspberry"
-      echo "  --modules LIST  Migrar solo los modulos especificados (espacio separado)"
+      echo "  El paquete siempre incluye el proyecto OMI completo."
       echo ""
       echo "Environment: RPI_HOST, RPI_USER, RPI_PORT, RPI_PATH, RPI_SSH_KEY, RPI_PASSWORD"
       echo "             OMI_MIGRATE_INCLUDE_DOCKER_IMAGE=true (offline mode)"
@@ -338,34 +330,14 @@ TAR_EXCLUDES=(
   --exclude='*.egg-info'
 )
 
-if [[ "$SELECTIVE_MIGRATE" -eq 1 ]]; then
-  log "Migracion SELECTIVA: solo modulos esenciales para Raspberry"
-  # Create a temp staging dir with only selected modules
-  staging_dir="/tmp/omi-migrate-staging-${timestamp}"
-  rm -rf "$staging_dir"
-  mkdir -p "$staging_dir"
-
-  for mod in "${SELECTIVE_MODULES[@]}"; do
-    src="$PROJECT_ROOT/$mod"
-    if [[ -e "$src" ]]; then
-      cp -r "$src" "$staging_dir/"
-      log "  + $mod"
-    else
-      warn "  ! $mod no encontrado, omitido"
-    fi
-  done
-
-  # Copy essential root files
-  cp "$PROJECT_ROOT/package.json" "$PROJECT_ROOT/package-lock.json" "$staging_dir/" 2>/dev/null || true
-  if [[ -f "$PROJECT_ROOT/README.md" ]]; then
-    cp "$PROJECT_ROOT/README.md" "$staging_dir/"
-  fi
-
-  tar -czf "$archive_path" "${TAR_EXCLUDES[@]}" -C "$staging_dir" .
-  rm -rf "$staging_dir"
-else
-  tar -czf "$archive_path" "${TAR_EXCLUDES[@]}" -C "$PROJECT_ROOT" .
+PICO_FIRMWARE="$PROJECT_ROOT/marine-autopilot-engine/pico2/main.py"
+if [[ ! -f "$PICO_FIRMWARE" ]]; then
+  err "Falta el firmware Pico 2 requerido: $PICO_FIRMWARE"
+  exit 1
 fi
+log "Modo de despliegue: COMPLETO (todos los modulos y scripts OMI)."
+log "Incluido: firmware y herramientas Pico 2 (marine-autopilot-engine/pico2)."
+tar -czf "$archive_path" "${TAR_EXCLUDES[@]}" -C "$PROJECT_ROOT" .
 
 archive_size="$(du -sh "$archive_path" 2>/dev/null | cut -f1)"
 log "Paquete creado: $archive_path ($archive_size)"
@@ -379,8 +351,8 @@ log "Creando ruta destino en Raspberry: $TARGET_PATH"
 log "Subiendo paquete a Raspberry..."
 "${scp_cmd[@]}" "$archive_path" "$remote:$TARGET_PATH/$archive_name"
 
-log "Extrayendo proyecto en Raspberry..."
-"${ssh_cmd[@]}" "$remote" "set -e; cd '$TARGET_PATH'; tar -xzf '$archive_name'; rm -f '$archive_name'; find '$TARGET_PATH' -type f \( -name '*.sh' -o -name '*.py' -o -name '*.mjs' \) -exec sed -i 's/\r$//' {} +"
+log "Extrayendo proyecto completo en Raspberry..."
+"${ssh_cmd[@]}" "$remote" "set -e; cd '$TARGET_PATH'; tar -xzf '$archive_name'; rm -f '$archive_name'; find '$TARGET_PATH' -type f \( -name '*.sh' -o -name '*.py' -o -name '*.mjs' \) -exec sed -i 's/\r$//' {} +; test -f '$TARGET_PATH/marine-autopilot-engine/pico2/main.py'; echo '[OMI] Verificado en Raspberry: software Pico 2 incluido.'"
 
 rm -f "$archive_path"
 
@@ -415,6 +387,7 @@ if [[ -d "$PROJECT_ROOT/marine-sensor-gateway/rpi/systemd" ]]; then
 fi
 
 log "Migracion completada."
+log "Software Pico 2 copiado y verificado en Raspberry (no flasheado automaticamente)."
 echo ""
 echo "Raspberry: $remote:$TARGET_PATH"
 if [[ "$RUN_INIT" -eq 1 ]]; then
@@ -426,7 +399,5 @@ else
   echo "  npm run init"
 fi
 echo ""
-echo "Para migracion selectiva (solo modulos runtime):"
-echo "  npm run migrate:raspberry -- --selective"
 echo "Para migracion + init automatico:"
 echo "  npm run migrate:raspberry -- --run-init"

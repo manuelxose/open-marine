@@ -15,6 +15,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
 $ProjectRoot = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
+$PicoFirmwarePath = Join-Path $ProjectRoot "marine-autopilot-engine\pico2\main.py"
 $SignalkImageRef = if ($env:OMI_SIGNALK_IMAGE) { $env:OMI_SIGNALK_IMAGE } else { "signalk/signalk-server:v2.22.1" }
 $SignalkImageArchive = Join-Path $ProjectRoot "tools\docker-images\signalk-signalk-server_latest.tar"
 $IncludeDockerImageMigration = $env:OMI_MIGRATE_INCLUDE_DOCKER_IMAGE -match '^(?i:true|1|yes|y|s|si)$'
@@ -611,6 +612,11 @@ Write-Host "OMI Migration to Raspberry (Windows)" -ForegroundColor Cyan
 Write-Host ""
 
 Require-Command -Name "tar"
+if (-not (Test-Path -LiteralPath $PicoFirmwarePath -PathType Leaf)) {
+  throw "Falta el firmware Pico 2 requerido: $PicoFirmwarePath"
+}
+Log "Modo de despliegue: COMPLETO (todos los modulos y scripts OMI)."
+Log "Incluido: firmware y herramientas Pico 2 (marine-autopilot-engine/pico2)."
 
 if ([string]::IsNullOrWhiteSpace($ConfigFile)) {
   if (-not [string]::IsNullOrWhiteSpace($env:RPI_CONFIG_FILE)) {
@@ -885,7 +891,7 @@ if ($usePutty) {
 
 $remoteArchivePath = "/tmp/$archiveName"
 $normalizeLineEndingsCmd = "find '$TargetPath' -type f \( -name '*.sh' -o -name '*.py' -o -name '*.mjs' \) -exec sed -i 's/\r$//' {} +"
-$extractCmd = "set -e; mkdir -p '$TargetPath'; tar -xzf '$remoteArchivePath' -C '$TargetPath'; rm -f '$remoteArchivePath'; $normalizeLineEndingsCmd"
+$extractCmd = "set -e; mkdir -p '$TargetPath'; tar -xzf '$remoteArchivePath' -C '$TargetPath'; rm -f '$remoteArchivePath'; $normalizeLineEndingsCmd; test -f '$TargetPath/marine-autopilot-engine/pico2/main.py'; echo '[OMI] Verificado en Raspberry: software Pico 2 incluido.'"
 $sshTarget = ""
 $remoteArchiveSpec = ""
 $connectedHost = $TargetHost
@@ -982,6 +988,7 @@ try {
   Invoke-ExternalWithRetry -Name $sshCommand -Args ($sshArgs + @($sshTarget, $extractCmd)) -Operation "Extraccion de paquete en Raspberry"
 
   Log "Migracion completada."
+  Log "Software Pico 2 copiado y verificado en Raspberry (no flasheado automaticamente)."
   Write-Host ""
   Write-Host "Siguientes pasos en Raspberry:" -ForegroundColor Cyan
   Write-Host "  ssh -p $TargetPort $sshTarget"
