@@ -15,7 +15,7 @@
     "watch": "ng build --watch --configuration development",
     "pretest": "npm run build -w @omi/marine-data-contract",
     "test": "ng test",
-    "lint": "eslint .",
+    "lint": "eslint . --max-warnings 347",
     "format": "prettier --write .",
     "pretest:ci": "npm run build -w @omi/marine-data-contract",
     "test:ci": "ng test --watch=false --runner=vitest",

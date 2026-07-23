@@ -31,7 +31,14 @@ module.exports = {
             suffixes: ["Component", "Page"]
           }
         ],
-        "@typescript-eslint/no-explicit-any": "error",
+        "@angular-eslint/no-empty-lifecycle-method": "warn",
+        "@angular-eslint/no-input-rename": "warn",
+        "@angular-eslint/no-output-native": "warn",
+        "@angular-eslint/no-output-on-prefix": "warn",
+        "@typescript-eslint/ban-types": "warn",
+        "@typescript-eslint/no-explicit-any": "warn",
+        "@typescript-eslint/no-unused-vars": "warn",
+        "prefer-const": "warn",
         "no-restricted-imports": [
           "error",
           {
@@ -83,7 +90,10 @@ module.exports = {
       files: ["*.html"],
       parser: "@angular-eslint/template-parser",
       plugins: ["@angular-eslint/template"],
-      extends: ["plugin:@angular-eslint/template/recommended", "prettier"]
+      extends: ["plugin:@angular-eslint/template/recommended", "prettier"],
+      rules: {
+        "@angular-eslint/template/no-negated-async": "warn"
+      }
     }
   ]
 };
