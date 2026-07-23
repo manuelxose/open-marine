@@ -1,6 +1,13 @@
 module.exports = {
   root: true,
-  ignorePatterns: ["dist", "dist-tmp", "node_modules", "mock-server.js", "vitest.config.ts"],
+  ignorePatterns: [
+    "dist",
+    "dist-tmp",
+    "node_modules",
+    "mock-server.js",
+    "vitest.config.ts",
+    "src/app/features/chart/services/performance-test.js"
+  ],
   overrides: [
     {
       files: ["*.ts"],
