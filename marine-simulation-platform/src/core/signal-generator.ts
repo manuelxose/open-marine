@@ -141,13 +141,16 @@ export class SignalGenerator {
     };
     this.faultStartSec = options.safety?.faultStartSec ?? 30;
     this.adverse = scenario.tags.includes("stress") || scenario.tags.includes("current") || scenario.id.includes("wind-shift");
-    this.kind = scenario.expectation?.objective === "safety" || scenario.id.includes("safety")
-      ? "safety"
-      : scenario.expectation?.objective === "wind" || scenario.id.includes("sail")
-        ? "sail"
-        : scenario.expectation?.objective === "heading" || scenario.id.includes("motor")
-          ? "motor"
-          : null;
+    const hasAutopilotChannels = scenario.channels.some((channel) => channel.id.startsWith("ap."));
+    this.kind = !hasAutopilotChannels
+      ? null
+      : scenario.expectation?.objective === "safety" || scenario.id.includes("safety")
+        ? "safety"
+        : scenario.expectation?.objective === "wind" || scenario.id.includes("sail")
+          ? "sail"
+          : scenario.expectation?.objective === "heading" || scenario.id.includes("motor")
+            ? "motor"
+            : null;
     this.depthBaseM = options.depth?.baseM;
     this.batteryV = options.electrical?.batteryV;
     this.engineRpmHz = typeof options.engine?.rpm === "number" ? options.engine.rpm / 60 : undefined;
@@ -250,14 +253,25 @@ export class SignalGenerator {
     return this.adverse && this.kind === "sail" && t % 48 >= 36 && t % 48 < 41;
   }
 
-  /** Autopilot telemetry for the three curated scenarios; null leaves channels at safe defaults. */
+  /**
+   * Autopilot telemetry for the curated scenarios; null/standby leaves channels at safe defaults.
+   * Closed-loop scenarios always report standby here — engagement is now the operator's real
+   * action on the real autopilot engine, never scripted by the scenario, so this generator must
+   * not fake "engaged" state that could be mistaken for the real thing. Real autopilot telemetry
+   * for those runs comes from the engine's own Signal K publish, not this mirror.
+   */
   private computeAutopilot(t: number, headingRad: number): AutopilotTick {
     const standby: AutopilotTick = {
       state: "standby", mode: "compass", engaged: false, driveEnabled: false, fault: "none",
       windHazard: "none", noGo: false, targetHeading: headingRad, targetWindAngle: 0,
       targetRudder: 0, rudder: 0, driveCurrent: 0, voltage: undefined,
     };
-    if (!this.kind) return standby;
+    if (!this.kind || this.scenario.mode === "closed-loop") {
+      // Battery sag is an environmental fault condition (like wind or current), not an autopilot
+      // command, so it still plays out even though engagement itself is never faked.
+      const voltageFaultActive = this.kind === "safety" && t >= this.faultStartSec;
+      return { ...standby, voltage: voltageFaultActive ? 10.6 : undefined };
+    }
 
     const faulted = this.kind === "safety" && t >= this.faultStartSec;
     const targetHeading = this.kind === "motor" || this.kind === "safety"

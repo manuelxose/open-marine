@@ -95,8 +95,9 @@ export class RunManager {
     const closedLoop = mode === "closed-loop" ? this.options.closedLoop : undefined;
     if (mode === "closed-loop") {
       if (!closedLoop) throw new Error("closed-loop-unavailable");
-      await closedLoop.reset(buildResetRequest(scenario, parameters, origin));
-      await closedLoop.configureAndEngage(scenario, parameters);
+      // Environment only: seed origin/speed/wind/current on the engine's bench.
+      // The operator engages the autopilot themselves from the Autopilot page.
+      await closedLoop.reset(buildResetRequest(parameters, origin));
     }
     this.store.saveRun(run);
 
@@ -350,8 +351,9 @@ const csv = (value: string): string => `"${value.replaceAll("\"", "\"\"")}"`;
 const html = (value: string): string =>
   value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll("\"", "&quot;");
 
+// Environment only: origin/speed/wind/current for the engine's bench. No
+// waypoint/route/mode/engage — the operator drives the autopilot themselves.
 const buildResetRequest = (
-  scenario: { expectation?: { objective: string } | undefined },
   parameters: Record<string, number | boolean | string>,
   origin?: SimulationRunOrigin | undefined,
 ): SimulationBenchResetRequest => {
@@ -368,18 +370,5 @@ const buildResetRequest = (
   const currentDriftKt = asOptionalNumber(parameters["currentDriftKt"]);
   if (currentSetDeg !== undefined) request.currentSetDeg = currentSetDeg;
   if (currentDriftKt !== undefined) request.currentDriftKt = currentDriftKt;
-
-  if (scenario.expectation?.objective === "route") {
-    request.routeLegs = [
-      { bearingDeg: 0, distanceNm: 0.08 },
-      { bearingDeg: 90, distanceNm: 0.08 },
-      { bearingDeg: 180, distanceNm: 0.08 },
-    ];
-  } else if (scenario.expectation?.objective === "waypoint") {
-    request.waypoint = {
-      bearingDeg: asNumber(parameters["waypointBearingDeg"], asNumber(parameters["targetHeadingDeg"], 0)),
-      distanceNm: asNumber(parameters["waypointDistanceNm"], 0.12),
-    };
-  }
   return request;
 };

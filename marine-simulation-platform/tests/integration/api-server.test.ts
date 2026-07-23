@@ -7,7 +7,7 @@ import { getPresetScenario } from "../../src/scenarios/presets.js";
 
 test("SimulationApiServer exposes compatible API v2 scenario and run endpoints", async () => {
   const store = new MemoryStore();
-  const scenario = getPresetScenario("ap-sail-wind-gusts");
+  const scenario = getPresetScenario("env-wind");
   assert.ok(scenario);
   store.saveScenario(scenario);
   const runManager = new RunManager(store);
@@ -20,7 +20,7 @@ test("SimulationApiServer exposes compatible API v2 scenario and run endpoints",
     const arm = await postJson<{ token: string }>(`${base}/api/v2/arm`, {});
     assert.ok(arm.token);
     const run = await postJson<{ id: string; status: string }>(`${base}/api/v2/runs`, {
-      scenarioId: "ap-sail-wind-gusts",
+      scenarioId: "env-wind",
       armToken: arm.token,
       parameters: {},
       speed: 1,
@@ -44,7 +44,7 @@ test("SimulationApiServer exposes compatible API v2 scenario and run endpoints",
 
 test("SimulationApiServer reports unavailable closed-loop autopilot as 409", async () => {
   const store = new MemoryStore();
-  const scenario = getPresetScenario("ap-sail-wind-gusts");
+  const scenario = getPresetScenario("env-wind");
   assert.ok(scenario);
   store.saveScenario(scenario);
   const runManager = new RunManager(store);
@@ -57,7 +57,7 @@ test("SimulationApiServer reports unavailable closed-loop autopilot as 409", asy
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        scenarioId: "ap-sail-wind-gusts",
+        scenarioId: "env-wind",
         armToken: arm.token,
         parameters: {},
         mode: "closed-loop",
