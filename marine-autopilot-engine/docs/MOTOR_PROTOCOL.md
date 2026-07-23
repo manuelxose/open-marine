@@ -23,6 +23,10 @@ stops**.
 | ------------------------------ | -------------------------------------------------------------- |
 | `C,<rudderDeg>,<drive>,<en>`   | Command: target rudder angle in degrees (signed, + = stbd), normalised drive in [-1, 1] (sign = direction, magnitude = PWM duty with the engine's pwmMin/pwmMax already applied), and enable flag `0/1`. |
 | `H`                            | Heartbeat. Sent every control tick (≈10 Hz).                   |
+| `P`                            | Full safety/profile status query.                              |
+| `V`                            | Raw current ADC voltage query for zero calibration.            |
+| `A`                            | Explicit rearm, accepted only with valid safety inputs.        |
+| `X`                            | Immediate PWM=0 and disable.                                   |
 
 Examples: `C,12.5,0.40,1` (steer 12.5° stbd, 40% drive, enabled),
 `C,0,0,0` (centre, no drive, disabled), `H`.
@@ -50,8 +54,8 @@ and cuts the motor.
 2. **Enable flag:** never drive the motor unless the most recent `C` had
    `en = 1`.
 3. **Hardware e-stop:** a physical emergency button must cut motor power in
-   hardware, independent of the firmware, and (optionally) assert the e-stop
-   line the IO board publishes as `steering.autopilot.emergencyStop`.
+   hardware, independent of firmware. Its NC auxiliary contact ties Pico GP13
+   to GND when safe; open, pressed, or broken wire is a latched stop.
 4. **Local current/limit guard:** enforce a hard over-current cutoff and rudder
    end-stop limits locally, as a second line of defence below the engine limits.
 5. **Boot safe:** power up with the motor disabled and the relay open.
