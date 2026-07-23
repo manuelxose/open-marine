@@ -464,10 +464,18 @@ export const en = {
       arm_run: 'ARM & RUN',
       abort: 'ABORT / SAFE',
     },
+    run_banner: {
+      running: 'SIMULATION',
+      abort: 'ABORT',
+    },
     scenarios: {
       catalog: 'Scenario catalog',
       empty: 'No scenarios available.',
       timeline: 'Timeline',
+      mode_closed_loop: 'MOVES THE VESSEL',
+      mode_closed_loop_hint: 'Real engine: engages the autopilot and moves the vessel.',
+      mode_data: 'DATA ONLY',
+      mode_data_hint: 'Generates sample signals; does not engage the autopilot or move the vessel.',
     },
     execution: {
       title: 'Execution',

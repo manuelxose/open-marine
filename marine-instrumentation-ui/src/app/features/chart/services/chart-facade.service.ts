@@ -1652,6 +1652,10 @@ export class ChartFacadeService {
     map((s) => s.showTemperature),
   );
 
+  readonly weatherAirTemperatureVisible$ = this.settingsService.settings$.pipe(
+    map((s) => s.showAirTemperature),
+  );
+
   readonly weatherWindVisible$ = this.settingsService.settings$.pipe(map((s) => s.showWindSpeed));
 
   readonly weatherPrecipitationVisible$ = this.settingsService.settings$.pipe(
@@ -1663,6 +1667,10 @@ export class ChartFacadeService {
   readonly weatherPressureVisible$ = this.settingsService.settings$.pipe(
     map((s) => s.showPressure),
   );
+
+  readonly weatherWavesVisible$ = this.settingsService.settings$.pipe(map((s) => s.showWaves));
+  readonly environmentCurrentsVisible$ = this.settingsService.settings$.pipe(map((s) => s.showCurrents));
+  readonly environmentTime$ = this.settingsService.settings$.pipe(map((s) => s.environmentTime));
 
   readonly weatherOpacity$ = this.settingsService.settings$.pipe(map((s) => s.weatherOpacity));
 

@@ -18,6 +18,7 @@ import type {
 import { PATHS } from '@omi/marine-data-contract';
 import { DatapointStoreService } from '../../state/datapoints/datapoint-store.service';
 import type { DataPoint } from '../../state/datapoints/datapoint.models';
+import { bearingDegrees, haversineDistanceMeters } from '../../state/calculations/navigation';
 import { SimulationApiError, SimulationApiService, type RunSummary } from './simulation-api.service';
 
 export type SimulationTab = 'scenarios' | 'execution' | 'charts' | 'data' | 'history';
@@ -51,6 +52,18 @@ const LIVE_ORIGIN_MAX_AGE_MS = 30_000;
 const FALLBACK_ORIGIN: SimulationRunOrigin = { latitude: 42.2406, longitude: -8.7207, source: 'fallback' };
 
 const MOCK_EXPECTATIONS: Record<string, SimulationScenarioExpectation> = {
+  'motor-cruise': {
+    objective: 'heading',
+    summary: 'Motor cruise with adjustable boat speed.',
+    expectedMapBehavior: 'The vessel starts at the live position and moves on the selected course at the configured boat speed.',
+    expectedAutopilotBehavior: 'Autopilot is not part of this data scenario; motor and navigation telemetry remain available for bench inspection.',
+  },
+  'motor-cruise-wind': {
+    objective: 'wind',
+    summary: 'Motor cruise with adjustable boat speed and wind.',
+    expectedMapBehavior: 'The vessel moves under engine while true and apparent wind change with boat speed and heading.',
+    expectedAutopilotBehavior: 'Autopilot is not part of this data scenario; wind, motor and navigation telemetry remain available for bench inspection.',
+  },
   'ap-motor-heading-calm': {
     objective: 'heading',
     summary: 'Motor heading hold in calm water.',
@@ -75,18 +88,6 @@ const MOCK_EXPECTATIONS: Record<string, SimulationScenarioExpectation> = {
     expectedMapBehavior: 'The vessel changes heading as wind direction shifts, then settles on a new line.',
     expectedAutopilotBehavior: 'Autopilot remains in wind mode and recovers the target apparent wind angle.',
   },
-  'ap-track-waypoint': {
-    objective: 'waypoint',
-    summary: 'Track mode to a single waypoint.',
-    expectedMapBehavior: 'The vessel starts from live position and reduces distance to the generated waypoint.',
-    expectedAutopilotBehavior: 'Autopilot engages GPS/TRACK and reduces cross-track error.',
-  },
-  'ap-track-route': {
-    objective: 'route',
-    summary: 'Track mode through a multi-leg route.',
-    expectedMapBehavior: 'The vessel follows the generated route and advances between legs.',
-    expectedAutopilotBehavior: 'Autopilot publishes active leg progress and completes the route.',
-  },
   'ap-safety-low-voltage': {
     objective: 'safety',
     summary: 'Low-voltage failsafe.',
@@ -101,8 +102,6 @@ const LEGACY_EXPECTATION_ID: Record<string, string> = {
   'ap-safety': 'ap-safety-low-voltage',
   'ap-sail-adverse': 'ap-sail-wind-shift',
   'ap-motor-adverse': 'ap-motor-cross-current',
-  'nav-sail': 'ap-track-waypoint',
-  'nav-motor': 'ap-track-route',
 };
 
 const SCENARIO_DESCRIPTION_FALLBACKS: Record<string, string> = {
@@ -111,10 +110,6 @@ const SCENARIO_DESCRIPTION_FALLBACKS: Record<string, string> = {
   'ap-safety': 'Prueba de seguridad: baja la tension hasta provocar FAULT y confirmar que el drive queda deshabilitado.',
   'ap-sail-adverse': 'Prueba dura de viento: rachas, rolada fuerte y guiñada para comprobar que el piloto recupera el angulo de viento.',
   'ap-motor-adverse': 'Prueba a motor con corriente lateral: el barco deriva de COG y el piloto corrige el heading sin entrar en fallo.',
-  'nav-sail': 'Seguimiento hacia waypoint desde la posicion live: comprueba bearing, distancia, XTE y respuesta del piloto en TRACK.',
-  'nav-motor': 'Ruta de varios tramos desde la posicion live: comprueba avance de leg, reduccion de XTE y finalizacion de ruta.',
-  'ap-track-waypoint': 'Seguimiento hacia waypoint desde la posicion live: comprueba bearing, distancia, XTE y respuesta del piloto en TRACK.',
-  'ap-track-route': 'Ruta de varios tramos desde la posicion live: comprueba avance de leg, reduccion de XTE y finalizacion de ruta.',
 };
 
 const LEGACY_SCENARIO_NAMES: Record<string, string> = {
@@ -123,8 +118,6 @@ const LEGACY_SCENARIO_NAMES: Record<string, string> = {
   'ap-safety': 'Autopilot - Safety Low Voltage',
   'ap-sail-adverse': 'Autopilot - Sail Wind Shift',
   'ap-motor-adverse': 'Autopilot - Motor Cross Current',
-  'nav-sail': 'Autopilot - Track Waypoint',
-  'nav-motor': 'Autopilot - Track Route',
 };
 
 const enrichScenarioDefinition = (scenario: SimulationScenarioDocument): SimulationScenarioDocument => {
@@ -190,10 +183,6 @@ const MOCK_AP: SimulationChannelDefinition[] = [
   { id: 'ap.driveCurrent', label: 'Drive Current', path: 'steering.autopilot.drive.motorCurrent', kind: 'analog', dimension: 'current', canonicalUnit: 'A', allowedUnits: ['A'], precision: 2, range: { min: 0, max: 30 }, limits: { high: 10, criticalHigh: 15 } },
 ];
 
-const MOCK_DEPTH: SimulationChannelDefinition = {
-  id: 'depth.belowTransducer', label: 'Depth', path: 'environment.depth.belowTransducer', kind: 'analog', dimension: 'depth', canonicalUnit: 'm', allowedUnits: ['m', 'ft'], precision: 2, range: { min: 0, max: 100 }, limits: { low: 2, criticalLow: 1 },
-};
-
 const generalParams = (durationMs: number): SimulationScenarioDocument['parameters'] => [
   { id: 'seed', label: 'Random Seed', type: 'number', defaultValue: 42, min: 1, max: 9999, step: 1, group: 'General' },
   { id: 'speed', label: 'Simulation Speed', type: 'number', defaultValue: 1, min: 0.25, max: 4, step: 0.25, unit: 'x', group: 'General' },
@@ -209,23 +198,70 @@ const NAV_PARAMS: SimulationScenarioDocument['parameters'] = [
   { id: 'boatSpeedKt', label: 'Boat Speed', type: 'number', defaultValue: 6.5, min: 0, max: 20, step: 0.5, unit: 'kt', group: 'Navigation' },
   { id: 'courseDeg', label: 'Base Course', type: 'number', defaultValue: 66, min: 0, max: 360, step: 1, unit: 'deg', group: 'Navigation' },
 ];
-const CURRENT_PARAMS: SimulationScenarioDocument['parameters'] = [
-  { id: 'currentSetDeg', label: 'Current Set', type: 'number', defaultValue: 90, min: 0, max: 360, step: 1, unit: 'deg', group: 'Tide / Current' },
-  { id: 'currentDriftKt', label: 'Current Drift', type: 'number', defaultValue: 0.2, min: 0, max: 5, step: 0.1, unit: 'kt', group: 'Tide / Current' },
-];
-const WAYPOINT_PARAMS: SimulationScenarioDocument['parameters'] = [
-  { id: 'waypointBearingDeg', label: 'Waypoint Bearing', type: 'number', defaultValue: 0, min: 0, max: 360, step: 1, unit: 'deg', group: 'Track' },
-  { id: 'waypointDistanceNm', label: 'Waypoint Distance', type: 'number', defaultValue: 0.12, min: 0.03, max: 2, step: 0.01, unit: 'NM', group: 'Track' },
-];
 
 const MOCK_SCENARIOS: SimulationScenarioDocument[] = [
+  {
+    id: 'motor-cruise',
+    version: '1.0.0',
+    name: 'Motor - Cruise',
+    description: 'Engine-on navigation data scenario: moving vessel, adjustable boat speed/course, engine RPM, coolant, oil, fuel and battery telemetry. No autopilot channels are included.',
+    category: 'motor',
+    mode: 'data',
+    defaultDurationMs: 180_000,
+    defaultSpeed: 1,
+    parameters: [
+      ...generalParams(180_000),
+      ...NAV_PARAMS,
+      { id: 'batteryV', label: 'Battery Voltage', type: 'number', defaultValue: 12.8, min: 10, max: 16, step: 0.1, unit: 'V', group: 'Electrical' },
+      { id: 'engineRpm', label: 'Engine RPM', type: 'number', defaultValue: 1800, min: 0, max: 3000, step: 50, unit: 'rpm', group: 'Engine' },
+    ],
+    channels: [...MOCK_NAV, ...MOCK_ELEC, ...MOCK_ENGINE],
+    timeline: [
+      { id: 'start', atSimulatedMs: 0, type: 'marker', label: 'Engine running' },
+      { id: 'cruise', atSimulatedMs: 30_000, type: 'marker', label: 'Cruise speed established' },
+      { id: 'monitor', atSimulatedMs: 90_000, type: 'marker', label: 'Motor telemetry stable' },
+    ],
+    expectation: MOCK_EXPECTATIONS['motor-cruise'],
+    tags: ['motor', 'engine', 'cruise', 'navigation'],
+    isPreset: true,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: 'motor-cruise-wind',
+    version: '1.0.0',
+    name: 'Motor - Cruise With Wind',
+    description: 'Engine-on navigation data scenario with true and apparent wind: adjust boat speed/course, engine RPM and wind to inspect how AWS/AWA change while motoring. No autopilot channels are included.',
+    category: 'motor',
+    mode: 'data',
+    defaultDurationMs: 180_000,
+    defaultSpeed: 1,
+    parameters: [
+      ...generalParams(180_000),
+      ...NAV_PARAMS,
+      { id: 'batteryV', label: 'Battery Voltage', type: 'number', defaultValue: 12.8, min: 10, max: 16, step: 0.1, unit: 'V', group: 'Electrical' },
+      { id: 'engineRpm', label: 'Engine RPM', type: 'number', defaultValue: 1800, min: 0, max: 3000, step: 50, unit: 'rpm', group: 'Engine' },
+      ...WIND_PARAMS,
+    ],
+    channels: [...MOCK_NAV, ...MOCK_WIND, ...MOCK_ELEC, ...MOCK_ENGINE],
+    timeline: [
+      { id: 'start', atSimulatedMs: 0, type: 'marker', label: 'Engine running with wind data' },
+      { id: 'cruise', atSimulatedMs: 30_000, type: 'marker', label: 'Cruise speed established' },
+      { id: 'wind', atSimulatedMs: 60_000, type: 'marker', label: 'Apparent wind visible' },
+    ],
+    expectation: MOCK_EXPECTATIONS['motor-cruise-wind'],
+    tags: ['motor', 'engine', 'cruise', 'wind', 'navigation'],
+    isPreset: true,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
   {
     id: 'ap-sail-wind-gusts',
     version: '1.0.0',
     name: 'Autopilot - Sail Wind Gusts',
     description: 'Piloto en modo viento: gobierna a un ángulo de viento aparente objetivo. Velero en movimiento, viento real + aparente, detección de racha, respuesta de timón y drive.',
     category: 'safety',
-    mode: 'data',
+    mode: 'closed-loop',
     defaultDurationMs: 180_000,
     defaultSpeed: 1,
     parameters: [
@@ -252,7 +288,7 @@ const MOCK_SCENARIOS: SimulationScenarioDocument[] = [
     name: 'Autopilot - Motor Heading Calm',
     description: 'Piloto manteniendo rumbo de compás a motor: velero en movimiento, RPM/temperatura de motor, corriente de drive, timón y heading objetivo vs real.',
     category: 'safety',
-    mode: 'data',
+    mode: 'closed-loop',
     defaultDurationMs: 180_000,
     defaultSpeed: 1,
     parameters: [
@@ -281,7 +317,7 @@ const MOCK_SCENARIOS: SimulationScenarioDocument[] = [
     name: 'Autopilot - Safety Low Voltage',
     description: 'Caso failsafe: a motor con heading hold hasta que la tensión cae bajo el corte, forzando FAULT y deshabilitando el drive.',
     category: 'safety',
-    mode: 'data',
+    mode: 'closed-loop',
     defaultDurationMs: 120_000,
     defaultSpeed: 1,
     parameters: [
@@ -308,7 +344,7 @@ const MOCK_SCENARIOS: SimulationScenarioDocument[] = [
     name: 'Autopilot - Sail Wind Shift',
     description: 'Prueba de estrés en modo viento: viento fuerte y rolón, rachas frecuentes, guiñada por olas y peligro de trasluchada accidental. El piloto recupera el AWA con grandes movimientos de timón y corriente de drive.',
     category: 'safety',
-    mode: 'data',
+    mode: 'closed-loop',
     defaultDurationMs: 180_000,
     defaultSpeed: 1,
     parameters: [
@@ -339,7 +375,7 @@ const MOCK_SCENARIOS: SimulationScenarioDocument[] = [
     name: 'Autopilot - Motor Cross Current',
     description: 'Prueba de estrés en heading-hold a motor con mar de través/corriente cruzada: fuertes guiñadas desvían la proa y el piloto aplica correcciones de timón grandes y frecuentes a alta corriente de drive.',
     category: 'safety',
-    mode: 'data',
+    mode: 'closed-loop',
     defaultDurationMs: 180_000,
     defaultSpeed: 1,
     parameters: [
@@ -364,64 +400,6 @@ const MOCK_SCENARIOS: SimulationScenarioDocument[] = [
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   },
-  {
-    id: 'ap-track-waypoint',
-    version: '1.0.0',
-    name: 'Autopilot - Track Waypoint',
-    description: 'TRACK mode to a generated waypoint from the live start position. Tunable speed, waypoint bearing/distance, wind and current.',
-    category: 'navigation' as SimulationScenarioDocument['category'],
-    mode: 'data',
-    defaultDurationMs: 300_000,
-    defaultSpeed: 1,
-    parameters: [
-      ...generalParams(300_000),
-      ...NAV_PARAMS.slice(0, 1),
-      ...WAYPOINT_PARAMS,
-      ...CURRENT_PARAMS,
-      ...WIND_PARAMS.slice(0, 2),
-    ],
-    channels: [...MOCK_NAV, ...MOCK_WIND, ...MOCK_ELEC, ...MOCK_ENGINE, ...MOCK_AP],
-    timeline: [
-      { id: 'start', atSimulatedMs: 0, type: 'marker', label: 'Generate waypoint from live position' },
-      { id: 'track', atSimulatedMs: 10_000, type: 'marker', label: 'TRACK engaged' },
-      { id: 'approach', atSimulatedMs: 90_000, type: 'marker', label: 'Distance and XTE reducing' },
-    ],
-    expectation: MOCK_EXPECTATIONS['ap-track-waypoint'],
-    tags: ['autopilot', 'track', 'waypoint', 'gps', 'closed-loop'],
-    isPreset: true,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: 'ap-track-route',
-    version: '1.0.0',
-    name: 'Autopilot - Track Route',
-    description: 'TRACK mode through a generated three-leg route from the live start position. Watch active leg, XTE and completion.',
-    category: 'navigation' as SimulationScenarioDocument['category'],
-    mode: 'data',
-    defaultDurationMs: 300_000,
-    defaultSpeed: 1,
-    parameters: [
-      ...generalParams(300_000),
-      ...NAV_PARAMS.slice(0, 1),
-      ...CURRENT_PARAMS,
-      { id: 'engineRpm', label: 'Engine RPM', type: 'number', defaultValue: 1800, min: 0, max: 3000, step: 50, unit: 'rpm', group: 'Engine' },
-      { id: 'batteryV', label: 'Battery Voltage', type: 'number', defaultValue: 12.8, min: 10, max: 16, step: 0.1, unit: 'V', group: 'Electrical' },
-      ...WIND_PARAMS.slice(0, 2),
-    ],
-    channels: [...MOCK_NAV, ...MOCK_WIND, MOCK_DEPTH, ...MOCK_ELEC, ...MOCK_ENGINE],
-    timeline: [
-      { id: 'start', atSimulatedMs: 0, type: 'marker', label: 'Generate three-leg route' },
-      { id: 'leg1', atSimulatedMs: 20_000, type: 'marker', label: 'Leg 1 tracking' },
-      { id: 'leg2', atSimulatedMs: 90_000, type: 'marker', label: 'Leg advance expected' },
-      { id: 'complete', atSimulatedMs: 180_000, type: 'marker', label: 'Route completion expected' },
-    ],
-    expectation: MOCK_EXPECTATIONS['ap-track-route'],
-    tags: ['autopilot', 'track', 'route', 'gps', 'closed-loop'],
-    isPreset: true,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
 ];
 
 // ── Offline simulation engine ───────────────────────────────────────────────
@@ -429,6 +407,7 @@ const MOCK_SCENARIOS: SimulationScenarioDocument[] = [
 interface OfflineRunState {
   run: SimulationRun;
   origin: SimulationRunOrigin;
+  vesselPosition: GeoPosition;
   events: SimulationEvent[];
   samples: Map<string, ChannelSample[]>;
   snapshots: Map<string, SimulationChannelSnapshot>;
@@ -437,6 +416,27 @@ interface OfflineRunState {
   simulatedMs: number;
   tick: number;
   lastPublishedAt: number;
+  lastKinematicsTick: number;
+  lastKinematicsSimulatedMs: number;
+  lastCourseRad: number | null;
+  cachedKinematics: OfflineKinematics | null;
+}
+
+interface GeoPosition {
+  latitude: number;
+  longitude: number;
+}
+
+interface OfflineKinematics {
+  courseRad: number;
+  headingRad: number;
+  sogMs: number;
+  latitude: number;
+  longitude: number;
+  twsMs: number;
+  twdRad: number;
+  awsMs: number;
+  awaRad: number;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -777,6 +777,7 @@ export class SimulationFacadeService {
     const state: OfflineRunState = {
       run,
       origin,
+      vesselPosition: { latitude: origin.latitude, longitude: origin.longitude },
       events: [],
       samples: new Map(),
       snapshots: new Map(),
@@ -785,6 +786,10 @@ export class SimulationFacadeService {
       simulatedMs: 0,
       tick: 0,
       lastPublishedAt: 0,
+      lastKinematicsTick: -1,
+      lastKinematicsSimulatedMs: 0,
+      lastCourseRad: null,
+      cachedKinematics: null,
     };
     this.offlineRun = state;
 
@@ -883,7 +888,43 @@ export class SimulationFacadeService {
     }
     if (points.length > 0) {
       this.zone.runOutsideAngular(() => this.store.update(points));
+      this.publishOfflineRouteProgress(points);
     }
+  }
+
+  private publishOfflineRouteProgress(points: DataPoint[]): void {
+    const position = this.asGeoPosition(points.find((point) => point.path === PATHS.navigation.position)?.value);
+    if (!position) return;
+    const target = this.activeRouteTarget();
+    if (!target) return;
+
+    const distanceM = haversineDistanceMeters(
+      { lat: position.latitude, lon: position.longitude },
+      { lat: target.latitude, lon: target.longitude },
+    );
+    const bearingRad = bearingDegrees(
+      { lat: position.latitude, lon: position.longitude },
+      { lat: target.latitude, lon: target.longitude },
+    ) * Math.PI / 180;
+    const sog = points.find((point) => point.path === PATHS.navigation.speedOverGround)?.value;
+    const complete = distanceM <= 8;
+    const timestamp = Date.now();
+    const routePoints: DataPoint[] = [
+      { path: PATHS.navigation.courseGreatCircle.nextPoint.bearingTrue, value: bearingRad, timestamp, source: 'simulation-route-follower' },
+      { path: PATHS.navigation.courseGreatCircle.bearingTrackTrue, value: bearingRad, timestamp, source: 'simulation-route-follower' },
+      { path: PATHS.navigation.courseGreatCircle.nextPoint.distance, value: distanceM, timestamp, source: 'simulation-route-follower' },
+      { path: PATHS.navigation.courseGreatCircle.crossTrackError, value: 0, timestamp, source: 'simulation-route-follower' },
+      { path: PATHS.navigation.courseGreatCircle.nextPoint.velocityMadeGood, value: typeof sog === 'number' ? sog : 0, timestamp, source: 'simulation-route-follower' },
+      { path: PATHS.steering.autopilot.route.complete, value: complete, timestamp, source: 'simulation-route-follower' },
+    ];
+    if (complete) {
+      routePoints.push(
+        { path: PATHS.steering.autopilot.state, value: 'standby', timestamp, source: 'simulation-route-follower' },
+        { path: PATHS.steering.autopilot.engaged, value: false, timestamp, source: 'simulation-route-follower' },
+        { path: PATHS.steering.autopilot.drive.enabled, value: false, timestamp, source: 'simulation-route-follower' },
+      );
+    }
+    this.zone.runOutsideAngular(() => this.store.update(routePoints));
   }
 
   private resolveRunOrigin(): SimulationRunOrigin {
@@ -910,6 +951,47 @@ export class SimulationFacadeService {
     return FALLBACK_ORIGIN;
   }
 
+  private activeRouteTarget(): GeoPosition | null {
+    const apState = this.store.get<string>(PATHS.steering.autopilot.state)?.value;
+    if (apState !== 'route') return null;
+    if (this.store.get<boolean>(PATHS.steering.autopilot.route.complete)?.value === true) return null;
+
+    const waypoints = this.normalizeRouteWaypoints(this.store.get<unknown>(PATHS.steering.autopilot.route.waypoints)?.value);
+    if (waypoints.length === 0) return null;
+
+    const rawLeg = this.store.get<number>(PATHS.steering.autopilot.route.activeLeg)?.value;
+    const legIndex = typeof rawLeg === 'number' && Number.isFinite(rawLeg)
+      ? Math.max(0, Math.min(waypoints.length - 1, Math.trunc(rawLeg)))
+      : waypoints.length - 1;
+    return waypoints[legIndex] ?? waypoints[waypoints.length - 1] ?? null;
+  }
+
+  private normalizeRouteWaypoints(value: unknown): GeoPosition[] {
+    if (!Array.isArray(value)) return [];
+    const result: GeoPosition[] = [];
+    for (const item of value) {
+      const position = this.asGeoPosition(item) ?? this.asGeoPosition((item as { position?: unknown } | null)?.position);
+      if (position) result.push(position);
+    }
+    return result;
+  }
+
+  private asGeoPosition(value: unknown): GeoPosition | null {
+    if (!value || typeof value !== 'object') return null;
+    if (Array.isArray(value) && value.length >= 2) {
+      const [longitude, latitude] = value as unknown[];
+      return this.validGeoPosition(latitude, longitude);
+    }
+    const candidate = value as { latitude?: unknown; longitude?: unknown; lat?: unknown; lon?: unknown };
+    return this.validGeoPosition(candidate.latitude ?? candidate.lat, candidate.longitude ?? candidate.lon);
+  }
+
+  private validGeoPosition(latitude: unknown, longitude: unknown): GeoPosition | null {
+    if (typeof latitude !== 'number' || typeof longitude !== 'number') return null;
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
+    return { latitude, longitude };
+  }
+
   private publishOfflineState(state: OfflineRunState): void {
     const snapshots = new Map(state.snapshots);
     const samples = new Map(state.samples);
@@ -932,31 +1014,71 @@ export class SimulationFacadeService {
     courseRad: number; headingRad: number; sogMs: number; latitude: number; longitude: number;
     twsMs: number; twdRad: number; awsMs: number; awaRad: number;
   } {
+    const state = this.offlineRun;
+    if (state?.cachedKinematics && state.lastKinematicsTick === state.tick) {
+      return state.cachedKinematics;
+    }
+    const params = this.parameters();
+    const num = (key: string, fallback: number): number => typeof params[key] === 'number' ? params[key] as number : fallback;
+    const boatSpeedKt = num('boatSpeedKt', adverse ? 6.2 : 7.8);
+    const courseDeg = num('courseDeg', 66);
+    const windSpeedKt = num('windSpeedKt', adverse ? 20 : 12);
+    const windDirDeg = num('windDirDeg', 45);
+    const gustProbability = num('gustProbability', adverse ? 0.4 : 0.1);
+    const gustMaxDeltaKt = num('gustMaxDeltaKt', adverse ? 10 : 5);
+    const ktToMs = 0.514444;
+
     // Adverse runs add big wave/current yaw and wind shifts so the offline pilot has to fight back.
     const isGust = adverse ? t % 30 >= 18 && t % 30 < 27 : t % 60 >= 42 && t % 60 < 54;
     const disturbance = adverse
       ? 0.32 * Math.sin(t / 6.5) + 0.16 * Math.sin(t / 2.1) + (isGust ? 0.28 * Math.sin(t * 1.7) : 0)
       : 0;
-    const courseRad = wrapRadians((66 * Math.PI) / 180 + (seed % 31) * 0.003 + 0.18 * Math.sin(t / 90) + disturbance);
+    const baseCourseRad = wrapRadians((courseDeg * Math.PI) / 180 + (seed % 31) * 0.003 + 0.18 * Math.sin(t / 90) + disturbance);
+    const activeTarget = this.activeRouteTarget();
+    const previousPosition = state?.vesselPosition ?? { latitude: (this.offlineRun?.origin ?? FALLBACK_ORIGIN).latitude, longitude: (this.offlineRun?.origin ?? FALLBACK_ORIGIN).longitude };
+    const targetCourseRad = activeTarget
+      ? bearingDegrees(
+          { lat: previousPosition.latitude, lon: previousPosition.longitude },
+          { lat: activeTarget.latitude, lon: activeTarget.longitude },
+        ) * Math.PI / 180
+      : baseCourseRad;
+    const maxTurnRad = (activeTarget ? 10 : 25) * Math.PI / 180 * Math.max(0.1, state ? (state.simulatedMs - state.lastKinematicsSimulatedMs) / 1000 : 0.1);
+    const courseRad = state?.lastCourseRad === null || state?.lastCourseRad === undefined
+      ? targetCourseRad
+      : approachAngle(state.lastCourseRad, targetCourseRad, maxTurnRad);
     const headingRad = wrapRadians(courseRad + 0.06 * Math.sin(t * 0.05));
-    const sogMs = Math.max(0, (adverse ? 3.2 : 4.0) + 0.6 * Math.sin(t / 30) + (adverse ? 0.5 * Math.sin(t / 4) : 0));
+    const sogMs = Math.max(0, boatSpeedKt * ktToMs + 0.6 * Math.sin(t / 30) + (adverse ? 0.5 * Math.sin(t / 4) : 0));
 
-    const origin = this.offlineRun?.origin ?? FALLBACK_ORIGIN;
-    const originLat = origin.latitude;
-    const originLon = origin.longitude;
-    const distanceMeters = sogMs * t;
-    const north = Math.cos(courseRad) * distanceMeters;
-    const east = Math.sin(courseRad) * distanceMeters;
-    const latitude = originLat + north / 111_320;
-    const longitude = originLon + east / (111_320 * Math.cos((originLat * Math.PI) / 180));
+    const dtSeconds = Math.max(0, state ? (state.simulatedMs - state.lastKinematicsSimulatedMs) / 1000 : t);
+    const distanceToTarget = activeTarget
+      ? haversineDistanceMeters(
+          { lat: previousPosition.latitude, lon: previousPosition.longitude },
+          { lat: activeTarget.latitude, lon: activeTarget.longitude },
+        )
+      : Number.POSITIVE_INFINITY;
+    const stepMeters = Math.min(sogMs * dtSeconds, distanceToTarget);
+    const nextPosition = activeTarget && distanceToTarget <= 8
+      ? activeTarget
+      : projectPosition(previousPosition, courseRad, stepMeters);
+    const latitude = nextPosition.latitude;
+    const longitude = nextPosition.longitude;
 
-    const twsMs = (adverse ? 10 : 6) + 2 * Math.sin(t * 0.05);
-    const twdRad = wrapRadians((45 * Math.PI) / 180 + 0.2 * Math.sin(t / 120) + (adverse ? 0.45 * Math.sin(t / 17) : 0));
+    const gustMs = isGust ? gustProbability * gustMaxDeltaKt * ktToMs * Math.max(0, Math.sin(t * 1.3)) : 0;
+    const twsMs = Math.max(0, windSpeedKt * ktToMs + 2 * Math.sin(t * 0.05) + gustMs);
+    const twdRad = wrapRadians((windDirDeg * Math.PI) / 180 + 0.2 * Math.sin(t / 120) + (adverse ? 0.45 * Math.sin(t / 17) : 0));
     const twa = wrapToPi(twdRad - headingRad);
     const awsMs = Math.sqrt(twsMs * twsMs + sogMs * sogMs + 2 * twsMs * sogMs * Math.cos(twa));
     const awaRad = Math.atan2(twsMs * Math.sin(twa), twsMs * Math.cos(twa) + sogMs);
 
-    return { courseRad, headingRad, sogMs, latitude, longitude, twsMs, twdRad, awsMs, awaRad };
+    const kinematics = { courseRad, headingRad, sogMs, latitude, longitude, twsMs, twdRad, awsMs, awaRad };
+    if (state) {
+      state.vesselPosition = nextPosition;
+      state.lastCourseRad = courseRad;
+      state.lastKinematicsSimulatedMs = state.simulatedMs;
+      state.lastKinematicsTick = state.tick;
+      state.cachedKinematics = kinematics;
+    }
+    return kinematics;
   }
 
   private generateOfflineValue(channelId: string, simulatedMs: number, seed: number, scenarioId: string): unknown {
@@ -1020,7 +1142,7 @@ export class SimulationFacadeService {
     const adverse = scenarioId === 'ap-sail-wind-shift' || scenarioId === 'ap-motor-cross-current';
     const kind =
       scenarioId === 'ap-sail-wind-gusts' || scenarioId === 'ap-sail-wind-shift' ? 'sail'
-      : scenarioId === 'ap-motor-heading-calm' || scenarioId === 'ap-motor-cross-current' || scenarioId === 'ap-track-waypoint' || scenarioId === 'ap-track-route' ? 'motor'
+      : scenarioId === 'ap-motor-heading-calm' || scenarioId === 'ap-motor-cross-current' ? 'motor'
       : scenarioId === 'ap-safety-low-voltage' ? 'safety'
       : null;
     const params = this.parameters();
@@ -1413,4 +1535,19 @@ const wrapRadians = (value: number): number => ((value % (Math.PI * 2)) + Math.P
 const wrapToPi = (value: number): number => {
   const wrapped = wrapRadians(value);
   return wrapped > Math.PI ? wrapped - Math.PI * 2 : wrapped;
+};
+
+const approachAngle = (current: number, target: number, maxDelta: number): number => {
+  const delta = wrapToPi(target - current);
+  if (Math.abs(delta) <= maxDelta) return wrapRadians(target);
+  return wrapRadians(current + Math.sign(delta) * maxDelta);
+};
+
+const projectPosition = (origin: GeoPosition, bearingRad: number, distanceMeters: number): GeoPosition => {
+  if (distanceMeters <= 0) return origin;
+  const north = Math.cos(bearingRad) * distanceMeters;
+  const east = Math.sin(bearingRad) * distanceMeters;
+  const latitude = origin.latitude + north / 111_320;
+  const longitude = origin.longitude + east / (111_320 * Math.cos((origin.latitude * Math.PI) / 180));
+  return { latitude, longitude };
 };

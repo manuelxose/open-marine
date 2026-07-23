@@ -7,6 +7,17 @@ import { RouteService } from './route.service';
 import { SignalKClientService } from '../../../data-access/signalk/signalk-client.service';
 import { BehaviorSubject } from 'rxjs';
 import { firstValueFrom } from 'rxjs'; // Fix import
+import { provideHttpClient } from '@angular/common/http';
+import { APP_ENVIRONMENT, type AppEnvironment } from '../../../core/config/app-environment.token';
+
+const environment: AppEnvironment = {
+  signalKBaseUrl: 'http://localhost:3000/signalk/v1/api',
+  signalKWsUrl: 'ws://localhost:3000/signalk/v1/stream',
+  autopilotApiUrl: 'http://localhost:3990',
+  testBenchApiUrl: 'http://localhost:4100',
+  chartEngineApiUrl: 'http://localhost:8088',
+  weatherApiUrl: 'https://api.open-meteo.com/v1/forecast',
+};
 
 describe('ChartFacadeService', () => {
   let service: ChartFacadeService;
@@ -32,7 +43,9 @@ describe('ChartFacadeService', () => {
 
     TestBed.configureTestingModule({
       providers: [
+        provideHttpClient(),
         ChartFacadeService,
+        { provide: APP_ENVIRONMENT, useValue: environment },
         { provide: DatapointStoreService, useValue: datapointStoreMock },
         { provide: ChartSettingsService, useValue: chartSettingsMock },
         { provide: WaypointService, useValue: waypointServiceMock },

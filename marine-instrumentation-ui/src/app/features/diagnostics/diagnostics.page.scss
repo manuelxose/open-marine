@@ -289,6 +289,13 @@ button {
   letter-spacing: 0.06em;
 }
 
+.catalog-badges {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
+}
+
 /* scenario-main: config + run-panel side by side, each scrolls independently.
    Prevents the run-panel from overlapping the config / ARM & RUN button when a
    scenario's timeline or parameters are tall. */
@@ -1149,7 +1156,8 @@ td.dead {
 .category-badge,
 .group-chip,
 .quality,
-.run-status {
+.run-status,
+.mode-badge {
   padding: 3px 7px;
   border-radius: var(--radius-full);
   color: var(--gb-text-muted);
@@ -1158,6 +1166,11 @@ td.dead {
   font-size: 0.6rem;
   font-weight: 800;
   letter-spacing: 0.06em;
+}
+
+.mode-badge--closed-loop {
+  color: var(--gb-data-good);
+  border-color: var(--gb-data-good);
 }
 
 .run-status[data-status='passed'],

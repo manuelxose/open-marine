@@ -1,5 +1,4 @@
 import { Injectable, inject } from '@angular/core';
-import { Router } from '@angular/router';
 import { WaypointStoreService } from '../../state/resources/waypoint-store.service';
 import { RouteStoreService } from '../../state/resources/route-store.service';
 import { TrackStoreService, Track } from '../../state/resources/track-store.service';
@@ -22,7 +21,6 @@ export class ResourcesFacadeService {
   private readonly autopilotService = inject(SignalKAutopilotService);
   private readonly autopilotStore = inject(AutopilotStoreService);
   private readonly decisionLog = inject(AutopilotDecisionLogService);
-  private readonly router = inject(Router);
   private readonly toast = inject(AppToastService);
 
   readonly waypoints$ = this.waypointStore.waypoints$;
@@ -120,30 +118,23 @@ export class ResourcesFacadeService {
   }
 
   /**
-   * Once a destination is set, follow it with the autopilot only if it is already
-   * engaged (AUTO/WIND/ROUTE) — switch it to ROUTE so it tracks the waypoint. From
-   * STANDBY we never auto-engage (safety: STANDBY by default); the explicit,
-   * persistent confirmation lives on the autopilot page ("FOLLOW IN TRACK" banner),
-   * so we route the operator there instead of engaging silently.
+   * The operator clicked Navigate/Follow on a resource, so this is an explicit
+   * request to engage ROUTE after the destination has been set.
    */
   private engageRouteIfActive() {
       const state = this.autopilotStore.getSnapshot<string>(AUTOPILOT_PATHS.state) ?? 'standby';
-      if (state === 'auto' || state === 'wind' || state === 'route') {
+      if (state === 'fault') {
+          this.toast.show({ message: 'Piloto en FALLO: resuelvelo antes de navegar', type: 'warning' });
+          return;
+      }
+
+      if (state === 'auto' || state === 'wind' || state === 'route' || state === 'standby') {
           this.autopilotService.engage('route').subscribe({
               next: () => this.toast.show({ message: 'Piloto en modo ROUTE: siguiendo al destino', type: 'success' }),
               error: () => this.toast.show({ message: 'No se pudo activar el modo ROUTE', type: 'error' }),
           });
-      } else if (state === 'standby') {
-          this.toast.show({
-              message: 'Destino fijado. Abre el Piloto y pulsa SEGUIR EN TRACK.',
-              type: 'info',
-              action: {
-                  label: 'Ir al Piloto',
-                  callback: () => { void this.router.navigate(['/autopilot']); },
-              },
-          });
       } else {
-          this.toast.show({ message: 'Piloto en FALLO: resuélvelo antes de navegar', type: 'warning' });
+          this.toast.show({ message: 'Destino fijado. Revisa el piloto automatico.', type: 'info' });
       }
   }
 

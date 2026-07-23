@@ -83,6 +83,7 @@ export interface ChartDownloadJob {
 export interface AreaDownloadProgress {
   totalTiles: number;
   downloadedTiles: number;
+  skippedTiles: number;
   failedTiles: number;
   currentZoom: number;
 }
