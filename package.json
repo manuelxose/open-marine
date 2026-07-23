@@ -51,6 +51,7 @@
     "charts:import-mbtiles": "npm run import:mbtiles -w marine-chart-engine --",
     "charts:convert-raster": "npm run convert:raster -w marine-chart-engine --",
     "charts:convert-s57": "npm run convert:s57 -w marine-chart-engine --",
+    "charts:sync-copernicus": "npm run sync:copernicus -w marine-chart-engine",
     "status": "node scripts/status.mjs"
   },
   "devDependencies": {

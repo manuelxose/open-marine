@@ -80,7 +80,7 @@ export const createCatalogRouter = (
         status: deriveRemoteChartStatus(recordByChartId.get(entry.id) ?? null, {
           lastUpdated: entry.lastUpdated,
           sizeBytes: entry.sizeBytes,
-          downloadable: isDownloadable(entry),
+          downloadable: isDownloadable(entry, provider.availability),
         }),
       }));
 
@@ -146,6 +146,7 @@ export const createCatalogRouter = (
       const bbox = readBBox(body, 'bbox');
       const minZoom = readInt(body, 'minZoom');
       const maxZoom = readInt(body, 'maxZoom');
+
       assertZoomRange(minZoom, maxZoom);
       res.json(estimateAreaDownload(bbox, minZoom, maxZoom));
     } catch (error) {
@@ -162,6 +163,19 @@ export const createCatalogRouter = (
       const bbox = readBBox(body, 'bbox');
       const minZoom = readInt(body, 'minZoom');
       const maxZoom = readInt(body, 'maxZoom');
+
+      const provider = catalog.get(providerId);
+      if (!provider) {
+        res.status(404).json({ error: 'provider_not_found' });
+        return;
+      }
+      if (provider.availability !== 'offline-capable') {
+        res.status(403).json({
+          error: 'provider_online_only',
+          message: `${provider.name} cannot be bulk-cached. Import a legally obtained local extract instead.`,
+        });
+        return;
+      }
 
       assertZoomRange(minZoom, maxZoom);
       const estimate = estimateAreaDownload(bbox, minZoom, maxZoom);
@@ -208,11 +222,11 @@ export const createCatalogRouter = (
   return router;
 };
 
-const isDownloadable = (entry: RemoteChartEntry): boolean => {
+const isDownloadable = (entry: RemoteChartEntry, availability: 'online' | 'offline-capable' | 'subscription'): boolean => {
+  if (availability !== 'offline-capable') return false;
   if (entry.format === 's57') {
     return Boolean(entry.downloadUrl);
   }
-  // wms-layer / xyz-tiles / geotiff / mbtiles can be cached offline via area download.
   return true;
 };
 

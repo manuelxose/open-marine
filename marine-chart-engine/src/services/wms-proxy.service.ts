@@ -1,4 +1,5 @@
 import type { TileCacheService } from './tile-cache.service.js';
+import { isValidTileImage } from './tile-image-validation.js';
 
 export interface WmsProviderConfig {
   id: string;
@@ -68,7 +69,10 @@ export class WmsProxyService {
     // Check cache first
     const cached = await this.cache.get(cacheId, z, x, y);
     if (cached) {
-      return { data: cached.data, contentType: cached.contentType };
+      if (isValidTileImage(cached.contentType, cached.data)) {
+        return { data: cached.data, contentType: cached.contentType };
+      }
+      await this.cache.delete(cacheId, z, x, y);
     }
 
     const bbox = this.tileToBbox(z, x, y);
@@ -186,7 +190,6 @@ export class WmsProxyService {
     if (!allowed.some((expected) => normalized.includes(expected))) {
       return false;
     }
-    const prefix = data.subarray(0, Math.min(data.length, 256)).toString('utf8').trimStart().toLowerCase();
-    return !prefix.startsWith('<?xml') && !prefix.includes('<serviceexception');
+    return isValidTileImage(contentType, data);
   }
 }

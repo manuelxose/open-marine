@@ -73,6 +73,11 @@ const readTileCacheTtl = (): number => {
   return Number.isFinite(value) && value > 0 ? value : 30;
 };
 
+const readPositiveNumber = (name: string, fallback: number): number => {
+  const value = Number.parseFloat(process.env[name] ?? String(fallback));
+  return Number.isFinite(value) && value > 0 ? value : fallback;
+};
+
 export const config = {
   port: readPort(),
   dataDir: process.env['CHART_ENGINE_DATA_DIR'] ?? defaultDataDir,
@@ -84,4 +89,7 @@ export const config = {
   tileCacheTtlDays: readTileCacheTtl(),
   enableRemoteSources: process.env['CHART_ENGINE_ENABLE_REMOTE_SOURCES'] !== 'false',
   owmApiKey: process.env['CHART_ENGINE_OWM_API_KEY'] ?? '',
+  copernicusSyncEnabled: process.env['CHART_ENGINE_COPERNICUS_SYNC_ENABLED'] === 'true',
+  copernicusSyncHours: readPositiveNumber('CHART_ENGINE_COPERNICUS_SYNC_HOURS', 6),
+  pythonExecutable: process.env['CHART_ENGINE_PYTHON'] ?? (process.platform === 'win32' ? 'python' : 'python3'),
 };

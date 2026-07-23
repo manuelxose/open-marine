@@ -96,7 +96,7 @@ export const BUILT_IN_PROVIDERS: ChartSourceProvider[] = [
     'European bathymetry from EMODnet. High resolution DTM available.',
     'europe',
     'wms',
-    'online',
+    'offline-capable',
     'EMODnet Bathymetry Consortium',
     'EMODnet Data Policy',
     {

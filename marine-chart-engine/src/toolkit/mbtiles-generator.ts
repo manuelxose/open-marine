@@ -43,6 +43,18 @@ export class MBTilesGenerator {
     insert.run(zoom, column, row, data);
   }
 
+  hasTile(zoom: number, column: number, row: number): boolean {
+    const found = this.db.prepare(
+      'SELECT 1 AS present FROM tiles WHERE zoom_level = ? AND tile_column = ? AND tile_row = ? LIMIT 1',
+    ).get(zoom, column, row) as { present: number } | undefined;
+    return found?.present === 1;
+  }
+
+  countTiles(): number {
+    const row = this.db.prepare('SELECT COUNT(*) AS count FROM tiles').get() as { count: number };
+    return row.count;
+  }
+
   close(): void {
     this.db.close();
   }

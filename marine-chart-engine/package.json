@@ -10,6 +10,7 @@
     "convert:s57": "npm run build && node dist/cli/convert-s57.js",
     "dev": "npm run build && node --watch dist/server.js",
     "import:mbtiles": "npm run build && node dist/cli/import-mbtiles.js",
+    "sync:copernicus": "python scripts/sync-copernicus-vigo.py",
     "test": "npm run build && node --test \"dist/**/*.test.js\"",
     "start": "node dist/server.js"
   },
