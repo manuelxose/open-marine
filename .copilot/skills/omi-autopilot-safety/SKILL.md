@@ -38,3 +38,7 @@ description: Implement or review autopilot changes safely. Use for motor control
 - Never enable motor at boot. Never default to hardware backend.
 - Never skip simulator validation before hardware.
 - Test bench must never control real hardware.
+- Treat HIL as a separate, explicit hardware mode: require simulated sensors,
+  physical-motion confirmation, Pico profile `hil-motor`, a 10% PWM cap, a
+  30-second session limit, and its own API port/PID/serial lock.
+- Never expose HIL through `marine-simulation-platform`.

@@ -238,9 +238,25 @@ No introductions. No restatement of user request. No generic offers.
 | `docs/RASPBERRY_DEPLOYMENT.md`        | Service matrix, chart storage, chart engine install, diagnostics |
 | `docs/WIND_GPS_DEMO.md`               | Wind-gps demo scenario, NMEA 0183 wind sensor setup, systemd     |
 
-## 15. Claude Skills & Agents (`.claude/`)
+## 15. AI Skills & Agents Discovery
 
-Skills (specialized capabilities): `omi-autopilot-safety`, `omi-contract-first`, `omi-raspberry`, `omi-review`, `omi-run`, `omi-sensor-change`, `omi-simulation-platform`, `omi-test-bench`, `omi-ui-change`.
+All agents should load the appropriate skill automatically. Skills are duplicated across agent-specific directories so each IDE/tool discovers them natively.
+
+### Skill directories in this repo
+
+| Agent / IDE | Directory | Skills |
+|-------------|-----------|--------|
+| Claude Code | `.claude/skills/` | `omi-autopilot-safety`, `omi-contract-first`, `omi-raspberry`, `omi-review`, `omi-run`, `omi-sensor-change`, `omi-simulation-platform`, `omi-test-bench`, `omi-ui-change`, `omi-dev` |
+| GitHub Copilot / Codex | `.copilot/skills/` | `omi-autopilot-safety`, `omi-contract-first`, `omi-raspberry`, `omi-review`, `omi-run`, `omi-sensor-change`, `omi-simulation-platform`, `omi-test-bench`, `omi-ui-change`, `omi-dev` |
+| Kimi Code CLI | `.agents/skills/` | `omi-autopilot-safety`, `omi-contract-first`, `omi-raspberry`, `omi-review`, `omi-run`, `omi-sensor-change`, `omi-simulation-platform`, `omi-test-bench`, `omi-ui-change`, `omi-dev` |
+
+### User-scope skills
+
+- `omi-dev` is also available globally for Codex/Copilot at `~/.codex/skills/omi-dev/`.
+- `omi-dev` is also available globally for Claude at `~/.claude/skills/omi-dev/`.
+- `omi-dev` is also available globally for Kimi at `~/.config/agents/skills/omi-dev/` and `~/.kimi/skills/omi-dev/`.
+
+### Claude-specific agents and rules
 
 Agents (subagent definitions with model hints): `omi-autopilot-safety`, `omi-backend-explorer`, `omi-chart-explorer`, `omi-ci-validator`, `omi-raspberry-operator`, `omi-reviewer`, `omi-sim-explorer`, `omi-test-bench`, `omi-ui-explorer`.
 

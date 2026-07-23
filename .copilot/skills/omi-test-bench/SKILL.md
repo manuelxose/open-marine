@@ -26,6 +26,8 @@ Test-bench duties live in `marine-simulation-platform`. For scenario/preset/char
 2. Database path local/test-only (e.g. `./data/simulation-platform.sqlite` or in-memory).
 3. Never control real hardware from bench. Signal K publishing opt-out: `SIMULATION_PUBLISH_SIGNALK=0`.
 4. Retention rules explicit (`BENCH_RETENTION_DAYS`, `BENCH_RETENTION_MAX_BYTES`).
+5. Reject physical motor backends, Pico serial devices, and HIL confirmation
+   variables. HIL uses a separate autopilot process on API port 43990.
 
 ## Validation
 
