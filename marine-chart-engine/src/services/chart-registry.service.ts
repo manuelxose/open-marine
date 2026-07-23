@@ -9,39 +9,15 @@ type StaticChartSource = Omit<LocalChartSource, 'available' | 'metadata'>;
 
 const CHARTS: StaticChartSource[] = [
   {
-    id: 'local-raster-demo',
-    label: 'Local Raster Demo',
-    kind: 'raster',
-    storage: 'mbtiles',
-    description: 'Placeholder for local legal raster charts such as MBTiles or GDAL-generated tiles.',
-    attribution: 'Local chart data',
-    minZoom: 0,
-    maxZoom: 18,
-    tileUrl: 'http://localhost:8088/charts/local-raster-demo/raster/{z}/{x}/{y}.png',
-    mbtilesFile: 'data/charts/local-raster-demo.mbtiles',
-  },
-  {
-    id: 'local-enc-vector-demo',
-    label: 'Local ENC Vector Demo',
-    kind: 'vector',
-    storage: 'mbtiles',
-    description: 'Placeholder for local open/legal ENC vector tiles generated from S-57 or equivalent sources.',
-    attribution: 'Local ENC vector data',
-    minZoom: 4,
-    maxZoom: 16,
-    tileUrl: 'http://localhost:8088/charts/local-enc-vector-demo/vector/{z}/{x}/{y}.pbf',
-    mbtilesFile: 'data/charts/local-enc-vector-demo.mbtiles',
-  },
-  {
     id: 'emodnet-bathymetry',
     label: 'EMODnet Bathymetry',
     kind: 'bathymetry',
     storage: 'proxy',
-    description: 'Bathymetry overlay endpoint prepared for an EMODnet proxy implementation.',
-    attribution: 'EMODnet Bathymetry',
-    minZoom: 4,
-    maxZoom: 16,
-    tileUrl: 'http://localhost:8088/bathymetry/emodnet/{z}/{x}/{y}.png',
+    description: 'Live EMODnet bathymetry through the chart-engine WMS proxy and disk cache.',
+    attribution: 'EMODnet Bathymetry Consortium',
+    minZoom: 0,
+    maxZoom: 18,
+    tileUrl: 'http://localhost:8088/proxy/wms/emodnet-bathymetry/{z}/{x}/{y}.png',
   },
 ];
 
@@ -96,7 +72,7 @@ export class ChartRegistryService {
 
   private hydrate(chart: StaticChartSource): LocalChartSource {
     if (chart.storage === 'proxy') {
-      return { ...chart, available: false };
+      return { ...chart, available: true };
     }
 
     const mbtilesPath = this.mbtilesPath(chart.id);

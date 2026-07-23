@@ -69,6 +69,11 @@ export class TileCacheService {
     await fs.writeFile(finalPath, data);
   }
 
+  async delete(providerId: string, z: number, x: number, y: number): Promise<void> {
+    const filePath = this.resolveExistingTilePath(providerId, z, x, y);
+    if (filePath) await fs.rm(filePath, { force: true });
+  }
+
   /**
    * Build a cache key for a tile request.
    */

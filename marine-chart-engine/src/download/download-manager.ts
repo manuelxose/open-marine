@@ -64,6 +64,18 @@ export class DownloadManager {
           mbtilesFile: `data/charts/${request.id}.mbtiles`,
           available: true,
         };
+        await this.registry.upsert({
+          id: source.id,
+          label: source.label,
+          kind: source.kind,
+          storage: source.storage,
+          tileUrl: source.tileUrl,
+          mbtilesFile: source.mbtilesFile,
+          minZoom: request.minZoom,
+          maxZoom: request.maxZoom,
+          ...(request.description ? { description: request.description } : {}),
+          ...(request.attribution ? { attribution: request.attribution } : {}),
+        });
         await this.recordCompleted(recordKey);
         return source;
       } catch (error) {

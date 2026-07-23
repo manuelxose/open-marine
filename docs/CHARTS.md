@@ -103,7 +103,32 @@ The generated vector MBTiles are consumed by the UI ENC vector style using these
 
 ## Bathymetry
 
-Complete local bathymetry should be imported as raster MBTiles. EMODnet is represented by a configurable proxy endpoint. Set `EMODNET_TILE_URL_TEMPLATE` only when you have a legal tile-compatible service URL. Open Marine does not hardcode EMODnet download URLs.
+Complete local bathymetry should be imported as raster MBTiles. EMODnet WMS is available for online display; use an official EMODnet DTM extract and the raster conversion workflow for offline use.
+
+## Ria de Vigo offline package
+
+The `ria-vigo` preset uses bounds `[-9.05, 42.05, -8.40, 42.40]`. It includes the inner ria, Cies, approaches and Baiona. Check its requirements and tile estimates with:
+
+```bash
+curl http://localhost:8088/packages/ria-vigo
+```
+
+1. Download the permitted EMODnet DTM extract for those bounds.
+2. Convert it to raster MBTiles with `npm run charts:convert-raster -- --input <dtm.tif> --output <ria-vigo-bathymetry.mbtiles>`.
+3. Import it with `npm run charts:import-mbtiles -- --id ria-vigo-bathymetry --label "Ria de Vigo bathymetry" --kind raster --file <ria-vigo-bathymetry.mbtiles>`.
+4. Import a locally produced/open seamark extract if required. Do not bulk-cache the public OpenSeaMap tile endpoint.
+
+For a smaller rendered snapshot, `POST /catalog/download/area` accepts provider `emodnet-bathymetry`, the preset bounds and zooms 6-14. The resulting resumable `ria-vigo-bathymetry.mbtiles` contains 916 signature-verified tiles. Retain the EMODnet/EU CC BY 4.0 attribution. Use the DTM workflow above when numeric depths, a declared vertical datum or later re-rendering are required.
+
+IHM P2-P5 remain online-only and are selected by zoom. Do not cache IHM unless its current terms explicitly permit it.
+
+## Environmental forecasts and tides
+
+Install `marine-chart-engine/scripts/requirements-copernicus.txt`, authenticate a free Copernicus Marine account using its standard credentials store, and run `npm run charts:sync-copernicus`. Never put credentials in Git. Set `CHART_ENGINE_COPERNICUS_SYNC_ENABLED=true` for scheduled refreshes. Optional atmospheric overlays use `CHART_ENGINE_OWM_API_KEY`; point conditions continue to use Open-Meteo.
+
+Vigo tides come from IHM port 29 through `/tides/vigo?date=YYYY-MM-DD`. Values are official predictions and retain local `Europe/Madrid` clock times. Cached or stale state and age are shown explicitly. They are not observed levels and are not silently applied to chart soundings.
+
+Use SSD storage for `CHART_ENGINE_DATA_DIR`. S-63, oeSENC, encrypted charts, decryption and license bypasses remain unsupported. Open Marine is recreational assistance, not an ECDIS or a substitute for official charts.
 
 ## Frequent Errors
 

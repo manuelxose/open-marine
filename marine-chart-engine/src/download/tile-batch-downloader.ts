@@ -21,8 +21,10 @@ export interface AreaDownloadRequest {
 export interface DownloadProgress {
   totalTiles: number;
   downloadedTiles: number;
+  skippedTiles: number;
   failedTiles: number;
   currentZoom: number;
+  lastError?: string;
 }
 
 export interface AreaDownloadOptions {
@@ -35,7 +37,8 @@ export interface AreaDownloadOptions {
  * storing them into a new MBTiles file for offline use.
  */
 export class TileBatchDownloader {
-  private readonly concurrency = 8;
+  // Public WMS endpoints are deliberately kept below browser-style burst rates.
+  private readonly concurrency = 3;
 
   constructor(
     private readonly tileCache: TileCacheService,
@@ -49,7 +52,8 @@ export class TileBatchDownloader {
     const targetFile = path.join(this.dataDir, 'charts', `${request.id}.mbtiles`);
     await fs.mkdir(path.dirname(targetFile), { recursive: true });
 
-    // Create fresh MBTiles database using unified generator
+    // Existing databases are intentionally reused: completed tiles are skipped,
+    // making interrupted/cancelled downloads resumable.
     const generator = new MBTilesGenerator(targetFile);
     generator.init();
     generator.setMetadata({
@@ -63,13 +67,19 @@ export class TileBatchDownloader {
       maxzoom: String(request.maxZoom),
     });
 
-    let totalTiles = 0;
+    const allTiles = Array.from(
+      { length: request.maxZoom - request.minZoom + 1 },
+      (_, offset) => this.bboxToTiles(request.bbox, request.minZoom + offset),
+    );
+    const totalTiles = allTiles.reduce((total, tiles) => total + tiles.length, 0);
     let downloadedTiles = 0;
+    let skippedTiles = 0;
     let failedTiles = 0;
+    let lastError: string | undefined;
 
-    for (let z = request.minZoom; z <= request.maxZoom; z++) {
-      const tiles = this.bboxToTiles(request.bbox, z);
-      totalTiles += tiles.length;
+    try {
+      for (let z = request.minZoom; z <= request.maxZoom; z++) {
+        const tiles = allTiles[z - request.minZoom]!;
 
       // Process in batches with concurrency limit
       for (let i = 0; i < tiles.length; i += this.concurrency) {
@@ -80,38 +90,61 @@ export class TileBatchDownloader {
         const batch = tiles.slice(i, i + this.concurrency);
         const results = await Promise.all(
           batch.map(async (t) => {
+            const rowTms = 2 ** t.z - 1 - t.y;
+            if (generator.hasTile(t.z, t.x, rowTms)) {
+              return { ...t, skipped: true, success: true };
+            }
             try {
               const tile = await this.fetchTile(request.providerId, t.z, t.x, t.y, request.layers);
               if (tile) {
                 return { ...t, data: tile.data, success: true };
               }
               return { ...t, success: false };
-            } catch {
-              return { ...t, success: false };
+            } catch (error) {
+              return {
+                ...t,
+                success: false,
+                error: error instanceof Error ? error.message : String(error),
+              };
             }
           }),
         );
 
         for (const result of results) {
-          if (result.success && 'data' in result) {
+          if ('skipped' in result && result.skipped) {
+            skippedTiles++;
+          } else if (result.success && 'data' in result) {
             const rowTms = 2 ** result.z - 1 - result.y;
             generator.addTile(result.z, result.x, rowTms, result.data);
             downloadedTiles++;
           } else {
             failedTiles++;
+            if ('error' in result && result.error) {
+              lastError = result.error;
+            }
           }
         }
 
         onProgress?.({
           totalTiles,
           downloadedTiles,
+          skippedTiles,
           failedTiles,
           currentZoom: z,
+          ...(lastError ? { lastError } : {}),
         });
+        }
       }
+      if (failedTiles > 0) {
+        const reason = lastError ? ` Last error: ${lastError}` : '';
+        throw new Error(`Offline package incomplete: ${failedTiles} of ${totalTiles} tiles failed; retry to resume.${reason}`);
+      }
+      if (generator.countTiles() < totalTiles) {
+        throw new Error(`Offline package verification failed: expected ${totalTiles} tiles`);
+      }
+    } finally {
+      generator.close();
     }
-
-    generator.close();
     return targetFile;
   }
 

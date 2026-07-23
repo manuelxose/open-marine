@@ -8,6 +8,9 @@ import { createHealthRouter } from './routes/health.routes.js';
 import { createXyzProxyRouter } from './routes/xyz-proxy.routes.js';
 import { createWmsProxyRouter } from './routes/wms-proxy.routes.js';
 import { createCatalogRouter } from './routes/catalog.routes.js';
+import { createEnvironmentRouter } from './routes/environment.routes.js';
+import { createPackagesRouter } from './routes/packages.routes.js';
+import { createTidesRouter } from './routes/tides.routes.js';
 import { ChartRegistryService } from './services/chart-registry.service.js';
 import { ChartImportService } from './services/chart-import.service.js';
 import { ChartJobService } from './services/chart-job.service.js';
@@ -17,6 +20,9 @@ import { TilePathService } from './services/tile-path.service.js';
 import { TileCacheService } from './services/tile-cache.service.js';
 import { XyzProxyService } from './services/xyz-proxy.service.js';
 import { WmsProxyService } from './services/wms-proxy.service.js';
+import { EnvironmentCatalogService } from './services/environment-catalog.service.js';
+import { TideService } from './services/tide.service.js';
+import { EnvironmentSyncService } from './services/environment-sync.service.js';
 
 const app = express();
 app.use(express.json());
@@ -56,6 +62,27 @@ const tileCache = new TileCacheService({
 
 const xyzProxy = new XyzProxyService(tileCache);
 const wmsProxy = new WmsProxyService(tileCache);
+const publicBaseUrl = `http://localhost:${config.port}`;
+const environmentCatalog = new EnvironmentCatalogService(config.dataDir, publicBaseUrl, Boolean(config.owmApiKey));
+const tides = new TideService(config.cacheDir);
+const environmentSync = new EnvironmentSyncService(
+  config.copernicusSyncEnabled,
+  config.copernicusSyncHours,
+  config.pythonExecutable,
+  path.join(process.cwd(), 'scripts', 'sync-copernicus-vigo.py'),
+);
+const vigoDate = (offsetDays: number): string => {
+  const instant = new Date(Date.now() + offsetDays * 24 * 60 * 60 * 1000);
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Europe/Madrid', year: 'numeric', month: '2-digit', day: '2-digit',
+  }).format(instant);
+};
+const refreshVigoTides = (): void => {
+  void Promise.allSettled([tides.getVigo(vigoDate(0)), tides.getVigo(vigoDate(1))]);
+};
+const tideRefreshTimer = setInterval(refreshVigoTides, 6 * 60 * 60 * 1000);
+tideRefreshTimer.unref();
+refreshVigoTides();
 
 // Register built-in XYZ providers
 xyzProxy.registerProvider({
@@ -66,24 +93,21 @@ xyzProxy.registerProvider({
   attribution: '&copy; <a href="https://www.openseamap.org">OpenSeaMap</a> contributors',
 });
 
-// Register OpenWeatherMap weather overlays (only when an API key is configured).
-// The key stays server-side; the UI consumes the proxied tiles. Weather tiles are
-// cached briefly (30 min) so they stay fresh without hammering the OWM API.
+// Register optional OpenWeatherMap atmospheric overlays only when a key is configured.
 if (config.owmApiKey) {
-  const owmLayers: { id: string; layer: string }[] = [
-    { id: 'owm-temperature', layer: 'temp_new' },
-    { id: 'owm-wind', layer: 'wind_new' },
-    { id: 'owm-precipitation', layer: 'precipitation_new' },
-    { id: 'owm-clouds', layer: 'clouds_new' },
-    { id: 'owm-pressure', layer: 'pressure_new' },
-  ];
-  for (const { id, layer } of owmLayers) {
+  for (const provider of [
+    { id: 'owm-temperature', layer: 'temp_new', attribution: 'Air temperature' },
+    { id: 'owm-wind', layer: 'wind_new', attribution: 'Wind' },
+    { id: 'owm-precipitation', layer: 'precipitation_new', attribution: 'Precipitation' },
+    { id: 'owm-clouds', layer: 'clouds_new', attribution: 'Cloud cover' },
+    { id: 'owm-pressure', layer: 'pressure_new', attribution: 'Pressure' },
+  ]) {
     xyzProxy.registerProvider({
-      id,
-      tileUrlTemplate: `https://tile.openweathermap.org/map/${layer}/{z}/{x}/{y}.png?appid=${config.owmApiKey}`,
+      id: provider.id,
+      tileUrlTemplate: `https://tile.openweathermap.org/map/${provider.layer}/{z}/{x}/{y}.png?appid=${config.owmApiKey}`,
       minZoom: 0,
       maxZoom: 18,
-      attribution: 'Weather data &copy; OpenWeatherMap',
+      attribution: `${provider.attribution} &copy; OpenWeatherMap`,
       cacheTtlMinutes: 30,
     });
   }
@@ -158,6 +182,9 @@ app.use('/bathymetry', createBathymetryRouter(emodnet));
 app.use('/proxy/xyz', createXyzProxyRouter(xyzProxy));
 app.use('/proxy/wms', createWmsProxyRouter(wmsProxy));
 app.use('/catalog', createCatalogRouter(jobs, registry, mbtiles, tileCache, xyzProxy, wmsProxy, config.dataDir));
+app.use('/environment', createEnvironmentRouter(environmentCatalog, xyzProxy, wmsProxy, environmentSync));
+app.use('/tides', createTidesRouter(tides));
+app.use('/packages', createPackagesRouter());
 
 app.use((error: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   const message = error instanceof Error ? error.message : String(error);
@@ -167,7 +194,15 @@ app.use((error: unknown, _req: express.Request, res: express.Response, _next: ex
 
 app.listen(config.port, () => {
   console.log(`Marine chart engine listening at http://localhost:${config.port}`);
+  environmentSync.start();
 });
+
+for (const signal of ['SIGINT', 'SIGTERM'] as const) {
+  process.once(signal, () => {
+    environmentSync.stop();
+    clearInterval(tideRefreshTimer);
+  });
+}
 
 const classifyChartError = (message: string): { status: number; code: string } => {
   if (/was not found on PATH/i.test(message)) {
