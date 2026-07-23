@@ -5,7 +5,6 @@ import {
   OnDestroy,
   NgZone,
   ViewChild,
-  effect,
   inject,
   signal,
   computed,
@@ -25,6 +24,7 @@ import { DatapointStoreService } from '../../state/datapoints/datapoint-store.se
 import { AisStoreService } from '../../state/ais/ais-store.service';
 import { PlaybackStoreService } from '../../state/playback/playback-store.service';
 import { MapLibreEngineService } from './services/maplibre-engine.service';
+import { createCoalescedMapEffect, createCoalescedConfigEffect } from './services/coalesced-map-effects';
 import { DEFAULT_VESSEL_TYPE_COLORS } from './services/chart-settings.service';
 
 // Components
@@ -46,6 +46,9 @@ import { ChartLegendComponent } from '../chart-legend/chart-legend.component';
 import { AppIconComponent } from '../../shared/components/app-icon/app-icon.component';
 import { AutopilotChartControlComponent } from '../autopilot/components/autopilot-chart-control/autopilot-chart-control.component';
 import { TranslatePipe } from '../../shared/pipes/translate.pipe';
+import { SimulationRunBannerComponent } from '../../ui/layout/simulation-run-banner/simulation-run-banner.component';
+import { MeteoWidgetComponent } from '../../ui/instruments/meteo-widget/meteo-widget.component';
+import { EnvironmentPanelComponent } from './components/environment-panel/environment-panel.component';
 
 // Utils & Types
 import {
@@ -107,6 +110,9 @@ const INITIAL_PLAYBACK_STATE: PlaybackState = {
     AppIconComponent,
     AutopilotChartControlComponent,
     TranslatePipe,
+    SimulationRunBannerComponent,
+    MeteoWidgetComponent,
+    EnvironmentPanelComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -151,9 +157,10 @@ const INITIAL_PLAYBACK_STATE: PlaybackState = {
         />
       </div>
 
-      <!-- ZONA: Top Right - Alarm Badge -->
+      <!-- ZONA: Top Right - Alarm Badge + simulation run indicator -->
       <div class="chart-zone chart-zone--top-right">
         <app-alarm-status-widget />
+        <app-simulation-run-banner variant="chip" />
       </div>
 
       <!-- ZONA: Top Center - Autopilot control overlay -->
@@ -266,6 +273,42 @@ const INITIAL_PLAYBACK_STATE: PlaybackState = {
       </div>
 
       <!-- Charts: open the chart manager modal -->
+      <button
+        class="weather-btn"
+        [class.weather-btn--active]="showWeather()"
+        (click)="showWeather.set(!showWeather())"
+        aria-label="Open weather forecast"
+        [attr.aria-expanded]="showWeather()"
+        title="Live weather"
+      >
+        <app-icon name="sun" [size]="20" />
+      </button>
+
+      @if (showWeather()) {
+        <section class="weather-panel" aria-label="Weather forecast panel">
+          <button class="weather-panel__close" type="button" (click)="showWeather.set(false)" aria-label="Close weather forecast">
+            <app-icon name="x" [size]="16" />
+          </button>
+          <app-meteo-widget variant="map" />
+        </section>
+      }
+
+      <button
+        class="environment-btn"
+        [class.environment-btn--active]="showEnvironment()"
+        (click)="showEnvironment.set(!showEnvironment())"
+        aria-label="Open marine environment and Vigo tides"
+        [attr.aria-expanded]="showEnvironment()"
+        title="Marine layers and Vigo tides">
+        <app-icon name="thermometer" [size]="20" />
+      </button>
+
+      @if (showEnvironment()) {
+        <app-environment-panel
+          class="environment-panel-host"
+          (dismiss)="showEnvironment.set(false)" />
+      }
+
       <button
         class="charts-btn"
         (click)="chartManagerOpen.set(true)"
@@ -637,11 +680,114 @@ const INITIAL_PLAYBACK_STATE: PlaybackState = {
         }
       }
 
+      .weather-btn {
+        position: absolute;
+        bottom: calc(var(--chart-edge-gap) + 96px);
+        left: var(--chart-edge-gap);
+        z-index: var(--z-chart-panels);
+        width: 40px;
+        height: 40px;
+        border-radius: var(--radius-full);
+        border: 1px solid var(--chart-overlay-border);
+        background: var(--chart-overlay-bg);
+        backdrop-filter: var(--chart-overlay-blur);
+        color: var(--gb-text-value);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: var(--chart-overlay-shadow);
+        pointer-events: auto;
+        transition: all var(--duration-fast) var(--ease-out);
+
+        &:hover,
+        &.weather-btn--active {
+          color: var(--gb-data-warn);
+          border-color: var(--gb-border-active);
+          background: color-mix(in srgb, var(--chart-overlay-bg) 82%, var(--gb-data-warn));
+        }
+      }
+
+      .environment-btn {
+        position: absolute;
+        bottom: calc(var(--chart-edge-gap) + 144px);
+        left: var(--chart-edge-gap);
+        z-index: var(--z-chart-panels);
+        width: 40px;
+        height: 40px;
+        display: grid;
+        place-items: center;
+        border: 1px solid var(--chart-overlay-border);
+        border-radius: var(--radius-full);
+        color: var(--gb-text-value);
+        background: var(--chart-overlay-bg);
+        box-shadow: var(--chart-overlay-shadow);
+        backdrop-filter: var(--chart-overlay-blur);
+        cursor: pointer;
+
+        &:hover,
+        &.environment-btn--active {
+          color: var(--gb-tick-reference);
+          border-color: var(--gb-border-active);
+          background: var(--gb-bg-glass-active);
+        }
+      }
+
+      .environment-panel-host {
+        position: absolute;
+        top: calc(var(--chart-top-bar-height) + var(--chart-edge-gap) + 44px);
+        right: var(--chart-edge-gap);
+        height: calc(100vh - var(--chart-top-bar-height) - var(--chart-edge-gap) - 214px);
+        z-index: calc(var(--z-chart-panels) + 4);
+        pointer-events: auto;
+      }
+
+      .weather-panel {
+        position: absolute;
+        top: calc(var(--chart-top-bar-height) + var(--chart-edge-gap));
+        right: var(--chart-edge-gap);
+        z-index: calc(var(--z-chart-panels) + 3);
+        width: min(920px, calc(100% - (var(--chart-edge-gap) * 2)));
+        height: min(560px, calc(100% - var(--chart-top-bar-height) - (var(--chart-edge-gap) * 2)));
+        max-height: calc(100% - var(--chart-top-bar-height) - (var(--chart-edge-gap) * 2));
+        overflow: auto;
+        border: 1px solid var(--chart-overlay-border);
+        border-radius: var(--radius-lg);
+        background: var(--chart-overlay-bg);
+        backdrop-filter: var(--chart-overlay-blur);
+        box-shadow: var(--chart-overlay-shadow);
+        pointer-events: auto;
+        animation: chart-zone-enter-right .25s var(--ease-out) both;
+      }
+
+      .weather-panel__close {
+        position: absolute;
+        top: var(--space-2);
+        right: var(--space-2);
+        z-index: 2;
+        width: 32px;
+        height: 32px;
+        display: grid;
+        place-items: center;
+        border: 1px solid var(--gb-border-panel);
+        border-radius: var(--radius-full);
+        color: var(--gb-text-value);
+        background: var(--gb-bg-glass);
+        cursor: pointer;
+      }
+
       // ═══════════════════════════════════════════════
       // RESPONSIVE
       // ═══════════════════════════════════════════════
 
       @media (max-width: 768px) {
+        .environment-panel-host {
+          top: auto;
+          left: var(--chart-edge-gap);
+          right: var(--chart-edge-gap);
+          bottom: calc(var(--chart-edge-gap) + 52px);
+          height: 62vh;
+        }
         .chart-zone--top-right {
           top: calc(var(--chart-top-bar-height) + var(--space-2));
           right: var(--chart-edge-gap);
@@ -657,6 +803,12 @@ const INITIAL_PLAYBACK_STATE: PlaybackState = {
         .chart-zone--bottom-center {
           width: calc(100% - 2 * var(--chart-edge-gap));
           bottom: calc(var(--chart-edge-gap) + 140px);
+        }
+
+        .weather-panel {
+          top: calc(var(--chart-top-bar-height) + var(--space-1));
+          height: auto;
+          max-height: calc(100% - var(--chart-top-bar-height) - var(--space-2));
         }
       }
     `,
@@ -697,6 +849,8 @@ export class ChartPage implements AfterViewInit, OnDestroy {
   readonly isFullscreen = this.fullscreenService.isFullscreen;
   readonly showInstruments = signal(false);
   readonly showLegend = signal(false);
+  readonly showWeather = signal(false);
+  readonly showEnvironment = signal(false);
   readonly chartManagerOpen = signal(false);
   readonly leftPanelOpen = signal(true);
   readonly leftPanelTab = signal<ChartLeftPanelTab>('layers');
@@ -805,6 +959,9 @@ export class ChartPage implements AfterViewInit, OnDestroy {
   private readonly weatherTempSignal = toSignal(this.facade.weatherTemperatureVisible$, {
     initialValue: false,
   });
+  private readonly weatherAirTempSignal = toSignal(this.facade.weatherAirTemperatureVisible$, {
+    initialValue: false,
+  });
   private readonly weatherWindSignal = toSignal(this.facade.weatherWindVisible$, {
     initialValue: false,
   });
@@ -816,6 +973,15 @@ export class ChartPage implements AfterViewInit, OnDestroy {
   });
   private readonly weatherPressureSignal = toSignal(this.facade.weatherPressureVisible$, {
     initialValue: false,
+  });
+  private readonly weatherWavesSignal = toSignal(this.facade.weatherWavesVisible$, {
+    initialValue: false,
+  });
+  private readonly environmentCurrentsSignal = toSignal(this.facade.environmentCurrentsVisible$, {
+    initialValue: false,
+  });
+  private readonly environmentTimeSignal = toSignal(this.facade.environmentTime$, {
+    initialValue: 'latest',
   });
   private readonly weatherOpacitySignal = toSignal(this.facade.weatherOpacity$, {
     initialValue: 0.6,
@@ -972,210 +1138,70 @@ export class ChartPage implements AfterViewInit, OnDestroy {
   readonly waypointCount = computed(() => this.waypointsSignal().features.length);
 
   constructor() {
-    // ---- Map Engine Effects (Maintained from original) ----
-    effect(() => {
-      const vessel = this.playbackVesselSignal() ?? this.vesselSignal();
-      if (!vessel) return;
-      this.runMapUpdate(() =>
-        this.engine.updateVesselPosition(vessel.lngLat, vessel.rotationDeg, vessel.state),
-      );
-    });
+    // ---- Coalesced Map Engine Effects ----
+    // Replaces ~40 individual effects with 2 coalesced effects:
+    // 1. Navigation data (high frequency): vessel, track, vector, AIS, etc.
+    // 2. Configuration (low frequency): orientation, scales, weather, visibility.
+    // This reduces Angular's effect scheduling overhead from ~40 RAF callbacks to 2.
+    createCoalescedMapEffect(
+      {
+        playbackVesselSignal: () => this.playbackVesselSignal(),
+        vesselSignal: () => this.vesselSignal(),
+        trackSignal: () => this.trackSignal(),
+        vectorSignal: () => this.vectorSignal(),
+        headingLineSignal: () => this.headingLineSignal(),
+        autopilotTargetSignal: () => this.autopilotTargetSignal(),
+        laylinesSignal: () => this.laylinesSignal(),
+        trueWindSignal: () => this.trueWindSignal(),
+        apparentWindSignal: () => this.apparentWindSignal(),
+        waypointsSignal: () => this.waypointsSignal(),
+        routeSignal: () => this.routeSignal(),
+        savedTracksSignal: () => this.savedTracksSignal(),
+        benchRouteSignal: () => this.benchRouteSignal(),
+        centerSignal: () => this.centerSignal(),
+        rangeRingsSignal: () => this.rangeRingsSignal(),
+        bearingLineSignal: () => this.bearingLineSignal(),
+        aisTargetsSignal: () => this.aisTargetsSignal(),
+        aisTracksSignal: () => this.aisTracksSignal(),
+        aisPredictionsSignal: () => this.aisPredictionsSignal(),
+        cpaLinesSignal: () => this.cpaLinesSignal(),
+        measurementStateSignal: () => this.measurementStateSignal(),
+        anchorWatchState: () => this.anchorWatchState(),
+        ownPositionSignal: () => this.ownPositionSignal(),
+      },
+      this.engine,
+      (update) => this.runMapUpdate(update),
+      this.anchorWatchService,
+    );
 
-    effect(() => {
-      const track = this.trackSignal();
-      this.runMapUpdate(() => this.engine.updateTrack(track));
-    });
-    effect(() => {
-      const vector = this.vectorSignal();
-      this.runMapUpdate(() =>
-        this.engine.updateVector(vector.coords, vector.visible, vector.label, vector.timeTicks),
-      );
-    });
-    effect(() => {
-      const headingLine = this.headingLineSignal();
-      this.runMapUpdate(() =>
-        this.engine.updateHeadingLine(
-          headingLine.coords,
-          headingLine.visible,
-          headingLine.headingDeg,
-        ),
-      );
-    });
-    effect(() => {
-      const apTarget = this.autopilotTargetSignal();
-      this.runMapUpdate(() => this.engine.updateAutopilotTarget(apTarget.coords, apTarget.visible));
-    });
-    effect(() => {
-      const laylines = this.laylinesSignal();
-      this.runMapUpdate(() => this.engine.updateLaylines(laylines.lines, laylines.visible));
-    });
-    effect(() => {
-      const wind = this.trueWindSignal();
-      this.runMapUpdate(() => this.engine.updateTrueWind(wind));
-    });
-    effect(() => {
-      const wind = this.apparentWindSignal();
-      this.runMapUpdate(() => this.engine.updateApparentWind(wind));
-    });
-    effect(() => {
-      const waypoints = this.waypointsSignal();
-      this.runMapUpdate(() => this.engine.updateWaypoints(waypoints));
-    });
-    effect(() => {
-      const route = this.routeSignal();
-      this.runMapUpdate(() => this.engine.updateRoute(route));
-    });
-    effect(() => {
-      const savedTracks = this.savedTracksSignal();
-      this.runMapUpdate(() => this.engine.updateSavedTracks(savedTracks));
-    });
-    effect(() => {
-      const bench = this.benchRouteSignal();
-      this.runMapUpdate(() => this.engine.updateBenchRoute(bench.line, bench.points));
-    });
-    effect(() => {
-      const center = this.centerSignal();
-      this.runMapUpdate(() => this.engine.updateView(center));
-    });
-    effect(() => {
-      const rings = this.rangeRingsSignal();
-      this.runMapUpdate(() => {
-        if (rings && rings.center) {
-          this.engine.updateRangeRings(rings.center, rings.intervals);
-        } else {
-          this.engine.clearRangeRings();
-        }
-      });
-    });
-    effect(() => {
-      const line = this.bearingLineSignal();
-      this.runMapUpdate(() => this.engine.updateBearingLine(line.coords, line.visible));
-    });
-    effect(() => {
-      const source = this.baseSourceSignal();
-      if (source) this.engine.setBaseSource(source);
-    });
-    effect(() => {
-      this.engine.setOrientation(this.orientation());
-    });
-    effect(() => {
-      const targets = this.aisTargetsSignal();
-      this.runMapUpdate(() => this.engine.updateAisTargets(targets));
-    });
-    effect(() => {
-      const tracks = this.aisTracksSignal();
-      this.runMapUpdate(() => this.engine.updateAisTracks(tracks));
-    });
-    effect(() => {
-      const predictions = this.aisPredictionsSignal();
-      this.runMapUpdate(() => this.engine.updateAisPredictions(predictions));
-    });
-    effect(() => {
-      const cpaLines = this.cpaLinesSignal();
-      this.runMapUpdate(() => this.engine.updateCpaLines(cpaLines));
-    });
-    effect(() => {
-      this.engine.setAisVesselTypeColors(this.aisVesselTypeColorsSignal());
-    });
-    effect(() => {
-      this.engine.setOwnVesselIconScale(this.ownVesselIconScaleSignal());
-    });
-    effect(() => {
-      this.engine.setAisTargetIconScale(this.aisTargetIconScaleSignal());
-    });
-    effect(() => {
-      this.engine.setWindTrackMinZoom(this.windTrackMinZoomSignal());
-    });
-    effect(() => {
-      this.engine.setRangeRingsMinZoom(this.rangeRingsMinZoomSignal());
-    });
-    effect(() => {
-      this.engine.setOpenSeaMapVisible(this.openSeaMapSignal());
-    });
-    effect(() => {
-      this.engine.setWeatherLayer(
-        'owm-temperature',
-        this.weatherTileUrl('owm-temperature'),
-        this.weatherTempSignal(),
-        this.weatherOpacitySignal(),
-      );
-    });
-    effect(() => {
-      this.engine.setWeatherLayer(
-        'owm-wind',
-        this.weatherTileUrl('owm-wind'),
-        this.weatherWindSignal(),
-        this.weatherOpacitySignal(),
-      );
-    });
-    effect(() => {
-      this.engine.setWeatherLayer(
-        'owm-precipitation',
-        this.weatherTileUrl('owm-precipitation'),
-        this.weatherPrecipSignal(),
-        this.weatherOpacitySignal(),
-      );
-    });
-    effect(() => {
-      this.engine.setWeatherLayer(
-        'owm-clouds',
-        this.weatherTileUrl('owm-clouds'),
-        this.weatherCloudsSignal(),
-        this.weatherOpacitySignal(),
-      );
-    });
-    effect(() => {
-      this.engine.setWeatherLayer(
-        'owm-pressure',
-        this.weatherTileUrl('owm-pressure'),
-        this.weatherPressureSignal(),
-        this.weatherOpacitySignal(),
-      );
-    });
-    effect(() => {
-      this.engine.setWeatherOpacity(this.weatherOpacitySignal());
-    });
-    effect(() => {
-      this.engine.setAisTargetsVisible(this.showAisTargetsSignal());
-    });
-    effect(() => {
-      this.engine.setAisLabelsVisible(this.showAisLabelsSignal());
-    });
-    effect(() => {
-      this.engine.setCpaLinesVisible(this.showCpaLinesSignal());
-    });
-
-    // Measurement tool — sync to map engine
-    effect(() => {
-      const ms = this.measurementStateSignal();
-      if (ms.active) {
-        this.engine.updateMeasurement(ms.pointA, ms.pointB, ms.bearingDeg, ms.distanceNm);
-      } else {
-        this.engine.clearMeasurement();
-      }
-    });
-
-    // Anchor Watch — feed vessel position to service
-    effect(() => {
-      const pos = this.ownPositionSignal();
-      if (pos?.value?.longitude != null && pos?.value?.latitude != null) {
-        this.anchorWatchService.updateVesselPosition(pos.value.longitude, pos.value.latitude);
-      }
-    });
-
-    // Anchor Watch — sync layer on map
-    effect(() => {
-      const state = this.anchorWatchState();
-      if (state.active && state.config) {
-        this.engine.updateAnchorWatch(
-          state.config.anchorPosition,
-          state.config.radiusMeters,
-          state.alarmActive,
-        );
-      } else {
-        this.engine.clearAnchorWatch();
-      }
-    });
+    createCoalescedConfigEffect(
+      {
+        baseSourceSignal: () => this.baseSourceSignal(),
+        orientation: () => this.orientation(),
+        aisVesselTypeColorsSignal: () => this.aisVesselTypeColorsSignal(),
+        ownVesselIconScaleSignal: () => this.ownVesselIconScaleSignal(),
+        aisTargetIconScaleSignal: () => this.aisTargetIconScaleSignal(),
+        windTrackMinZoomSignal: () => this.windTrackMinZoomSignal(),
+        rangeRingsMinZoomSignal: () => this.rangeRingsMinZoomSignal(),
+        openSeaMapSignal: () => this.openSeaMapSignal(),
+        weatherTempSignal: () => this.weatherTempSignal(),
+        weatherAirTempSignal: () => this.weatherAirTempSignal(),
+        weatherWindSignal: () => this.weatherWindSignal(),
+        weatherPrecipSignal: () => this.weatherPrecipSignal(),
+        weatherCloudsSignal: () => this.weatherCloudsSignal(),
+        weatherPressureSignal: () => this.weatherPressureSignal(),
+        weatherWavesSignal: () => this.weatherWavesSignal(),
+        environmentCurrentsSignal: () => this.environmentCurrentsSignal(),
+        environmentTimeSignal: () => this.environmentTimeSignal(),
+        weatherOpacitySignal: () => this.weatherOpacitySignal(),
+        showAisTargetsSignal: () => this.showAisTargetsSignal(),
+        showAisLabelsSignal: () => this.showAisLabelsSignal(),
+        showCpaLinesSignal: () => this.showCpaLinesSignal(),
+      },
+      this.engine,
+      (layer) => this.weatherTileUrl(layer),
+      (layer) => this.environmentVectorUrl(layer),
+    );
   }
 
   ngAfterViewInit(): void {
@@ -1360,9 +1386,26 @@ export class ChartPage implements AfterViewInit, OnDestroy {
     this.facade.refreshChartCatalog();
   }
 
-  private weatherTileUrl(providerId: string): string {
+  private weatherTileUrl(providerId: string): string | null {
     const base = this.environment.chartEngineApiUrl.replace(/\/$/, '');
-    return `${base}/proxy/xyz/${providerId}/{z}/{x}/{y}.png`;
+    const layerId: Record<string, string> = {
+      'sea-temperature': 'seaTemperature',
+      'air-temperature': 'airTemperature',
+      'wind-speed': 'wind',
+      precipitation: 'precipitation',
+      clouds: 'clouds',
+      pressure: 'pressure',
+      waves: 'waves',
+    };
+    const layer = layerId[providerId];
+    return layer ? `${base}/environment/${layer}/${encodeURIComponent(this.environmentTimeSignal())}/{z}/{x}/{y}.png` : null;
+  }
+
+  private environmentVectorUrl(layerId: string): string | null {
+    const time = this.environmentTimeSignal();
+    if (time === 'latest') return null;
+    const base = this.environment.chartEngineApiUrl.replace(/\/$/, '');
+    return `${base}/environment/${encodeURIComponent(layerId)}/${encodeURIComponent(time)}.geojson`;
   }
 
   handleAisSortChange(sortBy: 'distance' | 'cpa' | 'name') {

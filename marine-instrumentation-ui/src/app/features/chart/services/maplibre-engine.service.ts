@@ -126,7 +126,9 @@ const EMPTY_LINE: FeatureCollection<LineString> = {
   features: [],
 };
 
-const FRAME_LAYER_BUDGET = 3;
+const FRAME_LAYER_BUDGET = 1; // Reduced to 1 to prevent long RAF handlers.
+// Each layer update (setData + marker updates) can take 20-50ms.
+// With budget=1, each frame processes at most one layer, keeping RAF < 50ms.
 const DIRTY_LAYER_ORDER = [
   'vessel',
   'camera',
@@ -167,18 +169,75 @@ export class MapLibreEngineService {
   private renderFrame: number | null = null;
   private readonly dirtyLayers = new Set<string>();
 
+  // Deferred marker updates: separate DOM marker work from setData() to avoid
+  // long RAF handlers. Marker updates are batched into a single RAF callback.
+  private pendingMarkerUpdates = new Set<() => void>();
+  private markerUpdateFrame: number | null = null;
+
+  private scheduleMarkerUpdate(update: () => void): void {
+    this.pendingMarkerUpdates.add(update);
+    if (this.markerUpdateFrame !== null) return;
+    this.markerUpdateFrame = this.requestFrame(() => {
+      this.markerUpdateFrame = null;
+      const updates = Array.from(this.pendingMarkerUpdates);
+      this.pendingMarkerUpdates.clear();
+      for (const update of updates) {
+        update();
+      }
+    });
+  }
+
+  // Icon cache to avoid regenerating Canvas icons on every style reload.
+  // Static (shared across all instances) so icons persist between page navigations.
+  private static readonly iconCache = new Map<string, ImageData>();
+  private static iconsPreloaded = false;
+
+  constructor() {
+    // Pre-generate common icons on first instantiation to avoid blocking onStyleReady().
+    // This prevents [Violation] 'setTimeout' handler took >50ms during map initialization.
+    if (!MapLibreEngineService.iconsPreloaded) {
+      MapLibreEngineService.iconsPreloaded = true;
+      // Use requestIdleCallback if available, otherwise setTimeout(..., 0)
+      const schedule = typeof requestIdleCallback === 'function'
+        ? (cb: () => void) => requestIdleCallback(cb, { timeout: 100 })
+        : (cb: () => void) => setTimeout(cb, 0);
+      schedule(() => {
+        this.preloadCommonIcons();
+      });
+    }
+  }
+
+  private preloadCommonIcons(): void {
+    // Pre-generate vessel icons (most common, used on every load)
+    this.createVesselIcon('#0284c7', '#38bdf8', true);
+    this.createVesselIcon('#eab308', '#fde047', true);
+    this.createVesselIcon('#6b7280', '#9ca3af', true);
+    // Pre-generate wind arrow icons
+    this.createWindArrowIcon('#22c55e');
+    this.createWindArrowIcon('#f59e0b');
+    this.createWindArrowIcon('#ef4444');
+    this.createWindArrowIcon(APPARENT_WIND_COLOR);
+  }
+
   private readonly handleMapClick = (event: maplibregl.MapMouseEvent): void => {
     if (!this.clickHandler) {
       return;
     }
     // Check if we clicked an interactive feature first (waypoints / AIS).
     if (this.map && this.featureClickHandler) {
+      const environmentLayerIds = [...this.environmentVectors.keys()]
+        .map((id) => `environment-${id}-layer`)
+        .filter((id) => Boolean(this.map?.getLayer(id)));
       const features = this.map.queryRenderedFeatures(event.point, {
-        layers: [WAYPOINT_LAYER_ID, AIS_LAYER_ID],
+        layers: [WAYPOINT_LAYER_ID, AIS_LAYER_ID, ...environmentLayerIds].filter((id) => Boolean(this.map?.getLayer(id))),
       });
       if (features.length > 0) {
         const feature = features[0];
         if (feature?.layer?.id) {
+          if (feature.layer.id.startsWith('environment-')) {
+            this.showEnvironmentPopup(event.lngLat, feature.layer.id, feature.properties ?? {});
+            return;
+          }
           const featurePropertyId = feature.properties?.['id'];
           const featureId =
             typeof feature.id === 'string'
@@ -281,8 +340,12 @@ export class MapLibreEngineService {
   private windTrackMinZoom = 0;
   private rangeRingsMinZoom = 8;
   private showOpenSeaMap = false;
-  private readonly weatherLayers = new Map<string, { tileUrl: string; visible: boolean }>();
+  private readonly weatherLayers = new Map<string, { tileUrl: string | null; visible: boolean }>();
   private weatherOpacity = 0.6;
+  private readonly environmentVectors = new Map<string, { dataUrl: string | null; visible: boolean }>();
+  private weatherApplyFrame: number | null = null;
+  private environmentApplyFrame: number | null = null;
+  private environmentPopup: maplibregl.Popup | null = null;
   private aisTargetsVisible = true;
   private aisLabelsVisible = true;
   private cpaLinesVisible = true;
@@ -292,7 +355,10 @@ export class MapLibreEngineService {
       return;
     }
 
-    if (containerEl.clientWidth === 0 || containerEl.clientHeight === 0) {
+    // Use ResizeObserver entry instead of clientWidth/clientHeight to avoid forced reflow.
+    // The ResizeObserver guarantees the element has size when this init runs.
+    const rect = containerEl.getBoundingClientRect();
+    if (rect.width === 0 || rect.height === 0) {
       this.requestFrame(() => this.init(containerEl, initialView));
       return;
     }
@@ -321,13 +387,17 @@ export class MapLibreEngineService {
       ?.classList.remove('maplibregl-compact-show');
 
     this.map.on('load', () => {
+      // onStyleReady() now handles its own frame scheduling internally.
       this.onStyleReady();
       // Ensure map fills container after CSS transitions complete
-      setTimeout(() => this.scheduleResize(), 400);
+      this.scheduleResize();
       // Seed the initial zoom so zoom-aware consumers (e.g. min-length vectors) start correct.
       this.zoomHandler?.(this.map?.getZoom() ?? initialView.zoom);
     });
-    this.map.on('style.load', () => this.onStyleReady());
+    this.map.on('style.load', () => {
+      // onStyleReady() handles its own frame scheduling internally.
+      this.onStyleReady();
+    });
     this.map.on('error', (event) => this.handleMapError(event));
     this.map.on('click', this.handleMapClick);
     this.map.on('zoomend', () => this.zoomHandler?.(this.map?.getZoom() ?? initialView.zoom));
@@ -735,6 +805,8 @@ export class MapLibreEngineService {
   }
 
   destroy(): void {
+    this.environmentPopup?.remove();
+    this.environmentPopup = null;
     this.trueWindLabelMarker?.remove();
     this.trueWindLabelMarker = null;
     this.cogLabelMarker?.remove();
@@ -750,9 +822,20 @@ export class MapLibreEngineService {
       this.resizeFrame = null;
     }
     if (this.renderFrame !== null) {
-      this.cancelFrame(this.renderFrame);
+      // renderFrame may be a setTimeout id (number) or a requestFrame id.
+      // cancelFrame only works for requestFrame; clearTimeout handles both.
+      clearTimeout(this.renderFrame);
       this.renderFrame = null;
     }
+    if (this.markerUpdateFrame !== null) {
+      this.cancelFrame(this.markerUpdateFrame);
+      this.markerUpdateFrame = null;
+    }
+    if (this.weatherApplyFrame !== null) this.cancelFrame(this.weatherApplyFrame);
+    if (this.environmentApplyFrame !== null) this.cancelFrame(this.environmentApplyFrame);
+    this.weatherApplyFrame = null;
+    this.environmentApplyFrame = null;
+    this.pendingMarkerUpdates.clear();
     this.dirtyLayers.clear();
     if (this.resizeObserver) {
       this.resizeObserver.disconnect();
@@ -799,10 +882,13 @@ export class MapLibreEngineService {
     if (this.renderFrame !== null) {
       return;
     }
-    this.renderFrame = this.requestFrame(() => {
+    // Use setTimeout(..., 0) instead of requestFrame for the first scheduling.
+    // This allows the browser to paint and process other events before flushing.
+    // Subsequent flushes within the same tick will use requestFrame.
+    this.renderFrame = window.setTimeout(() => {
       this.renderFrame = null;
       this.flushDirtyLayers();
-    });
+    }, 0) as unknown as number;
   }
 
   private flushDirtyLayers(): void {
@@ -823,6 +909,7 @@ export class MapLibreEngineService {
       }
     }
     if (this.dirtyLayers.size > 0) {
+      // Use requestFrame for subsequent flushes to stay synchronized with rendering.
       this.renderFrame = this.requestFrame(() => {
         this.renderFrame = null;
         this.flushDirtyLayers();
@@ -1196,6 +1283,12 @@ export class MapLibreEngineService {
     kind: 'navigation-aid' | 'shore-station' | 'sart',
     dangerous = false,
   ): ImageData {
+    const cacheKey = `ais-object:${kind}:${dangerous}`;
+    const cached = MapLibreEngineService.iconCache.get(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
     const size = 128;
     const canvas = document.createElement('canvas');
     canvas.width = size;
@@ -1246,7 +1339,9 @@ export class MapLibreEngineService {
         ctx.arc(cx, cy - 24, radius, Math.PI + 0.2, Math.PI + 0.85);
         ctx.stroke();
       }
-      return ctx.getImageData(0, 0, size, size);
+      const imageData = ctx.getImageData(0, 0, size, size);
+      MapLibreEngineService.iconCache.set(cacheKey, imageData);
+      return imageData;
     }
 
     if (kind === 'sart') {
@@ -1263,7 +1358,9 @@ export class MapLibreEngineService {
       ctx.moveTo(cx, cy - 18);
       ctx.lineTo(cx, cy + 18);
       ctx.stroke();
-      return ctx.getImageData(0, 0, size, size);
+      const imageData = ctx.getImageData(0, 0, size, size);
+      MapLibreEngineService.iconCache.set(cacheKey, imageData);
+      return imageData;
     }
 
     ctx.beginPath();
@@ -1281,7 +1378,23 @@ export class MapLibreEngineService {
     ctx.arc(cx, cy, 8, 0, Math.PI * 2);
     ctx.fill();
 
-    return ctx.getImageData(0, 0, size, size);
+    const imageData = ctx.getImageData(0, 0, size, size);
+    MapLibreEngineService.iconCache.set(cacheKey, imageData);
+    return imageData;
+  }
+
+  private cachedBearing: number | null = null;
+  private lastBearingReadTime = 0;
+
+  private getCachedBearing(): number {
+    const now = performance.now();
+    // Cache bearing for 50ms to avoid repeated layout reads in the same frame
+    if (this.cachedBearing !== null && now - this.lastBearingReadTime < 50) {
+      return this.cachedBearing;
+    }
+    this.cachedBearing = this.map!.getBearing();
+    this.lastBearingReadTime = now;
+    return this.cachedBearing;
   }
 
   private updateCamera(): void {
@@ -1302,7 +1415,7 @@ export class MapLibreEngineService {
 
     // 2. Handle Bearing (Orientation)
     if (this.orientation === 'north-up') {
-      const current = this.map.getBearing();
+      const current = this.getCachedBearing();
       if (Math.abs(current) > 0.01) {
         options.bearing = 0;
       }
@@ -1311,7 +1424,7 @@ export class MapLibreEngineService {
       // sub-degree IMU jitter restarts a 250ms camera animation on every sample.
       const heading = this.lastVessel.rotationDeg;
       if (typeof heading === 'number') {
-        const reference = this.appliedBearing ?? this.map.getBearing();
+        const reference = this.appliedBearing ?? this.getCachedBearing();
         if (this.bearingDelta(reference, heading) > 0.5) {
           options.bearing = heading;
           this.appliedBearing = heading;
@@ -1335,62 +1448,134 @@ export class MapLibreEngineService {
   }
 
   private onStyleReady(): void {
-    this.applyOpenSeaMapOverlay();
-    this.applyWeatherOverlays();
-    this.ensureTrueWindIcons();
-    this.ensureVesselLayer();
-    this.ensureTrackLayer();
-    this.ensureVectorLayer();
-    this.ensureHeadingLineLayer();
-    this.ensureLaylinesLayer();
-    this.ensureTrueWindLayer();
-    this.ensureWaypointsLayer();
-    this.ensureRouteLayer();
-    this.ensureSavedTracksLayer();
-    this.ensureRangeRingsLayer();
-    this.ensureBearingLineLayer();
-    this.ensureAutopilotTargetLayer();
-    this.ensureBenchRouteLayers();
-    this.ensureAisTracksLayer();
-    this.ensureAisPredictionsLayer();
-    this.ensureAisLayer();
-    this.ensureCpaLinesLayer();
-    // Keep the own-vessel marker above AIS targets and chart overlays.
-    for (const layerId of [VESSEL_HALO_LAYER_ID, VESSEL_LAYER_ID]) {
-      if (this.map?.getLayer(layerId)) {
-        this.map.moveLayer(layerId);
+    // Phase 1: Layer creation (heavy, blocks rendering). Spread across frames.
+    const layerEnsures = [
+      () => this.applyOpenSeaMapOverlay(),
+      () => this.applyWeatherOverlays(),
+      () => this.applyEnvironmentVectors(),
+      () => this.ensureTrueWindIcons(),
+      () => this.ensureVesselLayer(),
+      () => this.ensureTrackLayer(),
+      () => this.ensureVectorLayer(),
+      () => this.ensureHeadingLineLayer(),
+      () => this.ensureLaylinesLayer(),
+      () => this.ensureTrueWindLayer(),
+      () => this.ensureWaypointsLayer(),
+      () => this.ensureRouteLayer(),
+      () => this.ensureSavedTracksLayer(),
+      () => this.ensureRangeRingsLayer(),
+      () => this.ensureBearingLineLayer(),
+      () => this.ensureAutopilotTargetLayer(),
+      () => this.ensureBenchRouteLayers(),
+      () => this.ensureAisTracksLayer(),
+      () => this.ensureAisPredictionsLayer(),
+      () => this.ensureAisLayer(),
+      () => this.ensureCpaLinesLayer(),
+    ];
+
+    // Phase 2: Data application + camera (lighter but still can block)
+    const dataApplies = [
+      () => {
+        // Keep the own-vessel marker above AIS targets and chart overlays.
+        for (const layerId of [VESSEL_HALO_LAYER_ID, VESSEL_LAYER_ID]) {
+          if (this.map?.getLayer(layerId)) {
+            this.map.moveLayer(layerId);
+          }
+        }
+      },
+      () => this.applyVessel(),
+      () => this.applyTrack(),
+      () => this.applyVector(),
+      () => this.applyHeadingLine(),
+      () => this.applyLaylines(),
+      () => this.applyTrueWind(),
+      () => this.applyWaypoints(),
+      () => this.applyRoute(),
+      () => this.applySavedTracks(),
+      () => this.applyRangeRings(),
+      () => this.applyBearingLine(),
+      () => this.applyAutopilotTarget(),
+      () => this.applyBenchRoute(),
+      () => this.applyAisTracks(),
+      () => this.applyAisPredictions(),
+      () => this.applyAisTargets(),
+      () => this.applyCpaLines(),
+      () => this.updateCamera(),
+      () => {
+        this.mapReady = true;
+        // Re-apply visibility state after style swap
+        this.setOwnVesselIconScale(this.ownVesselIconScale);
+        this.setAisTargetIconScale(this.aisTargetIconScale);
+        this.applyWindTrackZoomRanges();
+        this.applyRangeRingZoomRange();
+        this.setAisTargetsVisible(this.aisTargetsVisible);
+        this.setAisLabelsVisible(this.aisLabelsVisible);
+        this.setCpaLinesVisible(this.cpaLinesVisible);
+      },
+    ];
+
+    // Spread work across multiple animation frames to prevent [Violation] RAF took >50ms.
+    // Each task is measured individually. If a single task exceeds the budget,
+    // the next task is deferred to the next frame.
+    const BATCH_BUDGET_MS = 4; // Reduced from 5 to be more aggressive
+    let phase = 0;
+    let taskIndex = 0;
+    const tasks = [layerEnsures, dataApplies];
+
+    const runBatch = () => {
+      const currentTasks = tasks[phase];
+      if (!currentTasks || taskIndex >= currentTasks.length) {
+        // Phase complete; move to next phase or finish
+        phase++;
+        taskIndex = 0;
+        if (phase < tasks.length) {
+          this.requestFrame(runBatch);
+        }
+        return;
       }
+
+      const start = performance.now();
+      const task = currentTasks[taskIndex];
+      if (!task) {
+        // Should not happen, but guard against undefined
+        taskIndex++;
+        this.requestFrame(runBatch);
+        return;
+      }
+      taskIndex++;
+      task();
+      const elapsed = performance.now() - start;
+
+      if (elapsed > BATCH_BUDGET_MS) {
+        // This single task was heavy. Yield immediately and continue on next frame.
+        this.requestFrame(runBatch);
+        return;
+      }
+
+      // Check if we have time for another task in this frame
+      if (taskIndex < currentTasks.length && performance.now() - start < BATCH_BUDGET_MS) {
+        // Schedule microtask to allow browser to paint if needed
+        queueMicrotask(() => runBatch());
+      } else if (taskIndex < currentTasks.length) {
+        // Budget exceeded, continue on next frame
+        this.requestFrame(runBatch);
+      } else {
+        // Phase complete
+        phase++;
+        taskIndex = 0;
+        if (phase < tasks.length) {
+          this.requestFrame(runBatch);
+        }
+      }
+    };
+
+    // Defer first batch to next macrotask so the 'load'/'style.load' event handler returns immediately.
+    // Use requestIdleCallback if available for non-critical initialization work.
+    if (typeof requestIdleCallback === 'function') {
+      requestIdleCallback(() => runBatch(), { timeout: 50 });
+    } else {
+      setTimeout(runBatch, 0);
     }
-
-    this.applyVessel();
-    this.applyTrack();
-    this.applyVector();
-    this.applyHeadingLine();
-    this.applyLaylines();
-    this.applyTrueWind();
-    this.applyWaypoints();
-    this.applyRoute();
-    this.applySavedTracks();
-    this.applyRangeRings();
-    this.applyBearingLine();
-    this.applyAutopilotTarget();
-    this.applyBenchRoute();
-    this.applyAisTracks();
-    this.applyAisPredictions();
-    this.applyAisTargets();
-    this.applyCpaLines();
-    this.updateCamera();
-
-    this.mapReady = true;
-
-    // Re-apply visibility state after style swap
-    this.setOwnVesselIconScale(this.ownVesselIconScale);
-    this.setAisTargetIconScale(this.aisTargetIconScale);
-    this.applyWindTrackZoomRanges();
-    this.applyRangeRingZoomRange();
-    this.setAisTargetsVisible(this.aisTargetsVisible);
-    this.setAisLabelsVisible(this.aisLabelsVisible);
-    this.setCpaLinesVisible(this.cpaLinesVisible);
   }
 
   private applyOpenSeaMapOverlay(): void {
@@ -1445,14 +1630,14 @@ export class MapLibreEngineService {
    * Show/hide a weather raster overlay (e.g. OpenWeatherMap temperature/wind),
    * served through the chart-engine tile proxy. Re-applied on every style load.
    */
-  setWeatherLayer(id: string, tileUrlTemplate: string, visible: boolean, opacity?: number): void {
+  setWeatherLayer(id: string, tileUrlTemplate: string | null, visible: boolean, opacity?: number): void {
     if (opacity !== undefined) {
       this.weatherOpacity = opacity;
     }
     const existing = this.weatherLayers.get(id);
     this.weatherLayers.set(id, { tileUrl: tileUrlTemplate, visible });
     if (!existing || existing.tileUrl !== tileUrlTemplate || existing.visible !== visible) {
-      this.applyWeatherOverlays();
+      this.scheduleWeatherOverlays();
     }
   }
 
@@ -1466,6 +1651,129 @@ export class MapLibreEngineService {
         this.map.setPaintProperty(layerId, 'raster-opacity', opacity);
       }
     }
+    for (const id of this.environmentVectors.keys()) {
+      const layerId = `environment-${id}-layer`;
+      if (!this.map.getLayer(layerId)) continue;
+      const property = id === 'currents' ? 'line-opacity' : id === 'waves' ? 'circle-opacity' : 'heatmap-opacity';
+      this.map.setPaintProperty(layerId, property, opacity);
+      const directionLayerId = `${layerId}-direction`;
+      if (this.map.getLayer(directionLayerId)) this.map.setPaintProperty(directionLayerId, 'text-opacity', opacity);
+    }
+  }
+
+  setEnvironmentVector(id: string, dataUrl: string | null, visible: boolean): void {
+    const existing = this.environmentVectors.get(id);
+    this.environmentVectors.set(id, { dataUrl, visible });
+    if (!existing || existing.dataUrl !== dataUrl || existing.visible !== visible) {
+      this.scheduleEnvironmentVectors();
+    }
+  }
+
+  private scheduleWeatherOverlays(): void {
+    if (this.weatherApplyFrame !== null) return;
+    this.weatherApplyFrame = this.requestFrame(() => {
+      this.weatherApplyFrame = null;
+      this.applyWeatherOverlays();
+    });
+  }
+
+  private scheduleEnvironmentVectors(): void {
+    if (this.environmentApplyFrame !== null) return;
+    this.environmentApplyFrame = this.requestFrame(() => {
+      this.environmentApplyFrame = null;
+      this.applyEnvironmentVectors();
+    });
+  }
+
+  private applyEnvironmentVectors(): void {
+    if (!this.map) return;
+    for (const [id, config] of this.environmentVectors) {
+      const sourceId = `environment-${id}`;
+      const layerId = `${sourceId}-layer`;
+      const directionLayerId = `${layerId}-direction`;
+      if (!config.visible || !config.dataUrl) {
+        if (this.map.getLayer(directionLayerId)) this.map.removeLayer(directionLayerId);
+        if (this.map.getLayer(layerId)) this.map.removeLayer(layerId);
+        if (this.map.getSource(sourceId)) this.map.removeSource(sourceId);
+        continue;
+      }
+      const source = this.map.getSource(sourceId) as maplibregl.GeoJSONSource | undefined;
+      if (source) source.setData(config.dataUrl);
+      else this.map.addSource(sourceId, { type: 'geojson', data: config.dataUrl });
+      if (this.map.getLayer(layerId)) continue;
+      if (id === 'currents') {
+        this.map.addLayer({
+          id: layerId, type: 'line', source: sourceId,
+          paint: {
+            // Mirrors --gb-tick-reference; MapLibre paint cannot read CSS variables.
+            'line-color': '#38bdf8',
+            'line-width': ['interpolate', ['linear'], ['get', 'speedKnots'], 0, 1, 4, 4],
+            'line-opacity': this.weatherOpacity,
+          },
+        });
+        this.map.addLayer({
+          id: directionLayerId, type: 'symbol', source: sourceId,
+          layout: {
+            'symbol-placement': 'line',
+            'symbol-spacing': 44,
+            'text-field': '›',
+            'text-size': 18,
+            'text-rotation-alignment': 'map',
+            'text-keep-upright': false,
+          },
+          paint: {
+            // Matches the current vector line and remains legible over raster themes.
+            'text-color': '#38bdf8',
+            'text-halo-color': '#0b1220',
+            'text-halo-width': 1,
+            'text-opacity': this.weatherOpacity,
+          },
+        });
+      } else if (id === 'waves') {
+        this.map.addLayer({
+          id: layerId, type: 'circle', source: sourceId,
+          paint: {
+            // Glass Bridge blue/yellow/red scale for modeled wave height.
+            'circle-color': ['interpolate', ['linear'], ['get', 'heightMeters'], 0, '#38bdf8', 2, '#facc15', 5, '#ef4444'],
+            'circle-radius': ['interpolate', ['linear'], ['get', 'heightMeters'], 0, 3, 5, 11],
+            'circle-opacity': this.weatherOpacity,
+            'circle-stroke-color': '#0b1220',
+            'circle-stroke-width': 1,
+          },
+        });
+      } else {
+        this.map.addLayer({
+          id: layerId, type: 'heatmap', source: sourceId, maxzoom: 16,
+          paint: {
+            'heatmap-weight': 0.7,
+            'heatmap-intensity': 0.8,
+            'heatmap-opacity': this.weatherOpacity,
+            // Perceptual marine temperature ramp; WebGL literals mirror theme semantics.
+            'heatmap-color': ['interpolate', ['linear'], ['heatmap-density'], 0, 'rgba(56,189,248,0)', 0.45, '#38bdf8', 0.7, '#facc15', 1, '#ef4444'],
+          },
+        });
+      }
+    }
+  }
+
+  private showEnvironmentPopup(lngLat: maplibregl.LngLat, layerId: string, properties: Record<string, unknown>): void {
+    if (!this.map) return;
+    const content = document.createElement('div');
+    content.className = 'environment-feature-popup';
+    const title = document.createElement('strong');
+    title.textContent = layerId.includes('currents') ? 'Surface current' : layerId.includes('waves') ? 'Wave forecast' : 'Sea temperature';
+    content.appendChild(title);
+    for (const [key, value] of Object.entries(properties)) {
+      if (value === null || value === undefined) continue;
+      const row = document.createElement('div');
+      row.textContent = `${key}: ${String(value)}`;
+      content.appendChild(row);
+    }
+    this.environmentPopup?.remove();
+    this.environmentPopup = new maplibregl.Popup({ closeButton: true, maxWidth: '260px' })
+      .setLngLat(lngLat)
+      .setDOMContent(content)
+      .addTo(this.map);
   }
 
   private applyWeatherOverlays(): void {
@@ -1481,9 +1789,9 @@ export class MapLibreEngineService {
             type: 'raster',
             tiles: [layer.tileUrl],
             tileSize: 256,
-            minzoom: 0,
-            maxzoom: 18,
-            attribution: 'Weather &copy; <a href="https://openweathermap.org">OpenWeatherMap</a>',
+            minzoom: 3,
+            maxzoom: 10,
+            attribution: 'Atmospheric forecast &copy; OpenWeatherMap',
           });
         }
         if (!this.map.getLayer(layerId)) {
@@ -1491,7 +1799,14 @@ export class MapLibreEngineService {
             id: layerId,
             type: 'raster',
             source: sourceId,
-            paint: { 'raster-opacity': this.weatherOpacity, 'raster-fade-duration': 0 },
+            paint: {
+              'raster-opacity': this.weatherOpacity,
+              'raster-fade-duration': 0,
+              // Boost low-contrast weather tiles so they remain readable over
+              // the dark Glass Bridge chart base at night.
+              'raster-brightness-max': 1.05,
+              'raster-saturation': 0.15,
+            },
           });
         } else {
           this.map.setPaintProperty(layerId, 'raster-opacity', this.weatherOpacity);
@@ -2073,11 +2388,14 @@ export class MapLibreEngineService {
     this.map.setLayoutProperty(TRUE_WIND_LAYER_ID, 'visibility', 'visible');
     this.map.setLayoutProperty(TRUE_WIND_ARROW_LAYER_ID, 'visibility', 'visible');
 
+    // Defer DOM marker updates to a separate RAF to avoid long RAF handlers.
     // Label the primary (true) wind when shown.
     const primary = winds[0]!;
     const labelEndpoint = primary.wind.coords[primary.wind.coords.length - 1];
     if (labelEndpoint) {
-      this.updateTrueWindLabel(primary.wind, labelEndpoint, primary.color);
+      this.scheduleMarkerUpdate(() =>
+        this.updateTrueWindLabel(primary.wind, labelEndpoint, primary.color),
+      );
     }
 
     // Separate label for apparent wind when both winds are visible
@@ -2085,11 +2403,15 @@ export class MapLibreEngineService {
       const apparent = winds[1]!;
       const appEndpoint = apparent.wind.coords[apparent.wind.coords.length - 1];
       if (appEndpoint) {
-        this.updateApparentWindLabel(apparent.wind, appEndpoint, APPARENT_WIND_COLOR);
+        this.scheduleMarkerUpdate(() =>
+          this.updateApparentWindLabel(apparent.wind, appEndpoint, APPARENT_WIND_COLOR),
+        );
       }
     } else {
-      this.apparentWindLabelMarker?.remove();
-      this.apparentWindLabelMarker = null;
+      this.scheduleMarkerUpdate(() => {
+        this.apparentWindLabelMarker?.remove();
+        this.apparentWindLabelMarker = null;
+      });
     }
   }
 
@@ -2122,17 +2444,20 @@ export class MapLibreEngineService {
     source.setData(data);
     this.map.setLayoutProperty(VECTOR_LAYER_ID, 'visibility', 'visible');
 
+    // Defer DOM marker updates to a separate RAF to avoid long RAF handlers.
     // COG label at vector endpoint
     const endpoint = this.lastVector.coords[this.lastVector.coords.length - 1];
     if (endpoint && this.lastVector.label) {
-      this.updateCogLabel(endpoint, this.lastVector.label);
+      this.scheduleMarkerUpdate(() => this.updateCogLabel(endpoint, this.lastVector.label!));
     } else {
-      this.cogLabelMarker?.remove();
-      this.cogLabelMarker = null;
+      this.scheduleMarkerUpdate(() => {
+        this.cogLabelMarker?.remove();
+        this.cogLabelMarker = null;
+      });
     }
 
     // Time-tick markers along the COG predictor line
-    this.updateCogTimeTicks(this.lastVector.timeTicks);
+    this.scheduleMarkerUpdate(() => this.updateCogTimeTicks(this.lastVector.timeTicks));
   }
 
   private applyHeadingLine(): void {
@@ -2165,13 +2490,18 @@ export class MapLibreEngineService {
     source.setData(data);
     this.map.setLayoutProperty(HEADING_LINE_LAYER_ID, 'visibility', 'visible');
 
+    // Defer DOM marker update to a separate RAF to avoid long RAF handlers.
     // Heading label at line endpoint
     const endpoint = this.lastHeadingLine.coords[this.lastHeadingLine.coords.length - 1];
     if (endpoint && this.lastHeadingLine.headingDeg !== null) {
-      this.updateHeadingLabel(endpoint, this.lastHeadingLine.headingDeg);
+      this.scheduleMarkerUpdate(() =>
+        this.updateHeadingLabel(endpoint, this.lastHeadingLine.headingDeg!),
+      );
     } else {
-      this.headingLabelMarker?.remove();
-      this.headingLabelMarker = null;
+      this.scheduleMarkerUpdate(() => {
+        this.headingLabelMarker?.remove();
+        this.headingLabelMarker = null;
+      });
     }
   }
 
@@ -2671,6 +3001,12 @@ export class MapLibreEngineService {
   }
 
   private createWindArrowIcon(color: string): ImageData {
+    const cacheKey = `wind-arrow:${color}`;
+    const cached = MapLibreEngineService.iconCache.get(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
     const size = 64;
     const canvas = document.createElement('canvas');
     canvas.width = size;
@@ -2692,7 +3028,9 @@ export class MapLibreEngineService {
     ctx.closePath();
     ctx.fill();
     ctx.stroke();
-    return ctx.getImageData(0, 0, size, size);
+    const imageData = ctx.getImageData(0, 0, size, size);
+    MapLibreEngineService.iconCache.set(cacheKey, imageData);
+    return imageData;
   }
 
   private windColor(speedMps: number): string {
@@ -2756,8 +3094,13 @@ export class MapLibreEngineService {
     }
 
     const element = this.trueWindLabelMarker.getElement();
-    element.textContent = text;
-    element.style.borderColor = color;
+    // Batch DOM writes: check before modifying to avoid unnecessary invalidation.
+    if (element.textContent !== text) {
+      element.textContent = text;
+    }
+    if (element.style.borderColor !== color) {
+      element.style.borderColor = color;
+    }
     this.trueWindLabelMarker.setLngLat(endpoint);
   }
 
@@ -2789,8 +3132,9 @@ export class MapLibreEngineService {
     }
 
     const el = this.cogLabelMarker.getElement();
-    el.textContent = text;
-    el.style.borderColor = '#f59e0b';
+    if (el.textContent !== text) {
+      el.textContent = text;
+    }
     this.cogLabelMarker.setLngLat(endpoint);
   }
 
@@ -2816,8 +3160,9 @@ export class MapLibreEngineService {
     }
 
     const el = this.headingLabelMarker.getElement();
-    el.textContent = text;
-    el.style.borderColor = '#0ea5e9';
+    if (el.textContent !== text) {
+      el.textContent = text;
+    }
     this.headingLabelMarker.setLngLat(endpoint);
   }
 
@@ -2855,8 +3200,12 @@ export class MapLibreEngineService {
     }
 
     const el = this.apparentWindLabelMarker.getElement();
-    el.textContent = text;
-    el.style.borderColor = color;
+    if (el.textContent !== text) {
+      el.textContent = text;
+    }
+    if (el.style.borderColor !== color) {
+      el.style.borderColor = color;
+    }
     this.apparentWindLabelMarker.setLngLat(endpoint);
   }
 
@@ -2865,6 +3214,11 @@ export class MapLibreEngineService {
   private updateCogTimeTicks(ticks: { label: string; coords: [number, number] }[]): void {
     this.clearCogTimeTicks();
     if (!this.map || ticks.length === 0) return;
+
+    // Batch all marker creation into a single DocumentFragment to minimize reflows,
+    // then add to map in one go. This prevents [Violation] Forced reflow.
+    const fragment = document.createDocumentFragment();
+    const markerConfigs: { element: HTMLElement; coords: [number, number] }[] = [];
 
     for (const tick of ticks) {
       if (!Number.isFinite(tick.coords[0]) || !Number.isFinite(tick.coords[1])) continue;
@@ -2878,11 +3232,30 @@ export class MapLibreEngineService {
       el.style.whiteSpace = 'nowrap';
       el.style.pointerEvents = 'none';
       el.textContent = tick.label;
-      const marker = new maplibregl.Marker({ element: el, anchor: 'center' })
-        .setLngLat(tick.coords)
-        .addTo(this.map);
+      fragment.appendChild(el);
+      markerConfigs.push({ element: el, coords: tick.coords });
+    }
+
+    // Append fragment to a hidden container to force single layout calculation,
+    // then move elements to markers.
+    const tempContainer = document.createElement('div');
+    tempContainer.style.position = 'absolute';
+    tempContainer.style.visibility = 'hidden';
+    tempContainer.appendChild(fragment);
+    document.body.appendChild(tempContainer);
+
+    // Force layout once for all elements
+    void tempContainer.offsetHeight;
+
+    // Now create markers with laid-out elements
+    for (const config of markerConfigs) {
+      const marker = new maplibregl.Marker({ element: config.element, anchor: 'center' })
+        .setLngLat(config.coords)
+        .addTo(this.map!);
       this.cogTimeTickMarkers.push(marker);
     }
+
+    document.body.removeChild(tempContainer);
   }
 
   private clearCogTimeTicks(): void {
@@ -2913,6 +3286,12 @@ export class MapLibreEngineService {
   }
 
   private createVesselIcon(color1: string, color2: string, withSails = true): ImageData {
+    const cacheKey = `vessel:${color1}:${color2}:${withSails}`;
+    const cached = MapLibreEngineService.iconCache.get(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
     const size = 128;
     const canvas = document.createElement('canvas');
     canvas.width = size;
@@ -2991,6 +3370,8 @@ export class MapLibreEngineService {
       ctx.fill();
     }
 
-    return ctx.getImageData(0, 0, size, size);
+    const imageData = ctx.getImageData(0, 0, size, size);
+    MapLibreEngineService.iconCache.set(cacheKey, imageData);
+    return imageData;
   }
 }

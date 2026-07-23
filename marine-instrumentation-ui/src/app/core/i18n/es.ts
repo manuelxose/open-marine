@@ -466,10 +466,18 @@ export const es: Translations = {
       arm_run: 'ARMAR Y EJECUTAR',
       abort: 'ABORTAR / SEGURO',
     },
+    run_banner: {
+      running: 'SIMULACIÓN',
+      abort: 'ABORTAR',
+    },
     scenarios: {
       catalog: 'Catálogo de escenarios',
       empty: 'No hay escenarios disponibles.',
       timeline: 'Línea temporal',
+      mode_closed_loop: 'MUEVE EL BARCO',
+      mode_closed_loop_hint: 'Motor real: engancha el piloto y mueve la embarcación.',
+      mode_data: 'SOLO DATOS',
+      mode_data_hint: 'Genera señales de ejemplo; no engancha el piloto ni mueve el barco.',
     },
     execution: {
       title: 'Ejecución',

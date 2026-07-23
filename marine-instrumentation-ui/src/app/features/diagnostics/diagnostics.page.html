@@ -76,9 +76,18 @@
                     <span class="catalog-description">{{ scenarioCatalogSummary(scenario) }}</span>
                     <small>{{ scenario.category | uppercase }} · v{{ scenario.version }}</small>
                   </span>
-                  @if (scenario.isPreset) {
-                    <span class="preset-badge">PRESET</span>
-                  }
+                  <span class="catalog-badges">
+                    <span
+                      class="mode-badge"
+                      [class.mode-badge--closed-loop]="scenario.mode === 'closed-loop'"
+                      [title]="(scenario.mode === 'closed-loop' ? 'simulation.scenarios.mode_closed_loop_hint' : 'simulation.scenarios.mode_data_hint') | translate"
+                    >
+                      {{ (scenario.mode === 'closed-loop' ? 'simulation.scenarios.mode_closed_loop' : 'simulation.scenarios.mode_data') | translate }}
+                    </span>
+                    @if (scenario.isPreset) {
+                      <span class="preset-badge">PRESET</span>
+                    }
+                  </span>
                 </button>
               } @empty {
                 <div class="empty-message">{{ 'simulation.scenarios.empty' | translate }}</div>
@@ -96,6 +105,13 @@
                     <p>{{ scenarioDescription(scenario) }}</p>
                   </div>
                   <span class="category-badge">{{ scenario.category | uppercase }}</span>
+                  <span
+                    class="mode-badge"
+                    [class.mode-badge--closed-loop]="scenario.mode === 'closed-loop'"
+                    [title]="(scenario.mode === 'closed-loop' ? 'simulation.scenarios.mode_closed_loop_hint' : 'simulation.scenarios.mode_data_hint') | translate"
+                  >
+                    {{ (scenario.mode === 'closed-loop' ? 'simulation.scenarios.mode_closed_loop' : 'simulation.scenarios.mode_data') | translate }}
+                  </span>
                 </div>
 
                 @if (scenario.expectation; as expectation) {

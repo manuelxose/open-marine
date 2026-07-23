@@ -10,6 +10,8 @@ export interface AppEnvironment {
   testBenchApiUrl: string;
   // Local/LAN nautical chart engine for legal local chart sources.
   chartEngineApiUrl: string;
+  // Keyless public forecast API; location is supplied from GPS with a Vigo fallback.
+  weatherApiUrl: string;
 }
 
 export const APP_ENVIRONMENT = new InjectionToken<AppEnvironment>('APP_ENVIRONMENT');
@@ -46,6 +48,7 @@ export function buildEnvironment(signalKHost: string, testBenchHost = resolveTes
     autopilotApiUrl: `${httpProtocol}://${signalKHost}:${AUTOPILOT_API_PORT}`,
     testBenchApiUrl: `${httpProtocol}://${benchHost}:${TEST_BENCH_API_PORT}`,
     chartEngineApiUrl: `${httpProtocol}://${benchHost}:${CHART_ENGINE_API_PORT}`,
+    weatherApiUrl: 'https://api.open-meteo.com/v1/forecast',
   };
 }
 

@@ -80,6 +80,9 @@ export class DatapointStoreService {
     [PATHS.navigation.speedOverGround]: 120,
     [PATHS.environment.wind.speedApparent]: 120,
     [PATHS.environment.depth.belowTransducer]: 120,
+    [PATHS.environment.outside.temperature]: 720,
+    [PATHS.environment.outside.pressure]: 720,
+    [PATHS.environment.outside.humidity]: 720,
     [PATHS.electrical.batteries.house.voltage]: 120,
   };
 
@@ -388,7 +391,7 @@ export class DatapointStoreService {
     }
 
     const sourceChangedFromSimulation =
-      this.lastAcceptedPositionSource === 'simulation' && source !== 'simulation';
+      this.isSimulationSource(this.lastAcceptedPositionSource) && !this.isSimulationSource(source);
 
     if (!this.lastAcceptedPositionSample || sourceChangedFromSimulation) {
       this.lastAcceptedPositionSample = sample;
@@ -435,13 +438,17 @@ export class DatapointStoreService {
 
   private shouldKeepLivePosition(previous: DataPoint | undefined, incoming: DataPoint): boolean {
     if (
-      incoming.source !== 'simulation' ||
+      !this.isSimulationSource(incoming.source) ||
       !previous ||
-      previous.source === 'simulation'
+      this.isSimulationSource(previous.source)
     ) {
       return false;
     }
     return Date.now() - previous.timestamp <= LIVE_POSITION_PROTECTION_MS;
+  }
+
+  private isSimulationSource(source: string | null | undefined): boolean {
+    return typeof source === 'string' && source.startsWith('simulation');
   }
 
   private positiveOr(value: number, fallback: number): number {

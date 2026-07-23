@@ -4,6 +4,7 @@ import { WebSocketSubject, webSocket } from 'rxjs/webSocket';
 import { BehaviorSubject, retry, tap, bufferTime, map, filter, Subscription } from 'rxjs';
 import { APP_ENVIRONMENT, AppEnvironment } from '../../core/config/app-environment.token';
 import { DatapointStoreService } from '../../state/datapoints/datapoint-store.service';
+import type { DataPoint } from '../../state/datapoints/datapoint.models';
 import { AisStoreService } from '../../state/ais/ais-store.service';
 import { AisClass, AisNavStatus, AisTarget } from '../../core/models/ais.model';
 import { normalizeDelta } from './signalk-mapper';
@@ -38,6 +39,7 @@ export class SignalKClientService implements OnDestroy {
   private socket$: WebSocketSubject<SignalKMessage> | null = null;
   private connectionSubscription: Subscription | null = null;
   private selfContext: string | null = null;
+  private connectedUrl: string | null = null;
 
   // Connection State
   private _connected = new BehaviorSubject<boolean>(false);
@@ -53,10 +55,13 @@ export class SignalKClientService implements OnDestroy {
   public connect(wsUrl?: string): void {
     if (!isPlatformBrowser(this.platformId)) return; // Don't connect in SSR
 
-    if (this.socket$) return; // Already connected
-
     const url = wsUrl ?? this.env.signalKWsUrl;
+    if (this.socket$) {
+      if (this.connectedUrl === url) return;
+      this.disconnect();
+    }
     console.log(`Connecting to Signal K WS at ${url}`);
+    this.connectedUrl = url;
 
     this.socket$ = webSocket<SignalKMessage>({
       url,
@@ -64,6 +69,7 @@ export class SignalKClientService implements OnDestroy {
         next: () => {
           console.log('Signal K WS Connected');
           this._connected.next(true);
+          void this.seedInitialSelfSnapshot(url);
         },
       },
       closeObserver: {
@@ -71,6 +77,7 @@ export class SignalKClientService implements OnDestroy {
           console.log('Signal K WS Closed');
           this._connected.next(false);
           this.socket$ = null; // Allow reconnect
+          this.connectedUrl = null;
         },
       },
     });
@@ -113,6 +120,58 @@ export class SignalKClientService implements OnDestroy {
         },
         error: (err) => console.error('WS Error', err),
       });
+  }
+
+  private async seedInitialSelfSnapshot(wsUrl: string): Promise<void> {
+    try {
+      const apiUrl = this.selfSnapshotUrlFromWs(wsUrl);
+      const response = await fetch(apiUrl, { method: 'GET' });
+      if (!response.ok) return;
+      const snapshot = await response.json() as Record<string, unknown>;
+      const points = this.flattenSignalKSnapshot(snapshot);
+      if (points.length > 0) {
+        this.store.update(points);
+      }
+    } catch (err) {
+      console.debug('Initial Signal K self snapshot unavailable', err);
+    }
+  }
+
+  private selfSnapshotUrlFromWs(wsUrl: string): string {
+    const url = new URL(wsUrl);
+    url.protocol = url.protocol === 'wss:' ? 'https:' : 'http:';
+    url.search = '';
+    url.hash = '';
+    url.pathname = url.pathname.replace(/\/stream\/?$/, '/api/vessels/self');
+    return url.toString();
+  }
+
+  private flattenSignalKSnapshot(snapshot: Record<string, unknown>): DataPoint[] {
+    const points: DataPoint[] = [];
+    this.collectSnapshotPoints(snapshot, '', points);
+    return points;
+  }
+
+  private collectSnapshotPoints(node: unknown, prefix: string, points: DataPoint[]): void {
+    if (!node || typeof node !== 'object' || Array.isArray(node)) return;
+    const record = node as Record<string, unknown>;
+    if (Object.prototype.hasOwnProperty.call(record, 'value') && prefix) {
+      const timestampValue = record['timestamp'];
+      const timestamp = typeof timestampValue === 'string' ? Date.parse(timestampValue) : Date.now();
+      const sourceValue = record['$source'];
+      points.push({
+        path: prefix,
+        value: record['value'],
+        timestamp: Number.isFinite(timestamp) ? timestamp : Date.now(),
+        source: typeof sourceValue === 'string' ? sourceValue : 'signalk-rest',
+      });
+      return;
+    }
+
+    for (const [key, value] of Object.entries(record)) {
+      if (key === 'meta' || key === '$source' || key === 'timestamp' || key === 'uuid') continue;
+      this.collectSnapshotPoints(value, prefix ? `${prefix}.${key}` : key, points);
+    }
   }
 
   private processAisUpdate(point: NormalizedDataPoint): void {
@@ -572,6 +631,7 @@ export class SignalKClientService implements OnDestroy {
       this.socket$.complete();
       this.socket$ = null;
     }
+    this.connectedUrl = null;
     this._connected.next(false);
   }
 

@@ -4,6 +4,7 @@ import { Router, RouterModule, NavigationEnd } from '@angular/router';
 import { map, filter, startWith } from 'rxjs';
 import { TopBarComponent } from '../top-bar/top-bar.component';
 import { AlarmBannerComponent } from '../alarm-banner/alarm-banner.component';
+import { SimulationRunBannerComponent } from '../simulation-run-banner/simulation-run-banner.component';
 import { ThemeService } from '../../../core/theme/theme.service';
 import { SignalKClientService } from '../../../data-access/signalk/signalk-client.service';
 import { AlarmsFacadeService } from '../../../features/alarms/services/alarms-facade.service';
@@ -12,7 +13,7 @@ import { AlarmSeverity, AlarmState } from '../../../state/alarms/alarm.models';
 @Component({
   selector: 'app-app-shell',
   standalone: true,
-  imports: [CommonModule, RouterModule, TopBarComponent, AlarmBannerComponent],
+  imports: [CommonModule, RouterModule, TopBarComponent, AlarmBannerComponent, SimulationRunBannerComponent],
   templateUrl: './app-shell.component.html',
   styleUrls: ['./app-shell.component.css'],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -47,10 +48,6 @@ export class AppShellComponent {
 
   navCollapsed = true;
 
-  constructor() {
-    this.signalK.connect();
-  }
-
   toggleTheme() {
     this.themeService.toggle();
   }
@@ -80,7 +77,14 @@ export class AppShellComponent {
 
   private requestChartReflow(): void {
     // Single resize after the CSS transition (~300ms) so MapLibre repaints once on the final layout.
-    setTimeout(() => window.dispatchEvent(new Event('resize')), 320);
+    // Run outside Angular zone to prevent change detection and reduce main-thread contention.
+    if (typeof (window as any).__zone_symbol__setTimeout === 'function') {
+      (window as any).__zone_symbol__setTimeout(() => {
+        window.dispatchEvent(new Event('resize'));
+      }, 320);
+    } else {
+      setTimeout(() => window.dispatchEvent(new Event('resize')), 320);
+    }
   }
 
   private isChartRoute(url: string): boolean {
