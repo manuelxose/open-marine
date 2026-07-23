@@ -92,6 +92,8 @@ lerna-debug.log*
 .generated/
 __pycache__/
 *.py[cod]
+marine-chart-engine/data/chart-cache/
+marine-chart-engine/data/charts/downloads.local.json
 
 # Local tooling binaries
 tools/*
