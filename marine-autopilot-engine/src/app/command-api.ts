@@ -51,13 +51,14 @@ export class CommandApi {
     private readonly port: number,
     private readonly commands: AutopilotCommands,
     private readonly log: Logger,
+    private readonly host = "0.0.0.0",
   ) {}
 
   start(): Promise<void> {
     return new Promise((resolve) => {
       this.server = createServer((req, res) => this.handle(req, res));
-      this.server.listen(this.port, () => {
-        this.log.info(`command API listening on :${this.port}`);
+      this.server.listen(this.port, this.host, () => {
+        this.log.info(`command API listening on ${this.host}:${this.port}`);
         resolve();
       });
     });

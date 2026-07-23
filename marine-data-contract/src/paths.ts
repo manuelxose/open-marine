@@ -21,6 +21,8 @@ export const PATHS = {
         bearingTrue: "navigation.courseGreatCircle.nextPoint.bearingTrue",
         distance: "navigation.courseGreatCircle.nextPoint.distance",
         velocityMadeGood: "navigation.courseGreatCircle.nextPoint.velocityMadeGood",
+        /** Raw destination lat/lon, resolved server-side from an href or a raw point. */
+        position: "navigation.courseGreatCircle.nextPoint.position",
       },
     },
     trip: {
