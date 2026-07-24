@@ -17,6 +17,8 @@ the Cytron MD30C R2. The Raspberry remains the high-level heading controller.
 | Ground | GND | 18 | Pico/MD30C signal ground |
 
 - `bench-led`: permits LED PWM tests without motor hardware.
+- `bench-motor`: permits only short, confirmed tests with a small unloaded DC
+  motor; current sensing is deliberately unavailable.
 - `motor-commissioning`: requires safety inputs, caps PWM at 10% and motion at 1 s.
 - `hil-motor`: requires safety inputs, caps PWM at 10% and each armed session at 30 s.
 - `production`: required by OMI; ships blocked until actual sensors are calibrated.
@@ -75,3 +77,86 @@ Production startup always runs preflight:
 The ST3000 motor supply remains a dedicated 12 V circuit protected by a 12 A
 fuse/breaker. Its manual belt clutch is the independent mechanical means of
 returning to hand steering.
+
+## Prueba de motor DC pequeño sin sensor de corriente
+
+`bench-motor` sirve únicamente para un motor DC pequeño de 12 V, sujeto y sin
+carga mecánica. No debe usarse con el ST3000, HIL, Signal K ni el piloto real.
+No mide ni simula corriente: el estado informa `current=unavailable`. Use una
+fuente limitada o un fusible dimensionado para el motor de banco.
+
+Con la alimentación de 12 V cortada, conecte:
+
+```text
+Pico GP15 (pin 20) ---> MD30C PWM
+Pico GP14 (pin 19) ---> MD30C DIR
+Pico GND  (pin 18) ---> MD30C GND lógico
+MD30C A / B         ---> motor DC pequeño sin carga
+12 V + con fusible  ---> MD30C PWR+
+12 V -              ---> MD30C PWR-
+```
+
+Configure el MD30C en `EXT PWM`. No lleve la corriente de potencia por una
+protoboard y no conecte nunca 12 V a la Pico. GP26 queda sin usar. GP13 es
+opcional: si se habilita al desplegar, debe tener un contacto NC a GND; una
+apertura corta PWM. Sin él, el estado y cada prueba advierten
+`estop=not-configured`.
+
+Orden recomendado desde PowerShell, en la raíz del repositorio:
+
+```powershell
+# 1. Desplegar con el límite predeterminado del 10 %
+.\scripts\pico2-motor.ps1 -Action Deploy -Profile bench-motor
+
+# 2. Verificar perfil, comunicación, heartbeat y PWM=0 sin mover el motor
+.\scripts\pico2\bench-motor-preflight.ps1
+
+# 3. Aplicar dos pulsos separados, 5 % durante 800 ms
+.\scripts\pico2\bench-motor-pulse.ps1 -Direction starboard -Duty 5 -Milliseconds 800 -ConfirmBenchMotor
+Start-Sleep -Seconds 3
+.\scripts\pico2\bench-motor-pulse.ps1 -Direction port -Duty 5 -Milliseconds 800 -ConfirmBenchMotor
+
+# 4. Parada independiente y verificada
+.\scripts\pico2\bench-motor-stop.ps1
+```
+
+El máximo configurable se indica solo durante el despliegue y nunca puede
+superar el 20 %:
+
+```powershell
+.\scripts\pico2-motor.ps1 -Action Deploy -Profile bench-motor -BenchMotorMaxDuty 15
+```
+
+Para habilitar la supervisión opcional de GP13:
+
+```powershell
+.\scripts\pico2-motor.ps1 -Action Deploy -Profile bench-motor -BenchMotorEstopConfigured
+```
+
+Pruebas adicionales:
+
+| Script | Función | Estado final |
+| --- | --- | --- |
+| `bench-motor-direction-test.ps1 -ConfirmBenchMotor` | Parada, 5 %/800 ms en cada sentido, con 3 s de pausa | PWM=0 |
+| `bench-motor-ramp.ps1 -Direction starboard -ConfirmBenchMotor` | 2/4/6/8/10 %, 800 ms por escalón y al menos 2 s de pausa | PWM=0 |
+| `bench-motor-watchdog-test.ps1 -ConfirmBenchMotor` | Interrumpe el heartbeat y mide el corte en un máximo de 500 ms | PASS/FAIL y PWM=0 |
+| `bench-motor-stop.ps1` | Repite `X`, consulta estado y falla si queda salida | PWM=0 |
+
+Antes de conectar el cable `PWM` al MD30C puede medirse GP15 respecto a GND:
+en reposo debe indicar aproximadamente 0 V; durante un pulso corto, un
+multímetro puede mostrar un promedio pequeño porque la señal es PWM a 20 kHz.
+Un osciloscopio o analizador lógico permite comprobar el porcentaje con mayor
+precisión.
+
+Estado normal detenido:
+
+```text
+profile=bench-motor enabled=0 drive=0.000 pwm_output=0.000
+heartbeat=0 estop=not-configured current=unavailable ready=1 fault=
+```
+
+Aquí `ready=1` significa solamente «listo para una prueba limitada de banco».
+No significa que esté listo para el ST3000 o producción. Si `fault` contiene
+un valor, detenga, corrija la causa y repita el preflight. Si el sentido lógico
+está invertido, corte primero los 12 V, espere la parada completa, intercambie
+los cables `A` y `B` del motor y repita únicamente los pulsos.
