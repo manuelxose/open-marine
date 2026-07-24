@@ -1,4 +1,4 @@
-"""OMI Pico 2 safety bridge for LED, commissioning, and production profiles."""
+"""OMI Pico 2 safety bridge for LED, bench motor, and production profiles."""
 
 import sys
 import time
@@ -6,6 +6,18 @@ import uselect
 from machine import ADC, Pin, PWM
 
 import config
+from motor_policy import (
+    BENCH_MOTOR_MIN_PAUSE_MS,
+    PROFILE_MAX_MOTION_MS,
+    VALID_PROFILES,
+    direction_level,
+    heartbeat_is_fresh,
+    profile_drive_limit,
+    profile_watchdog_ms,
+    requires_current_sensor,
+    requires_estop,
+    sensor_value,
+)
 
 PWM_PIN = 15
 DIR_PIN = 14
@@ -14,19 +26,16 @@ CURRENT_PIN = 26
 PWM_HZ = 20_000
 WATCHDOG_MS = 500
 TELEMETRY_MS = 250
-PROFILE_MAX_MOTION_MS = {
-    "motor-commissioning": 1_000,
-    "hil-motor": 30_000,
-}
-VALID_PROFILES = ("bench-led", "motor-commissioning", "hil-motor", "production")
 
 profile = config.PROFILE
 direction = Pin(DIR_PIN, Pin.OUT, value=0)
 pwm = PWM(Pin(PWM_PIN))
 pwm.freq(PWM_HZ)
 pwm.duty_u16(0)
-estop_input = Pin(ESTOP_PIN, Pin.IN, Pin.PULL_UP)
-current_adc = ADC(CURRENT_PIN)
+estop_input = (
+    Pin(ESTOP_PIN, Pin.IN, Pin.PULL_UP) if config.ESTOP_CONFIGURED else None
+)
+current_adc = ADC(CURRENT_PIN) if config.CURRENT_SENSOR_CONFIGURED else None
 poll = uselect.poll()
 poll.register(sys.stdin, uselect.POLLIN)
 
@@ -34,12 +43,13 @@ enabled = False
 drive = 0.0
 heartbeat_at = None
 motion_started_at = None
+last_motion_stopped_at = None
 last_telemetry_at = time.ticks_ms()
 fault = None
 
 
 def estop_open():
-    return estop_input.value() != 0
+    return None if estop_input is None else estop_input.value() != 0
 
 
 def estop_active():
@@ -49,6 +59,8 @@ def estop_active():
 
 
 def current_volts():
+    if current_adc is None:
+        return None
     return current_adc.read_u16() * 3.3 / 65535
 
 
@@ -68,13 +80,24 @@ def hardware_safety_ready():
     )
 
 
+def profile_ready():
+    if profile == "bench-led":
+        return True
+    if profile == "bench-motor":
+        return not config.ESTOP_CONFIGURED or not estop_active()
+    return hardware_safety_ready()
+
+
 def stop_output():
-    global enabled, drive, motion_started_at
+    global enabled, drive, motion_started_at, last_motion_stopped_at
+    was_moving = enabled and abs(drive) > 0
     pwm.duty_u16(0)
     direction.value(0)
     enabled = False
     drive = 0.0
     motion_started_at = None
+    if was_moving:
+        last_motion_stopped_at = time.ticks_ms()
 
 
 def latch_fault(reason):
@@ -86,16 +109,23 @@ def latch_fault(reason):
 
 
 def heartbeat_fresh():
-    return heartbeat_at is not None and time.ticks_diff(
-        time.ticks_ms(), heartbeat_at
-    ) <= WATCHDOG_MS
+    return heartbeat_at is not None and heartbeat_is_fresh(
+        time.ticks_diff(time.ticks_ms(), heartbeat_at),
+        profile_watchdog_ms(profile, WATCHDOG_MS),
+    )
 
 
 def safety_reason():
     amps = current_amps()
     if profile not in VALID_PROFILES:
         return "invalid-profile"
-    if profile != "bench-led" and not hardware_safety_ready():
+    if requires_estop(profile) and not config.ESTOP_CONFIGURED:
+        return "estop-not-configured"
+    if requires_current_sensor(profile) and (
+        not config.CURRENT_SENSOR_CONFIGURED
+        or config.CURRENT_VOLTS_PER_AMP <= 0
+        or config.CURRENT_LIMIT_AMPS <= 0
+    ):
         return "safety-not-configured"
     if estop_active():
         return "estop"
@@ -112,28 +142,44 @@ def apply_output():
     if fault or not enabled or not heartbeat_fresh():
         pwm.duty_u16(0)
         return
-    limit = 0.10 if profile in ("motor-commissioning", "hil-motor") else 1.0
+    limit = profile_drive_limit(
+        profile, getattr(config, "BENCH_MOTOR_MAX_DRIVE", 0.10)
+    )
     duty = min(limit, abs(drive))
-    direction.value(1 if drive >= 0 else 0)
+    direction.value(direction_level(drive))
     pwm.duty_u16(round(duty * 65535))
 
 
 def print_status():
     amps = current_amps()
+    volts = current_volts()
+    estop_state = (
+        "not-configured"
+        if not config.ESTOP_CONFIGURED
+        else ("active" if estop_active() else "safe")
+    )
+    estop_raw = "unavailable" if estop_open() is None else int(estop_open())
+    max_drive = profile_drive_limit(
+        profile, getattr(config, "BENCH_MOTOR_MAX_DRIVE", 0.10)
+    )
     print(
-        "R,pico2,profile={},pwm={},dir={},enabled={},drive={:.3f},"
-        "heartbeat={},estop={},estop_raw={},current={},current_v={:.4f},ready={},fault={}".format(
+        "R,pico2,profile={},pwm={},dir={},pwm_output={:.3f},dir_output={},"
+        "enabled={},drive={:.3f},heartbeat={},estop={},estop_raw={},"
+        "current={},current_v={},max_drive={:.3f},ready={},fault={}".format(
             profile,
             PWM_PIN,
             DIR_PIN,
+            min(max_drive, abs(drive)) if enabled and heartbeat_fresh() else 0.0,
+            direction.value(),
             int(enabled),
             drive,
             int(heartbeat_fresh()),
-            int(estop_active()),
-            int(estop_open()),
-            "" if amps is None else "{:.2f}".format(amps),
-            current_volts(),
-            int(True if profile == "bench-led" else hardware_safety_ready()),
+            estop_state,
+            estop_raw,
+            sensor_value(amps),
+            sensor_value(volts, 4),
+            max_drive,
+            int(profile_ready()),
             fault or "",
         )
     )
@@ -164,17 +210,31 @@ def handle_frame(line):
         print_status()
         return
     if kind == "V" and len(parts) == 1:
-        print("R,adc,current_v={:.4f}".format(current_volts()))
+        volts = current_volts()
+        print("R,adc,current_v={}".format(sensor_value(volts, 4)))
         return
     if kind == "C" and len(parts) == 4:
         requested_drive = float(parts[2])
         requested_enable = parts[3] == "1"
         if not -1.0 <= requested_drive <= 1.0 or parts[3] not in ("0", "1"):
             raise ValueError("invalid-command")
-        if profile in ("motor-commissioning", "hil-motor") and abs(requested_drive) > 0.10:
+        drive_limit = profile_drive_limit(
+            profile, getattr(config, "BENCH_MOTOR_MAX_DRIVE", 0.10)
+        )
+        if profile in ("bench-motor", "motor-commissioning", "hil-motor") and abs(
+            requested_drive
+        ) > drive_limit:
             latch_fault("{}-limit".format(profile))
             return
         if requested_enable and abs(requested_drive) > 0 and motion_started_at is None:
+            if (
+                profile == "bench-motor"
+                and last_motion_stopped_at is not None
+                and time.ticks_diff(time.ticks_ms(), last_motion_stopped_at)
+                < BENCH_MOTOR_MIN_PAUSE_MS
+            ):
+                latch_fault("bench-motor-cooldown")
+                return
             motion_started_at = time.ticks_ms()
         if not requested_enable or requested_drive == 0:
             motion_started_at = None
@@ -188,7 +248,11 @@ def handle_frame(line):
 stop_output()
 if profile not in VALID_PROFILES:
     latch_fault("invalid-profile")
-print("R,ready,pico2,profile={},watchdog_ms={}".format(profile, WATCHDOG_MS))
+print(
+    "R,ready,pico2,profile={},watchdog_ms={}".format(
+        profile, profile_watchdog_ms(profile, WATCHDOG_MS)
+    )
+)
 
 try:
     while True:
@@ -218,12 +282,12 @@ try:
         ):
             latch_fault("{}-timeout".format(profile))
         reason = safety_reason()
-        if reason and (enabled or profile != "bench-led"):
+        if reason and (enabled or profile not in ("bench-led", "bench-motor")):
             latch_fault(reason)
         if time.ticks_diff(now, last_telemetry_at) >= TELEMETRY_MS:
             last_telemetry_at = now
             amps = current_amps()
-            print("T,,{}".format("" if amps is None else "{:.2f}".format(amps)))
+            print("T,,{}".format(sensor_value(amps)))
 except BaseException:
     stop_output()
     raise

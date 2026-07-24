@@ -5,6 +5,7 @@ import argparse
 import fcntl
 import glob
 import json
+import math
 import os
 from pathlib import Path
 import signal
@@ -17,6 +18,10 @@ DEVICE_GLOB = "/dev/serial/by-id/usb-MicroPython_Board_in_FS_mode_*-if00"
 LOCK_PATH = "/tmp/omi-pico2-control.lock"
 PID_PATH = "/tmp/omi-pico2-control.pid"
 CALIBRATION_PATH = Path.home() / ".config" / "omi" / "pico2-current.json"
+BENCH_PROFILE = "bench-motor"
+BENCH_ABSOLUTE_MAX_DUTY = 20
+BENCH_MAX_MILLISECONDS = 1_000
+BENCH_MIN_PAUSE_SECONDS = 2.0
 
 
 def resolve_device(requested):
@@ -29,6 +34,15 @@ def resolve_device(requested):
 def send(port, frame):
     port.write((frame + "\n").encode("ascii"))
     port.flush()
+
+
+def best_effort_stop(port, attempts=3):
+    for _attempt in range(attempts):
+        try:
+            send(port, "X")
+        except (OSError, serial.SerialException):
+            pass
+        time.sleep(0.05)
 
 
 def lines(port, seconds=0.35):
@@ -58,6 +72,205 @@ def status_values(response):
         if separator:
             values[key] = value
     return status, values
+
+
+def require_stopped(values):
+    for key in ("enabled", "drive", "pwm_output"):
+        if key not in values:
+            raise RuntimeError("Pico status is missing {}: {}".format(key, values))
+    if values.get("enabled") != "0":
+        raise RuntimeError("Pico remains enabled: {}".format(values))
+    drive = float(values["drive"])
+    pwm_output = float(values["pwm_output"])
+    if not math.isfinite(drive) or abs(drive) > 0:
+        raise RuntimeError("Pico drive is not zero: {}".format(values))
+    if not math.isfinite(pwm_output) or abs(pwm_output) > 0:
+        raise RuntimeError("Pico PWM output is not zero: {}".format(values))
+
+
+def require_bench_status(response, require_heartbeat=False):
+    status, values = status_values(response)
+    if values.get("profile") != BENCH_PROFILE:
+        raise RuntimeError(
+            "Refusing motor command: active profile is not bench-motor: {}".format(
+                status
+            )
+        )
+    if values.get("ready") != "1":
+        raise RuntimeError("bench-motor is not ready: {}".format(status))
+    if values.get("fault"):
+        raise RuntimeError("bench-motor has a latched fault: {}".format(status))
+    if values.get("current") != "unavailable":
+        raise RuntimeError(
+            "bench-motor must report current=unavailable: {}".format(status)
+        )
+    if require_heartbeat and values.get("heartbeat") != "1":
+        raise RuntimeError("Pico heartbeat check failed: {}".format(status))
+    return status, values
+
+
+def bench_drive_value(direction_name, duty_percent):
+    sign = 1 if direction_name == "starboard" else -1
+    return sign * duty_percent / 100
+
+
+def bench_warning(values, direction_name, duty_percent, milliseconds):
+    print("BENCH MOTOR LIMITED TEST", flush=True)
+    print("profile={}".format(values["profile"]), flush=True)
+    print(
+        "GPIO PWM={} DIR={}".format(values.get("pwm"), values.get("dir")),
+        flush=True,
+    )
+    print("direction={}".format(direction_name), flush=True)
+    print("duty={} percent".format(duty_percent), flush=True)
+    print("duration={} ms".format(milliseconds), flush=True)
+    print(
+        "WARNING: no electronic current measurement or over-current cutoff is available.",
+        flush=True,
+    )
+    if values.get("estop") == "not-configured":
+        print(
+            "WARNING: GP13 auxiliary E-stop is not configured; only the explicit confirmation and external power protection remain.",
+            flush=True,
+        )
+
+
+def bench_preflight(port):
+    initial = query(port)
+    _status, values = require_bench_status(initial)
+    require_stopped(values)
+    max_duty = round(float(values.get("max_drive", "0")) * 100)
+    if not 1 <= max_duty <= BENCH_ABSOLUTE_MAX_DUTY:
+        raise RuntimeError("Invalid bench-motor maximum duty: {}%".format(max_duty))
+    if values.get("estop") == "active":
+        raise RuntimeError("GP13 E-stop is open/active")
+    if values.get("estop") == "not-configured":
+        print("WARNING: E-stop GP13 is not configured.", flush=True)
+    send(port, "H")
+    heartbeat_response = query(port)
+    require_bench_status(heartbeat_response, require_heartbeat=True)
+    best_effort_stop(port)
+    final = query(port)
+    _status, final_values = require_bench_status(final)
+    require_stopped(final_values)
+    print(
+        "bench-motor preflight PASS; max duty={}%, current=unavailable, motor not moved.".format(
+            max_duty
+        ),
+        flush=True,
+    )
+    return final_values
+
+
+def bench_drive_for(port, direction_name, duty_percent, milliseconds):
+    response = query(port)
+    _status, values = require_bench_status(response)
+    require_stopped(values)
+    configured_max = float(values["max_drive"]) * 100
+    if duty_percent > configured_max + 0.001:
+        raise RuntimeError(
+            "Duty {}% exceeds active bench-motor limit {:.0f}%".format(
+                duty_percent, configured_max
+            )
+        )
+    bench_warning(values, direction_name, duty_percent, milliseconds)
+    drive = bench_drive_value(direction_name, duty_percent)
+    rearm(port)
+    deadline = time.monotonic() + milliseconds / 1000
+    try:
+        while time.monotonic() < deadline:
+            send(port, "H")
+            send(port, "C,0,{:.3f},1".format(drive))
+            time.sleep(0.05)
+    finally:
+        best_effort_stop(port)
+    time.sleep(0.15)
+    stopped_response = query(port)
+    _status, stopped_values = require_bench_status(stopped_response)
+    require_stopped(stopped_values)
+    print("Pulse complete; PWM=0 DIR=0.", flush=True)
+
+
+def bench_direction_test(port):
+    try:
+        bench_stop(port)
+        bench_drive_for(port, "starboard", 5, 800)
+        time.sleep(3.0)
+        bench_drive_for(port, "port", 5, 800)
+    finally:
+        best_effort_stop(port)
+    bench_stop(port)
+
+
+def bench_ramp(port, direction_name):
+    try:
+        for duty in (2, 4, 6, 8, 10):
+            bench_drive_for(port, direction_name, duty, 800)
+            time.sleep(BENCH_MIN_PAUSE_SECONDS)
+    finally:
+        best_effort_stop(port)
+    bench_stop(port)
+
+
+def bench_stop(port):
+    best_effort_stop(port)
+    time.sleep(0.15)
+    response = query(port)
+    _status, values = status_values(response)
+    require_stopped(values)
+    print("bench-motor STOP confirmed: enabled=0 drive=0 PWM=0 DIR=0.", flush=True)
+
+
+def bench_watchdog_test(port):
+    response = query(port)
+    _status, values = require_bench_status(response)
+    require_stopped(values)
+    bench_warning(values, "starboard", 5, 1_000)
+    rearm(port)
+    send(port, "H")
+    started = time.monotonic()
+    send(port, "C,0,0.050,1")
+    stopped_at = None
+    saw_motion = False
+    previous_timeout = getattr(port, "timeout", None)
+    if previous_timeout is not None:
+        port.timeout = 0.01
+    try:
+        while time.monotonic() - started <= 0.65:
+            send(port, "P")
+            for line in lines(port, 0.025):
+                if line.startswith("R,pico2,"):
+                    _status, current = status_values([line])
+                    if (
+                        current.get("enabled") == "1"
+                        and float(current.get("pwm_output", "0")) > 0
+                    ):
+                        saw_motion = True
+                    if (
+                        saw_motion
+                        and current.get("enabled") == "0"
+                        and current.get("drive") == "0.000"
+                        and current.get("pwm_output") == "0.000"
+                    ):
+                        stopped_at = time.monotonic()
+                        break
+            if stopped_at is not None:
+                break
+        if not saw_motion:
+            raise RuntimeError("Watchdog test never observed active PWM")
+        if stopped_at is None:
+            raise RuntimeError("Watchdog did not stop PWM")
+        elapsed_ms = (stopped_at - started) * 1000
+        if elapsed_ms > 500:
+            raise RuntimeError(
+                "Watchdog FAIL: PWM stopped after {:.1f} ms".format(elapsed_ms)
+            )
+        print("Watchdog PASS: PWM stopped after {:.1f} ms.".format(elapsed_ms))
+    finally:
+        if previous_timeout is not None:
+            port.timeout = previous_timeout
+        best_effort_stop(port)
+    bench_stop(port)
 
 
 def load_calibration():
@@ -265,10 +478,20 @@ def current_test(port):
 def require_confirmation(args):
     test_commands = {"led-on", "fade", "steps", "blink", "watchdog-test"}
     motor_commands = {"motor-pulse", "motor-ramp", "safety-test", "current-test"}
+    bench_commands = {
+        "bench-pulse",
+        "bench-direction-test",
+        "bench-ramp",
+        "bench-watchdog-test",
+    }
     if args.command in test_commands and not args.confirm_no_driver:
         raise RuntimeError("Use --confirm-no-driver for LED tests")
     if args.command in motor_commands and not args.confirm_motor_safe:
         raise RuntimeError("Use --confirm-motor-safe after disconnecting the mechanical load")
+    if args.command in bench_commands and not args.confirm_bench_motor:
+        raise RuntimeError(
+            "Use --confirm-bench-motor after checking the unloaded motor, fuse and wiring"
+        )
 
 
 def parse_args():
@@ -276,6 +499,7 @@ def parse_args():
     parser.add_argument("--device")
     parser.add_argument("--confirm-no-driver", action="store_true")
     parser.add_argument("--confirm-motor-safe", action="store_true")
+    parser.add_argument("--confirm-bench-motor", action="store_true")
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser("status")
     commands.add_parser("stop")
@@ -308,6 +532,16 @@ def parse_args():
     safety = commands.add_parser("safety-test")
     safety.add_argument("--seconds", type=int, default=15)
     commands.add_parser("current-test")
+    commands.add_parser("bench-preflight")
+    bench_pulse = commands.add_parser("bench-pulse")
+    bench_pulse.add_argument("direction", choices=("port", "starboard"))
+    bench_pulse.add_argument("--duty", type=int, default=5)
+    bench_pulse.add_argument("--milliseconds", type=int, default=800)
+    commands.add_parser("bench-direction-test")
+    bench_ramp_cmd = commands.add_parser("bench-ramp")
+    bench_ramp_cmd.add_argument("direction", choices=("port", "starboard"))
+    commands.add_parser("bench-stop")
+    commands.add_parser("bench-watchdog-test")
     return parser.parse_args()
 
 
@@ -326,6 +560,11 @@ def validate(args):
             raise RuntimeError("initial current limit must be within 0..10 A")
         if not 10 <= args.samples <= 200:
             raise RuntimeError("samples must be 10..200")
+    if args.command == "bench-pulse":
+        if not 1 <= args.duty <= BENCH_ABSOLUTE_MAX_DUTY:
+            raise RuntimeError("bench duty must be within 1..20 percent")
+        if not 50 <= args.milliseconds <= BENCH_MAX_MILLISECONDS:
+            raise RuntimeError("bench pulse must be within 50..1000 ms")
 
 
 def stop_active_process():
@@ -352,8 +591,10 @@ def stop_active_process():
 def run(port, args):
     if args.command in ("status", "preflight"):
         response = query(port)
+        status, values = status_values(response)
+        if not status:
+            raise RuntimeError("Pico did not return a status frame")
         if args.command == "preflight":
-            status, values = status_values(response)
             if values.get("profile") != args.profile or values.get("ready") != "1":
                 raise RuntimeError("{} preflight failed: {}".format(args.profile, status))
     elif args.command == "stop":
@@ -382,12 +623,26 @@ def run(port, args):
         calibrate_current(
             port, args.volts_per_amp, args.limit_amps, args.samples
         )
+    elif args.command == "bench-preflight":
+        bench_preflight(port)
+    elif args.command == "bench-pulse":
+        bench_drive_for(
+            port, args.direction, args.duty, args.milliseconds
+        )
+    elif args.command == "bench-direction-test":
+        bench_direction_test(port)
+    elif args.command == "bench-ramp":
+        bench_ramp(port, args.direction)
+    elif args.command == "bench-stop":
+        bench_stop(port)
+    elif args.command == "bench-watchdog-test":
+        bench_watchdog_test(port)
 
 
 def main():
     args = parse_args()
     validate(args)
-    if args.command == "stop":
+    if args.command in ("stop", "bench-stop"):
         stop_active_process()
     with open(LOCK_PATH, "w", encoding="ascii") as lock:
         try:
@@ -415,6 +670,6 @@ def main():
 if __name__ == "__main__":
     try:
         main()
-    except (OSError, RuntimeError, serial.SerialException) as error:
+    except (OSError, RuntimeError, ValueError, serial.SerialException) as error:
         print("ERROR: {}".format(error), file=sys.stderr)
         raise SystemExit(1)

@@ -173,7 +173,8 @@ La calibración se guarda en la Raspberry:
 ~/.config/omi/pico2-current.json
 ```
 
-Los perfiles de motor no se instalan si faltan:
+Los perfiles `motor-commissioning`, `hil-motor` y `production` no se instalan
+si faltan:
 
 - verificación del E-stop NC;
 - tensión de cero válida;
@@ -201,6 +202,7 @@ los 12 V del driver físicamente cortados. Un script LED puede aplicar hasta
 | Perfil | Uso | Límite PWM | Tiempo máximo |
 | --- | --- | ---: | ---: |
 | `bench-led` | LED y diagnóstico sin driver | 100 % | Sin movimiento de motor autorizado |
+| `bench-motor` | Motor DC pequeño sin carga ni sensor de corriente | 10 % por defecto, 20 % absoluto | 1 s por movimiento, pausa mínima 2 s |
 | `motor-commissioning` | Pulsos y rampas manuales | 10 % | 1 s por movimiento |
 | `hil-motor` | Simulación que refleja órdenes en motor real | 10 % | 30 s por sesión armada |
 | `production` | Piloto real con Signal K | Configuración del piloto | Watchdog 500 ms |
@@ -363,7 +365,22 @@ Los scripts de movimiento requieren confirmación interna
 `--confirm-motor-safe`, bloqueo exclusivo del puerto y parada en error o
 `Ctrl+C`.
 
-### 11.3 Gestión del firmware
+### 11.3 Motor pequeño sin sensor de corriente
+
+| Script | Acción |
+| --- | --- |
+| `bench-motor-preflight.ps1` | Verifica perfil exacto, comunicación, heartbeat, límites y PWM=0 sin mover |
+| `bench-motor-pulse.ps1` | Pulso configurable de 1-20 % y 50-1000 ms; exige confirmación |
+| `bench-motor-direction-test.ps1` | 5 %/800 ms en ambos sentidos con 3 s de pausa |
+| `bench-motor-ramp.ps1` | 2/4/6/8/10 %, 800 ms por escalón y pausa segura |
+| `bench-motor-stop.ps1` | Repite parada y comprueba `enabled=drive=pwm_output=0` |
+| `bench-motor-watchdog-test.ps1` | Corta el heartbeat, mide el corte y muestra PASS/FAIL |
+
+Este perfil no usa GP26 y muestra `current=unavailable`. Es únicamente para un
+motor DC pequeño, fijo y sin carga. Los detalles y la secuencia exacta están en
+el README de `marine-autopilot-engine/pico2`.
+
+### 11.4 Gestión del firmware
 
 El orquestador común es:
 
@@ -378,6 +395,7 @@ Acciones principales:
 | `Status` | Estado completo de Pico, perfil, E-stop, corriente y fallo |
 | `Stop` | Detención inmediata |
 | `Deploy -Profile bench-led` | Copia e instala perfil LED |
+| `Deploy -Profile bench-motor` | Instala el banco limitado sin calibración de corriente |
 | `Deploy -Profile motor-commissioning` | Instala perfil limitado, solo con calibración válida |
 | `Deploy -Profile hil-motor` | Instala perfil HIL limitado |
 | `Deploy -Profile production` | Instala perfil final |
@@ -386,7 +404,7 @@ Acciones principales:
 El despliegue completo del proyecto copia todo el software Pico y lo indica en
 consola, pero no cambia automáticamente el perfil activo.
 
-### 11.4 HIL: simulación con motor físico
+### 11.5 HIL: simulación con motor físico
 
 HIL utiliza sensores y barco virtuales, pero refleja la corrección en el motor
 real. No pertenece a `marine-simulation-platform`.
@@ -487,13 +505,17 @@ bash scripts/pico2/production-control.sh stop
 Ejemplo:
 
 ```text
-R,pico2,profile=bench-led,pwm=15,dir=14,enabled=0,drive=0.000,
-heartbeat=0,estop=0,estop_raw=1,current=,current_v=0.5536,ready=1,fault=
+R,pico2,profile=bench-motor,pwm=15,dir=14,pwm_output=0.000,dir_output=0,
+enabled=0,drive=0.000,heartbeat=0,estop=not-configured,
+estop_raw=unavailable,current=unavailable,current_v=unavailable,
+max_drive=0.100,ready=1,fault=
 ```
 
 | Campo | Significado |
 | --- | --- |
 | `profile` | Perfil instalado |
+| `pwm` / `dir` | Números GPIO configurados |
+| `pwm_output` / `dir_output` | Estado actual de las salidas |
 | `enabled` | Salida armada por software |
 | `drive` | Demanda firmada, -1 a +1 |
 | `heartbeat` | Heartbeat recibido en los últimos 500 ms |
@@ -504,9 +526,9 @@ heartbeat=0,estop=0,estop_raw=1,current=,current_v=0.5536,ready=1,fault=
 | `ready` | Preflight local disponible |
 | `fault` | Causa de bloqueo enclavada |
 
-En `bench-led`, `ready=1` no significa que el sistema de motor esté preparado.
-Solo los perfiles de motor con E-stop y corriente calibrados son válidos para
-comisionado, HIL o producción.
+En `bench-led` y `bench-motor`, `ready=1` no significa que el sistema ST3000
+esté preparado. Solo `motor-commissioning`, `hil-motor` y `production` exigen
+E-stop y corriente calibrados.
 
 ## 14. Diagnóstico de fallos
 

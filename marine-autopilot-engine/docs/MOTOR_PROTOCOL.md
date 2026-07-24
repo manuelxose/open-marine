@@ -33,7 +33,21 @@ Examples: `C,12.5,0.40,1` (steer 12.5° stbd, 40% drive, enabled),
 
 The microcontroller may honour `rudderDeg` (closed-loop position if it has a
 rudder feedback sensor) or `drive` (open-loop proportional drive without a
-feedback sensor) — both are sent every tick.
+feedback sensor) - both are sent every tick.
+
+### `bench-motor` profile
+
+The same frames are reused for small, unloaded 12 V bench motors; there is no
+second protocol. The host accepts motion only when `P` reports the exact
+`profile=bench-motor`, requires an explicit operator confirmation, and limits
+each command to 1 second. The default duty ceiling is 10% and the firmware
+enforces an absolute 20% ceiling plus a 2 second pause between movements.
+
+Current sensing is intentionally absent in this profile and is reported as
+`current=unavailable`, never as zero amperes. GP13 E-stop sensing may be
+disabled only here, in which case `estop=not-configured` is explicit. The
+sensor and E-stop requirements remain mandatory for `motor-commissioning`,
+`hil-motor`, and `production`.
 
 ## microcontroller → Pi (telemetry — parsed by the engine)
 
@@ -41,6 +55,12 @@ feedback sensor) — both are sent every tick.
 | ------------------------------ | --------------------------------------------- |
 | `T,<rudderDeg>,<currentA>`     | Measured rudder angle and motor current.      |
 | `F,<reason>`                   | Microcontroller-side fault (e.g. `estop`, `overcurrent`). |
+
+`P` additionally returns the active profile, configured GPIO numbers,
+`pwm_output`, `dir_output`, enable/drive state, heartbeat freshness, E-stop
+state, current availability, configured drive ceiling, readiness and the
+latched fault. The legacy `pwm=15` and `dir=14` fields continue to identify
+GPIO pins; `pwm_output` and `dir_output` describe the actual output state.
 
 The engine parses these (`parseTelemetryLine`): `T` updates rudder/current
 feedback (used for the rudder bar, overcurrent guard and Signal K publishing
