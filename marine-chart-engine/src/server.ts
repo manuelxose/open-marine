@@ -8,6 +8,9 @@ import { createHealthRouter } from './routes/health.routes.js';
 import { createXyzProxyRouter } from './routes/xyz-proxy.routes.js';
 import { createWmsProxyRouter } from './routes/wms-proxy.routes.js';
 import { createCatalogRouter } from './routes/catalog.routes.js';
+import { createEnvironmentRouter } from './routes/environment.routes.js';
+import { createPackagesRouter } from './routes/packages.routes.js';
+import { createTidesRouter } from './routes/tides.routes.js';
 import { ChartRegistryService } from './services/chart-registry.service.js';
 import { ChartImportService } from './services/chart-import.service.js';
 import { ChartJobService } from './services/chart-job.service.js';
@@ -17,6 +20,9 @@ import { TilePathService } from './services/tile-path.service.js';
 import { TileCacheService } from './services/tile-cache.service.js';
 import { XyzProxyService } from './services/xyz-proxy.service.js';
 import { WmsProxyService } from './services/wms-proxy.service.js';
+import { EnvironmentCatalogService } from './services/environment-catalog.service.js';
+import { TideService } from './services/tide.service.js';
+import { EnvironmentSyncService } from './services/environment-sync.service.js';
 
 const app = express();
 app.use(express.json());
@@ -56,6 +62,27 @@ const tileCache = new TileCacheService({
 
 const xyzProxy = new XyzProxyService(tileCache);
 const wmsProxy = new WmsProxyService(tileCache);
+const publicBaseUrl = `http://localhost:${config.port}`;
+const environmentCatalog = new EnvironmentCatalogService(config.dataDir, publicBaseUrl, Boolean(config.owmApiKey));
+const tides = new TideService(config.cacheDir);
+const environmentSync = new EnvironmentSyncService(
+  config.copernicusSyncEnabled,
+  config.copernicusSyncHours,
+  config.pythonExecutable,
+  path.join(process.cwd(), 'scripts', 'sync-copernicus-vigo.py'),
+);
+const vigoDate = (offsetDays: number): string => {
+  const instant = new Date(Date.now() + offsetDays * 24 * 60 * 60 * 1000);
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Europe/Madrid', year: 'numeric', month: '2-digit', day: '2-digit',
+  }).format(instant);
+};
+const refreshVigoTides = (): void => {
+  void Promise.allSettled([tides.getVigo(vigoDate(0)), tides.getVigo(vigoDate(1))]);
+};
+const tideRefreshTimer = setInterval(refreshVigoTides, 6 * 60 * 60 * 1000);
+tideRefreshTimer.unref();
+refreshVigoTides();
 
 // Register built-in XYZ providers
 xyzProxy.registerProvider({
@@ -65,6 +92,26 @@ xyzProxy.registerProvider({
   maxZoom: 18,
   attribution: '&copy; <a href="https://www.openseamap.org">OpenSeaMap</a> contributors',
 });
+
+// Register optional OpenWeatherMap atmospheric overlays only when a key is configured.
+if (config.owmApiKey) {
+  for (const provider of [
+    { id: 'owm-temperature', layer: 'temp_new', attribution: 'Air temperature' },
+    { id: 'owm-wind', layer: 'wind_new', attribution: 'Wind' },
+    { id: 'owm-precipitation', layer: 'precipitation_new', attribution: 'Precipitation' },
+    { id: 'owm-clouds', layer: 'clouds_new', attribution: 'Cloud cover' },
+    { id: 'owm-pressure', layer: 'pressure_new', attribution: 'Pressure' },
+  ]) {
+    xyzProxy.registerProvider({
+      id: provider.id,
+      tileUrlTemplate: `https://tile.openweathermap.org/map/${provider.layer}/{z}/{x}/{y}.png?appid=${config.owmApiKey}`,
+      minZoom: 0,
+      maxZoom: 18,
+      attribution: `${provider.attribution} &copy; OpenWeatherMap`,
+      cacheTtlMinutes: 30,
+    });
+  }
+}
 
 // Register built-in WMS providers
 wmsProxy.registerProvider({
@@ -79,17 +126,27 @@ wmsProxy.registerProvider({
   attribution: 'EMODnet Bathymetry Consortium',
 });
 
-wmsProxy.registerProvider({
-  id: 'ihm-enc-wms',
-  baseUrl: 'https://ideihm.covam.es/ihm/wms/ENC',
-  layers: 'ENC',
-  format: 'image/png',
-  transparent: true,
-  srs: 'EPSG:3857',
-  minZoom: 4,
-  maxZoom: 16,
-  attribution: 'Instituto Hidrográfico de la Marina (IHM) - Not valid for official navigation',
-});
+for (const purpose of [
+  { id: 'ihm-enc-p2', service: 'cartaENCp2', layer: 'ENC_ES2', minZoom: 4, maxZoom: 10 },
+  { id: 'ihm-enc-p3', service: 'cartaENCp3', layer: 'ENC_ES3', minZoom: 6, maxZoom: 12 },
+  { id: 'ihm-enc-p4', service: 'cartaENCp4', layer: 'ENC_ES4', minZoom: 8, maxZoom: 15 },
+  { id: 'ihm-enc-p5', service: 'cartaENCp5', layer: 'ENC_ES5', minZoom: 10, maxZoom: 16 },
+]) {
+  wmsProxy.registerProvider({
+    id: purpose.id,
+    catalogGroupId: 'ihm-enc-wms',
+    baseUrl: `https://ideihm.covam.es/wms/${purpose.service}`,
+    layers: purpose.layer,
+    format: 'image/png',
+    transparent: true,
+    srs: 'EPSG:3857',
+    version: '1.3.0',
+    minZoom: purpose.minZoom,
+    maxZoom: purpose.maxZoom,
+    attribution: 'Instituto Hidrografico de la Marina (IHM) - Not valid for official navigation',
+    expectedContentTypes: ['image/png'],
+  });
+}
 
 wmsProxy.registerProvider({
   id: 'noaa-wms',
@@ -107,15 +164,15 @@ wmsProxy.registerProvider({
 
 wmsProxy.registerProvider({
   id: 'gebco',
-  baseUrl: 'https://www.gebco.net/data_and_products/gebco_web_services/web_map_service/mapserv',
-  layers: 'GEBCO_Latest',
+  baseUrl: 'https://wms.gebco.net/mapserv',
+  layers: 'GEBCO_LATEST',
   format: 'image/png',
   transparent: true,
   srs: 'EPSG:3857',
   version: '1.1.1',
   minZoom: 0,
   maxZoom: 18,
-  attribution: 'GEBCO',
+  attribution: 'Imagery reproduced from the GEBCO Compilation / GEBCO Grid',
 });
 
 // Routes
@@ -125,6 +182,9 @@ app.use('/bathymetry', createBathymetryRouter(emodnet));
 app.use('/proxy/xyz', createXyzProxyRouter(xyzProxy));
 app.use('/proxy/wms', createWmsProxyRouter(wmsProxy));
 app.use('/catalog', createCatalogRouter(jobs, registry, mbtiles, tileCache, xyzProxy, wmsProxy, config.dataDir));
+app.use('/environment', createEnvironmentRouter(environmentCatalog, xyzProxy, wmsProxy, environmentSync));
+app.use('/tides', createTidesRouter(tides));
+app.use('/packages', createPackagesRouter());
 
 app.use((error: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   const message = error instanceof Error ? error.message : String(error);
@@ -134,7 +194,15 @@ app.use((error: unknown, _req: express.Request, res: express.Response, _next: ex
 
 app.listen(config.port, () => {
   console.log(`Marine chart engine listening at http://localhost:${config.port}`);
+  environmentSync.start();
 });
+
+for (const signal of ['SIGINT', 'SIGTERM'] as const) {
+  process.once(signal, () => {
+    environmentSync.stop();
+    clearInterval(tideRefreshTimer);
+  });
+}
 
 const classifyChartError = (message: string): { status: number; code: string } => {
   if (/was not found on PATH/i.test(message)) {

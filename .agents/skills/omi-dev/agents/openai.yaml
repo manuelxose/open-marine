@@ -1,0 +1,4 @@
+interface:
+  display_name: "OMI Dev"
+  short_description: "Open Marine coding workflow"
+  default_prompt: "Use $omi-dev to work efficiently in open-marine-instrumentation."

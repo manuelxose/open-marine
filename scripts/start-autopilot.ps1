@@ -37,7 +37,10 @@ if (Test-Path $ConfigFile) {
 $BuiltCli = Join-Path $EngineDir "dist\cli.js"
 $UsesBuild = Test-Path $BuiltCli
 $MotorBackend = if ($env:AP_MOTOR_BACKEND) { $env:AP_MOTOR_BACKEND } else { "sim" }
-$SensorBackend = if ($env:AP_SENSOR_BACKEND) { $env:AP_SENSOR_BACKEND } else { "auto" }
+$SensorBackend = if ($env:AP_SENSOR_BACKEND) { $env:AP_SENSOR_BACKEND } else { "signalk" }
+if (-not $env:AP_SENSOR_BACKEND) {
+  $env:AP_SENSOR_BACKEND = $SensorBackend
+}
 $Mode = if ($UsesBuild) { "dist" } else { "tsx" }
 
 Write-Host "[autopilot] starting engine ($Mode, motor=$MotorBackend, sensors=$SensorBackend)"

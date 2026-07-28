@@ -30,6 +30,10 @@ export const ENC_COLORS = {
   text_nautical: '#1a3a5c',
 } as const;
 
+const MAPLIBRE_GLYPHS_URL = 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf';
+const ENC_FONT_REGULAR = ['Noto Sans Regular'];
+const ENC_FONT_BOLD = ['Noto Sans Bold'];
+
 const makeRect = (
   centerLat: number,
   centerLon: number,
@@ -173,7 +177,7 @@ const LIGHTS_DEMO: FeatureCollection<Point, Record<string, unknown>> = {
 export function buildEncStyle(config: EncLayerConfig, safetyDepth = 2.0): StyleSpecification {
   const style: StyleSpecification = {
     version: 8,
-    glyphs: 'https://fonts.openmaptiles.org/{fontstack}/{range}.pbf',
+    glyphs: MAPLIBRE_GLYPHS_URL,
     sources: {
       'enc-osm-base': {
         type: 'raster',
@@ -325,7 +329,7 @@ export function buildEncStyle(config: EncLayerConfig, safetyDepth = 2.0): StyleS
         source: 'enc-anchorages',
         layout: {
           'text-field': ['get', 'name'],
-          'text-font': ['Open Sans Regular'],
+          'text-font': ENC_FONT_REGULAR,
           'text-size': 11,
           'text-anchor': 'center',
         },
@@ -358,7 +362,7 @@ export function buildEncStyle(config: EncLayerConfig, safetyDepth = 2.0): StyleS
         layout: {
           'symbol-placement': 'line',
           'text-field': ['get', 'label'],
-          'text-font': ['Open Sans Regular'],
+          'text-font': ENC_FONT_REGULAR,
           'text-size': 10,
           'text-max-angle': 30,
         },
@@ -401,7 +405,7 @@ export function buildEncStyle(config: EncLayerConfig, safetyDepth = 2.0): StyleS
         source: 'enc-hazards',
         layout: {
           'text-field': ['get', 'name'],
-          'text-font': ['Open Sans Regular'],
+          'text-font': ENC_FONT_REGULAR,
           'text-size': 10,
           'text-anchor': 'top',
           'text-offset': [0, 1.2],
@@ -450,7 +454,7 @@ export function buildEncStyle(config: EncLayerConfig, safetyDepth = 2.0): StyleS
         source: 'enc-buoys',
         layout: {
           'text-field': ['get', 'name'],
-          'text-font': ['Open Sans Bold'],
+          'text-font': ENC_FONT_BOLD,
           'text-size': 11,
           'text-anchor': 'top',
           'text-offset': [0, 1.0],
@@ -486,7 +490,7 @@ export function buildEncStyle(config: EncLayerConfig, safetyDepth = 2.0): StyleS
         source: 'enc-lights',
         layout: {
           'text-field': ['get', 'name'],
-          'text-font': ['Open Sans Regular'],
+          'text-font': ENC_FONT_REGULAR,
           'text-size': 10,
           'text-anchor': 'bottom',
           'text-offset': [0, -0.8],
@@ -511,7 +515,7 @@ export function buildEncVectorTileStyle(
 ): StyleSpecification {
   const style: StyleSpecification = {
     version: 8,
-    glyphs: 'https://fonts.openmaptiles.org/{fontstack}/{range}.pbf',
+    glyphs: MAPLIBRE_GLYPHS_URL,
     sources: {
       'enc-osm-base': {
         type: 'raster',
@@ -672,7 +676,7 @@ export function buildEncVectorTileStyle(
         'source-layer': 'anchorages',
         layout: {
           'text-field': ['get', 'name'],
-          'text-font': ['Open Sans Regular'],
+          'text-font': ENC_FONT_REGULAR,
           'text-size': 11,
           'text-anchor': 'center',
         },
@@ -707,7 +711,7 @@ export function buildEncVectorTileStyle(
         layout: {
           'symbol-placement': 'line',
           'text-field': ['coalesce', ['get', 'label'], ['to-string', ['get', 'valdco']]],
-          'text-font': ['Open Sans Regular'],
+          'text-font': ENC_FONT_REGULAR,
           'text-size': 10,
           'text-max-angle': 30,
         },
@@ -725,7 +729,7 @@ export function buildEncVectorTileStyle(
         'source-layer': 'soundings',
         layout: {
           'text-field': ['to-string', ['get', 'depth']],
-          'text-font': ['Open Sans Regular'],
+          'text-font': ENC_FONT_REGULAR,
           'text-size': 10,
           'text-allow-overlap': false,
         },
@@ -802,7 +806,7 @@ export function buildEncVectorTileStyle(
         'source-layer': 'buoys',
         layout: {
           'text-field': ['get', 'name'],
-          'text-font': ['Open Sans Bold'],
+          'text-font': ENC_FONT_BOLD,
           'text-size': 11,
           'text-anchor': 'top',
           'text-offset': [0, 1.0],
@@ -840,7 +844,7 @@ export function buildEncVectorTileStyle(
         'source-layer': 'lights',
         layout: {
           'text-field': ['get', 'name'],
-          'text-font': ['Open Sans Regular'],
+          'text-font': ENC_FONT_REGULAR,
           'text-size': 10,
           'text-anchor': 'bottom',
           'text-offset': [0, -0.8],

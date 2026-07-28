@@ -187,6 +187,12 @@ const NAVIGATE_PRESETS: NavigateToPreset[] = [
               </button>
             </div>
             <div class="toggle-row">
+              <span>Apparent wind indicator</span>
+              <button class="toggle-btn" [class.active]="s.showApparentWind" (click)="chartSettings.toggleApparentWind()">
+                <span class="toggle-slider"></span>
+              </button>
+            </div>
+            <div class="toggle-row">
               <span>Range rings</span>
               <button class="toggle-btn" [class.active]="s.showRangeRings" (click)="chartSettings.toggleRangeRings()">
                 <span class="toggle-slider"></span>
@@ -216,11 +222,42 @@ const NAVIGATE_PRESETS: NavigateToPreset[] = [
               </button>
             </div>
             <div class="toggle-row">
-              <span>Wave height</span>
-              <button class="toggle-btn" [class.active]="s.showWaves" (click)="chartSettings.toggleWaves()">
+              <span>Precipitation</span>
+              <button class="toggle-btn" [class.active]="s.showPrecipitation" (click)="chartSettings.togglePrecipitation()">
                 <span class="toggle-slider"></span>
               </button>
             </div>
+            <div class="toggle-row">
+              <span>Clouds</span>
+              <button class="toggle-btn" [class.active]="s.showClouds" (click)="chartSettings.toggleClouds()">
+                <span class="toggle-slider"></span>
+              </button>
+            </div>
+            <div class="toggle-row">
+              <span>Pressure</span>
+              <button class="toggle-btn" [class.active]="s.showPressure" (click)="chartSettings.togglePressure()">
+                <span class="toggle-slider"></span>
+              </button>
+            </div>
+            <div class="toggle-row toggle-row--disabled">
+              <span>Wave height <em>(not available)</em></span>
+              <button class="toggle-btn" disabled title="Not provided by OpenWeatherMap">
+                <span class="toggle-slider"></span>
+              </button>
+            </div>
+
+            <div class="field weather-opacity">
+              <label class="field-label">Overlay opacity — {{ (s.weatherOpacity * 100) | number: '1.0-0' }}%</label>
+              <input
+                type="range"
+                min="0.1"
+                max="1"
+                step="0.05"
+                [value]="s.weatherOpacity"
+                (input)="chartSettings.setWeatherOpacity($any($event.target).valueAsNumber)" />
+            </div>
+
+            <p class="weather-attribution">Weather data &copy; OpenWeatherMap</p>
           </div>
         </section>
 
@@ -492,6 +529,36 @@ const NAVIGATE_PRESETS: NavigateToPreset[] = [
       color: var(--gb-text-value);
 
       > span { flex: 1; }
+    }
+
+    .toggle-row--disabled {
+      opacity: 0.5;
+    }
+
+    .toggle-row--disabled em {
+      font-style: italic;
+      font-size: 0.65rem;
+      color: var(--gb-text-muted);
+    }
+
+    .toggle-btn:disabled {
+      cursor: not-allowed;
+    }
+
+    .weather-opacity {
+      margin-top: var(--space-2);
+    }
+
+    .weather-opacity input[type="range"] {
+      width: 100%;
+      accent-color: var(--gb-needle-secondary);
+      cursor: pointer;
+    }
+
+    .weather-attribution {
+      margin: var(--space-2) 0 0;
+      font-size: 0.625rem;
+      color: var(--gb-text-muted);
     }
 
     .toggle-btn {

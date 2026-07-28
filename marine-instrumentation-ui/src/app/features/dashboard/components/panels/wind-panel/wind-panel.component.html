@@ -2,13 +2,22 @@
   <omi-gb-bezel class="panel-bezel" [quality]="panelQuality">
     <div class="wind-content">
       <div class="aws-display">
-        <span class="awa-label">{{ (vm.metrics[0]?.label || 'dashboard.metrics.aws') | translate }}</span>
+        <span class="awa-label">{{
+          vm.metrics[0]?.label || 'dashboard.metrics.aws' | translate
+        }}</span>
         <div class="aws-value-group">
           <span class="aws-value">{{ displayValue(vm.metrics[0]?.value || '---') }}</span>
-          <span class="aws-unit" *ngIf="showUnit(vm.metrics[0]?.value || '---')">{{ vm.metrics[0]?.unit }}</span>
+          <span class="aws-unit" *ngIf="showUnit(vm.metrics[0]?.value || '---')">{{
+            vm.metrics[0]?.unit
+          }}</span>
         </div>
         <div class="aws-trend" *ngIf="(vm.metrics[0]?.series?.length || 0) > 0">
-          <app-shared-sparkline [data]="vm.metrics[0]?.series || []" [width]="180" [height]="36"></app-shared-sparkline>
+          <app-shared-sparkline
+            [data]="vm.metrics[0]?.series || []"
+            [width]="180"
+            [height]="36"
+            mode="scope"
+          ></app-shared-sparkline>
         </div>
       </div>
 
@@ -21,7 +30,7 @@
       </div>
 
       <div class="wind-secondary">
-        <div class="secondary-row" *ngFor="let m of vm.metrics | slice:2; trackBy: trackByMetric">
+        <div class="secondary-row" *ngFor="let m of vm.metrics | slice: 2; trackBy: trackByMetric">
           <span class="secondary-label">{{ m.label | translate }}</span>
           <div class="secondary-value-group">
             <span class="secondary-value">{{ displayValue(m.value) }}</span>

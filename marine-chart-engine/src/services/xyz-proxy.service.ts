@@ -1,4 +1,5 @@
 import type { TileCacheService } from './tile-cache.service.js';
+import { isValidTileImage } from './tile-image-validation.js';
 
 export interface XyzProviderConfig {
   id: string;
@@ -7,6 +8,8 @@ export interface XyzProviderConfig {
   maxZoom?: number;
   attribution?: string;
   headers?: Record<string, string>;
+  /** Optional cache freshness override (minutes); used for fast-changing layers like weather. */
+  cacheTtlMinutes?: number;
 }
 
 /**
@@ -35,10 +38,14 @@ export class XyzProxyService {
       return null;
     }
 
-    // Check cache first
-    const cached = await this.cache.get(providerId, z, x, y);
+    // Check cache first (weather and other fast-changing layers use a short TTL).
+    const ttlMsOverride = provider.cacheTtlMinutes ? provider.cacheTtlMinutes * 60 * 1000 : undefined;
+    const cached = await this.cache.get(providerId, z, x, y, ttlMsOverride);
     if (cached) {
-      return { data: cached.data, contentType: cached.contentType };
+      if (isValidTileImage(cached.contentType, cached.data)) {
+        return { data: cached.data, contentType: cached.contentType };
+      }
+      await this.cache.delete(providerId, z, x, y);
     }
 
     // Fetch from remote
@@ -56,6 +63,9 @@ export class XyzProxyService {
 
     const data = Buffer.from(await response.arrayBuffer());
     const contentType = response.headers.get('content-type') ?? 'image/png';
+    if (!isValidTileImage(contentType, data)) {
+      return null;
+    }
 
     // Store in cache
     await this.cache.set(providerId, z, x, y, data, contentType);

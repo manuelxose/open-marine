@@ -1,5 +1,5 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
-import type { AutopilotMode, AutopilotStatus } from "@omi/marine-data-contract";
+import type { AutopilotMode, AutopilotStatus, SimulationBenchResetRequest } from "@omi/marine-data-contract";
 import type { Logger } from "./logger.js";
 import type { EngageResult } from "./state-machine.js";
 import type { AutopilotTuning } from "../types.js";
@@ -19,6 +19,7 @@ export interface AutopilotCommands {
   setTuning(partial: Partial<AutopilotTuning>): AutopilotTuning;
   emergencyStop(): void;
   driveTest(side: "port" | "stbd", seconds: number): EngageResult;
+  resetSimulation(request: SimulationBenchResetRequest): EngageResult;
 }
 
 const ACTIONS = [
@@ -50,13 +51,14 @@ export class CommandApi {
     private readonly port: number,
     private readonly commands: AutopilotCommands,
     private readonly log: Logger,
+    private readonly host = "0.0.0.0",
   ) {}
 
   start(): Promise<void> {
     return new Promise((resolve) => {
       this.server = createServer((req, res) => this.handle(req, res));
-      this.server.listen(this.port, () => {
-        this.log.info(`command API listening on :${this.port}`);
+      this.server.listen(this.port, this.host, () => {
+        this.log.info(`command API listening on ${this.host}:${this.port}`);
         resolve();
       });
     });
@@ -93,6 +95,13 @@ export class CommandApi {
       return;
     }
 
+    if (req.method === "POST" && this.matchSimReset(url)) {
+      this.readBody(req)
+        .then((body) => this.dispatchSimReset(body, res))
+        .catch(() => this.sendJson(res, 400, { error: "bad request" }));
+      return;
+    }
+
     const action = this.matchAction(url);
     if (!action) {
       this.sendJson(res, 404, { error: "unknown route" });
@@ -112,6 +121,24 @@ export class CommandApi {
       }
     }
     return null;
+  }
+
+  private matchSimReset(url: string): boolean {
+    return (url.split("?")[0] ?? "") === "/sim/reset";
+  }
+
+  private dispatchSimReset(body: Record<string, unknown>, res: ServerResponse): void {
+    const request = parseSimulationReset(body);
+    if (!request) {
+      this.sendJson(res, 400, { error: "invalid simulation reset request" });
+      return;
+    }
+    const result = this.commands.resetSimulation(request);
+    if (!result.ok) {
+      this.sendJson(res, 409, { error: result.reason ?? "simulation reset unavailable" });
+      return;
+    }
+    this.sendOk(res);
   }
 
   private dispatch(action: Action, body: Record<string, unknown>, res: ServerResponse): void {
@@ -222,3 +249,45 @@ export class CommandApi {
     });
   }
 }
+
+const parseSimulationReset = (body: Record<string, unknown>): SimulationBenchResetRequest | null => {
+  const origin = record(body.origin);
+  const latitude = num(origin?.latitude);
+  const longitude = num(origin?.longitude);
+  if (latitude === undefined || longitude === undefined) return null;
+
+  const request: SimulationBenchResetRequest = {
+    origin: { latitude, longitude },
+    cruiseSpeedKt: num(body.cruiseSpeedKt) ?? 5,
+    trueWindDirDeg: num(body.trueWindDirDeg) ?? 45,
+    trueWindSpeedKt: num(body.trueWindSpeedKt) ?? 12,
+  };
+
+  const currentSetDeg = num(body.currentSetDeg);
+  const currentDriftKt = num(body.currentDriftKt);
+  if (currentSetDeg !== undefined) request.currentSetDeg = currentSetDeg;
+  if (currentDriftKt !== undefined) request.currentDriftKt = currentDriftKt;
+
+  const routeLegs = Array.isArray(body.routeLegs)
+    ? body.routeLegs.map(parseLeg).filter((leg): leg is { bearingDeg: number; distanceNm: number } => Boolean(leg))
+    : [];
+  if (routeLegs.length > 0) request.routeLegs = routeLegs;
+
+  const waypoint = parseLeg(body.waypoint);
+  if (waypoint) request.waypoint = waypoint;
+  return request;
+};
+
+const parseLeg = (value: unknown): { bearingDeg: number; distanceNm: number } | null => {
+  const item = record(value);
+  const bearingDeg = num(item?.bearingDeg);
+  const distanceNm = num(item?.distanceNm);
+  if (bearingDeg === undefined || distanceNm === undefined || distanceNm <= 0) return null;
+  return { bearingDeg, distanceNm };
+};
+
+const record = (value: unknown): Record<string, unknown> | null =>
+  value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : null;
+
+const num = (value: unknown): number | undefined =>
+  typeof value === "number" && Number.isFinite(value) ? value : undefined;

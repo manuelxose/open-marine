@@ -569,8 +569,7 @@ function Show-Summary {
   if ($lanIp) {
     Write-Host "  UI en red:   http://$($lanIp):4200" -ForegroundColor Yellow
   }
-  Write-Host "  Simulation API: npm run start:simulation-bench" -ForegroundColor Yellow
-  Write-Host "  Simulator:  npm run start:simulator" -ForegroundColor Yellow
+  Write-Host "  Simulation platform API: npm run start:simulation-bench" -ForegroundColor Yellow
   Write-Host "  Nota:       localhost solo funciona en esta maquina." -ForegroundColor Yellow
   Write-Host ""
   Write-Host "  AIS real:" -ForegroundColor Yellow
@@ -588,19 +587,101 @@ function Start-BackgroundPowerShell {
   param(
     [Parameter(Mandatory = $true)][string]$Name,
     [Parameter(Mandatory = $true)][string]$WorkingDir,
-    [Parameter(Mandatory = $true)][string]$Command
+    [Parameter(Mandatory = $true)][string]$Command,
+    [string]$PidFile = ""
   )
 
   $safeDir = $WorkingDir.Replace("'", "''")
   $psCmd = "Set-Location -LiteralPath '$safeDir'; Write-Host '[OMI] $Name iniciado'; $Command"
-  Start-Process -FilePath "powershell" -ArgumentList @(
+  $process = Start-Process -FilePath "powershell" -ArgumentList @(
     "-NoProfile",
     "-NoExit",
     "-ExecutionPolicy",
     "Bypass",
     "-Command",
     $psCmd
-  ) | Out-Null
+  ) -PassThru
+
+  if (-not [string]::IsNullOrWhiteSpace($PidFile)) {
+    Set-Content -LiteralPath $PidFile -Value $process.Id -Encoding ASCII
+  }
+}
+
+function Get-LocalPortOwner {
+  param(
+    [Parameter(Mandatory = $true)][int]$Port
+  )
+
+  try {
+    $connection = Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($connection) {
+      $owner = Get-Process -Id $connection.OwningProcess -ErrorAction SilentlyContinue
+      return [pscustomobject]@{
+        Port = $Port
+        Pid = [int]$connection.OwningProcess
+        Name = if ($owner) { $owner.ProcessName } else { "unknown" }
+      }
+    }
+  } catch {
+  }
+
+  return $null
+}
+
+function Stop-PidFileProcess {
+  param(
+    [Parameter(Mandatory = $true)][string]$Name,
+    [Parameter(Mandatory = $true)][string]$PidFile
+  )
+
+  if (-not (Test-Path -LiteralPath $PidFile)) {
+    return
+  }
+
+  $rawPid = (Get-Content -LiteralPath $PidFile -ErrorAction SilentlyContinue | Select-Object -First 1)
+  $pidValue = 0
+  if ([int]::TryParse([string]$rawPid, [ref]$pidValue) -and $pidValue -gt 0) {
+    $process = Get-Process -Id $pidValue -ErrorAction SilentlyContinue
+    if ($process) {
+      Warn "Reiniciando ${Name}: cerrando proceso previo $($process.ProcessName) pid=$pidValue."
+      Stop-Process -Id $pidValue -Force -ErrorAction SilentlyContinue
+      Start-Sleep -Milliseconds 500
+    }
+  }
+
+  Remove-Item -LiteralPath $PidFile -Force -ErrorAction SilentlyContinue
+}
+
+function Stop-LocalPortOwner {
+  param(
+    [Parameter(Mandatory = $true)][string]$Name,
+    [Parameter(Mandatory = $true)][int]$Port
+  )
+
+  $owner = Get-LocalPortOwner -Port $Port
+  if (-not $owner) {
+    return
+  }
+
+  Warn "Liberando puerto ${Port} para ${Name}: cerrando $($owner.Name) pid=$($owner.Pid)."
+  Stop-Process -Id $owner.Pid -Force -ErrorAction SilentlyContinue
+  Start-Sleep -Milliseconds 700
+
+  $stillUsed = Get-LocalPortOwner -Port $Port
+  if ($stillUsed) {
+    Warn "El puerto $Port sigue ocupado por $($stillUsed.Name) pid=$($stillUsed.Pid)."
+  }
+}
+
+function Reset-InitDevPorts {
+  Stop-PidFileProcess -Name "Chart Engine" -PidFile (Join-Path $ProjectRoot ".omi-charts.pid")
+  Stop-PidFileProcess -Name "UI" -PidFile (Join-Path $ProjectRoot ".omi-ui.pid")
+  Stop-PidFileProcess -Name "Simulation platform API" -PidFile (Join-Path $ProjectRoot ".omi-simulation-bench.pid")
+  Stop-PidFileProcess -Name "Simulation platform API legacy pid" -PidFile (Join-Path $ProjectRoot ".omi-test-bench.pid")
+
+  Stop-LocalPortOwner -Name "Chart Engine" -Port 8088
+  Stop-LocalPortOwner -Name "UI" -Port 4200
+  Stop-LocalPortOwner -Name "Simulation platform API" -Port 4100
 }
 
 function Select-SimulatorScenario {
@@ -658,43 +739,42 @@ function Select-SimulatorRate {
 function Start-PostInitServices {
   $startChartEngineResponse = Read-Host "Deseas arrancar Chart Engine ahora? (s/n)"
   if ($startChartEngineResponse -in @("s", "S", "y", "Y")) {
+    $pidFile = Join-Path $ProjectRoot ".omi-charts.pid"
+    Stop-PidFileProcess -Name "Chart Engine" -PidFile $pidFile
+    Stop-LocalPortOwner -Name "Chart Engine" -Port 8088
     Start-BackgroundPowerShell `
       -Name "Chart Engine" `
       -WorkingDir $ProjectRoot `
-      -Command "npm run start:charts"
+      -Command "npm run start:charts" `
+      -PidFile $pidFile
     Log "Chart Engine arrancado en ventana separada."
   }
 
   $startUiResponse = Read-Host "Deseas arrancar UI ahora? (s/n)"
   if ($startUiResponse -in @("s", "S", "y", "Y")) {
+    $pidFile = Join-Path $ProjectRoot ".omi-ui.pid"
+    Stop-PidFileProcess -Name "UI" -PidFile $pidFile
+    Stop-LocalPortOwner -Name "UI" -Port 4200
     Start-BackgroundPowerShell `
       -Name "UI" `
       -WorkingDir (Join-Path $ProjectRoot "marine-instrumentation-ui") `
-      -Command "npm run start:lan"
+      -Command "npm run start:lan" `
+      -PidFile $pidFile
     Log "UI arrancada en ventana separada."
   }
 
-  $startTestBenchResponse = Read-Host "Deseas arrancar el servidor de simulacion enterprise ahora? (s/n)"
+  $startTestBenchResponse = Read-Host "Deseas arrancar la API enterprise de simulacion ahora? (s/n)"
   if ($startTestBenchResponse -in @("s", "S", "y", "Y")) {
+    $pidFile = Join-Path $ProjectRoot ".omi-simulation-bench.pid"
+    Stop-PidFileProcess -Name "Simulation platform API" -PidFile $pidFile
+    Stop-PidFileProcess -Name "Simulation platform API legacy pid" -PidFile (Join-Path $ProjectRoot ".omi-test-bench.pid")
+    Stop-LocalPortOwner -Name "Simulation platform API" -Port 4100
     Start-BackgroundPowerShell `
-      -Name "Simulation API" `
+      -Name "Simulation platform API" `
       -WorkingDir $ProjectRoot `
-      -Command "npm run start:simulation-bench"
-    Log "Simulation API arrancada en ventana separada."
-  }
-
-  $startSimResponse = Read-Host "Deseas arrancar Simulator ahora? (s/n)"
-  if ($startSimResponse -in @("s", "S", "y", "Y")) {
-    $scenario = Select-SimulatorScenario
-    $rate = Select-SimulatorRate
-    $simCommand = "npm run start:simulator -- --scenario $scenario --rate $rate"
-
-    Start-BackgroundPowerShell `
-      -Name "Simulator" `
-      -WorkingDir $ProjectRoot `
-      -Command $simCommand
-
-    Log "Simulator arrancado en ventana separada (scenario=$scenario, rate=${rate}Hz)."
+      -Command "npm run start:simulation-bench" `
+      -PidFile $pidFile
+    Log "Simulation platform API arrancada en ventana separada."
   }
 
   $aisPath = Join-Path $ProjectRoot "tools\ais-catcher\AIS-catcher.exe"
@@ -721,5 +801,6 @@ Assert-ProjectStructure
 Initialize-SignalK
 Build-Packages
 Install-AisCatcher
+Reset-InitDevPorts
 Show-Summary
 Start-PostInitServices

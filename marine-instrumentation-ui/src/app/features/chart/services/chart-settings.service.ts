@@ -12,6 +12,16 @@ import {
 export type AisDisplayAge = '1h' | '24h';
 export type TrackDuration = '1d' | '7d' | '90d';
 export type WindVectorSource = 'true' | 'apparent';
+export type EnvironmentalLayerId =
+  | 'bathymetry'
+  | 'seaTemperature'
+  | 'airTemperature'
+  | 'wind'
+  | 'currents'
+  | 'waves'
+  | 'precipitation'
+  | 'clouds'
+  | 'pressure';
 
 export interface EncLayerConfig {
   showDepthAreas: boolean;
@@ -31,6 +41,7 @@ export interface ChartSettings {
   showTrack: boolean;
   showVector: boolean;
   showTrueWind: boolean;
+  showApparentWind: boolean;
   showRangeRings: boolean;
   rangeRingIntervals: number[];
   showOpenSeaMap: boolean;
@@ -67,16 +78,25 @@ export interface ChartSettings {
   trackDuration: TrackDuration;
   // Weather Overlays
   showTemperature: boolean;
+  showAirTemperature: boolean;
   showWindSpeed: boolean;
+  showCurrents: boolean;
   showWaves: boolean;
+  showPrecipitation: boolean;
+  showClouds: boolean;
+  showPressure: boolean;
+  weatherOpacity: number;
+  environmentTime: string;
   enableVesselEnrichment: boolean;
+  showSavedTracks: boolean;
 }
 
 const DEFAULT_SETTINGS: ChartSettings = {
   autoCenter: true,
   showTrack: true,
   showVector: true,
-  showTrueWind: false,
+  showTrueWind: true,
+  showApparentWind: true,
   showRangeRings: false,
   rangeRingIntervals: [0.25, 0.5, 1.0],
   showOpenSeaMap: false,
@@ -104,7 +124,7 @@ const DEFAULT_SETTINGS: ChartSettings = {
   cogLineMinutes: 10,
   showLaylines: false,
   laylineAngleDeg: 45,
-  windTrackMinZoom: 15,
+  windTrackMinZoom: 0,
   rangeRingsMinZoom: 8,
   rangeRingCount: 4,
   rangeRingStepNm: 0.25,
@@ -118,9 +138,17 @@ const DEFAULT_SETTINGS: ChartSettings = {
   vesselTypeColors: { ...DEFAULT_VESSEL_TYPE_COLORS },
   trackDuration: '1d',
   showTemperature: false,
+  showAirTemperature: false,
   showWindSpeed: false,
+  showCurrents: false,
   showWaves: false,
+  showPrecipitation: false,
+  showClouds: false,
+  showPressure: false,
+  weatherOpacity: 0.75,
+  environmentTime: 'latest',
   enableVesselEnrichment: true,
+  showSavedTracks: true,
 };
 
 const STORAGE_KEY = 'omi-chart-settings';
@@ -168,6 +196,10 @@ export class ChartSettingsService {
 
   toggleTrueWind(): void {
     this.update({ showTrueWind: !this.settingsSubject.value.showTrueWind });
+  }
+
+  toggleApparentWind(): void {
+    this.update({ showApparentWind: !this.settingsSubject.value.showApparentWind });
   }
 
   enableAutoCenter(): void {
@@ -281,6 +313,10 @@ export class ChartSettingsService {
     this.update({ showAisTracks: !this.settingsSubject.value.showAisTracks });
   }
 
+  toggleSavedTracks(): void {
+    this.update({ showSavedTracks: !this.settingsSubject.value.showSavedTracks });
+  }
+
   toggleVesselEnrichment(): void {
     this.update({ enableVesselEnrichment: !this.settingsSubject.value.enableVesselEnrichment });
   }
@@ -355,15 +391,61 @@ export class ChartSettingsService {
 
   // Weather Overlays
   toggleTemperature(): void {
-    this.update({ showTemperature: !this.settingsSubject.value.showTemperature });
+    this.selectEnvironmentalLayer(this.settingsSubject.value.showTemperature ? null : 'seaTemperature');
+  }
+
+  toggleAirTemperature(): void {
+    this.selectEnvironmentalLayer(this.settingsSubject.value.showAirTemperature ? null : 'airTemperature');
   }
 
   toggleWindSpeed(): void {
-    this.update({ showWindSpeed: !this.settingsSubject.value.showWindSpeed });
+    this.selectEnvironmentalLayer(this.settingsSubject.value.showWindSpeed ? null : 'wind');
+  }
+
+  toggleCurrents(): void {
+    this.update({ showCurrents: !this.settingsSubject.value.showCurrents });
   }
 
   toggleWaves(): void {
-    this.update({ showWaves: !this.settingsSubject.value.showWaves });
+    this.selectEnvironmentalLayer(this.settingsSubject.value.showWaves ? null : 'waves');
+  }
+
+  togglePrecipitation(): void {
+    this.selectEnvironmentalLayer(this.settingsSubject.value.showPrecipitation ? null : 'precipitation');
+  }
+
+  toggleClouds(): void {
+    this.selectEnvironmentalLayer(this.settingsSubject.value.showClouds ? null : 'clouds');
+  }
+
+  togglePressure(): void {
+    this.selectEnvironmentalLayer(this.settingsSubject.value.showPressure ? null : 'pressure');
+  }
+
+  selectEnvironmentalLayer(layer: EnvironmentalLayerId | null): void {
+    if (layer === 'currents') {
+      this.update({ showCurrents: !this.settingsSubject.value.showCurrents });
+      return;
+    }
+    this.update({
+      showTemperature: layer === 'seaTemperature',
+      showAirTemperature: layer === 'airTemperature',
+      showWindSpeed: layer === 'wind',
+      showCurrents: layer === null ? false : this.settingsSubject.value.showCurrents,
+      showWaves: layer === 'waves',
+      showPrecipitation: layer === 'precipitation',
+      showClouds: layer === 'clouds',
+      showPressure: layer === 'pressure',
+    });
+  }
+
+  setEnvironmentTime(time: string): void {
+    this.update({ environmentTime: time || 'latest' });
+  }
+
+  setWeatherOpacity(opacity: number): void {
+    const clamped = Math.max(0, Math.min(1, opacity));
+    this.update({ weatherOpacity: clamped });
   }
 
   update(partial: Partial<ChartSettings>): void {
@@ -392,6 +474,10 @@ export class ChartSettingsService {
     normalized.rangeRingCount = rangeRingCount;
     normalized.rangeRingStepNm = rangeRingStepNm;
     normalized.rangeRingIntervals = this.buildRangeIntervals(rangeRingCount, rangeRingStepNm);
+    normalized.weatherOpacity = this.clampNumber(saved.weatherOpacity, DEFAULT_SETTINGS.weatherOpacity, 0, 1);
+    normalized.environmentTime = typeof saved.environmentTime === 'string' && saved.environmentTime.length > 0
+      ? saved.environmentTime
+      : DEFAULT_SETTINGS.environmentTime;
     normalized.ownVesselIconScale = this.clampNumber(saved.ownVesselIconScale, DEFAULT_SETTINGS.ownVesselIconScale, 0.5, 2.5);
     normalized.aisTargetIconScale = this.clampNumber(saved.aisTargetIconScale, DEFAULT_SETTINGS.aisTargetIconScale, 0.4, 2.0);
     normalized.headingLineMinutes = this.clampNumber(saved.headingLineMinutes, DEFAULT_SETTINGS.headingLineMinutes, 1, 120);
@@ -407,6 +493,8 @@ export class ChartSettingsService {
       saved.windVectorSource === 'apparent' || saved.windVectorSource === 'true'
         ? saved.windVectorSource
         : DEFAULT_SETTINGS.windVectorSource;
+    normalized.showTrueWind = this.toBoolean(saved.showTrueWind, DEFAULT_SETTINGS.showTrueWind);
+    normalized.showApparentWind = this.toBoolean(saved.showApparentWind, DEFAULT_SETTINGS.showApparentWind);
     normalized.showHeadingLine = this.toBoolean(saved.showHeadingLine, DEFAULT_SETTINGS.showHeadingLine);
     normalized.showLaylines = this.toBoolean(saved.showLaylines, DEFAULT_SETTINGS.showLaylines);
     normalized.showAisTracks = this.toBoolean(saved.showAisTracks, DEFAULT_SETTINGS.showAisTracks);
@@ -419,8 +507,38 @@ export class ChartSettingsService {
       saved.enableVesselEnrichment,
       DEFAULT_SETTINGS.enableVesselEnrichment,
     );
+    normalized.showSavedTracks = this.toBoolean(saved.showSavedTracks, DEFAULT_SETTINGS.showSavedTracks);
+
+    // Older settings could have several raster layers enabled. Keep exactly one
+    // thematic layer so chart soundings and hazards remain readable.
+    const selectedLayer: EnvironmentalLayerId | null =
+      saved.showTemperature ? 'seaTemperature'
+      : saved.showAirTemperature ? 'airTemperature'
+      : saved.showWindSpeed ? 'wind'
+      : saved.showWaves ? 'waves'
+      : saved.showPrecipitation ? 'precipitation'
+      : saved.showClouds ? 'clouds'
+      : saved.showPressure ? 'pressure'
+      : null;
+    Object.assign(normalized, this.environmentVisibility(selectedLayer));
+    normalized.showCurrents = this.toBoolean(saved.showCurrents, false);
 
     return normalized;
+  }
+
+  private environmentVisibility(layer: EnvironmentalLayerId | null): Pick<ChartSettings,
+    'showTemperature' | 'showAirTemperature' | 'showWindSpeed' | 'showCurrents' | 'showWaves' |
+    'showPrecipitation' | 'showClouds' | 'showPressure'> {
+    return {
+      showTemperature: layer === 'seaTemperature',
+      showAirTemperature: layer === 'airTemperature',
+      showWindSpeed: layer === 'wind',
+      showCurrents: false,
+      showWaves: layer === 'waves',
+      showPrecipitation: layer === 'precipitation',
+      showClouds: layer === 'clouds',
+      showPressure: layer === 'pressure',
+    };
   }
 
   private hydrateVesselTypeColors(

@@ -1,82 +1,93 @@
-import type { RemoteChartEntry } from '../types/catalog.types.js';
+import type { RemoteChartEntry, ChartCatalogFilter } from '../types/catalog.types.js';
+
+const IHM_ATTRIBUTION = '(c) Instituto Hidrografico de la Marina. Not valid for navigation.';
+
+const SPAIN_WATERS_BOUNDS: [number, number, number, number] = [-20.0, 25.0, 6.0, 46.0];
+
+const IHM_PURPOSES_BASE: RemoteChartEntry[] = [
+  {
+    id: 'ihm-enc-p2',
+    providerId: 'ihm-enc-wms',
+    tileProviderId: 'ihm-enc-p2',
+    label: 'IHM Spain ENC Purpose 2 (WMS)',
+    description: 'IHM small-scale ENC-like WMS rendering. Visual reference only; not valid for navigation.',
+    scale: 350000,
+    bounds: SPAIN_WATERS_BOUNDS,
+    minZoom: 4,
+    maxZoom: 10,
+    format: 'wms-layer',
+    downloadUrl: 'https://ideihm.covam.es/wms/cartaENCp2',
+    wmsLayer: 'ENC_ES2',
+    sizeBytes: 0,
+  },
+  {
+    id: 'ihm-enc-p3',
+    providerId: 'ihm-enc-wms',
+    tileProviderId: 'ihm-enc-p3',
+    label: 'IHM Spain ENC Purpose 3 (WMS)',
+    description: 'IHM coastal ENC-like WMS rendering. Visual reference only; not valid for navigation.',
+    scale: 90000,
+    bounds: SPAIN_WATERS_BOUNDS,
+    minZoom: 6,
+    maxZoom: 12,
+    format: 'wms-layer',
+    downloadUrl: 'https://ideihm.covam.es/wms/cartaENCp3',
+    wmsLayer: 'ENC_ES3',
+    sizeBytes: 0,
+  },
+  {
+    id: 'ihm-enc-p4',
+    providerId: 'ihm-enc-wms',
+    tileProviderId: 'ihm-enc-p4',
+    label: 'IHM Spain ENC Purpose 4 (WMS)',
+    description: 'IHM approach-scale ENC-like WMS rendering. Visual reference only; not valid for navigation.',
+    scale: 22000,
+    bounds: SPAIN_WATERS_BOUNDS,
+    minZoom: 8,
+    maxZoom: 15,
+    format: 'wms-layer',
+    downloadUrl: 'https://ideihm.covam.es/wms/cartaENCp4',
+    wmsLayer: 'ENC_ES4',
+    sizeBytes: 0,
+  },
+  {
+    id: 'ihm-enc-p5',
+    providerId: 'ihm-enc-wms',
+    tileProviderId: 'ihm-enc-p5',
+    label: 'IHM Spain ENC Purpose 5 (WMS)',
+    description: 'IHM harbour-scale ENC-like WMS rendering. Visual reference only; not valid for navigation.',
+    scale: 4000,
+    bounds: SPAIN_WATERS_BOUNDS,
+    minZoom: 10,
+    maxZoom: 16,
+    format: 'wms-layer',
+    downloadUrl: 'https://ideihm.covam.es/wms/cartaENCp5',
+    wmsLayer: 'ENC_ES5',
+    sizeBytes: 0,
+  },
+];
+
+const IHM_PURPOSES: RemoteChartEntry[] = IHM_PURPOSES_BASE.map((entry) => ({
+  ...entry,
+  description: `${entry.description} ${IHM_ATTRIBUTION}`,
+}));
 
 /**
- * IHM Spain catalog client.
- * The IHM provides a WMS service and a web catalog of nautical charts.
- * This client provides static knowledge of Spanish chart coverage zones.
+ * IHM Spain catalog client. IHM exposes the ENC-style WMS renderer as separate
+ * services by navigational purpose (p2-p5), not as one generic ENC endpoint.
  */
 export class IhmCatalogClient {
-  /**
-   * Return known Spanish chart zones.
-   * In a full implementation, this would scrape or parse the IHM catalog.
-   */
-  async fetchCatalog(): Promise<RemoteChartEntry[]> {
-    return [
-      {
-        id: 'ihm-enc-atlantic',
-        providerId: 'ihm-enc-wms',
-        label: 'IHM Atlantic Coast (WMS)',
-        description: 'Spanish Atlantic coast ENC via WMS overlay. Not valid for official navigation.',
-        scale: 20000,
-        bounds: [-9.5, 35.8, -1.0, 43.8],
-        minZoom: 4,
-        maxZoom: 16,
-        format: 'wms-layer',
-        downloadUrl: 'https://ideihm.covam.es/ihm/wms/ENC',
-        sizeBytes: 0,
-      },
-      {
-        id: 'ihm-enc-mediterranean',
-        providerId: 'ihm-enc-wms',
-        label: 'IHM Mediterranean Coast (WMS)',
-        description: 'Spanish Mediterranean coast ENC via WMS overlay. Not valid for official navigation.',
-        scale: 20000,
-        bounds: [-0.5, 35.8, 4.5, 42.5],
-        minZoom: 4,
-        maxZoom: 16,
-        format: 'wms-layer',
-        downloadUrl: 'https://ideihm.covam.es/ihm/wms/ENC',
-        sizeBytes: 0,
-      },
-      {
-        id: 'ihm-enc-canary',
-        providerId: 'ihm-enc-wms',
-        label: 'IHM Canary Islands (WMS)',
-        description: 'Canary Islands ENC via WMS overlay. Not valid for official navigation.',
-        scale: 20000,
-        bounds: [-18.5, 27.5, -13.0, 29.5],
-        minZoom: 6,
-        maxZoom: 16,
-        format: 'wms-layer',
-        downloadUrl: 'https://ideihm.covam.es/ihm/wms/ENC',
-        sizeBytes: 0,
-      },
-      {
-        id: 'ihm-enc-balearic',
-        providerId: 'ihm-enc-wms',
-        label: 'IHM Balearic Islands (WMS)',
-        description: 'Balearic Islands ENC via WMS overlay. Not valid for official navigation.',
-        scale: 20000,
-        bounds: [0.5, 38.5, 4.5, 40.5],
-        minZoom: 6,
-        maxZoom: 16,
-        format: 'wms-layer',
-        downloadUrl: 'https://ideihm.covam.es/ihm/wms/ENC',
-        sizeBytes: 0,
-      },
-      {
-        id: 'ihm-enc-galicia',
-        providerId: 'ihm-enc-wms',
-        label: 'IHM Galicia Rías (WMS)',
-        description: 'Galician rías ENC via WMS overlay. Not valid for official navigation.',
-        scale: 10000,
-        bounds: [-9.5, 41.8, -8.2, 43.8],
-        minZoom: 6,
-        maxZoom: 16,
-        format: 'wms-layer',
-        downloadUrl: 'https://ideihm.covam.es/ihm/wms/ENC',
-        sizeBytes: 0,
-      },
-    ];
+  async fetchCatalog(filter?: ChartCatalogFilter): Promise<RemoteChartEntry[]> {
+    if (!filter?.bbox) {
+      return IHM_PURPOSES;
+    }
+    return IHM_PURPOSES.filter((entry) => boundsIntersect(entry.bounds, filter.bbox!));
   }
+}
+
+function boundsIntersect(
+  a: [number, number, number, number],
+  b: [number, number, number, number],
+): boolean {
+  return a[0] <= b[2] && a[2] >= b[0] && a[1] <= b[3] && a[3] >= b[1];
 }

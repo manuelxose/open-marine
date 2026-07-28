@@ -1,14 +1,23 @@
 import { Injectable, inject } from '@angular/core';
 import { BehaviorSubject, Observable } from 'rxjs';
-import { AUTOPILOT_PATHS, AutopilotStoreService, AutopilotState } from '../../state/autopilot/autopilot-store.service';
-import { SignalKAutopilotService, AutopilotTuning } from '../../data-access/signalk/autopilot/signalk-autopilot.service';
+import {
+  AUTOPILOT_PATHS,
+  AutopilotStoreService,
+  AutopilotState,
+} from '../../state/autopilot/autopilot-store.service';
+import {
+  SignalKAutopilotService,
+  AutopilotTuning,
+} from '../../data-access/signalk/autopilot/signalk-autopilot.service';
+import { NotificationService } from '../../core/services/notification.service';
 
 @Injectable({
-  providedIn: 'root'
+  providedIn: 'root',
 })
 export class AutopilotFacadeService {
   private store = inject(AutopilotStoreService);
   private api = inject(SignalKAutopilotService);
+  private notification = inject(NotificationService);
   private readonly commandErrorSubject = new BehaviorSubject<string | null>(null);
 
   // State exposure
@@ -31,7 +40,7 @@ export class AutopilotFacadeService {
   public readonly commandError$ = this.commandErrorSubject.asObservable();
 
   // Commands
-  
+
   public setState(state: AutopilotState): void {
     this.runCommand(this.api.setState(state));
   }
@@ -86,7 +95,9 @@ export class AutopilotFacadeService {
         this.runCommand(this.api.setTargetHeading(currentHeading + deltaRadians));
       }
     } else if (currentState === 'wind') {
-      const currentWindIdx = this.store.getSnapshot<number>(AUTOPILOT_PATHS.targetWindAngleApparent);
+      const currentWindIdx = this.store.getSnapshot<number>(
+        AUTOPILOT_PATHS.targetWindAngleApparent,
+      );
       if (currentWindIdx !== undefined) {
         this.runCommand(this.api.setTargetWindAngle(currentWindIdx + deltaRadians));
       }
@@ -103,12 +114,26 @@ export class AutopilotFacadeService {
   }
 
   private reportError(error: unknown): void {
-    this.commandErrorSubject.next(this.describeError(error));
+    const message = this.describeError(error);
+    this.commandErrorSubject.next(message);
+
+    // Use the notification system for user-visible feedback.
+    if (this.isUnreachableError(error)) {
+      this.notification.autopilotUnreachable();
+    } else {
+      this.notification.error(message, 'Autopilot');
+    }
+
     if (this.clearErrorTimer) {
       clearTimeout(this.clearErrorTimer);
     }
     // Auto-dismiss so a transient refusal does not stick on screen.
     this.clearErrorTimer = setTimeout(() => this.commandErrorSubject.next(null), 5000);
+  }
+
+  private isUnreachableError(error: unknown): boolean {
+    const err = error as { status?: number };
+    return err?.status === 0 || err?.status === undefined;
   }
 
   /** Prefer the engine's reason from a 409/4xx body (`{ error }`) over the generic HTTP message. */

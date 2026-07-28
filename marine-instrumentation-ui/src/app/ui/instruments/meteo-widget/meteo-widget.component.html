@@ -1,43 +1,95 @@
-<omi-gb-bezel class="marine-card" label="METEO" [quality]="view().quality">
-  <div class="meteo-view">
-    <div class="main-readout">
-      <span class="value gb-display-value gb-display-value--xl">{{ view().pressureDisplay }}</span>
-      <div class="meta">
-        <span class="unit gb-display-unit" *ngIf="view().pressureDisplay !== '---'">hPa</span>
-        <div class="trend-indicator" *ngIf="!view().isStale" [class.up]="trend() > 0" [class.down]="trend() < 0">
-          <svg viewBox="0 0 24 24" class="arrow-icon">
-            <path *ngIf="trend() > 0" d="M12 4l-8 8h6v8h4v-8h6z" fill="currentColor" />
-            <path *ngIf="trend() < 0" d="M12 20l-8-8h6v-8h4v8h6z" fill="currentColor" />
-            <path *ngIf="trend() === 0" d="M4 11h16v2H4z" fill="currentColor" />
-          </svg>
+<omi-gb-bezel class="marine-card" label="LIVE WEATHER" [quality]="weather() ? 'good' : loading() ? 'warn' : 'stale'">
+  @if (weather(); as current) {
+    <section class="weather" role="region" [attr.aria-label]="current.conditionLabel + ' in ' + current.location">
+      <header class="weather__hero">
+        <div class="weather-icon" [attr.data-condition]="current.condition" [attr.data-day]="current.isDay" aria-hidden="true">
+          <span class="weather-icon__sun"></span>
+          <span class="weather-icon__moon"></span>
+          <span class="weather-icon__cloud weather-icon__cloud--back"></span>
+          <span class="weather-icon__cloud weather-icon__cloud--front"></span>
+          <span class="weather-icon__rain"></span>
+        </div>
+        <div class="weather__current">
+          <div class="temperature">
+            <span class="temperature__value">{{ current.temperature | number:'1.0-1' }}</span>
+            <span class="temperature__unit">°C</span>
+          </div>
+          <span class="condition">{{ current.conditionLabel }}</span>
+          <span class="feels-like">Feels like {{ current.apparentTemperature | number:'1.0-0' }} °C</span>
+        </div>
+      </header>
+
+      <div class="weather__metrics">
+        <div class="metric"><span class="metric__label">Humidity</span><span class="metric__value">{{ current.humidity | number:'1.0-0' }}<small>%</small></span></div>
+        <div class="metric"><span class="metric__label">Pressure</span><span class="metric__value">{{ current.pressure | number:'1.0-0' }}<small>hPa</small></span></div>
+        <div class="metric"><span class="metric__label">Wind / gust</span><span class="metric__value">{{ current.windSpeed | number:'1.0-1' }}<small>/ {{ current.windGust | number:'1.0-1' }} kn</small></span></div>
+        <div class="metric"><span class="metric__label">Clouds · wind</span><span class="metric__value">{{ current.cloudCover | number:'1.0-0' }}<small>% · {{ cardinal(current.windDirection) }}</small></span></div>
+      </div>
+
+      <nav class="day-selector scroll-strip" aria-label="Select forecast day">
+        @for (day of dailyForecast(); track day.date; let index = $index) {
+          <button
+            type="button"
+            class="day-selector__item"
+            [class.day-selector__item--active]="selectedDayIndex() === index"
+            [attr.aria-pressed]="selectedDayIndex() === index"
+            (click)="selectDay(index)"
+          >
+            <span class="daily__day">{{ daySelectorLabel(index, day.date) }}</span>
+            <span class="daily__icon" aria-hidden="true">{{ day.condition === 'clear' ? '☀' : day.condition === 'partly-cloudy' ? '⛅' : day.condition === 'cloudy' ? '☁' : day.condition === 'storm' ? '⛈' : day.condition === 'snow' ? '❄' : '🌧' }}</span>
+            <span class="daily__temps"><strong>{{ day.temperatureMax | number:'1.0-0' }}°</strong><small>{{ day.temperatureMin | number:'1.0-0' }}°</small></span>
+          </button>
+        }
+      </nav>
+
+      @if (selectedDay(); as day) {
+        <div class="selected-day-summary">
+          <strong>{{ daySelectorLabel(selectedDayIndex(), day.date) }}</strong>
+          <span>{{ day.precipitationProbability }}% rain · wind up to {{ day.windSpeedMax | number:'1.0-0' }} kn</span>
+        </div>
+      }
+
+      <div class="forecast-rail forecast-rail--hours">
+        <button class="scroll-btn scroll-btn--left" type="button" (click)="scrollStrip(hourlyStrip, -1)" aria-label="Previous forecast hours">&lsaquo;</button>
+        <div #hourlyStrip class="hourly scroll-strip" aria-label="Hourly forecast for selected day" tabindex="0" (wheel)="scrollStripWithWheel($event, hourlyStrip)">
+          @for (hour of forecast(); track hour.time) {
+            <div class="hourly__item">
+              <span class="hourly__time">{{ hourLabel(hour.time) }}</span>
+              <span class="hourly__icon" [attr.data-condition]="hour.condition" aria-hidden="true">{{ !hour.isDay && hour.condition === 'clear' ? '🌙' : !hour.isDay && hour.condition === 'partly-cloudy' ? '☾' : hour.condition === 'clear' ? '☀' : hour.condition === 'partly-cloudy' ? '⛅' : hour.condition === 'cloudy' ? '☁' : hour.condition === 'storm' ? '⛈' : hour.condition === 'snow' ? '❄' : '🌧' }}</span>
+              <strong>{{ hour.temperature | number:'1.0-0' }}°</strong>
+              <small>{{ hour.precipitationProbability }}%</small>
+            </div>
+          }
+        </div>
+        <button class="scroll-btn scroll-btn--right" type="button" (click)="scrollStrip(hourlyStrip, 1)" aria-label="Next forecast hours">&rsaquo;</button>
+      </div>
+
+      <div class="weather__charts">
+        <div class="mini-chart">
+          <div class="mini-chart__head"><span>Temperature</span><span>{{ selectedDayIndex() === 0 ? 'Today' : dayLabel(selectedDay()!.date) }}</span></div>
+          <app-shared-sparkline [data]="temperatureHistory()" [width]="220" [height]="42" stroke="var(--gb-data-warn)" mode="scope" />
+        </div>
+        <div class="mini-chart">
+          <div class="mini-chart__head">
+            <span>Pressure</span>
+            <span class="trend" [class.trend--up]="pressureTrend() > 0" [class.trend--down]="pressureTrend() < 0">
+              {{ pressureTrend() > 0 ? '↗' : pressureTrend() < 0 ? '↘' : '→' }} {{ pressureTrend() | number:'1.0-1' }} hPa
+            </span>
+          </div>
+          <app-shared-sparkline [data]="pressureHistory()" [width]="220" [height]="42" stroke="var(--gb-needle-secondary)" mode="scope" />
         </div>
       </div>
-    </div>
 
-    <div class="sparkline-container">
-      <svg class="sparkline-svg" viewBox="0 0 100 40" preserveAspectRatio="none" role="img" [attr.aria-label]="view().ariaLabel">
-        <defs>
-          <linearGradient id="sparkGradient" x1="0" x2="0" y1="0" y2="1">
-            <stop offset="0%" stop-color="var(--gb-needle-secondary)" stop-opacity="0.3" />
-            <stop offset="100%" stop-color="var(--gb-needle-secondary)" stop-opacity="0" />
-          </linearGradient>
-        </defs>
-
-        <path
-          [attr.d]="sparklinePath()"
-          fill="url(#sparkGradient)"
-          stroke="var(--gb-needle-secondary)"
-          stroke-width="2"
-          vector-effect="non-scaling-stroke"
-          class="trend-line"
-        />
-      </svg>
-      <div class="graph-label">12 HOURS</div>
-    </div>
-
-    <div class="meta-row">
-      <span class="gb-instrument-label" *ngIf="view().source">{{ view().source }}</span>
-      <span class="gb-display-unit" *ngIf="view().age !== null">{{ view().age | number:'1.1-1' }}s</span>
-    </div>
-  </div>
+      <footer class="weather__status">
+        <span>{{ current.location }} · {{ current.usingGps ? 'GPS' : 'fallback' }}</span>
+        <span class="live-dot"></span><span>Open-Meteo</span>
+      </footer>
+    </section>
+  } @else {
+    <section class="weather weather--empty">
+      <div class="empty-icon">{{ loading() ? '◌' : '⚠' }}</div>
+      <strong>{{ loading() ? 'Loading weather…' : 'Weather service unavailable' }}</strong>
+      <span>{{ loading() ? 'Locating vessel or using Vigo' : 'Check the Internet connection' }}</span>
+    </section>
+  }
 </omi-gb-bezel>

@@ -133,6 +133,9 @@
                   <app-dashboard-environment-panel class="panel-host" [vm]="vm" />
                 }
               }
+              @case ('weather-card') {
+                <app-meteo-widget class="panel-host" />
+              }
               @case ('sog-simple') {
                 <section class="simple-widget">
                   <div class="simple-widget__head">

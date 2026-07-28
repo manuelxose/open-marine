@@ -82,6 +82,10 @@
         </article>
       </section>
 
+      <section *ngSwitchCase="'remote'" class="remote-layout">
+        <app-chart-source-catalog />
+      </section>
+
       <section *ngSwitchCase="'import'" class="import-layout">
         <article class="panel import-panel">
           <header class="panel__header">

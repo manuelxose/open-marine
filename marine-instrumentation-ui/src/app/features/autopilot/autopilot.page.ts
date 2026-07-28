@@ -1,18 +1,34 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { map } from 'rxjs';
+import { combineLatest, map } from 'rxjs';
 import { PATHS } from '@omi/marine-data-contract';
 import { AutopilotConsoleComponent } from './components/autopilot-console/autopilot-console.component';
 import { AutopilotCompassComponent } from './components/autopilot-compass/autopilot-compass.component';
 import { AutopilotCalibrationComponent } from './components/autopilot-calibration/autopilot-calibration.component';
+import { AutopilotManualComponent } from './components/autopilot-manual/autopilot-manual.component';
+import { AutopilotDecisionLogComponent } from './components/autopilot-decision-log/autopilot-decision-log.component';
 import { AutopilotFacadeService } from './autopilot.facade';
+import { AutopilotDecisionLogService } from './autopilot-decision-log.service';
 import { DatapointStoreService } from '../../state/datapoints/datapoint-store.service';
 import { DegreesPipe } from '../../shared/pipes/degrees.pipe';
+import { TranslatePipe } from '../../shared/pipes/translate.pipe';
+
+/** A panel-level alert surfaced in the ALERTS band. */
+interface PanelAlert {
+  severity: 'warn' | 'critical';
+  icon: string;
+  labelKey: string;
+  reason?: string;
+  action?: 'clearFault';
+}
 
 /**
- * Enterprise autopilot console: the interactive control (engage/mode/dodge/
- * rudder) alongside a live telemetry grid (heading actual vs target, rudder
- * demand, drive current, battery, apparent wind) and a prominent fault strip.
+ * Enterprise MFD autopilot control panel (Garmin / Raymarine / B&G glass-bridge
+ * language): a status bar with E-STOP, a panel-level ALERTS band, a helm-control
+ * cluster (heading dial + console), an instrument-tile telemetry cluster, a live
+ * EVENT LOG and a collapsible reference legend. All copy is i18n (en/es). On
+ * desktop it lays out as a cockpit that fits the viewport (only the event log
+ * scrolls); it degrades to a scrolling page on short screens.
  */
 @Component({
   selector: 'app-autopilot-page',
@@ -22,85 +38,137 @@ import { DegreesPipe } from '../../shared/pipes/degrees.pipe';
     AutopilotConsoleComponent,
     AutopilotCompassComponent,
     AutopilotCalibrationComponent,
+    AutopilotManualComponent,
+    AutopilotDecisionLogComponent,
     DegreesPipe,
+    TranslatePipe,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
-    <div class="ap-page">
-      <header class="ap-page__header">
-        <div class="ap-page__title">
-          <h1>Autopilot</h1>
-          <span class="ap-page__subtitle">Sailing pilot · heading · wind · track</span>
+  template: ` <div class="ap">
+    <!-- ── Status bar ───────────────────────────────────────────────────── -->
+    <header class="ap-bar">
+      <div class="ap-bar__id">
+        <span class="ap-bar__mark">◈</span>
+        <div class="ap-bar__titles">
+          <h1>{{ 'autopilot.title' | translate }}</h1>
+          <span class="ap-bar__subtitle">{{ 'autopilot.subtitle' | translate }}</span>
         </div>
-        <div class="ap-page__status">
-          <span class="conn-chip" [class.conn-chip--ok]="facade.isConnected$ | async">
-            <span class="conn-dot"></span>
-            {{ (facade.isConnected$ | async) ? 'ENGINE ONLINE' : 'ENGINE OFFLINE' }}
-          </span>
-          <span class="state-chip"
-                [attr.data-state]="(facade.state$ | async)">
-            {{ stateLabel(facade.state$ | async) }}
-          </span>
-          <button class="cal-btn" (click)="showCalibration.set(true)" aria-label="Open calibration">
-            ⚙ CALIBRATION
-          </button>
-        </div>
-      </header>
-
-      <!-- Fault strip -->
-      <div class="ap-page__fault" *ngIf="(facade.state$ | async) === 'fault'">
-        <span class="ap-page__fault-icon">⛔</span>
-        <div class="ap-page__fault-text">
-          <strong>AUTOPILOT FAULT · MOTOR OFF</strong>
-          <span>{{ (facade.fault$ | async) | uppercase }}</span>
-        </div>
-        <button class="ap-page__fault-btn" (click)="facade.clearFault()">CLEAR FAULT</button>
       </div>
+      <div class="ap-bar__status">
+        <span class="ap-bar__mode" [attr.data-state]="facade.state$ | async">
+          {{ stateLabelKey(facade.state$ | async) | translate }}
+        </span>
+        <span class="conn-chip" [class.conn-chip--ok]="facade.isConnected$ | async">
+          <span class="conn-dot"></span>
+          {{
+            (facade.isConnected$ | async)
+              ? ('autopilot.engine.online' | translate)
+              : ('autopilot.engine.offline' | translate)
+          }}
+        </span>
+        <button
+          class="ap-bar__btn"
+          (click)="showManual.set(true)"
+          [attr.aria-label]="'autopilot.manual' | translate"
+          [attr.title]="'autopilot.manual' | translate"
+        >
+          📖
+        </button>
+        <button
+          class="ap-bar__btn"
+          (click)="showCalibration.set(true)"
+          [attr.aria-label]="'autopilot.calibration' | translate"
+          [attr.title]="'autopilot.calibration' | translate"
+        >
+          ⚙
+        </button>
+        <button
+          class="ap-bar__estop"
+          (click)="onEmergencyStop()"
+          [attr.aria-label]="'autopilot.estop' | translate"
+        >
+          ⏻ {{ 'autopilot.estop' | translate }}
+        </button>
+      </div>
+    </header>
 
-      <div class="ap-page__grid">
-        <!-- Control console -->
-        <section class="ap-page__console">
-          <app-autopilot-console></app-autopilot-console>
-        </section>
+    <!-- ── Follow-destination banner (explicit, safety-compliant engage) ──── -->
+    <div class="ap-follow" *ngIf="pendingDestination$ | async">
+      <span class="ap-follow__icon">📍</span>
+      <div class="ap-follow__text">
+        <strong>{{ 'autopilot.log.follow.banner' | translate }}</strong>
+        <span>{{ 'autopilot.log.follow.hint' | translate }}</span>
+      </div>
+      <button class="ap-follow__btn" (click)="onFollow()">
+        {{ 'autopilot.log.follow.action' | translate }}
+      </button>
+    </div>
 
-        <!-- Heading dial + telemetry -->
-        <section class="ap-page__side">
-        <div class="ap-page__dial">
+    <!-- ── Alerts band ──────────────────────────────────────────────────── -->
+    <div class="ap-alerts" *ngIf="alerts$ | async as alerts">
+      <div class="ap-alert" *ngFor="let a of alerts" [attr.data-sev]="a.severity">
+        <span class="ap-alert__icon">{{ a.icon }}</span>
+        <span class="ap-alert__msg">
+          {{ a.labelKey | translate }}<em *ngIf="a.reason"> · {{ a.reason | uppercase }}</em>
+        </span>
+        <button class="ap-alert__btn" *ngIf="a.action === 'clearFault'" (click)="facade.clearFault()">
+          {{ 'autopilot.fault.clear' | translate }}
+        </button>
+      </div>
+    </div>
+
+    <!-- ── Cockpit ──────────────────────────────────────────────────────── -->
+    <div class="ap-cockpit">
+      <!-- Helm control cluster -->
+      <section class="ap-panel ap-helm">
+        <div class="ap-panel__hd">
+          <span class="ap-panel__bar"></span>{{ 'autopilot.panels.helm' | translate }}
+        </div>
+        <div class="ap-helm__dial">
           <app-autopilot-compass></app-autopilot-compass>
         </div>
+        <app-autopilot-console></app-autopilot-console>
+      </section>
 
-        <div class="ap-page__tele">
+      <!-- Telemetry tile cluster -->
+      <section class="ap-panel ap-data">
+        <div class="ap-panel__hd">
+          <span class="ap-panel__bar"></span>{{ 'autopilot.panels.telemetry' | translate }}
+        </div>
+        <div class="ap-tiles">
           <div class="tile tile--wide">
-            <span class="tile__k">HEADING</span>
+            <span class="tile__k">{{ 'autopilot.tele.heading' | translate }}</span>
             <div class="tile__row">
               <div class="tile__pair">
-                <span class="tile__sub">ACTUAL</span>
-                <span class="tile__v">{{ (headingTrue$ | async) | degrees }}<i>°T</i></span>
+                <span class="tile__sub">{{ 'autopilot.tele.actual' | translate }}</span>
+                <span class="tile__v">{{ headingTrue$ | async | degrees }}<i>°T</i></span>
               </div>
               <div class="tile__pair">
-                <span class="tile__sub">TARGET</span>
-                <span class="tile__v tile__v--accent">{{ (facade.targetHeadingTrue$ | async) | degrees }}<i>°T</i></span>
+                <span class="tile__sub">{{ 'autopilot.tele.target' | translate }}</span>
+                <span class="tile__v tile__v--accent"
+                  >{{ facade.targetHeadingTrue$ | async | degrees }}<i>°T</i></span
+                >
               </div>
             </div>
           </div>
 
           <div class="tile">
-            <span class="tile__k">RUDDER CMD</span>
-            <span class="tile__v">{{ (facade.targetRudderAngle$ | async) | degrees:1 }}<i>°</i></span>
+            <span class="tile__k">{{ 'autopilot.tele.rudder_cmd' | translate }}</span>
+            <span class="tile__v">{{ facade.targetRudderAngle$ | async | degrees: 1 }}<i>°</i></span>
           </div>
 
           <div class="tile">
-            <span class="tile__k">APP. WIND</span>
-            <span class="tile__v">{{ (awa$ | async) | degrees }}<i>°A</i></span>
+            <span class="tile__k">{{ 'autopilot.tele.app_wind' | translate }}</span>
+            <span class="tile__v">{{ awa$ | async | degrees }}<i>°A</i></span>
           </div>
 
           <div class="tile">
-            <span class="tile__k">MOTOR</span>
+            <span class="tile__k">{{ 'autopilot.tele.motor' | translate }}</span>
             <span class="tile__v">{{ current(facade.motorCurrent$ | async) }}<i>A</i></span>
           </div>
 
           <div class="tile">
-            <span class="tile__k">BATTERY</span>
+            <span class="tile__k">{{ 'autopilot.tele.battery' | translate }}</span>
             <span class="tile__v" [class.tile__v--warn]="isLowBattery(facade.batteryVoltage$ | async)">
               {{ voltage(facade.batteryVoltage$ | async) }}<i>V</i>
             </span>
@@ -108,163 +176,563 @@ import { DegreesPipe } from '../../shared/pipes/degrees.pipe';
 
           <!-- Cross-track / waypoint (TRACK mode) -->
           <div class="tile tile--wide" *ngIf="(facade.state$ | async) === 'route'">
-            <span class="tile__k">TRACK</span>
+            <span class="tile__k">{{ 'autopilot.tele.track' | translate }}</span>
             <div class="tile__row">
               <div class="tile__pair">
-                <span class="tile__sub">XTE</span>
+                <span class="tile__sub">{{ 'autopilot.tele.xte' | translate }}</span>
                 <span class="tile__v">{{ xte(xte$ | async) }}<i>m</i></span>
               </div>
               <div class="tile__pair">
-                <span class="tile__sub">WAYPOINT BRG</span>
-                <span class="tile__v">{{ (bearing$ | async) | degrees }}<i>°T</i></span>
+                <span class="tile__sub">{{ 'autopilot.tele.waypoint_brg' | translate }}</span>
+                <span class="tile__v">{{ bearing$ | async | degrees }}<i>°T</i></span>
               </div>
             </div>
           </div>
         </div>
-        </section>
-      </div>
+      </section>
 
-      <app-autopilot-calibration *ngIf="showCalibration()" (close)="showCalibration.set(false)" />
+      <!-- Event log -->
+      <section class="ap-events">
+        <app-autopilot-decision-log></app-autopilot-decision-log>
+      </section>
     </div>
-  `,
-  styles: [`
-    .ap-page {
-      height: 100%;
-      display: flex;
-      flex-direction: column;
-      gap: var(--space-4);
-      padding: var(--space-4);
-      overflow: auto;
-    }
 
-    /* Header */
-    .ap-page__header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      flex-wrap: wrap;
-      gap: var(--space-3);
-    }
-    .ap-page__title h1 { margin: 0; font-size: 1.5rem; color: var(--gb-text-value); }
-    .ap-page__subtitle { font-size: 0.75rem; color: var(--gb-text-muted); letter-spacing: 0.04em; }
-    .ap-page__status { display: flex; align-items: center; gap: var(--space-2); }
+    <app-autopilot-calibration *ngIf="showCalibration()" (close)="showCalibration.set(false)" />
 
-    .conn-chip {
-      display: inline-flex; align-items: center; gap: var(--space-2);
-      padding: var(--space-1) var(--space-3); border-radius: var(--radius-full);
-      background: var(--gb-bg-panel); border: 1px solid var(--gb-border-panel);
-      font-size: 0.68rem; font-weight: 700; letter-spacing: 0.06em;
-      color: var(--gb-text-muted);
-    }
-    .conn-dot { width: 8px; height: 8px; border-radius: var(--radius-full); background: var(--gb-connection-lost); }
-    .conn-chip--ok { color: var(--gb-text-value); }
-    .conn-chip--ok .conn-dot { background: var(--gb-connection-active); box-shadow: 0 0 8px var(--gb-connection-active); }
+    <!-- ── Technical manual (full-screen overlay) ───────────────────────── -->
+    <app-autopilot-manual *ngIf="showManual()" (close)="showManual.set(false)" />
+  </div>`,
+  styles: [
+    `
+      /* ── Root (mobile-first, single scroll container) ─────────────────── */
+      .ap {
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-3);
+        padding: var(--space-3);
+        overflow-y: auto;
+        background: var(--gb-bg-canvas);
+      }
 
-    .state-chip {
-      padding: var(--space-1) var(--space-4); border-radius: var(--radius-full);
-      font-weight: 800; letter-spacing: 0.08em; font-size: 0.72rem;
-      background: var(--gb-bg-panel); border: 1px solid var(--gb-border-panel); color: var(--gb-text-muted);
-    }
-    .state-chip[data-state="auto"] {
-      background: color-mix(in srgb, var(--ap-mode-auto) 16%, transparent);
-      border-color: var(--ap-mode-auto); color: var(--ap-mode-auto);
-    }
-    .state-chip[data-state="wind"] {
-      background: color-mix(in srgb, var(--ap-mode-wind) 16%, transparent);
-      border-color: var(--ap-mode-wind); color: var(--ap-mode-wind);
-    }
-    .state-chip[data-state="route"] {
-      background: color-mix(in srgb, var(--ap-mode-route) 16%, transparent);
-      border-color: var(--ap-mode-route); color: var(--ap-mode-route);
-    }
-    .state-chip[data-state="fault"] {
-      background: var(--gb-alarm-emergency-bg); border-color: var(--gb-alarm-emergency-border); color: var(--gb-data-stale);
-    }
-    .cal-btn {
-      padding: var(--space-1) var(--space-3); border-radius: var(--radius-full);
-      background: var(--gb-bg-glass); border: 1px solid var(--gb-border-panel); color: var(--gb-text-value);
-      font-size: 0.68rem; font-weight: 700; letter-spacing: 0.06em; cursor: pointer; min-height: 32px;
-    }
-    .cal-btn:hover { border-color: var(--gb-border-active); }
+      /* ── Status bar ───────────────────────────────────────────────────── */
+      .ap-bar {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-3);
+        padding: var(--space-3);
+        border-radius: var(--radius-lg);
+        background: var(--gb-bg-bezel);
+        border: 1px solid var(--gb-border-panel);
+      }
+      .ap-bar__id {
+        display: flex;
+        align-items: center;
+        gap: var(--space-3);
+        min-width: 0;
+      }
+      .ap-bar__mark {
+        font-size: 1.4rem;
+        color: var(--gb-tick-reference);
+        line-height: 1;
+        flex-shrink: 0;
+      }
+      .ap-bar__titles {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+      }
+      .ap-bar__titles h1 {
+        margin: 0;
+        font-size: 1.15rem;
+        line-height: 1.1;
+        color: var(--gb-text-value);
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+      }
+      .ap-bar__subtitle {
+        font-size: 0.66rem;
+        color: var(--gb-text-muted);
+        letter-spacing: 0.04em;
+      }
+      .ap-bar__status {
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
+        flex-wrap: wrap;
+      }
 
-    /* Fault strip */
-    .ap-page__fault {
-      display: flex; align-items: center; gap: var(--space-3);
-      padding: var(--space-3) var(--space-4); border-radius: var(--radius-lg);
-      background: var(--gb-alarm-emergency-bg); border: 1px solid var(--gb-alarm-emergency-border);
-      animation: ap-pulse 1.5s infinite;
-    }
-    .ap-page__fault-icon { font-size: 1.8rem; }
-    .ap-page__fault-text { display: flex; flex-direction: column; }
-    .ap-page__fault-text strong { color: var(--gb-data-stale); letter-spacing: 0.04em; }
-    .ap-page__fault-text span { font-family: var(--font-mono, monospace); font-size: 0.8rem; color: var(--gb-text-value); text-transform: uppercase; }
-    .ap-page__fault-btn {
-      margin-left: auto; padding: var(--space-2) var(--space-4); border-radius: var(--radius-md); cursor: pointer;
-      border: none; background: var(--gb-data-warn); color: var(--gb-bg-canvas); font-weight: 800; letter-spacing: 0.04em;
-    }
-    @keyframes ap-pulse { 50% { opacity: 0.75; } }
+      .ap-bar__mode {
+        padding: var(--space-1) var(--space-3);
+        border-radius: var(--radius-md);
+        font-family: var(--font-mono, monospace);
+        font-weight: 800;
+        letter-spacing: 0.12em;
+        font-size: 0.8rem;
+        background: var(--gb-bg-panel);
+        border: 1px solid var(--gb-border-panel);
+        color: var(--gb-text-muted);
+        white-space: nowrap;
+      }
+      .ap-bar__mode[data-state='auto'] {
+        background: color-mix(in srgb, var(--ap-mode-auto) 16%, transparent);
+        border-color: var(--ap-mode-auto);
+        color: var(--ap-mode-auto);
+      }
+      .ap-bar__mode[data-state='wind'] {
+        background: color-mix(in srgb, var(--ap-mode-wind) 16%, transparent);
+        border-color: var(--ap-mode-wind);
+        color: var(--ap-mode-wind);
+      }
+      .ap-bar__mode[data-state='route'] {
+        background: color-mix(in srgb, var(--ap-mode-route) 16%, transparent);
+        border-color: var(--ap-mode-route);
+        color: var(--ap-mode-route);
+      }
+      .ap-bar__mode[data-state='fault'] {
+        background: var(--gb-alarm-emergency-bg);
+        border-color: var(--gb-alarm-emergency-border);
+        color: var(--gb-data-stale);
+      }
 
-    /* Grid */
-    .ap-page__grid {
-      flex: 1;
-      display: grid;
-      grid-template-columns: minmax(320px, 460px) 1fr;
-      gap: var(--space-4);
-      align-items: start;
-    }
-    .ap-page__console { aspect-ratio: 4/5; min-height: 0; }
+      .conn-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-2);
+        padding: var(--space-1) var(--space-3);
+        border-radius: var(--radius-full);
+        background: var(--gb-bg-panel);
+        border: 1px solid var(--gb-border-panel);
+        font-size: 0.65rem;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        color: var(--gb-text-muted);
+        white-space: nowrap;
+      }
+      .conn-dot {
+        width: 7px;
+        height: 7px;
+        border-radius: var(--radius-full);
+        background: var(--gb-connection-lost);
+        flex-shrink: 0;
+      }
+      .conn-chip--ok {
+        color: var(--gb-text-value);
+      }
+      .conn-chip--ok .conn-dot {
+        background: var(--gb-connection-active);
+        box-shadow: 0 0 6px var(--gb-connection-active);
+      }
 
-    .ap-page__side {
-      display: flex;
-      flex-direction: column;
-      gap: var(--space-4);
-      min-width: 0;
-    }
-    .ap-page__dial {
-      display: flex;
-      justify-content: center;
-      padding: var(--space-4);
-      border-radius: var(--radius-lg);
-      background: var(--gb-bg-panel);
-      border: 1px solid var(--gb-border-panel);
-    }
+      .ap-bar__btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 40px;
+        min-height: 40px;
+        padding: 0 var(--space-2);
+        border-radius: var(--radius-md);
+        background: var(--gb-bg-glass);
+        border: 1px solid var(--gb-border-panel);
+        color: var(--gb-text-value);
+        font-size: 1rem;
+        cursor: pointer;
+      }
+      .ap-bar__btn:active {
+        border-color: var(--gb-border-active);
+        background: var(--gb-border-active);
+      }
+      .ap-bar__estop {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-1);
+        min-height: 40px;
+        padding: 0 var(--space-4);
+        border-radius: var(--radius-md);
+        background: var(--gb-alarm-emergency-bg);
+        border: 1px solid var(--gb-alarm-emergency-border);
+        color: var(--gb-data-stale);
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        font-size: 0.72rem;
+        cursor: pointer;
+        touch-action: manipulation;
+      }
+      .ap-bar__estop:active {
+        background: var(--gb-data-stale);
+        color: var(--gb-bg-canvas);
+      }
 
-    .ap-page__tele {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: var(--space-3);
-      align-content: start;
-    }
+      /* ── Follow-destination banner ────────────────────────────────────── */
+      .ap-follow {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: var(--space-2);
+        padding: var(--space-3);
+        border-radius: var(--radius-lg);
+        background: var(--gb-alarm-info-bg);
+        border: 1px solid var(--gb-alarm-info-border);
+      }
+      .ap-follow__icon {
+        font-size: 1.4rem;
+        line-height: 1;
+      }
+      .ap-follow__text {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+      .ap-follow__text strong {
+        color: var(--gb-text-value);
+        font-size: 0.82rem;
+        letter-spacing: 0.02em;
+      }
+      .ap-follow__text span {
+        color: var(--gb-text-muted);
+        font-size: 0.7rem;
+      }
+      .ap-follow__btn {
+        align-self: stretch;
+        padding: var(--space-2) var(--space-4);
+        border-radius: var(--radius-md);
+        cursor: pointer;
+        border: none;
+        background: var(--gb-data-good);
+        color: var(--gb-bg-canvas);
+        font-weight: 800;
+        letter-spacing: 0.04em;
+        font-size: 0.8rem;
+        min-height: 44px;
+        touch-action: manipulation;
+      }
 
-    .tile {
-      display: flex; flex-direction: column; gap: var(--space-1);
-      padding: var(--space-4); border-radius: var(--radius-lg);
-      background: var(--gb-bg-panel); border: 1px solid var(--gb-border-panel);
-    }
-    .tile--wide { grid-column: 1 / -1; }
-    .tile__k { font-size: 0.66rem; color: var(--gb-text-muted); letter-spacing: 0.1em; }
-    .tile__row { display: flex; gap: var(--space-4); }
-    .tile__pair { display: flex; flex-direction: column; gap: var(--space-1); flex: 1; }
-    .tile__sub { font-size: 0.6rem; color: var(--gb-text-muted); letter-spacing: 0.08em; }
-    .tile__v {
-      font-family: var(--font-mono, monospace); font-weight: 800;
-      font-size: 1.9rem; line-height: 1; color: var(--gb-text-value);
-    }
-    .tile__v i { font-size: 0.75rem; color: var(--gb-text-unit); font-style: normal; margin-left: 2px; }
-    .tile__v--accent { color: var(--gb-data-good); }
-    .tile__v--warn { color: var(--gb-data-stale); }
+      /* ── Alerts band ──────────────────────────────────────────────────── */
+      .ap-alerts {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-2);
+      }
+      .ap-alerts:empty {
+        display: none;
+      }
+      .ap-alert {
+        display: flex;
+        align-items: center;
+        gap: var(--space-3);
+        padding: var(--space-2) var(--space-3);
+        border-radius: var(--radius-md);
+        background: var(--gb-alarm-warning-bg);
+        border: 1px solid var(--gb-alarm-warning-border);
+        animation: ap-pulse 1.6s infinite;
+      }
+      .ap-alert[data-sev='critical'] {
+        background: var(--gb-alarm-emergency-bg);
+        border-color: var(--gb-alarm-emergency-border);
+      }
+      .ap-alert__icon {
+        font-size: 1.2rem;
+        line-height: 1;
+        flex-shrink: 0;
+      }
+      .ap-alert__msg {
+        flex: 1;
+        min-width: 0;
+        font-size: 0.76rem;
+        font-weight: 800;
+        letter-spacing: 0.03em;
+        color: var(--gb-data-warn);
+      }
+      .ap-alert[data-sev='critical'] .ap-alert__msg {
+        color: var(--gb-data-stale);
+      }
+      .ap-alert__msg em {
+        font-style: normal;
+        font-weight: 600;
+        font-family: var(--font-mono, monospace);
+        color: var(--gb-text-value);
+      }
+      .ap-alert__btn {
+        flex-shrink: 0;
+        padding: var(--space-1) var(--space-3);
+        border-radius: var(--radius-md);
+        border: none;
+        background: var(--gb-data-warn);
+        color: var(--gb-bg-canvas);
+        font-weight: 800;
+        font-size: 0.7rem;
+        letter-spacing: 0.04em;
+        cursor: pointer;
+        min-height: 36px;
+        touch-action: manipulation;
+      }
+      @keyframes ap-pulse {
+        50% {
+          opacity: 0.72;
+        }
+      }
 
-    @media (max-width: 880px) {
-      .ap-page__grid { grid-template-columns: 1fr; }
-      .ap-page__console { aspect-ratio: auto; max-width: 460px; }
-    }
-  `],
+      /* ── Cockpit ──────────────────────────────────────────────────────── */
+      .ap-cockpit {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-3);
+        min-height: 0;
+      }
+
+      .ap-panel {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-3);
+        padding: var(--space-3);
+        border-radius: var(--radius-lg);
+        background: var(--gb-bg-bezel);
+        border: 1px solid var(--gb-border-panel);
+        min-width: 0;
+      }
+      .ap-panel__hd {
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
+        font-size: 0.64rem;
+        font-weight: 800;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--gb-text-muted);
+      }
+      .ap-panel__bar {
+        width: 3px;
+        height: 12px;
+        border-radius: 2px;
+        background: var(--gb-tick-reference);
+        flex-shrink: 0;
+      }
+      .ap-helm__dial {
+        display: flex;
+        justify-content: center;
+        padding: var(--space-2) 0;
+      }
+
+      /* Telemetry tiles */
+      .ap-tiles {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: var(--space-2);
+        align-content: start;
+      }
+      .tile {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-1);
+        padding: var(--space-3);
+        border-radius: var(--radius-md);
+        background: var(--gb-bg-face);
+        border: 1px solid var(--gb-border-panel);
+      }
+      .tile--wide {
+        grid-column: 1 / -1;
+      }
+      .tile__k {
+        font-size: 0.6rem;
+        color: var(--gb-text-muted);
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+      }
+      .tile__row {
+        display: flex;
+        gap: var(--space-3);
+      }
+      .tile__pair {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-1);
+        flex: 1;
+        min-width: 0;
+      }
+      .tile__sub {
+        font-size: 0.55rem;
+        color: var(--gb-text-muted);
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      .tile__v {
+        font-family: var(--font-mono, monospace);
+        font-variant-numeric: tabular-nums;
+        font-weight: 800;
+        font-size: 1.55rem;
+        line-height: 1;
+        color: var(--gb-text-value);
+      }
+      .tile__v i {
+        font-size: 0.7rem;
+        color: var(--gb-text-unit);
+        font-style: normal;
+        margin-left: 1px;
+      }
+      .tile__v--accent {
+        color: var(--gb-data-good);
+      }
+      .tile__v--warn {
+        color: var(--gb-data-stale);
+      }
+
+      .ap-events {
+        min-height: 0;
+      }
+
+      /* ─────────────────────────────────────────────────────────────────────
+       Tablet ≥ 640px
+       ──────────────────────────────────────────────────────────────────── */
+      @media (min-width: 640px) {
+        .ap {
+          padding: var(--space-4);
+          gap: var(--space-4);
+        }
+        .ap-bar {
+          flex-direction: row;
+          align-items: center;
+          justify-content: space-between;
+          flex-wrap: wrap;
+        }
+        .ap-bar__titles h1 {
+          font-size: 1.3rem;
+        }
+        .ap-follow {
+          flex-direction: row;
+          align-items: center;
+        }
+        .ap-follow__btn {
+          align-self: auto;
+          margin-left: auto;
+        }
+        .tile__v {
+          font-size: 1.7rem;
+        }
+      }
+
+      /* ─────────────────────────────────────────────────────────────────────
+       Desktop ≥ 1024px — cockpit grid (content height → page scroll)
+       ──────────────────────────────────────────────────────────────────── */
+      @media (min-width: 1024px) {
+        .ap-cockpit {
+          display: grid;
+          grid-template-columns: minmax(340px, 400px) 1fr;
+          grid-template-rows: auto auto;
+          grid-template-areas:
+            'helm data'
+            'helm events';
+          gap: var(--space-3);
+          align-items: start;
+        }
+        .ap-helm {
+          grid-area: helm;
+          align-self: start;
+        }
+        .ap-data {
+          grid-area: data;
+        }
+        .ap-events {
+          grid-area: events;
+        }
+        .ap-tiles {
+          grid-template-columns: repeat(2, 1fr);
+          gap: var(--space-3);
+        }
+        .tile {
+          padding: var(--space-4);
+        }
+        .tile__v {
+          font-size: 1.9rem;
+        }
+        .tile__v i {
+          font-size: 0.75rem;
+        }
+      }
+
+      /* Cockpit-fit: on tall enough desktops, fill the viewport and let only the
+         event log scroll. Short screens keep the natural page scroll above. */
+      @media (min-width: 1024px) and (min-height: 760px) {
+        .ap-cockpit {
+          grid-template-rows: auto 1fr;
+          flex: 1;
+          min-height: 0;
+        }
+        .ap-events {
+          min-height: 0;
+          overflow: hidden;
+        }
+      }
+
+      /* ─────────────────────────────────────────────────────────────────────
+       Wide desktop ≥ 1400px
+       ──────────────────────────────────────────────────────────────────── */
+      @media (min-width: 1400px) {
+        .ap-cockpit {
+          grid-template-columns: minmax(380px, 440px) 1fr;
+        }
+        .ap-tiles {
+          grid-template-columns: repeat(3, 1fr);
+        }
+      }
+    `,
+  ],
 })
 export class AutopilotPage {
   public facade = inject(AutopilotFacadeService);
+  private readonly log = inject(AutopilotDecisionLogService);
   private readonly store = inject(DatapointStoreService);
 
   readonly showCalibration = signal(false);
+  readonly showManual = signal(false);
+
+  /** Off-course proxy threshold on commanded/actual rudder (matches prior console logic). */
+  private static readonly OFF_COURSE_DEG = 10;
+
+  /** Show the follow banner when a destination/course is active and we're idle. */
+  readonly pendingDestination$ = combineLatest([this.facade.state$, this.log.courseActive$]).pipe(
+    map(([state, courseActive]) => courseActive && state === 'standby'),
+  );
+
+  /** Panel-level alerts derived from the published autopilot state. */
+  readonly alerts$ = combineLatest([
+    this.facade.state$,
+    this.facade.fault$,
+    this.facade.windHazard$,
+    this.facade.noGo$,
+    this.facade.rudderAngle$,
+  ]).pipe(
+    map(([state, fault, hazard, noGo, rudderRad]) => {
+      const alerts: PanelAlert[] = [];
+      if (state === 'fault') {
+        const faultAlert: PanelAlert = {
+          severity: 'critical',
+          icon: '⛔',
+          labelKey: 'autopilot.fault.title',
+          action: 'clearFault',
+        };
+        if (fault && fault !== 'none') {
+          faultAlert.reason = fault;
+        }
+        alerts.push(faultAlert);
+      }
+      if (hazard && hazard !== 'none') {
+        alerts.push({
+          severity: hazard === 'accidental-gybe' ? 'critical' : 'warn',
+          icon: '⚠️',
+          labelKey: this.hazardLabelKey(hazard),
+        });
+      }
+      if (noGo) {
+        alerts.push({ severity: 'warn', icon: '⚠️', labelKey: 'autopilot.console.no_go' });
+      }
+      const engaged = state === 'auto' || state === 'wind' || state === 'route';
+      const rudderDeg = rudderRad == null ? 0 : Math.abs((rudderRad * 180) / Math.PI);
+      if (engaged && rudderDeg > AutopilotPage.OFF_COURSE_DEG) {
+        alerts.push({ severity: 'warn', icon: '⚠️', labelKey: 'autopilot.console.off_course' });
+      }
+      return alerts;
+    }),
+  );
 
   // Resolve paths defensively (optional-chaining + string fallback) so a stale
   // contract build at runtime cannot crash construction — matches the pattern in
@@ -289,11 +757,41 @@ export class AutopilotPage {
     .observe<number>(this.paths.waypointBearing)
     .pipe(map((dp) => dp?.value));
 
-  stateLabel(state: string | null): string {
+  /** Maps an engine state to its i18n key so the status chip is translatable. */
+  stateLabelKey(state: string | null): string {
     const map: Record<string, string> = {
-      standby: 'STANDBY', auto: 'AUTO', wind: 'WIND', route: 'TRACK', fault: 'FAULT',
+      standby: 'autopilot.state.standby',
+      auto: 'autopilot.state.auto',
+      wind: 'autopilot.state.wind',
+      route: 'autopilot.state.track',
+      fault: 'autopilot.state.fault',
     };
-    return state ? map[state] ?? state.toUpperCase() : 'STANDBY';
+    return state ? (map[state] ?? 'autopilot.state.standby') : 'autopilot.state.standby';
+  }
+
+  /** i18n key for a wind-hazard alert; unknown hazards fall back to the raw string. */
+  hazardLabelKey(hazard: string): string {
+    switch (hazard) {
+      case 'accidental-gybe':
+        return 'autopilot.console.hazard.gybe';
+      case 'accidental-tack':
+        return 'autopilot.console.hazard.tack';
+      case 'gust':
+        return 'autopilot.console.hazard.gust';
+      default:
+        return hazard.toUpperCase();
+    }
+  }
+
+  /** Explicit, safety-compliant engage of TRACK toward the active destination. */
+  onFollow(): void {
+    this.log.record('action', 'FOLLOW_REQUESTED');
+    this.facade.engageTrack();
+  }
+
+  /** Software emergency stop (latched motor cut until the fault is cleared). */
+  onEmergencyStop(): void {
+    this.facade.emergencyStop();
   }
 
   current(value: number | null | undefined): string {

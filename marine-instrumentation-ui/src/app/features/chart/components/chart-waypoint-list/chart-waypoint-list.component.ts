@@ -17,6 +17,7 @@ export class ChartWaypointListComponent {
   @Output() selectWaypoint = new EventEmitter<string>();
   @Output() renameWaypoint = new EventEmitter<{ id: string; name: string }>();
   @Output() deleteWaypoint = new EventEmitter<string>();
+  @Output() navigateWaypoint = new EventEmitter<string>();
   @Output() clearActive = new EventEmitter<void>();
 
   isExpanded = true;
@@ -33,6 +34,10 @@ export class ChartWaypointListComponent {
     const target = event.target as HTMLInputElement | null;
     const name = target?.value ?? '';
     this.renameWaypoint.emit({ id, name });
+  }
+
+  onNavigate(id: string): void {
+    this.navigateWaypoint.emit(id);
   }
 
   onDelete(id: string): void {

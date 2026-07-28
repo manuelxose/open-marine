@@ -21,3 +21,15 @@
 }
 
 .modal-open { overflow: hidden; }
+
+// uPlot signal-scope theming (Glass Bridge). The base uPlot.min.css (imported via angular.json)
+// handles layout; here we only theme it to match the dark instrument panels.
+.uplot {
+  font-family: var(--font-mono, 'JetBrains Mono', monospace);
+  color: var(--gb-text-muted, #8fa1b3);
+  width: 100%;
+}
+.uplot .u-title { color: var(--gb-text-value, #e5e9f0); font-weight: 600; }
+.uplot .u-legend { color: var(--gb-text-muted, #8fa1b3); font-size: 11px; }
+.uplot .u-legend .u-value { color: var(--gb-text-value, #e5e9f0); font-variant-numeric: tabular-nums; }
+.uplot .u-inline { display: flex; flex-wrap: wrap; gap: 0.25rem 0.75rem; }

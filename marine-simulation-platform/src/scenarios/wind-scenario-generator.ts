@@ -112,12 +112,13 @@ export function generateWindScenario(options: WindScenarioOptions): SimulationSc
   };
 }
 
+// Param ids match the keys read by `buildGeneratorOptions` so the values actually drive the run.
 const parameters = (options: WindScenarioOptions): SimulationParameterDefinition[] => [
   { id: "seed", label: "Random Seed", type: "number", defaultValue: options.seed, min: 1, max: 9999, step: 1, group: "General" },
   { id: "speed", label: "Simulation Speed", type: "number", defaultValue: 1, min: 0.25, max: 4, step: 0.25, unit: "x", group: "General" },
   { id: "durationMs", label: "Duration", type: "number", defaultValue: options.durationMs, min: 30_000, max: 3_600_000, step: 60_000, unit: "ms", group: "General" },
-  { id: "baseWindSpeedKt", label: "Base Wind Speed", type: "number", defaultValue: options.baseWindSpeedKt, min: 0, max: 50, step: 1, unit: "kt", group: "Wind" },
-  { id: "baseWindDirDeg", label: "Base Wind Direction", type: "number", defaultValue: options.baseWindDirDeg, min: 0, max: 360, step: 1, unit: "deg", group: "Wind" },
+  { id: "windSpeedKt", label: "Base Wind Speed", type: "number", defaultValue: options.baseWindSpeedKt, min: 0, max: 50, step: 1, unit: "kt", group: "Wind" },
+  { id: "windDirDeg", label: "Base Wind Direction", type: "number", defaultValue: options.baseWindDirDeg, min: 0, max: 360, step: 1, unit: "deg", group: "Wind" },
   { id: "gustProbability", label: "Gust Probability", type: "number", defaultValue: options.gustProbability, min: 0, max: 1, step: 0.05, unit: "ratio", group: "Wind" },
   { id: "gustMaxDeltaKt", label: "Gust Max Delta", type: "number", defaultValue: options.gustMaxDeltaKt, min: 0, max: 20, step: 0.5, unit: "kt", group: "Wind" },
 ];

@@ -1,132 +1,107 @@
-import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ElementRef, HostBinding, Input, ViewChild, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { combineLatest, map, startWith, timer } from 'rxjs';
 import type { HistoryPoint } from '../../../state/datapoints/datapoint.models';
-import { DatapointStoreService } from '../../../state/datapoints/datapoint-store.service';
+import { WeatherApiService, type WeatherDay, type WeatherHour } from '../../../data-access/weather/weather-api.service';
 import { GbInstrumentBezelComponent } from '../../../shared/components/gb-instrument-bezel/gb-instrument-bezel.component';
-import { DataQualityService, type DataQuality } from '../../../shared/services/data-quality.service';
-
-interface MeteoView {
-  pressure: number;
-  pressureDisplay: string;
-  quality: DataQuality;
-  isStale: boolean;
-  age: number | null;
-  source: string;
-  ariaLabel: string;
-}
+import { SparklineComponent } from '../../../shared/components/sparkline/sparkline.component';
 
 @Component({
   selector: 'app-meteo-widget',
   standalone: true,
-  imports: [CommonModule, GbInstrumentBezelComponent],
+  imports: [CommonModule, GbInstrumentBezelComponent, SparklineComponent],
   templateUrl: './meteo-widget.component.html',
   styleUrls: ['./meteo-widget.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class MeteoWidgetComponent {
-  private readonly store = inject(DatapointStoreService);
-  private readonly qualityService = inject(DataQualityService);
-  private readonly PRESSURE_PATH = 'environment.outside.pressure';
-  private readonly ticker$ = timer(0, 1000);
+  private readonly weatherApi = inject(WeatherApiService);
 
-  private readonly pressurePoint$ = this.store.observe<number>(this.PRESSURE_PATH).pipe(startWith(undefined));
+  @Input() variant: 'widget' | 'map' = 'widget';
+  @HostBinding('class.map-variant') get mapVariant(): boolean { return this.variant === 'map'; }
+  @ViewChild('hourlyStrip') private hourlyStrip?: ElementRef<HTMLElement>;
 
-  readonly view = toSignal(
-    combineLatest([this.pressurePoint$, this.ticker$]).pipe(
-      map(([point]) => {
-        if (!point || typeof point.value !== 'number') {
-          return {
-            pressure: 1013,
-            pressureDisplay: '---',
-            quality: 'missing',
-            isStale: true,
-            age: null,
-            source: '',
-            ariaLabel: 'Meteo pressure. Data unavailable.',
-          } satisfies MeteoView;
-        }
+  readonly selectedDayIndex = signal(0);
 
-        const pressure = point.value / 100;
-        const quality = this.qualityService.getQuality(point.timestamp);
-        const isStale = quality === 'stale' || quality === 'missing';
-        const pressureDisplay = isStale ? '---' : pressure.toFixed(0);
+  readonly weather = toSignal(this.weatherApi.weather$, { initialValue: undefined });
+  readonly loading = computed(() => this.weather() === undefined);
+  readonly unavailable = computed(() => this.weather() === null);
 
-        return {
-          pressure,
-          pressureDisplay,
-          quality,
-          isStale,
-          age: (Date.now() - point.timestamp) / 1000,
-          source: point.source ?? '',
-          ariaLabel: isStale ? 'Meteo pressure. Data stale.' : `Meteo pressure ${pressureDisplay} hectopascals.`,
-        } satisfies MeteoView;
-      }),
-    ),
-    {
-      initialValue: {
-        pressure: 1013,
-        pressureDisplay: '---',
-        quality: 'missing',
-        isStale: true,
-        age: null,
-        source: '',
-        ariaLabel: 'Meteo pressure. Data unavailable.',
-      } satisfies MeteoView,
-    },
+  readonly temperatureHistory = computed<HistoryPoint[]>(() =>
+    this.forecast().map((hour) => ({
+      timestamp: Date.parse(hour.time),
+      value: hour.temperature,
+    })),
   );
 
-  readonly history = toSignal(
-    this.store.series$(this.PRESSURE_PATH, 12 * 60 * 60).pipe(
-      map((points: HistoryPoint[]) => points.map((p) => ({ ...p, value: p.value / 100 }))),
-    ),
-    { initialValue: [] as HistoryPoint[] },
+  readonly pressureHistory = computed<HistoryPoint[]>(() =>
+    this.forecast().map((hour) => ({
+      timestamp: Date.parse(hour.time),
+      value: hour.pressure,
+    })),
   );
 
-  readonly trend = computed(() => {
-    const points = this.history();
-    if (points.length < 2) {
-      return 0;
-    }
-    const first = points[0];
-    const last = points[points.length - 1];
-    if (!first || !last) {
-      return 0;
-    }
-    return last.value - first.value;
-  });
+  readonly dailyForecast = computed<WeatherDay[]>(() => this.weather()?.daily ?? []);
+  readonly selectedDay = computed<WeatherDay | undefined>(() => this.dailyForecast()[this.selectedDayIndex()]);
 
-  readonly sparklinePath = computed(() => {
-    const points = this.history();
-    if (!points || points.length < 2) {
-      return 'M0,40 L100,40 Z';
-    }
-
-    const width = 100;
-    const height = 40;
-
-    const values = points.map((p) => p.value);
-    let minVal = Math.min(...values);
-    let maxVal = Math.max(...values);
-
-    const padding = (maxVal - minVal) * 0.1 || 1;
-    minVal -= padding;
-    maxVal += padding;
-    const range = maxVal - minVal;
-
+  readonly forecast = computed<WeatherHour[]>(() => {
+    const selectedDate = this.selectedDay()?.date;
+    if (!selectedDate) return [];
     const now = Date.now();
-    const windowMs = 12 * 60 * 60 * 1000;
-    const startTime = now - windowMs;
+    const hourly = this.weather()?.hourly ?? [];
 
-    const coords = points.map((p) => {
-      const x = Math.max(0, Math.min(width, ((p.timestamp - startTime) / windowMs) * width));
-      const normalizedVal = (p.value - minVal) / range;
-      const y = height - normalizedVal * height;
-      return `${x.toFixed(1)},${y.toFixed(1)}`;
-    });
+    // "Today" is intentionally a rolling 24-hour outlook. At 23:00 it therefore
+    // continues with 00:00, 01:00, etc. from tomorrow without changing tabs.
+    if (this.selectedDayIndex() === 0) {
+      return hourly
+        .filter((hour) => Date.parse(hour.time) >= now - 30 * 60 * 1000)
+        .slice(0, 24);
+    }
 
-    const line = coords.length > 0 ? `M ${coords.join(' L ')}` : 'M0,40';
-    return `${line} L ${width},${height} L 0,${height} Z`;
+    // Remaining tabs represent complete calendar days in the API timezone.
+    return hourly.filter((hour) => hour.time.startsWith(selectedDate)).slice(0, 24);
   });
+
+  readonly pressureTrend = computed(() => {
+    const hours = this.forecast();
+    const first = hours[0]?.pressure;
+    const last = hours[Math.min(3, hours.length - 1)]?.pressure;
+    return first === undefined || last === undefined ? 0 : last - first;
+  });
+
+  cardinal(degrees: number): string {
+    const points = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+    return points[Math.round(degrees / 45) % 8] ?? '---';
+  }
+
+  hourLabel(value: string): string {
+    return new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit' }).format(new Date(value));
+  }
+
+  dayLabel(value: string): string {
+    return new Intl.DateTimeFormat(undefined, { weekday: 'short', day: 'numeric' }).format(
+      new Date(`${value}T12:00:00`),
+    );
+  }
+
+  daySelectorLabel(index: number, value: string): string {
+    if (index === 0) return 'Today';
+    if (index === 1) return 'Tomorrow';
+    return this.dayLabel(value);
+  }
+
+  selectDay(index: number): void {
+    this.selectedDayIndex.set(index);
+    queueMicrotask(() => this.hourlyStrip?.nativeElement.scrollTo({ left: 0, behavior: 'smooth' }));
+  }
+
+  scrollStrip(strip: HTMLElement, direction: -1 | 1): void {
+    strip.scrollBy({ left: direction * Math.max(240, strip.clientWidth * 0.75), behavior: 'smooth' });
+  }
+
+  scrollStripWithWheel(event: WheelEvent, strip: HTMLElement): void {
+    if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
+    event.preventDefault();
+    strip.scrollLeft += event.deltaY;
+  }
 }

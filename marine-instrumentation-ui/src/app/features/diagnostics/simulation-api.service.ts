@@ -1,9 +1,10 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Inject, Injectable, NgZone, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import type {
   SimulationEvent,
   SimulationRun,
+  SimulationRunOrigin,
   SimulationSampleBatch,
   SimulationScenarioDocument,
 } from '@omi/marine-data-contract';
@@ -18,6 +19,17 @@ export interface RunSummary {
   simulatedTimeMs: number;
   mode: SimulationRun['mode'];
   failureReason?: string | undefined;
+}
+
+export class SimulationApiError extends Error {
+  constructor(
+    readonly status: number,
+    readonly code: string,
+    readonly url?: string | undefined,
+  ) {
+    super(code);
+    this.name = 'SimulationApiError';
+  }
 }
 
 @Injectable({ providedIn: 'root' })
@@ -67,6 +79,10 @@ export class SimulationApiService {
     return this.get<RunSummary[]>('/api/v2/runs');
   }
 
+  async clearRuns(): Promise<{ deletedRuns: number }> {
+    return this.delete<{ deletedRuns: number }>('/api/v2/runs');
+  }
+
   async getRun(id: string): Promise<SimulationRun> {
     return this.get<SimulationRun>(`/api/v2/runs/${encodeURIComponent(id)}`);
   }
@@ -78,8 +94,9 @@ export class SimulationApiService {
     mode: 'data' | 'closed-loop' = 'data',
     speed = 1,
     seed = 42,
+    origin?: SimulationRunOrigin,
   ): Promise<SimulationRun> {
-    return this.post<SimulationRun>('/api/v2/runs', { scenarioId, armToken, parameters, mode, speed, seed });
+    return this.post<SimulationRun>('/api/v2/runs', { scenarioId, armToken, parameters, mode, speed, seed, origin });
   }
 
   async abortRun(id: string): Promise<SimulationRun> {
@@ -146,7 +163,7 @@ export class SimulationApiService {
       return result;
     } catch (error) {
       this.online.set(false);
-      throw error;
+      throw this.toApiError(error);
     }
   }
 
@@ -157,17 +174,18 @@ export class SimulationApiService {
       return result;
     } catch (error) {
       this.online.set(false);
-      throw error;
+      throw this.toApiError(error);
     }
   }
 
-  private async delete(path: string): Promise<void> {
+  private async delete<T = void>(path: string): Promise<T> {
     try {
-      await firstValueFrom(this.http.delete(`${this.environment.testBenchApiUrl}${path}`));
+      const result = await firstValueFrom(this.http.delete<T>(`${this.environment.testBenchApiUrl}${path}`));
       this.online.set(true);
+      return result;
     } catch (error) {
       this.online.set(false);
-      throw error;
+      throw this.toApiError(error);
     }
   }
 
@@ -178,7 +196,27 @@ export class SimulationApiService {
       return result;
     } catch (error) {
       this.online.set(false);
-      throw error;
+      throw this.toApiError(error);
     }
+  }
+
+  private toApiError(error: unknown): Error {
+    if (error instanceof HttpErrorResponse) {
+      return new SimulationApiError(
+        error.status,
+        this.extractServerError(error.error) ?? error.message,
+        error.url ?? undefined,
+      );
+    }
+    return error instanceof Error ? error : new Error(String(error));
+  }
+
+  private extractServerError(payload: unknown): string | null {
+    if (typeof payload === 'string') return payload;
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return null;
+    const record = payload as Record<string, unknown>;
+    if (typeof record['error'] === 'string') return record['error'];
+    if (typeof record['message'] === 'string') return record['message'];
+    return null;
   }
 }

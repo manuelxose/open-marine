@@ -5,6 +5,7 @@ import { vi } from 'vitest';
 import { Component, Input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { DegreesPipe } from '../../../../shared/pipes/degrees.pipe';
+import { TranslatePipe } from '../../../../shared/pipes/translate.pipe';
 import { AutopilotFacadeService } from '../../autopilot.facade';
 import { DatapointStoreService } from '../../../../state/datapoints/datapoint-store.service';
 
@@ -61,7 +62,7 @@ describe('AutopilotConsoleComponent', () => {
       ]
     })
     .overrideComponent(AutopilotConsoleComponent, {
-      set: { imports: [CommonModule, DegreesPipe, MockAppButtonComponent] }
+      set: { imports: [CommonModule, DegreesPipe, TranslatePipe, MockAppButtonComponent] }
     })
     .compileComponents();
 

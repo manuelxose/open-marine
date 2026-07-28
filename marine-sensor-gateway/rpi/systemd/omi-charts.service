@@ -16,6 +16,9 @@ Environment=CHART_ENGINE_CACHE_DIR=/var/lib/open-marine/chart-cache
 Environment=CHART_ENGINE_UPLOAD_DIR=/var/lib/open-marine/chart-uploads
 Environment=CHART_ENGINE_REGISTRY_FILE=/var/lib/open-marine/charts/registry.local.json
 Environment=CHART_ENGINE_UPLOAD_MAX_MB=2048
+# Optional local-only secrets (e.g. CHART_ENGINE_OWM_API_KEY=...). The leading '-'
+# makes the file optional; never commit real keys to this unit file.
+EnvironmentFile=-/etc/open-marine/charts.env
 
 ReadWritePaths=/var/lib/open-marine
 NoNewPrivileges=yes

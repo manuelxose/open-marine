@@ -13,6 +13,9 @@ import { OnboardingService } from './core/onboarding/onboarding.service';
 import { TourHighlightComponent } from './core/onboarding/tour/tour-highlight.component';
 import { SignalKClientService } from './data-access/signalk/signalk-client.service';
 import { VesselEnrichmentService } from './data-access/vessel-enrichment/vessel-enrichment.service';
+import { SignalKHostDetectorService } from './core/services/signalk-host-detector.service';
+import { EnvironmentStateService } from './core/services/environment-state.service';
+import { buildEnvironment } from './core/config/app-environment.token';
 
 type ThemeMode = 'day' | 'night';
 
@@ -60,9 +63,13 @@ export class AppComponent implements OnInit {
   private readonly onboarding = inject(OnboardingService);
   private readonly signalK = inject(SignalKClientService);
   private readonly enrichmentService = inject(VesselEnrichmentService);
+  private readonly hostDetector = inject(SignalKHostDetectorService);
+  private readonly envState = inject(EnvironmentStateService);
 
   readonly showSplash = toSignal(this.splash.visible$, { initialValue: true });
-  readonly showOnboarding = toSignal(this.onboarding.shouldShowOnboarding$, { initialValue: false });
+  readonly showOnboarding = toSignal(this.onboarding.shouldShowOnboarding$, {
+    initialValue: false,
+  });
 
   constructor(@Inject(PLATFORM_ID) private readonly platformId: object) {}
 
@@ -81,16 +88,26 @@ export class AppComponent implements OnInit {
     this.splash.updateStatus('Loading instruments...');
 
     // Brief delay for visual pacing
-    await new Promise(resolve => setTimeout(resolve, 400));
-    this.splash.updateStatus('Connecting to Signal K...');
+    await new Promise((resolve) => setTimeout(resolve, 400));
+
+    // ── Phase 1: Auto-detect Signal K host ──────────────────────────────
+    this.splash.updateStatus('Searching for Signal K server...');
+    const signalKHost = await this.hostDetector.detect();
+
+    const env = buildEnvironment(signalKHost);
+    this.envState.updateEnv(env);
+    this.splash.updateStatus(`Connecting to ${signalKHost}...`);
+
+    // ── Phase 2: Connect to detected host ───────────────────────────────
+    this.signalK.connect(env.signalKWsUrl);
 
     // Wait for Signal K connection or timeout
     await firstValueFrom(
       this.signalK.connected$.pipe(
-        filter(c => c === true),
+        filter((c) => c === true),
         timeout(3000),
-        catchError(() => of(false))
-      )
+        catchError(() => of(false)),
+      ),
     );
 
     this.splash.updateStatus('Ready');

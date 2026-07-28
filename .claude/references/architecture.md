@@ -30,7 +30,7 @@ Sensor / simulator → Signal K (Docker) → WebSocket → `SignalKClientService
 - Contract (`marine-data-contract/src/`): `paths.ts` (`PATHS`), `types.ts` (`DataPoint`, etc.),
   `units.ts`, `quality.ts`, `index.ts`. Imported elsewhere as `@omi/marine-data-contract`.
 - Gateway (`marine-sensor-gateway/src/`): adapters + Signal K publishers; Python operational scripts in `rpi/omi-imu/`.
-- Simulator (`marine-data-simulator/`): deterministic scenarios + HTTP/WebSocket publishers.
+- Simulator (`marine-simulation-platform/`): deterministic scenarios + presets + HTTP/WebSocket publishers; API on 4100 (`bench`/`closed-loop`), `live` streams to Signal K.
 - Runtime: `signalk-runtime/` (docker compose + plugin/settings data).
 - Tiles: `marine-chart-toolkit/` (MBTiles CLI), `marine-tile-server/src/index.ts` (Express).
 - Cross-platform helpers: `scripts/` (init, migrate/deploy, status, start-{ais,gps,imu}).
@@ -57,7 +57,7 @@ Sensor / simulator → Signal K (Docker) → WebSocket → `SignalKClientService
 - UI: `cd marine-instrumentation-ui && npm run build` — CSS budget warnings are pre-existing, not failures.
 - Contract: `cd marine-data-contract && npm run test:run && npm run build`
 - Gateway: `cd marine-sensor-gateway && npm test && npm run build`
-- Simulator: `cd marine-data-simulator && npm run build`
+- Simulator: `npm run test:simulation` (or `cd marine-simulation-platform && npm run build`)
 - Root status: `npm run status`. Add focused tests only for changed behavior.
 
 ## Never

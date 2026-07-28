@@ -7,17 +7,15 @@
     </div>
 
     <div class="source-switch" role="group" aria-label="Signal source">
-      <button
-        type="button"
-        [class.active]="!facade.activeRun()"
-        (click)="facade.disconnectRun()">
+      <button type="button" [class.active]="!facade.activeRun()" (click)="facade.disconnectRun()">
         <span class="status-dot" [class.status-dot--live]="!facade.activeRun()"></span>
         {{ 'simulation.source.standby' | translate }}
       </button>
       <button
         type="button"
         [class.active]="facade.activeRun()"
-        (click)="facade.setTab('execution')">
+        (click)="facade.setTab('execution')"
+      >
         <span class="status-dot" [class.status-dot--live]="facade.api.online()"></span>
         {{ 'simulation.source.running' | translate }}
       </button>
@@ -26,14 +24,18 @@
 
   @if (facade.isOffline()) {
     <div class="notice notice--info">
-      <span>Modo offline: Simulación local sin servidor. Los datos se generan en el navegador.</span>
+      <span
+        >Modo offline: Simulación local sin servidor. Los datos se generan en el navegador.</span
+      >
     </div>
   }
 
   @if (facade.error()) {
     <div class="notice notice--warning">
       <span>{{ facade.error() }}</span>
-      <button type="button" (click)="facade.initialize()">{{ 'simulation.actions.retry' | translate }}</button>
+      <button type="button" (click)="facade.initialize()">
+        {{ 'simulation.actions.retry' | translate }}
+      </button>
     </div>
   }
 
@@ -42,7 +44,8 @@
       <button
         type="button"
         [class.active]="facade.activeTab() === tab.id"
-        (click)="facade.setTab(tab.id)">
+        (click)="facade.setTab(tab.id)"
+      >
         {{ tab.labelKey | translate }}
       </button>
     }
@@ -50,7 +53,6 @@
 
   <main class="bench-workspace">
     @switch (facade.activeTab()) {
-
       <!-- 1. ESCENARIOS -->
       @case ('scenarios') {
         <section class="scenario-layout">
@@ -67,14 +69,25 @@
                   type="button"
                   [class.active]="facade.selectedScenarioId() === scenario.id"
                   [class.preset]="scenario.isPreset"
-                  (click)="facade.selectScenario(scenario.id)">
-                  <span>
+                  (click)="facade.selectScenario(scenario.id)"
+                >
+                  <span class="catalog-copy">
                     <strong>{{ scenario.name }}</strong>
+                    <span class="catalog-description">{{ scenarioCatalogSummary(scenario) }}</span>
                     <small>{{ scenario.category | uppercase }} · v{{ scenario.version }}</small>
                   </span>
-                  @if (scenario.isPreset) {
-                    <span class="preset-badge">PRESET</span>
-                  }
+                  <span class="catalog-badges">
+                    <span
+                      class="mode-badge"
+                      [class.mode-badge--closed-loop]="scenario.mode === 'closed-loop'"
+                      [title]="(scenario.mode === 'closed-loop' ? 'simulation.scenarios.mode_closed_loop_hint' : 'simulation.scenarios.mode_data_hint') | translate"
+                    >
+                      {{ (scenario.mode === 'closed-loop' ? 'simulation.scenarios.mode_closed_loop' : 'simulation.scenarios.mode_data') | translate }}
+                    </span>
+                    @if (scenario.isPreset) {
+                      <span class="preset-badge">PRESET</span>
+                    }
+                  </span>
                 </button>
               } @empty {
                 <div class="empty-message">{{ 'simulation.scenarios.empty' | translate }}</div>
@@ -89,10 +102,41 @@
                   <div>
                     <span class="panel-kicker">SCENARIO {{ scenario.version }}</span>
                     <h2>{{ scenario.name }}</h2>
-                    <p>{{ scenario.description }}</p>
+                    <p>{{ scenarioDescription(scenario) }}</p>
                   </div>
                   <span class="category-badge">{{ scenario.category | uppercase }}</span>
+                  <span
+                    class="mode-badge"
+                    [class.mode-badge--closed-loop]="scenario.mode === 'closed-loop'"
+                    [title]="(scenario.mode === 'closed-loop' ? 'simulation.scenarios.mode_closed_loop_hint' : 'simulation.scenarios.mode_data_hint') | translate"
+                  >
+                    {{ (scenario.mode === 'closed-loop' ? 'simulation.scenarios.mode_closed_loop' : 'simulation.scenarios.mode_data') | translate }}
+                  </span>
                 </div>
+
+                @if (scenario.expectation; as expectation) {
+                  <div class="timeline-panel scenario-expectation">
+                    <span class="panel-kicker">QUÉ PRUEBA ESTE ESCENARIO</span>
+                    <div class="expectation-grid">
+                      <div>
+                        <small>OBJETIVO</small>
+                        <strong>{{ expectation.objective | uppercase }}</strong>
+                      </div>
+                      <div>
+                        <small>CONDICIONES</small>
+                        <span>{{ expectation.summary }}</span>
+                      </div>
+                      <div>
+                        <small>MAPA</small>
+                        <span>{{ expectation.expectedMapBehavior }}</span>
+                      </div>
+                      <div>
+                        <small>PILOTO</small>
+                        <span>{{ expectation.expectedAutopilotBehavior }}</span>
+                      </div>
+                    </div>
+                  </div>
+                }
 
                 @if (scenario.parameters && scenario.parameters.length > 0) {
                   <div class="parameter-grid">
@@ -107,18 +151,21 @@
                               [max]="param.max ?? null"
                               [step]="param.step ?? 1"
                               [ngModel]="facade.parameters()[param.id] ?? param.defaultValue"
-                              (ngModelChange)="setNumericParameter(param.id, $event)">
+                              (ngModelChange)="setNumericParameter(param.id, $event)"
+                            />
                             <small>{{ param.unit ?? '' }}</small>
                           </div>
                         } @else if (param.type === 'boolean') {
                           <input
                             type="checkbox"
                             [ngModel]="facade.parameters()[param.id] ?? param.defaultValue"
-                            (ngModelChange)="facade.setParameter(param.id, $event)">
+                            (ngModelChange)="facade.setParameter(param.id, $event)"
+                          />
                         } @else {
                           <select
                             [ngModel]="facade.parameters()[param.id] ?? param.defaultValue"
-                            (ngModelChange)="facade.setParameter(param.id, $event)">
+                            (ngModelChange)="facade.setParameter(param.id, $event)"
+                          >
                             @for (opt of param.options ?? []; track opt.value) {
                               <option [value]="opt.value">{{ opt.label }}</option>
                             }
@@ -131,7 +178,9 @@
 
                 @if (scenario.timeline.length > 0) {
                   <div class="timeline-panel">
-                    <span class="panel-kicker">{{ 'simulation.scenarios.timeline' | translate }}</span>
+                    <span class="panel-kicker">{{
+                      'simulation.scenarios.timeline' | translate
+                    }}</span>
                     <div class="timeline-list">
                       @for (action of scenario.timeline; track action.id) {
                         <div class="timeline-item">
@@ -148,7 +197,10 @@
                 <div class="preflight">
                   <span><i class="ok"></i> PORTS 3100 / 3991 / 4100 ISOLATED</span>
                   <span><i class="ok"></i> PHYSICAL GPIO DISABLED</span>
-                  <span><i [class.ok]="facade.api.online()" [class.bad]="!facade.api.online()"></i> ORCHESTRATOR</span>
+                  <span
+                    ><i [class.ok]="facade.api.online()" [class.bad]="!facade.api.online()"></i>
+                    ORCHESTRATOR</span
+                  >
                 </div>
 
                 @if (true) {
@@ -158,42 +210,78 @@
                       <label>
                         <span>Base Wind Speed</span>
                         <div class="input-with-unit">
-                          <input type="number" [(ngModel)]="windForm.baseWindSpeedKt" min="0" max="50" step="1">
+                          <input
+                            type="number"
+                            [(ngModel)]="windForm.baseWindSpeedKt"
+                            min="0"
+                            max="50"
+                            step="1"
+                          />
                           <small>kt</small>
                         </div>
                       </label>
                       <label>
                         <span>Base Wind Direction</span>
                         <div class="input-with-unit">
-                          <input type="number" [(ngModel)]="windForm.baseWindDirDeg" min="0" max="360" step="1">
+                          <input
+                            type="number"
+                            [(ngModel)]="windForm.baseWindDirDeg"
+                            min="0"
+                            max="360"
+                            step="1"
+                          />
                           <small>deg</small>
                         </div>
                       </label>
                       <label>
                         <span>Gust Probability</span>
                         <div class="input-with-unit">
-                          <input type="number" [(ngModel)]="windForm.gustProbability" min="0" max="1" step="0.05">
+                          <input
+                            type="number"
+                            [(ngModel)]="windForm.gustProbability"
+                            min="0"
+                            max="1"
+                            step="0.05"
+                          />
                           <small></small>
                         </div>
                       </label>
                       <label>
                         <span>Gust Max Delta</span>
                         <div class="input-with-unit">
-                          <input type="number" [(ngModel)]="windForm.gustMaxDeltaKt" min="0" max="20" step="0.5">
+                          <input
+                            type="number"
+                            [(ngModel)]="windForm.gustMaxDeltaKt"
+                            min="0"
+                            max="20"
+                            step="0.5"
+                          />
                           <small>kt</small>
                         </div>
                       </label>
                       <label>
                         <span>Duration</span>
                         <div class="input-with-unit">
-                          <input type="number" [(ngModel)]="windForm.durationMs" min="30000" max="3600000" step="60000">
+                          <input
+                            type="number"
+                            [(ngModel)]="windForm.durationMs"
+                            min="30000"
+                            max="3600000"
+                            step="60000"
+                          />
                           <small>ms</small>
                         </div>
                       </label>
                       <label>
                         <span>Seed</span>
                         <div class="input-with-unit">
-                          <input type="number" [(ngModel)]="windForm.seed" min="1" max="9999" step="1">
+                          <input
+                            type="number"
+                            [(ngModel)]="windForm.seed"
+                            min="1"
+                            max="9999"
+                            step="1"
+                          />
                           <small></small>
                         </div>
                       </label>
@@ -202,7 +290,8 @@
                       type="button"
                       class="run-button"
                       [disabled]="facade.busy()"
-                      (click)="generateWindScenario()">
+                      (click)="generateWindScenario()"
+                    >
                       GENERAR ESCENARIO DE VIENTO
                     </button>
                   </div>
@@ -213,14 +302,16 @@
                     type="button"
                     class="run-button"
                     [disabled]="facade.busy() || facade.activeRun()?.status === 'running'"
-                    (click)="facade.startSelectedScenario()">
+                    (click)="facade.startSelectedScenario()"
+                  >
                     {{ 'simulation.actions.arm_run' | translate }}
                   </button>
                   <button
                     type="button"
                     class="abort-button"
-                    [disabled]="facade.activeRun()?.status !== 'running'"
-                    (click)="facade.abortActiveRun()">
+                    [disabled]="!facade.canAbortActiveRun()"
+                    (click)="facade.abortActiveRun()"
+                  >
                     {{ 'simulation.actions.abort' | translate }}
                   </button>
                 </div>
@@ -230,7 +321,9 @@
             <section class="panel run-panel">
               <div class="panel-toolbar">
                 <div>
-                  <span class="panel-kicker">{{ 'simulation.execution.active_run' | translate }}</span>
+                  <span class="panel-kicker">{{
+                    'simulation.execution.active_run' | translate
+                  }}</span>
                   <strong>{{ facade.activeRun()?.id ?? 'NO ACTIVE RUN' }}</strong>
                 </div>
                 <span class="run-status" [attr.data-status]="facade.activeRun()?.status ?? 'idle'">
@@ -286,7 +379,9 @@
             @if (facade.activeRun(); as run) {
               <div class="execution-metrics">
                 <div class="metric">
-                  <span class="metric-label">{{ 'simulation.execution.simulated_time' | translate }}</span>
+                  <span class="metric-label">{{
+                    'simulation.execution.simulated_time' | translate
+                  }}</span>
                   <span class="metric-value">{{ (run.simulatedTimeMs / 1000).toFixed(1) }} s</span>
                 </div>
                 <div class="metric">
@@ -339,7 +434,9 @@
                       }
                     </div>
                   } @empty {
-                    <div class="empty-message">{{ 'simulation.execution.no_events' | translate }}</div>
+                    <div class="empty-message">
+                      {{ 'simulation.execution.no_events' | translate }}
+                    </div>
                   }
                 </div>
               </div>
@@ -348,8 +445,9 @@
                 <button
                   type="button"
                   class="abort-button"
-                  [disabled]="run.status !== 'running'"
-                  (click)="facade.abortActiveRun()">
+                  [disabled]="!facade.canAbortActiveRun()"
+                  (click)="facade.abortActiveRun()"
+                >
                   {{ 'simulation.actions.abort' | translate }}
                 </button>
               </div>
@@ -384,7 +482,10 @@
                     <button
                       type="button"
                       class="group-toggle"
-                      (click)="selectGroup(group); $event.preventDefault(); $event.stopPropagation();">
+                      (click)="
+                        selectGroup(group); $event.preventDefault(); $event.stopPropagation()
+                      "
+                    >
                       TOGGLE
                     </button>
                   </summary>
@@ -395,8 +496,12 @@
                         <input
                           type="checkbox"
                           [checked]="isSelected(channel.id)"
-                          (change)="toggleChannel(channel.id)">
-                        <span class="channel-color" [attr.data-quality]="snapshot?.quality ?? 'unknown'"></span>
+                          (change)="toggleChannel(channel.id)"
+                        />
+                        <span
+                          class="channel-color"
+                          [attr.data-quality]="snapshot?.quality ?? 'unknown'"
+                        ></span>
                         <span>
                           <strong>{{ channel.label }}</strong>
                           <small>{{ channel.id }} · {{ channel.canonicalUnit }}</small>
@@ -413,27 +518,91 @@
           </aside>
 
           <div class="charts-stack">
-            @for (group of chartGroups(); track group.unit) {
-              <div class="panel chart-panel">
-                <div class="panel-toolbar">
-                  <div>
-                    <span class="panel-kicker">{{ group.label }}</span>
-                    <strong>{{ group.unit }}</strong>
+            <div class="scope-toolbar">
+              <div>
+                <span class="panel-kicker">{{
+                  viewMode() === 'scope' ? 'Osciloscopio' : 'Gráficas'
+                }}</span>
+                <strong>{{ facade.paused() ? 'FREEZE' : 'LIVE' }}</strong>
+              </div>
+              <div class="view-mode-toggle" role="group" aria-label="View mode">
+                <button
+                  type="button"
+                  [class.active]="viewMode() === 'scope'"
+                  (click)="setViewMode('scope')"
+                >
+                  SCOPE
+                </button>
+                <button
+                  type="button"
+                  [class.active]="viewMode() === 'chart'"
+                  (click)="setViewMode('chart')"
+                >
+                  CHART
+                </button>
+              </div>
+              <div class="timebase-control" role="group" aria-label="Timebase">
+                @for (option of timebaseOptions; track option.value) {
+                  <button
+                    type="button"
+                    [class.active]="selectedTimebase() === option.value"
+                    (click)="setTimebase(option.value)"
+                  >
+                    {{ option.label }}
+                  </button>
+                }
+              </div>
+            </div>
+
+            <!-- OSCILLOSCOPE MODE -->
+            @if (viewMode() === 'scope') {
+              @if (scopeTraces().length > 0) {
+                <div class="panel scope-panel">
+                  <omi-oscilloscope
+                    [traces]="scopeTraces()"
+                    label="SIMULATION SIGNALS"
+                    [timebase]="selectedTimebase() === 'all' ? 120000 : +selectedTimebase()"
+                    [paused]="facade.paused()"
+                  ></omi-oscilloscope>
+                </div>
+              } @else {
+                <div class="panel chart-panel">
+                  <div class="chart-container empty-message">
+                    {{
+                      facade.selectedChannelIds().length === 0
+                        ? 'Selecciona canales para visualizar'
+                        : 'Esperando datos de la simulación...'
+                    }}
                   </div>
                 </div>
-                <div class="chart-container">
-                  <app-uplot-chart
-                    [data]="group.data"
-                    [config]="group.config">
-                  </app-uplot-chart>
+              }
+            }
+
+            <!-- CHART MODE (uPlot) -->
+            @if (viewMode() === 'chart') {
+              @for (group of chartGroups(); track group.key) {
+                <div class="panel chart-panel">
+                  <div class="panel-toolbar">
+                    <div>
+                      <span class="panel-kicker">{{ group.label }}</span>
+                      <strong>{{ group.key }}</strong>
+                    </div>
+                  </div>
+                  <div class="chart-container">
+                    <app-uplot-chart [data]="group.data" [config]="group.config"> </app-uplot-chart>
+                  </div>
                 </div>
-              </div>
-            } @empty {
-              <div class="panel chart-panel">
-                <div class="chart-container empty-message">
-                  {{ facade.selectedChannelIds().length === 0 ? 'Selecciona canales para visualizar' : 'Esperando datos de la simulación...' }}
+              } @empty {
+                <div class="panel chart-panel">
+                  <div class="chart-container empty-message">
+                    {{
+                      facade.selectedChannelIds().length === 0
+                        ? 'Selecciona canales para visualizar'
+                        : 'Esperando datos de la simulación...'
+                    }}
+                  </div>
                 </div>
-              </div>
+              }
             }
           </div>
         </section>
@@ -447,7 +616,8 @@
               type="search"
               [placeholder]="'simulation.data.search_placeholder' | translate"
               [ngModel]="facade.filterText()"
-              (ngModelChange)="facade.setFilter($event)">
+              (ngModelChange)="facade.setFilter($event)"
+            />
             <div class="data-stats">
               <span>{{ facade.rows().length }} CHANNELS</span>
               <span>{{ facade.activeRun()?.mode ?? 'standby' | uppercase }}</span>
@@ -468,16 +638,26 @@
               <tbody>
                 @for (row of facade.rows(); track row.channelId) {
                   <tr>
-                    <td><span class="group-chip">{{ row.group }}</span></td>
+                    <td>
+                      <span class="group-chip">{{ row.group }}</span>
+                    </td>
                     <td class="path-cell" [title]="row.channelId">{{ row.channelId }}</td>
-                    <td class="value-cell" [title]="row.formattedValue">{{ row.formattedValue }}</td>
+                    <td class="value-cell" [title]="row.formattedValue">
+                      {{ row.formattedValue }}
+                    </td>
                     <td>{{ row.unit || '—' }}</td>
-                    <td><span class="quality" [attr.data-quality]="row.quality">{{ row.quality | uppercase }}</span></td>
+                    <td>
+                      <span class="quality" [attr.data-quality]="row.quality">{{
+                        row.quality | uppercase
+                      }}</span>
+                    </td>
                     <td>{{ row.source }}</td>
                   </tr>
                 } @empty {
                   <tr>
-                    <td colspan="6" class="empty-message">{{ 'simulation.data.empty' | translate }}</td>
+                    <td colspan="6" class="empty-message">
+                      {{ 'simulation.data.empty' | translate }}
+                    </td>
                   </tr>
                 }
               </tbody>
@@ -494,16 +674,26 @@
               <span class="panel-kicker">{{ 'simulation.history.title' | translate }}</span>
               <strong>{{ facade.runHistory().length }} RUNS</strong>
             </div>
+            <button
+              type="button"
+              class="danger-toolbar-button"
+              [disabled]="facade.busy() || facade.runHistory().length === 0 || facade.activeRun()?.status === 'running'"
+              (click)="clearRunHistory()"
+            >
+              {{ 'simulation.history.clear' | translate }}
+            </button>
           </div>
           <div class="history-list">
             @for (run of facade.runHistory(); track run.id) {
               <article>
-                <span class="run-status" [attr.data-status]="run.status">{{ run.status | uppercase }}</span>
+                <span class="run-status" [attr.data-status]="run.status">{{
+                  run.status | uppercase
+                }}</span>
                 <div>
                   <strong>{{ run.scenarioId }}</strong>
                   <code>{{ run.id }}</code>
                 </div>
-                <time>{{ run.startedAtUtc | date:'medium' }}</time>
+                <time>{{ run.startedAtUtc | date: 'medium' }}</time>
                 <div class="report-actions">
                   <a [href]="facade.reportUrl(run.id, 'json')" target="_blank">JSON</a>
                   <a [href]="facade.reportUrl(run.id, 'csv')" target="_blank">CSV</a>
