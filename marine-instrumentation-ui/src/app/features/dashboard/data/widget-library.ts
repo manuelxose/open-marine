@@ -46,6 +46,7 @@ const PANEL_META: Record<string, { label: string; description: string; icon: str
   'system-card': { label: 'System', description: 'Connection & data health', icon: 'settings' },
   'engine-card': { label: 'Engine', description: 'RPM, temperature, oil & fuel', icon: 'engine' },
   'environment-card': { label: 'Environment', description: 'Water, air, pressure & humidity', icon: 'thermometer' },
+  'weather-card': { label: 'Live Weather', description: 'Current conditions, wind and 12-hour trends', icon: 'sun' },
   'autopilot-compass': { label: 'Autopilot Compass', description: 'Heading dial with target & rudder', icon: 'compass' },
   'sog-simple': { label: 'Speed Over Ground', description: 'Single SOG readout', icon: 'speedometer' },
   'heading-simple': { label: 'Heading', description: 'Single heading readout', icon: 'compass' },

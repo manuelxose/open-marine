@@ -6,6 +6,7 @@ import {
   type AutopilotMode,
   type AutopilotStatus,
   type AutopilotWindHazard,
+  type SimulationBenchResetRequest,
 } from "@omi/marine-data-contract";
 import type { EngineConfig } from "./config.js";
 import type { Logger } from "./app/logger.js";
@@ -617,6 +618,30 @@ export class Engine implements AutopilotCommands {
     };
     this.driveTestUntilMs = Date.now() + dur * 1000;
     this.log.info(`drive test ${side} for ${dur}s`);
+    return { ok: true };
+  }
+
+  resetSimulation(request: SimulationBenchResetRequest): EngageResult {
+    if (this.config.motorBackend !== "sim" || !this.benchWorld) {
+      return { ok: false, reason: "simulation reset requires AP_MOTOR_BACKEND=sim" };
+    }
+    this.sm.disengage();
+    this.disableDrive();
+    this.commandedRudderDeg = 0;
+    this.apiEstop = false;
+    this.clearWindHazard();
+    this.setNoGo(false);
+    this.benchWorld.reset({
+      origin: request.origin,
+      cruiseSpeedKt: request.cruiseSpeedKt,
+      trueWindDirDeg: request.trueWindDirDeg,
+      trueWindSpeedKt: request.trueWindSpeedKt,
+      currentSetDeg: request.currentSetDeg,
+      currentDriftKt: request.currentDriftKt,
+      routeLegs: request.routeLegs,
+      waypoint: request.waypoint,
+    });
+    this.log.info("simulation world reset", request);
     return { ok: true };
   }
 }

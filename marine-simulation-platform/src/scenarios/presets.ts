@@ -1,16 +1,12 @@
 import type {
   SimulationChannelDefinition,
   SimulationParameterDefinition,
+  SimulationScenarioExpectation,
   SimulationScenarioDocument,
   SimulationTimelineAction,
 } from "@omi/marine-data-contract";
 import {
-  AIS_INTRUDER_CHANNELS,
-  AUTOPILOT_CHANNELS,
-  DEPTH_CHANNEL,
   ELECTRICAL_CHANNELS,
-  ENGINE_CHANNELS,
-  ENV_CHANNELS,
   NAV_CHANNELS,
   WIND_CHANNELS,
 } from "../core/channel-registry.js";
@@ -52,6 +48,41 @@ const DURATION_PARAM: SimulationParameterDefinition = {
   group: "General",
 };
 
+// Environment-only tunable parameters. Their ids match the keys read by `buildGeneratorOptions`
+// in signal-generator.ts and by `buildResetRequest` in run-manager.ts, so changing them actually
+// drives both the simulated signal AND the real autopilot engine's bench (speed/wind/current).
+// There are no autopilot-target parameters here — engagement is always manual on the real engine.
+const WIND_SPEED_PARAM: SimulationParameterDefinition = { id: "windSpeedKt", label: "True Wind Speed", type: "number", defaultValue: 12, min: 0, max: 50, step: 1, unit: "kt", group: "Wind" };
+const WIND_DIR_PARAM: SimulationParameterDefinition = { id: "windDirDeg", label: "True Wind Direction", type: "number", defaultValue: 45, min: 0, max: 360, step: 1, unit: "deg", group: "Wind" };
+const GUST_PROB_PARAM: SimulationParameterDefinition = { id: "gustProbability", label: "Gust Probability", type: "number", defaultValue: 0.2, min: 0, max: 1, step: 0.05, unit: "ratio", group: "Wind" };
+const GUST_DELTA_PARAM: SimulationParameterDefinition = { id: "gustMaxDeltaKt", label: "Gust Max Delta", type: "number", defaultValue: 6, min: 0, max: 20, step: 0.5, unit: "kt", group: "Wind" };
+const BOAT_SPEED_PARAM: SimulationParameterDefinition = { id: "boatSpeedKt", label: "Boat Speed", type: "number", defaultValue: 6.5, min: 0, max: 20, step: 0.5, unit: "kt", group: "Navigation" };
+const COURSE_PARAM: SimulationParameterDefinition = { id: "courseDeg", label: "Base Course", type: "number", defaultValue: 66, min: 0, max: 360, step: 1, unit: "deg", group: "Navigation" };
+const BATTERY_PARAM: SimulationParameterDefinition = { id: "batteryV", label: "Battery Voltage", type: "number", defaultValue: 12.8, min: 10, max: 16, step: 0.1, unit: "V", group: "Electrical" };
+const CURRENT_SET_PARAM: SimulationParameterDefinition = { id: "currentSetDeg", label: "Current Set", type: "number", defaultValue: 90, min: 0, max: 360, step: 1, unit: "deg", group: "Tide / Current" };
+const CURRENT_DRIFT_PARAM: SimulationParameterDefinition = { id: "currentDriftKt", label: "Current Drift", type: "number", defaultValue: 0.8, min: 0, max: 5, step: 0.1, unit: "kt", group: "Tide / Current" };
+
+const EXPECTATIONS: Record<string, SimulationScenarioExpectation> = {
+  "env-speed": {
+    objective: "heading",
+    summary: "Boat speed and course, calm ambient wind.",
+    expectedMapBehavior: "The vessel starts at the live GPS/AIS position and moves on the selected course at the configured speed.",
+    expectedAutopilotBehavior: "Not simulated here — engage the real autopilot manually from the Autopilot page to steer against this environment.",
+  },
+  "env-wind": {
+    objective: "wind",
+    summary: "True/apparent wind, tunable gusts.",
+    expectedMapBehavior: "The vessel moves while true and apparent wind (and gusts) evolve with boat speed and heading.",
+    expectedAutopilotBehavior: "Not simulated here — engage the real autopilot manually (e.g. WIND mode) to see how it reacts to this wind.",
+  },
+  "env-current": {
+    objective: "heading",
+    summary: "Lateral current/tide set and drift.",
+    expectedMapBehavior: "COG drifts away from heading as the current sets across the track.",
+    expectedAutopilotBehavior: "Not simulated here — engage the real autopilot manually and watch it correct (or not) for this current.",
+  },
+};
+
 const makePreset = (
   id: string,
   name: string,
@@ -60,138 +91,73 @@ const makePreset = (
   channels: SimulationChannelDefinition[],
   timeline: SimulationTimelineAction[],
   tags: string[],
-  durationMs = 300_000,
+  params: SimulationParameterDefinition[],
+  durationMs = 180_000,
 ): SimulationScenarioDocument => ({
   id,
   version: "1.0.0",
   name,
   description,
   category,
-  mode: "data",
+  // Every environment scenario feeds the real autopilot engine's bench (via /sim/reset) so the
+  // operator can manually engage the real autopilot and watch it react — there is no "data-only"
+  // mode left, since a scenario that doesn't reach the real engine can't serve that purpose.
+  mode: "closed-loop",
   defaultDurationMs: durationMs,
   defaultSpeed: 1,
-  parameters: [SEED_PARAM, SPEED_PARAM, { ...DURATION_PARAM, defaultValue: durationMs }],
+  parameters: [SEED_PARAM, SPEED_PARAM, { ...DURATION_PARAM, defaultValue: durationMs }, ...params],
   channels,
   timeline,
   tags,
+  ...(EXPECTATIONS[id] ? { expectation: EXPECTATIONS[id] } : {}),
   isPreset: true,
   createdAt: now,
   updatedAt: now,
 });
 
-const common = [...NAV_CHANNELS, ...WIND_CHANNELS, DEPTH_CHANNEL, ...AUTOPILOT_CHANNELS];
-const fullVessel = [...common, ...ELECTRICAL_CHANNELS, ...ENGINE_CHANNELS, ...ENV_CHANNELS, ...AIS_INTRUDER_CHANNELS];
+// Pure environment: speed/course, wind, battery. Never engine (no real RPM/fuel sensor exists)
+// and never autopilot (engagement is always the operator's real, manual action).
+const environmentChannels = [...NAV_CHANNELS, ...WIND_CHANNELS, ...ELECTRICAL_CHANNELS];
 
 export const SCENARIO_PRESETS: SimulationScenarioDocument[] = [
   makePreset(
-    "basic-cruise",
-    "Basic Cruise",
-    "Baseline navigation with wind, depth, engine, electrical and AIS traffic signals.",
+    "env-speed",
+    "Velocidad",
+    "Boat speed and course over calm ambient wind: adjustable speed, course and battery. No engine or autopilot channels — speed is the only real, GPS/AIS-derived quantity.",
     "navigation",
-    fullVessel,
+    environmentChannels,
     [
-      { id: "start", atSimulatedMs: 0, type: "marker", label: "Cruise started" },
-      { id: "shallow-water", atSimulatedMs: 120_000, type: "ramp", channelId: "depth.belowTransducer", value: 3, durationMs: 20_000, label: "Shallow water" },
-      { id: "wind-gust", atSimulatedMs: 180_000, type: "ramp", channelId: "wind.aws", value: 18, durationMs: 15_000, label: "Wind gust" },
+      { id: "start", atSimulatedMs: 0, type: "marker", label: "Underway" },
+      { id: "cruise", atSimulatedMs: 30_000, type: "marker", label: "Cruise speed established" },
     ],
-    ["cruise", "navigation", "wind", "battery", "ais"],
+    ["speed", "navigation", "environment"],
+    [BOAT_SPEED_PARAM, COURSE_PARAM, WIND_SPEED_PARAM, WIND_DIR_PARAM, BATTERY_PARAM],
   ),
   makePreset(
-    "harbor-traffic",
-    "Harbor Traffic",
-    "Slow harbor maneuvering with dense AIS and restricted depth.",
+    "env-wind",
+    "Viento",
+    "True/apparent wind with tunable speed, direction and gusts, over a moving vessel: use for wind-mode manual testing. No engine or autopilot channels.",
+    "wind",
+    environmentChannels,
+    [
+      { id: "start", atSimulatedMs: 0, type: "marker", label: "Wind established" },
+      { id: "gust", atSimulatedMs: 42_000, type: "marker", label: "Gust window" },
+    ],
+    ["wind", "environment"],
+    [WIND_SPEED_PARAM, WIND_DIR_PARAM, GUST_PROB_PARAM, GUST_DELTA_PARAM, BOAT_SPEED_PARAM, COURSE_PARAM, BATTERY_PARAM],
+  ),
+  makePreset(
+    "env-current",
+    "Marea / Corriente",
+    "Lateral current/tide set and drift over a moving vessel: COG diverges from heading. No engine or autopilot channels.",
     "navigation",
-    [...common, ...AIS_INTRUDER_CHANNELS],
+    environmentChannels,
     [
-      { id: "start", atSimulatedMs: 0, type: "marker", label: "Harbor entry" },
-      { id: "traffic", atSimulatedMs: 45_000, type: "marker", label: "Traffic crossing" },
-      { id: "low-speed", atSimulatedMs: 60_000, type: "ramp", channelId: "nav.sog", value: 1.2, durationMs: 10_000 },
+      { id: "start", atSimulatedMs: 0, type: "marker", label: "Underway" },
+      { id: "set", atSimulatedMs: 20_000, type: "marker", label: "Current set building" },
     ],
-    ["harbor", "traffic", "ais", "maneuvering"],
-    180_000,
-  ),
-  makePreset(
-    "coastal-run",
-    "Coastal Run",
-    "Coastal passage with changing depth, wind and engine load.",
-    "navigation",
-    [...common, ...ELECTRICAL_CHANNELS, ...ENGINE_CHANNELS],
-    [
-      { id: "start", atSimulatedMs: 0, type: "marker", label: "Coastal departure" },
-      { id: "headland", atSimulatedMs: 90_000, type: "marker", label: "Wind shift at headland" },
-      { id: "engine-load", atSimulatedMs: 150_000, type: "ramp", channelId: "motor.rpm", value: 42, durationMs: 30_000 },
-    ],
-    ["coastal", "depth", "tide", "wind"],
-  ),
-  makePreset(
-    "anchored-stale",
-    "Anchored Stale",
-    "Anchored state with mostly static sensor values for stale-data alarm workflows.",
-    "navigation",
-    [...common, ...ELECTRICAL_CHANNELS],
-    [
-      { id: "start", atSimulatedMs: 0, type: "marker", label: "Anchor set" },
-      { id: "stale", atSimulatedMs: 300_000, type: "fault-enable", channelId: "nav.position", label: "GPS stale" },
-    ],
-    ["anchor", "stale", "alarm", "monitoring"],
-    600_000,
-  ),
-  makePreset(
-    "busy-shipping-lane",
-    "Busy Shipping Lane",
-    "Traffic separation lane with AIS intruder and low CPA events.",
-    "ais",
-    [...NAV_CHANNELS, ...WIND_CHANNELS, ...AIS_INTRUDER_CHANNELS, ...AUTOPILOT_CHANNELS],
-    [
-      { id: "start", atSimulatedMs: 0, type: "marker", label: "Entered TSS" },
-      { id: "cpa", atSimulatedMs: 60_000, type: "marker", label: "Low CPA" },
-      { id: "avoid", atSimulatedMs: 120_000, type: "ramp", channelId: "nav.cog", value: 1.8, durationMs: 20_000 },
-    ],
-    ["ais", "cpa", "tss", "collision"],
-    240_000,
-  ),
-  makePreset(
-    "combined-failures",
-    "Combined Failures",
-    "Stacked GPS, low-voltage and engine faults for alarm and safety workflows.",
-    "safety",
-    [...common, ...ELECTRICAL_CHANNELS, ...ENGINE_CHANNELS],
-    [
-      { id: "start", atSimulatedMs: 0, type: "marker", label: "Nominal state" },
-      { id: "gps-loss", atSimulatedMs: 20_000, type: "fault-enable", channelId: "nav.position", label: "GPS lost" },
-      { id: "low-voltage", atSimulatedMs: 40_000, type: "fault-enable", channelId: "elec.voltage", label: "Low battery" },
-      { id: "overheat", atSimulatedMs: 60_000, type: "fault-enable", channelId: "motor.coolant", label: "Engine overheat" },
-      { id: "oil", atSimulatedMs: 80_000, type: "fault-enable", channelId: "motor.oil", label: "Oil pressure lost" },
-    ],
-    ["failure", "safety", "alarm", "gps", "engine", "battery"],
-    120_000,
-  ),
-  makePreset(
-    "anchor-drift",
-    "Anchor Drift",
-    "Position drift while anchored, with wind shifts and anchor alarm markers.",
-    "navigation",
-    common,
-    [
-      { id: "start", atSimulatedMs: 0, type: "marker", label: "Anchor set" },
-      { id: "drift", atSimulatedMs: 120_000, type: "marker", label: "Anchor drift begins" },
-      { id: "alarm", atSimulatedMs: 180_000, type: "marker", label: "Anchor alarm" },
-    ],
-    ["anchor", "drift", "alarm", "position"],
-  ),
-  makePreset(
-    "wind-gps-demo",
-    "Wind GPS Demo",
-    "Predictable wind and GPS pattern for instrument display validation.",
-    "sensors",
-    common,
-    [
-      { id: "start", atSimulatedMs: 0, type: "marker", label: "Calibration started" },
-      { id: "wind", atSimulatedMs: 30_000, type: "marker", label: "Wind rose" },
-      { id: "heading", atSimulatedMs: 60_000, type: "marker", label: "Heading pattern" },
-    ],
-    ["demo", "calibration", "wind", "gps", "instruments"],
-    120_000,
+    ["current", "tide", "navigation", "environment"],
+    [CURRENT_SET_PARAM, CURRENT_DRIFT_PARAM, BOAT_SPEED_PARAM, COURSE_PARAM, WIND_SPEED_PARAM, WIND_DIR_PARAM, BATTERY_PARAM],
   ),
 ];
 
@@ -202,4 +168,3 @@ export const getPresetScenario = (id: string): SimulationScenarioDocument | null
   const scenario = scenarioMap.get(id);
   return scenario ? structuredClone(scenario) : null;
 };
-

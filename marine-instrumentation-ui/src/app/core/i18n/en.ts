@@ -190,6 +190,210 @@ export const en = {
       no_active: 'No active alarms',
     },
   },
+  autopilot: {
+    title: 'Autopilot',
+    subtitle: 'Sailing pilot · heading · wind · track',
+    engine: {
+      online: 'ENGINE ONLINE',
+      offline: 'ENGINE OFFLINE',
+    },
+    calibration: 'CALIBRATION',
+    manual: 'MANUAL',
+    estop: 'E-STOP',
+    panels: {
+      helm: 'HELM CONTROL',
+      telemetry: 'TELEMETRY',
+    },
+    alerts: {
+      title: 'ALERTS',
+      nominal: 'SYSTEM NOMINAL',
+    },
+    disconnected: 'AUTOPILOT DISCONNECTED',
+    command_rejected: 'COMMAND REJECTED',
+    state: {
+      standby: 'STANDBY',
+      auto: 'AUTO',
+      wind: 'WIND',
+      track: 'TRACK',
+      fault: 'FAULT',
+    },
+    fault: {
+      title: 'AUTOPILOT FAULT · MOTOR OFF',
+      clear: 'CLEAR FAULT',
+      unknown: 'unknown',
+    },
+    console: {
+      status: 'STATUS',
+      engage: 'ENGAGE',
+      disengage: 'DISENGAGE',
+      target: 'TARGET',
+      rudder: 'RUDDER',
+      off_course: 'OFF COURSE',
+      no_go: 'NO-GO · COURSE TOO CLOSE TO WIND',
+      route_complete: 'ROUTE COMPLETE',
+      leg: 'LEG',
+      modes: {
+        auto: 'Auto',
+        wind: 'Wind',
+        route: 'Route',
+      },
+      hazard: {
+        gybe: 'GYBE RISK',
+        tack: 'TACK RISK',
+        gust: 'GUST',
+      },
+    },
+    tele: {
+      heading: 'HEADING',
+      actual: 'ACTUAL',
+      target: 'TARGET',
+      rudder_cmd: 'RUDDER CMD',
+      app_wind: 'APP. WIND',
+      motor: 'MOTOR',
+      battery: 'BATTERY',
+      track: 'TRACK',
+      xte: 'XTE',
+      waypoint_brg: 'WAYPOINT BRG',
+    },
+    legend: {
+      title: 'Autopilot Reference',
+      modes: {
+        heading: 'Operating Modes',
+        standby_label: 'STANDBY',
+        standby_desc:
+          'Autopilot is idle. The motor driver is disarmed; no steering commands are sent. You must be in STANDBY to open calibration, run drive-tests, or adjust tuning.',
+        auto_label: 'AUTO',
+        auto_desc:
+          'Compass mode. The engine holds a magnetic or true-heading setpoint. Use the dodge buttons (±1° / ±10°) to nudge the target. The current heading is captured as the setpoint on engage.',
+        wind_label: 'WIND',
+        wind_desc:
+          'Wind-vane mode. The engine steers to a fixed apparent-wind angle. If the wind shifts across the stern beyond the gybe-guard threshold it raises an accidental-gybe hazard and counter-steers back to the set angle.',
+        track_label: 'TRACK',
+        track_desc:
+          'Route-following mode. The engine reads the active waypoint leg from Signal K and steers to minimise cross-track error (XTE). The console shows the current leg, total legs, and bearing to the next waypoint. On final arrival it signals ROUTE COMPLETE.',
+      },
+      engage: {
+        heading: 'Engage & Disengage',
+        engage_label: 'ENGAGE',
+        engage_desc:
+          'Select a mode tab (Auto / Wind / Route) then press ENGAGE. The engine arms the motor driver, validates pre-flight checks, and begins closed-loop steering. If any check fails the command is rejected with a reason.',
+        disengage_label: 'DISENGAGE',
+        disengage_desc:
+          'Returns the autopilot to STANDBY immediately. The motor driver is disarmed and manual helm control is restored. You can also press the physical E-Stop button for a hardware-level cut.',
+      },
+      dodge: {
+        heading: 'Dodge (Course Adjust)',
+        intro:
+          'Available in AUTO and WIND modes. Each press adds or subtracts degrees from the current setpoint. The engine applies a smooth heading change at the configured turn rate.',
+        note:
+          'Dodge adjustments are not persistent — a new engage or mode switch resets the setpoint to the current heading / wind angle.',
+      },
+      safety: {
+        heading: 'Safety Features',
+        fault_label: 'FAULT state',
+        fault_desc:
+          'Latched motor cut. Triggered by over-current, under-voltage, watchdog timeout, E-Stop press, or persistent off-course beyond the fault threshold. The reason is shown in the red banner. Press CLEAR FAULT to acknowledge and return to STANDBY.',
+        gybe_label: 'Wind hazard · Accidental gybe',
+        gybe_desc:
+          'In WIND mode, if the apparent wind crosses the stern beyond the configured gybe-guard angle the engine raises a hazard and counter-steers to prevent an uncontrolled boom swing. The console shows an orange warning.',
+        nogo_label: 'No-go zone (TRACK)',
+        nogo_desc:
+          'The engine refuses route legs whose bearing falls inside the sailing no-go angle (configurable). The TRACK panel shows NO-GO · COURSE TOO CLOSE TO WIND.',
+        estop_label: 'E-Stop',
+        estop_desc:
+          'Software emergency stop (latched). Equivalent to a hardware kill-switch: cuts motor power until CLEAR FAULT is pressed. Use for immediate disengagement in any scenario.',
+      },
+      tele: {
+        heading: 'Telemetry Panel',
+        heading_label: 'HEADING ACTUAL / TARGET',
+        heading_desc:
+          'Current magnetic/true heading from the boat compass versus the autopilot setpoint. The green value is the active target.',
+        rudder_label: 'RUDDER CMD',
+        rudder_desc:
+          'Rudder angle the engine is commanding (not necessarily the actual position). Positive = starboard rudder.',
+        wind_label: 'APP. WIND',
+        wind_desc:
+          'Apparent wind angle (AWA). Used as the setpoint source in WIND mode. The value comes from the masthead wind sensor via Signal K.',
+        motor_label: 'MOTOR (A)',
+        motor_desc:
+          'Instantaneous drive-motor current in amperes. High sustained current may indicate a binding rudder or heavy sea state. The fault threshold is configurable in calibration.',
+        battery_label: 'BATTERY (V)',
+        battery_desc:
+          'Supply voltage at the motor driver. Turns orange below 11.8 V — the engine will refuse to engage under-voltage.',
+        xte_label: 'XTE (TRACK mode)',
+        xte_desc:
+          'Cross-track error in metres. Positive = starboard of track (steer to port). Shown with a P/S side prefix.',
+        wp_label: 'WAYPOINT BRG (TRACK mode)',
+        wp_desc: 'True bearing from the current position to the active waypoint.',
+      },
+      status: {
+        heading: 'Status Indicators',
+        online_label: 'ENGINE ONLINE',
+        online_desc:
+          'The autopilot engine HTTP API is responding on port 3990. If this shows OFFLINE the engine service may be stopped, crashed, or unreachable over the network.',
+        chips_label: 'State chips',
+        chips_desc:
+          'Coloured pills in the header reflect the engine current operating state in real time via Signal K deltas: AUTO, WIND, TRACK, FAULT.',
+        rudder_label: 'Rudder bar',
+        rudder_desc:
+          'The horizontal bar on the console shows the actual rudder angle reported by the feedback sensor. A centred bar means the rudder is amidships.',
+      },
+      calibration: {
+        heading: 'Calibration & Tuning',
+        intro:
+          'Press the CALIBRATION button in the header to open the tuning panel (STANDBY only). Adjustable parameters:',
+        pid: 'PID gains',
+        deadband: 'Heading-error tolerance before correction',
+        rudder_limit: 'Maximum commanded rudder angle',
+        pwm: 'Motor-driver pulse-width range',
+        current_limit: 'Over-current fault threshold',
+        voltage_cutoff: 'Under-voltage lockout',
+        note:
+          'Changes apply immediately and are validated by the engine. Invalid values are clamped to safe ranges.',
+      },
+    },
+    log: {
+      title: 'Decision Log',
+      subtitle: 'Live autopilot decisions & reasons',
+      empty: 'No decisions recorded yet.',
+      clear: 'Clear',
+      filter_all: 'All',
+      severity: {
+        info: 'INFO',
+        action: 'ACTION',
+        warn: 'WARN',
+        critical: 'CRITICAL',
+      },
+      follow: {
+        banner: 'Destination set',
+        action: 'FOLLOW IN TRACK',
+        hint: 'Engage the autopilot to steer to the active destination.',
+      },
+      msg: {
+        ENGAGED_TRACK: 'Engaged TRACK — following the active destination',
+        ENGAGED_AUTO: 'Engaged AUTO — holding compass heading',
+        ENGAGED_WIND: 'Engaged WIND — holding apparent-wind angle',
+        MODE_CHANGED: 'Mode changed',
+        DISENGAGED: 'Disengaged — returned to STANDBY',
+        COMMAND_REJECTED: 'Command rejected by the autopilot',
+        FAULT_RAISED: 'FAULT — motor cut',
+        FAULT_CLEARED: 'Fault cleared — back to STANDBY',
+        WIND_HAZARD: 'Wind hazard — counter-steering to the set angle',
+        NO_GO_ON:
+          'No-go: route bearing inside the no-go zone — holding at the sailable edge',
+        NO_GO_OFF: 'No-go cleared — resuming the route bearing',
+        WAYPOINT_ADVANCE: 'Waypoint reached — advancing to the next leg',
+        ROUTE_COMPLETE: 'Route complete — final waypoint reached',
+        TRACK_FOLLOWING: 'Course acquired — steering to the destination',
+        TRACK_NO_COURSE:
+          'TRACK engaged but no active destination/course — holding heading, NOT tracking. Set a destination.',
+        XTE_CORRECTION: 'Correcting cross-track error',
+        DESTINATION_SET: 'Destination set — ready to follow in TRACK',
+        DESTINATION_FAILED: 'Could not set the destination',
+        FOLLOW_REQUESTED: 'Follow requested — engaging TRACK',
+      },
+    },
+  },
   diagnostics: {
     title: 'Test Bench',
     subtitle: 'Live system diagnostics and isolated, reproducible hardware simulation',
@@ -260,10 +464,18 @@ export const en = {
       arm_run: 'ARM & RUN',
       abort: 'ABORT / SAFE',
     },
+    run_banner: {
+      running: 'SIMULATION',
+      abort: 'ABORT',
+    },
     scenarios: {
       catalog: 'Scenario catalog',
       empty: 'No scenarios available.',
       timeline: 'Timeline',
+      mode_closed_loop: 'MOVES THE VESSEL',
+      mode_closed_loop_hint: 'Real engine: engages the autopilot and moves the vessel.',
+      mode_data: 'DATA ONLY',
+      mode_data_hint: 'Generates sample signals; does not engage the autopilot or move the vessel.',
     },
     execution: {
       title: 'Execution',
@@ -298,6 +510,7 @@ export const en = {
     history: {
       title: 'History',
       empty: 'No runs recorded.',
+      clear: 'CLEAR HISTORY',
     },
   },
   dashboard: {
@@ -443,6 +656,30 @@ export const en = {
   // ═══════════════════════════════════════════════
   // LEGEND (P4)
   // ═══════════════════════════════════════════════
+  resources: {
+    guide: {
+      title: 'Navigation Resources Guide',
+      dismiss: 'Got it',
+      waypoint_title: 'Waypoints',
+      waypoint_desc: 'A waypoint is a point of interest or destination marked on the chart. Create waypoints by tapping the map or from this page.',
+      route_title: 'Routes',
+      route_desc: 'A route is an ordered sequence of waypoints forming a navigation plan. Create routes by combining existing waypoints.',
+      track_title: 'Tracks',
+      track_desc: 'A track is a recorded path of your vessel\'s actual movement. Record tracks from the Tracks tab.',
+      navigate_title: 'Navigate To',
+      navigate_desc: 'Press \'Navigate\' on a waypoint or route to set it as your destination. Then engage the autopilot in TRACK (GPS) mode to follow it automatically.',
+    },
+    navigate: 'Navigate',
+    new_route: 'New Route',
+    edit_route: 'Edit Route',
+    create_route: 'Create Route',
+    route_name: 'Route name',
+    select_waypoints: 'Select waypoints to add to the route:',
+    no_waypoints: 'Create waypoints first to build a route.',
+    cancel: 'Cancel',
+    save: 'Save',
+  },
+
   legend: {
     title: 'Nautical Chart Legend',
     open_button: 'Open chart legend',

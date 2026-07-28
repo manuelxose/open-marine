@@ -11,6 +11,10 @@ export function normalizeDelta(delta: SignalKMessage): NormalizedDataPoint[] {
     // SignalK timestamps are ISO strings.
     const ts = update.timestamp ? new Date(update.timestamp).getTime() : Date.now();
 
+    // Skip meta-only updates (units/descriptions) and any malformed update without a
+    // values array. The course-provider emits meta deltas when a destination is set.
+    if (!Array.isArray(update.values)) continue;
+
     for (const val of update.values) {
       // Keep empty-string paths ("") because some Signal K producers use them for aggregate vessel snapshots.
       if (val.path === undefined || val.path === null) continue;

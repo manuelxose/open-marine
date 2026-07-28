@@ -1,6 +1,6 @@
 import type { PidConfig } from "./control/pid-controller.js";
 
-export type MotorBackendKind = "sim" | "serial" | "gpio" | "can";
+export type MotorBackendKind = "sim" | "serial" | "hil" | "gpio" | "can";
 export type SensorBackendKind = "sim" | "signalk";
 
 export interface EngineConfig {
@@ -11,12 +11,17 @@ export interface EngineConfig {
   /** Serial device for the `serial` backend (UART to the microcontroller). */
   serialPort: string;
   serialBaud: number;
+  /** Explicit HIL opt-in; must match the documented confirmation token. */
+  hilConfirmed: boolean;
+  hilMaxDuty: number;
+  hilSessionMs: number;
   /** Signal K WebSocket stream URL (sensor input). */
   signalKWsUrl: string;
   /** Signal K HTTP base URL (delta publishing). */
   signalKHttpUrl: string;
   /** Port for the autopilot command API the UI talks to. */
   apiPort: number;
+  apiHost: string;
   /** Main control loop rate. */
   loopHz: number;
   /** Watchdog timeout: if a tick is missed for longer than this, the motor is cut. */
@@ -70,7 +75,7 @@ const str = (key: string, fallback: string): string => {
 
 const backend = (key: string, fallback: MotorBackendKind): MotorBackendKind => {
   const raw = process.env[key];
-  if (raw === "sim" || raw === "serial" || raw === "gpio" || raw === "can") {
+  if (raw === "sim" || raw === "serial" || raw === "hil" || raw === "gpio" || raw === "can") {
     return raw;
   }
   return fallback;
@@ -86,14 +91,19 @@ export const getConfig = (): EngineConfig => {
   const motorBackend = backend("AP_MOTOR_BACKEND", "sim");
   return {
     motorBackend,
-    // Preserve the all-sim developer default, while allowing a safe simulated
-    // motor to consume real navigation sensors during dock-side testing.
-    sensorBackend: sensorBackend(motorBackend === "sim" ? "sim" : "signalk"),
+    // Default to live Signal K sensors so a safe simulated motor never masks
+    // real Raspberry GPS/AIS data. Use AP_SENSOR_BACKEND=sim explicitly for
+    // closed-loop/all-sim bench runs.
+    sensorBackend: sensorBackend("signalk"),
     serialPort: str("AP_SERIAL_PORT", "/dev/ttyAMA0"),
     serialBaud: num("AP_SERIAL_BAUD", 115200),
+    hilConfirmed: process.env["AP_HIL_CONFIRM"] === "I_UNDERSTAND_HIL_MOVES_REAL_MOTOR",
+    hilMaxDuty: Math.min(0.10, Math.max(0, num("AP_HIL_MAX_DUTY", 0.10))),
+    hilSessionMs: Math.min(30_000, Math.max(1_000, num("AP_HIL_SESSION_MS", 30_000))),
     signalKWsUrl: str("AP_SK_WS_URL", "ws://127.0.0.1:3000/signalk/v1/stream"),
     signalKHttpUrl: str("AP_SK_HTTP_URL", "http://127.0.0.1:3000"),
     apiPort: num("AP_API_PORT", 3990),
+    apiHost: str("AP_API_HOST", "0.0.0.0"),
     loopHz: num("AP_LOOP_HZ", 10),
     watchdogTimeoutMs: num("AP_WATCHDOG_TIMEOUT_MS", 1000),
     pid: {

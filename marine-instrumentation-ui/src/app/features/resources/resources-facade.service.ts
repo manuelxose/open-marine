@@ -2,6 +2,11 @@ import { Injectable, inject } from '@angular/core';
 import { WaypointStoreService } from '../../state/resources/waypoint-store.service';
 import { RouteStoreService } from '../../state/resources/route-store.service';
 import { TrackStoreService, Track } from '../../state/resources/track-store.service';
+import { SignalKCourseService } from '../../data-access/signalk/course/signalk-course.service';
+import { SignalKAutopilotService } from '../../data-access/signalk/autopilot/signalk-autopilot.service';
+import { AutopilotStoreService, AUTOPILOT_PATHS } from '../../state/autopilot/autopilot-store.service';
+import { AutopilotDecisionLogService } from '../autopilot/autopilot-decision-log.service';
+import { AppToastService } from '../../shared/components/app-toast/app-toast.service';
 import { WaypointFormValue } from './components/waypoint-form/waypoint-form.component';
 import { GpxParseResult } from './utils/gpx-parser';
 
@@ -12,6 +17,11 @@ export class ResourcesFacadeService {
   private readonly waypointStore = inject(WaypointStoreService);
   private readonly routeStore = inject(RouteStoreService);
   private readonly trackStore = inject(TrackStoreService);
+  private readonly courseService = inject(SignalKCourseService);
+  private readonly autopilotService = inject(SignalKAutopilotService);
+  private readonly autopilotStore = inject(AutopilotStoreService);
+  private readonly decisionLog = inject(AutopilotDecisionLogService);
+  private readonly toast = inject(AppToastService);
 
   readonly waypoints$ = this.waypointStore.waypoints$;
   readonly routes$ = this.routeStore.routes$;
@@ -46,8 +56,91 @@ export class ResourcesFacadeService {
   }
 
   // Routes
+  createRoute(name: string, waypoints: Array<{ lat: number; lon: number }>) {
+      this.routeStore.createRoute({
+          name,
+          feature: {
+              type: 'Feature',
+              geometry: {
+                  type: 'LineString',
+                  coordinates: waypoints.map(wp => [wp.lon, wp.lat]),
+              },
+              properties: {},
+          },
+      });
+  }
+
+  updateRoute(id: string, name: string, waypoints: Array<{ lat: number; lon: number }>) {
+      this.routeStore.updateRoute(id, {
+          name,
+          feature: {
+              type: 'Feature',
+              geometry: {
+                  type: 'LineString',
+                  coordinates: waypoints.map(wp => [wp.lon, wp.lat]),
+              },
+              properties: {},
+          },
+      });
+  }
+
   deleteRoute(id: string) {
       this.routeStore.deleteRoute(id);
+  }
+
+  // Navigation (Signal K Course API)
+  navigateToWaypoint(id: string) {
+      this.courseService.setDestination(id).subscribe({
+          next: () => this.engageRouteIfActive(),
+          error: (err) => {
+              console.error('Failed to set destination', err);
+              this.decisionLog.record('warn', 'DESTINATION_FAILED', this.errorText(err));
+              this.toast.show({ message: 'No se pudo fijar el destino', type: 'error' });
+          },
+      });
+  }
+
+  navigateToRoute(id: string) {
+      this.courseService.activateRoute(id).subscribe({
+          next: () => this.engageRouteIfActive(),
+          error: (err) => {
+              console.error('Failed to activate route', err);
+              this.decisionLog.record('warn', 'DESTINATION_FAILED', this.errorText(err));
+              this.toast.show({ message: 'No se pudo activar la ruta', type: 'error' });
+          },
+      });
+  }
+
+  clearNavigation() {
+      this.courseService.clearCourse().subscribe({
+          error: (err) => console.error('Failed to clear course', err),
+      });
+  }
+
+  /**
+   * The operator clicked Navigate/Follow on a resource, so this is an explicit
+   * request to engage ROUTE after the destination has been set.
+   */
+  private engageRouteIfActive() {
+      const state = this.autopilotStore.getSnapshot<string>(AUTOPILOT_PATHS.state) ?? 'standby';
+      if (state === 'fault') {
+          this.toast.show({ message: 'Piloto en FALLO: resuelvelo antes de navegar', type: 'warning' });
+          return;
+      }
+
+      if (state === 'auto' || state === 'wind' || state === 'route' || state === 'standby') {
+          this.autopilotService.engage('route').subscribe({
+              next: () => this.toast.show({ message: 'Piloto en modo ROUTE: siguiendo al destino', type: 'success' }),
+              error: () => this.toast.show({ message: 'No se pudo activar el modo ROUTE', type: 'error' }),
+          });
+      } else {
+          this.toast.show({ message: 'Destino fijado. Revisa el piloto automatico.', type: 'info' });
+      }
+  }
+
+  private errorText(err: unknown): string {
+      const e = err as { error?: { error?: string }; message?: string; status?: number };
+      return e?.error?.error ?? e?.message ?? (typeof e?.status === 'number' ? `HTTP ${e.status}` : 'error');
   }
 
   // Tracks
@@ -70,10 +163,9 @@ export class ResourcesFacadeService {
   deleteTrack(id: Track['id']) {
       this.trackStore.deleteTrack(id);
   }
-  
+
   // Import
   importGpx(data: GpxParseResult) {
-      // Import Waypoints
       for (const wp of data.waypoints) {
           const payload = {
               name: wp.name || 'Imported Waypoint',
@@ -87,12 +179,20 @@ export class ResourcesFacadeService {
           });
       }
 
-      // Import Routes
-      // Routes in GPX contain waypoints. 
-      // Should we create waypoints for route points? Or just store them in the route?
-      // Signal K routes usually reference waypoints by ID or have coordinates.
-      // For simplicity here, we assume route points are inline coordinates or we create waypoints first.
-      // Let's skipping route import details for MVP or implement simple inline.
-      console.log('Routes import not fully implemented in facade logic yet');
+      for (const route of data.routes) {
+          if (route.points.length < 2) continue;
+          this.routeStore.createRoute({
+              name: route.name || 'Imported Route',
+              ...(route.desc ? { description: route.desc } : {}),
+              feature: {
+                  type: 'Feature',
+                  geometry: {
+                      type: 'LineString',
+                      coordinates: route.points.map(p => [p.lon, p.lat]),
+                  },
+                  properties: {},
+              },
+          });
+      }
   }
 }

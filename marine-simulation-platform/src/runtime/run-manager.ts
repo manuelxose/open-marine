@@ -5,12 +5,15 @@ import type {
   SimulationInjectionRequest,
   SimulationLeaseResponse,
   SimulationRun,
+  SimulationRunOrigin,
   SimulationRunStatus,
   SimulationRunSummary,
+  SimulationBenchResetRequest,
 } from "@omi/marine-data-contract";
-import { SignalGenerator } from "../core/signal-generator.js";
+import { SignalGenerator, buildGeneratorOptions } from "../core/signal-generator.js";
 import type { Publisher, SimulationStore } from "../core/types.js";
 import { samplesToDataPoints } from "../publishers/utils.js";
+import type { ClosedLoopClient } from "./closed-loop-client.js";
 
 type EventListener = (event: SimulationEvent) => void;
 
@@ -22,6 +25,7 @@ interface ActiveExecution {
   generator: SignalGenerator;
   tick: number;
   publisher?: Publisher | undefined;
+  closedLoop?: ClosedLoopClient | undefined;
 }
 
 export class RunManager {
@@ -29,7 +33,18 @@ export class RunManager {
   private readonly active = new Map<string, ActiveExecution>();
   private readonly listeners = new Map<string, Set<EventListener>>();
 
-  constructor(private readonly store: SimulationStore) {}
+  constructor(
+    private readonly store: SimulationStore,
+    private readonly options: { closedLoop?: ClosedLoopClient | undefined } = {},
+  ) {}
+
+  cleanupStaleRuns(): void {
+    for (const summary of this.store.listRuns()) {
+      if (summary.status !== "running" && summary.status !== "queued") continue;
+      const run = this.store.getRun(summary.id);
+      if (run) this.abortStaleRun(run, "Run process was not active after service startup; returned to safe state");
+    }
+  }
 
   arm(): { token: string; expiresAtUtc: string } {
     const token = randomUUID();
@@ -46,6 +61,7 @@ export class RunManager {
     speed = 1,
     seed = 42,
     publisher?: Publisher,
+    origin?: SimulationRunOrigin | undefined,
   ): Promise<SimulationRun> {
     this.consumeArmToken(token);
     const scenario = this.store.getScenario(scenarioId);
@@ -63,6 +79,7 @@ export class RunManager {
       speed,
       seed,
       parameters,
+      ...(origin ? { origin } : {}),
       startedAtUtc,
       simulatedTimeMs: 0,
       steps: [
@@ -74,14 +91,21 @@ export class RunManager {
       assertions: [],
       lastSequence: 0,
     };
+
+    const closedLoop = mode === "closed-loop" ? this.options.closedLoop : undefined;
+    if (mode === "closed-loop") {
+      if (!closedLoop) throw new Error("closed-loop-unavailable");
+      // Environment only: seed origin/speed/wind/current on the engine's bench.
+      // The operator engages the autopilot themselves from the Autopilot page.
+      await closedLoop.reset(buildResetRequest(parameters, origin));
+    }
     this.store.saveRun(run);
 
-    const generator = new SignalGenerator(seed, scenario, {
-      wind: {
-        twsKt: asNumber(parameters["windSpeedKt"], 12),
-        twdDeg: asNumber(parameters["windDirDeg"], 45),
-      },
-    });
+    const generator = new SignalGenerator(
+      seed,
+      scenario,
+      buildGeneratorOptions(parameters, origin ? { latitude: origin.latitude, longitude: origin.longitude } : undefined),
+    );
     const execution: ActiveExecution = {
       run,
       startedPerf: performance.now(),
@@ -90,10 +114,12 @@ export class RunManager {
       generator,
       tick: 0,
       publisher,
+      closedLoop,
     };
     clearInterval(execution.timer);
     this.active.set(run.id, execution);
     this.emit(execution, "run", `Started ${scenario.name}`);
+    await this.tick(execution);
     execution.timer = setInterval(() => void this.tick(execution), 50 / Math.max(speed, 0.25));
     return structuredClone(run);
   }
@@ -103,6 +129,9 @@ export class RunManager {
     if (!execution) {
       const run = this.getRun(runId);
       if (!run) throw new Error("run-not-found");
+      if (run.status === "running" || run.status === "queued") {
+        return this.abortStaleRun(run, reason);
+      }
       return run;
     }
     this.finish(execution, "aborted", reason);
@@ -111,7 +140,13 @@ export class RunManager {
 
   lease(runId: string): SimulationLeaseResponse {
     const execution = this.active.get(runId);
-    if (!execution) throw new Error("run-not-found");
+    if (!execution) {
+      const run = this.getRun(runId);
+      if (run?.status === "running" || run?.status === "queued") {
+        this.abortStaleRun(run, "Run process is no longer active; returned to safe state");
+      }
+      throw new Error("run-not-active");
+    }
     execution.leaseExpiry = Date.now() + 30_000;
     return { expiresAtUtc: new Date(execution.leaseExpiry).toISOString(), remainingMs: 30_000 };
   }
@@ -132,6 +167,11 @@ export class RunManager {
 
   listRuns(): SimulationRunSummary[] {
     return this.store.listRuns();
+  }
+
+  clearRunHistory(): { deletedRuns: number } {
+    if (this.active.size > 0) throw new Error("run-busy");
+    return { deletedRuns: this.store.clearRuns() };
   }
 
   getEvents(id: string, afterSequence = 0): SimulationEvent[] {
@@ -207,10 +247,18 @@ export class RunManager {
 
     if (execution.publisher) {
       try {
-        await execution.publisher.publish(samplesToDataPoints(samples, scenario.channels, new Date().toISOString()));
+        await execution.publisher.publish(samplesToDataPoints(samples, scenario.channels, new Date().toISOString(), {
+          excludeOwnPosition: execution.run.mode === "closed-loop",
+        }));
       } catch (error) {
         this.emit(execution, "log", error instanceof Error ? error.message : String(error));
       }
+    }
+
+    const durationMs = asNumber(execution.run.parameters["durationMs"], scenario.defaultDurationMs);
+    if (execution.run.simulatedTimeMs >= durationMs) {
+      this.finish(execution, "passed", "Scenario duration completed");
+      return;
     }
 
     if (Date.now() > execution.leaseExpiry) {
@@ -220,6 +268,7 @@ export class RunManager {
 
   private finish(execution: ActiveExecution, status: SimulationRunStatus, reason?: string): void {
     clearInterval(execution.timer);
+    void execution.closedLoop?.disengage();
     void execution.publisher?.disconnect();
     const safeStep = execution.run.steps.find((step) => step.id === "safe-state");
     if (safeStep) {
@@ -236,6 +285,33 @@ export class RunManager {
     this.store.saveRun(execution.run);
     this.store.applyRetention();
     this.active.delete(execution.run.id);
+  }
+
+  private abortStaleRun(run: SimulationRun, reason: string): SimulationRun {
+    const completedAtUtc = new Date().toISOString();
+    const safeStep = run.steps.find((step) => step.id === "safe-state");
+    if (safeStep) {
+      safeStep.status = "passed";
+      safeStep.startedAtUtc = completedAtUtc;
+      safeStep.completedAtUtc = completedAtUtc;
+    }
+    const stimulus = run.steps.find((step) => step.id === "stimulus");
+    if (stimulus?.status === "running") stimulus.status = "skipped";
+    run.status = "aborted";
+    run.completedAtUtc = completedAtUtc;
+    run.failureReason = reason;
+    run.lastSequence += 1;
+    this.store.saveEvent({
+      id: randomUUID(),
+      runId: run.id,
+      sequence: run.lastSequence,
+      kind: "safe-state",
+      atSimulatedMs: run.simulatedTimeMs,
+      atUtc: completedAtUtc,
+      message: reason,
+    });
+    this.store.saveRun(run);
+    return structuredClone(run);
   }
 
   private emit(
@@ -269,6 +345,30 @@ export class RunManager {
 }
 
 const asNumber = (value: unknown, fallback: number): number => typeof value === "number" ? value : fallback;
+const asOptionalNumber = (value: unknown): number | undefined =>
+  typeof value === "number" && Number.isFinite(value) ? value : undefined;
 const csv = (value: string): string => `"${value.replaceAll("\"", "\"\"")}"`;
 const html = (value: string): string =>
   value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll("\"", "&quot;");
+
+// Environment only: origin/speed/wind/current for the engine's bench. No
+// waypoint/route/mode/engage — the operator drives the autopilot themselves.
+const buildResetRequest = (
+  parameters: Record<string, number | boolean | string>,
+  origin?: SimulationRunOrigin | undefined,
+): SimulationBenchResetRequest => {
+  const request: SimulationBenchResetRequest = {
+    origin: {
+      latitude: origin?.latitude ?? 42.2406,
+      longitude: origin?.longitude ?? -8.7207,
+    },
+    cruiseSpeedKt: asNumber(parameters["boatSpeedKt"], 5),
+    trueWindDirDeg: asNumber(parameters["windDirDeg"], 45),
+    trueWindSpeedKt: asNumber(parameters["windSpeedKt"], 12),
+  };
+  const currentSetDeg = asOptionalNumber(parameters["currentSetDeg"]);
+  const currentDriftKt = asOptionalNumber(parameters["currentDriftKt"]);
+  if (currentSetDeg !== undefined) request.currentSetDeg = currentSetDeg;
+  if (currentDriftKt !== undefined) request.currentDriftKt = currentDriftKt;
+  return request;
+};

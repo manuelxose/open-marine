@@ -2,6 +2,7 @@
 node_modules/
 **/node_modules/
 package-lock.json
+!/package-lock.json
 yarn.lock
 pnpm-lock.yaml
 
@@ -50,6 +51,7 @@ Thumbs.db
 *.pid
 marine-test-bench/data/
 data/test-bench.sqlite*
+marine-simulation-platform/data/
 
 # Logs
 npm-debug.log*
@@ -91,6 +93,8 @@ lerna-debug.log*
 .generated/
 __pycache__/
 *.py[cod]
+marine-chart-engine/data/chart-cache/
+marine-chart-engine/data/charts/downloads.local.json
 
 # Local tooling binaries
 tools/*

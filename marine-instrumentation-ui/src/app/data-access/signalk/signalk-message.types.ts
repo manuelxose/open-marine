@@ -3,6 +3,11 @@ export interface SignalKUpdateValue {
   value: unknown;
 }
 
+export interface SignalKMetaValue {
+  path: string;
+  value: unknown;
+}
+
 export interface SignalKUpdate {
   source?: {
     label?: string;
@@ -11,7 +16,10 @@ export interface SignalKUpdate {
   };
   $source?: string;
   timestamp: string;
-  values: SignalKUpdateValue[];
+  // Signal K updates carry either `values` (data) or `meta` (units/descriptions).
+  // The course/course-provider activation emits meta-only updates, so `values` is optional.
+  values?: SignalKUpdateValue[];
+  meta?: SignalKMetaValue[];
 }
 
 export interface SignalKDeltaMessage {

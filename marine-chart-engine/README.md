@@ -25,6 +25,10 @@ CHART_ENGINE_UPLOAD_DIR=/var/lib/open-marine/chart-uploads
 CHART_ENGINE_REGISTRY_FILE=/var/lib/open-marine/charts/registry.local.json
 CHART_ENGINE_UPLOAD_MAX_MB=2048
 EMODNET_TILE_URL_TEMPLATE=
+CHART_ENGINE_OWM_API_KEY=
+CHART_ENGINE_COPERNICUS_SYNC_ENABLED=false
+CHART_ENGINE_COPERNICUS_SYNC_HOURS=6
+CHART_ENGINE_PYTHON=python3
 ```
 
 On Windows development, paths default to `marine-chart-engine/data/`. On Linux/Raspberry, paths default to `/var/lib/open-marine`, so imported charts live in `/var/lib/open-marine/charts`. Use USB/SSD storage for large chart catalogs or bathymetry and mount or bind-mount it under `/var/lib/open-marine`.
@@ -62,6 +66,14 @@ journalctl -u omi-charts -f
 - `GET /charts/:chartId/raster/{z}/{x}/{y}.png`
 - `GET /charts/:chartId/vector/{z}/{x}/{y}.pbf`
 - `GET /bathymetry/emodnet/{z}/{x}/{y}.png`
+- `GET /packages/ria-vigo`
+- `GET /environment/catalog`
+- `GET /environment/:layerId/times`
+- `GET /environment/:layerId/:time.geojson`
+- `GET /environment/:layerId/:time/:z/:x/:y.png`
+- `GET /environment/sync/status`
+- `POST /environment/sync`
+- `GET /tides/vigo?date=YYYY-MM-DD`
 
 Import endpoints accept multipart form data with a `file` field plus:
 
@@ -73,15 +85,11 @@ kind=raster|vector   # MBTiles only
 
 Jobs are in-memory and report `queued`, `running`, `completed`, or `failed`. The imported chart catalog is persisted in `registry.local.json`, which is ignored by Git and should live under the configured persistent chart directory.
 
-## Current Sources
+## Ria de Vigo preset
 
-The static registry includes:
+`GET /packages/ria-vigo` exposes the fixed bounds `[-9.05, 42.05, -8.40, 42.40]`, covering the inner ria, Cies, approaches and Baiona. IHM P2-P5 are selected automatically by zoom and remain online-only. EMODnet is marked offline-capable under its CC BY 4.0 product policy and can be captured with the resumable area-download endpoint or imported from an official DTM extract. OpenSeaMap remains online-only; import a legally obtained local seamark extract for its offline equivalent.
 
-- `local-raster-demo`
-- `local-enc-vector-demo`
-- `emodnet-bathymetry`
-
-Imported local sources are added dynamically and returned by `GET /charts`.
+Imported local sources are added dynamically and returned by `GET /charts`. Bulk area caching is rejected for providers marked online-only; this includes IHM and the public OpenSeaMap tile service.
 
 ## MBTiles
 
@@ -146,9 +154,11 @@ Dry run:
 npm run charts:convert-s57 -- --input C:\charts\US5EXAMPLE.000 --output C:\charts\example-enc.mbtiles --dry-run
 ```
 
-## Bathymetry
+## Bathymetry and environmental data
 
-Complete local bathymetry is supported through raster MBTiles imports. EMODnet is available as a configurable proxy skeleton; set `EMODNET_TILE_URL_TEMPLATE` to point at a legal tile-compatible service. No EMODnet URL is hardcoded.
+EMODnet WMS is available online. For a dependable offline Vigo package, download an official EMODnet DTM extract, convert it with `charts:convert-raster`, and import the resulting MBTiles. Store large rasters and caches on SSD-backed `CHART_ENGINE_DATA_DIR`.
+
+Copernicus Marine IBI synchronization needs a free Copernicus Marine account and the Python dependencies in `scripts/requirements-copernicus.txt`. Authenticate with the standard `copernicusmarine login` flow, then run `npm run charts:sync-copernicus`. Setting `CHART_ENGINE_COPERNICUS_SYNC_ENABLED=true` refreshes the five-day cache with exponential backoff; the last valid forecast remains available offline. OpenWeather atmospheric tiles are optional and need `CHART_ENGINE_OWM_API_KEY`. IHM Vigo port 29 predictions are cached automatically.
 
 ## UI Integration
 
@@ -156,8 +166,10 @@ The Angular UI reads `APP_ENVIRONMENT.chartEngineApiUrl`, loads the engine catal
 
 When the UI is opened from another device, the chart engine URL is built from the same host and port `8088`, so the browser calls `http://<raspberry-host>:8088` instead of its own `localhost`.
 
-If the chart engine is offline, local chart selection and imports are disabled while OSM/Nautical/ENC demo remain available.
+If the chart engine is offline, already imported MBTiles continue to work. Remote IHM, EMODnet and atmospheric layers report an explicit unavailable or stale state.
 
 ## Explicitly Out Of Scope
 
 S-63, oeSENC, encrypted charts, commercial chart decryption, and licensing bypasses are not supported. Those formats require legal permits, licensed datasets, and compliant vendor/decryption flows outside this service.
+
+This software is for recreational situational awareness. It is not an ECDIS and does not replace current official charts or Notices to Mariners. Tide predictions are predictions, not observed water levels; the UI does not apply them to soundings unless the source datum is known and compatible.

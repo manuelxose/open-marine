@@ -39,6 +39,10 @@ if [[ -n "$CONFIG_FILE" && "$CONFIG_FILE" != /* ]]; then
 fi
 load_omi_config_file "$CONFIG_FILE"
 
+: "${AP_MOTOR_BACKEND:=sim}"
+: "${AP_SENSOR_BACKEND:=signalk}"
+export AP_MOTOR_BACKEND AP_SENSOR_BACKEND
+
 if [[ -f "$ENGINE_DIR/dist/cli.js" ]]; then
   mode="dist"
   args=(start)
@@ -47,5 +51,5 @@ else
   args=(run dev --)
 fi
 
-echo "[autopilot] starting engine ($mode, motor=${AP_MOTOR_BACKEND:-sim}, sensors=${AP_SENSOR_BACKEND:-auto})"
+echo "[autopilot] starting engine ($mode, motor=${AP_MOTOR_BACKEND}, sensors=${AP_SENSOR_BACKEND})"
 exec npm --prefix "$ENGINE_DIR" "${args[@]}" "$@"

@@ -6,13 +6,23 @@ export interface SerialBackendConfig {
   /** Serial device path, e.g. /dev/ttyAMA0. Configure baud with `stty` first. */
   port: string;
   baud: number;
+  /** Pico profile required before enable. Production is the fail-safe default. */
+  requiredProfile?: "production" | "hil-motor";
 }
 
 export interface ParsedTelemetry {
   rudderAngleDeg?: number;
   motorCurrentA?: number;
   fault?: string;
+  profile?: string;
+  safetyReady?: boolean;
+  enabled?: boolean;
 }
+
+export const isPicoPreflightReady = (
+  telemetry: ParsedTelemetry,
+  requiredProfile: "production" | "hil-motor",
+): boolean => telemetry.profile === requiredProfile && telemetry.safetyReady === true;
 
 /**
  * Parse one telemetry line from the microcontroller. Pure function (unit-tested):
@@ -34,6 +44,26 @@ export const parseTelemetryLine = (line: string): ParsedTelemetry | null => {
   if (kind === "F") {
     const reason = parts[1]?.trim();
     return { fault: reason && reason.length > 0 ? reason : "micro-fault" };
+  }
+  if (kind === "R" && parts[1] === "pico2") {
+    const values = new Map(
+      parts.slice(2).map((part) => {
+        const separator = part.indexOf("=");
+        return separator < 0
+          ? [part, ""] as const
+          : [part.slice(0, separator), part.slice(separator + 1)] as const;
+      }),
+    );
+    const profile = values.get("profile");
+    const ready = values.get("ready");
+    const enabled = values.get("enabled");
+    const statusFault = values.get("fault");
+    return {
+      ...(profile ? { profile } : {}),
+      ...(ready === "0" || ready === "1" ? { safetyReady: ready === "1" } : {}),
+      ...(enabled === "0" || enabled === "1" ? { enabled: enabled === "1" } : {}),
+      ...(statusFault ? { fault: statusFault } : {}),
+    };
   }
   return null;
 };
@@ -70,11 +100,21 @@ export class SerialMotor implements MotorController {
         error,
       );
     }
-    // Boot disabled — motor is never live by default.
+    // Boot disabled - motor is never live by default.
     this.writeFrame("C,0,0,0");
+    this.writeFrame("P");
   }
 
   async enable(): Promise<void> {
+    const requiredProfile = this.config.requiredProfile ?? "production";
+    if (!isPicoPreflightReady(this.feedback, requiredProfile)) {
+      this.enabled = false;
+      this.feedback = { ...this.feedback, fault: "pico-preflight-not-ready" };
+      this.writeFrame("C,0,0,0");
+      this.writeFrame("P");
+      this.log.error(`Pico 2 ${requiredProfile} preflight not ready; motor remains disabled`);
+      return;
+    }
     this.enabled = true;
     this.sendCommand();
   }
@@ -164,7 +204,21 @@ export class SerialMotor implements MotorController {
       this.feedback = {
         ...(rudderAngleDeg !== undefined ? { rudderAngleDeg } : {}),
         ...(motorCurrentA !== undefined ? { motorCurrentA } : {}),
-        ...(parsed.fault ? { fault: parsed.fault } : {}),
+        ...(parsed.profile !== undefined ? { profile: parsed.profile } : {}),
+        ...(parsed.safetyReady !== undefined ? { safetyReady: parsed.safetyReady } : {}),
+        ...(parsed.enabled !== undefined ? { enabled: parsed.enabled } : {}),
+        ...(
+          parsed.fault
+            ? { fault: parsed.fault }
+            : isPicoPreflightReady(
+                parsed,
+                this.config.requiredProfile ?? "production",
+              )
+              ? {}
+              : this.feedback.fault
+                ? { fault: this.feedback.fault }
+                : {}
+        ),
       };
     }
   }

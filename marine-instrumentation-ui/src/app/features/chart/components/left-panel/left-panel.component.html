@@ -28,6 +28,7 @@
           <app-chart-controls
             *ngIf="controlsVm"
             [vm]="controlsVm"
+            (selectSource)="selectChartSource.emit($event)"
             (toggleTrack)="toggleTrack.emit()"
             (toggleVector)="toggleVector.emit()"
             (toggleTrueWind)="toggleTrueWind.emit()"
@@ -37,10 +38,6 @@
             (toggleAisLabels)="toggleAisLabels.emit()"
             (toggleCpaLines)="toggleCpaLines.emit()"
             (toggleOpenSeaMap)="toggleOpenSeaMap.emit()" />
-        </section>
-
-        <section class="left-panel__tab-pane" *ngSwitchCase="'catalog'">
-          <app-chart-source-catalog />
         </section>
 
         <section class="left-panel__tab-pane" *ngSwitchCase="'ais'">
@@ -60,6 +57,7 @@
             (selectWaypoint)="selectWaypoint.emit($event)"
             (renameWaypoint)="renameWaypoint.emit($event)"
             (deleteWaypoint)="deleteWaypoint.emit($event)"
+            (navigateWaypoint)="navigateWaypoint.emit($event)"
             (clearActive)="clearActiveWaypoint.emit()" />
           <button type="button" class="left-panel__export-btn" (click)="exportWaypointsGpx.emit()" title="Export waypoints as GPX">
             <app-icon name="download" [size]="14" />

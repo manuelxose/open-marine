@@ -1,11 +1,11 @@
-import { Component, OnDestroy, OnInit } from '@angular/core';
+import { Component, NgZone, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { AlarmStoreService } from '../../../../state/alarms/alarm-store.service';
 import { AlarmSeverity } from '../../../../state/alarms/alarm.models';
 import { AudioService } from '../../../../core/services/audio.service';
 import { DatapointStoreService } from '../../../../state/datapoints/datapoint-store.service';
 import { PATHS } from '@omi/marine-data-contract';
-import { interval, map, Subscription } from 'rxjs';
+import { map } from 'rxjs';
 import { AppButtonComponent } from '../../../../shared/components/app-button/app-button.component';
 
 @Component({
@@ -20,14 +20,15 @@ export class MOBAlertComponent implements OnInit, OnDestroy {
   confirming = false;
   elapsedTime = '00:00';
   
-  private timerSub: Subscription | null = null;
+  private timerId: ReturnType<typeof setTimeout> | null = null;
   private mobTimestamp: number | null = null;
   private currentPosition: { lat: number, lon: number } | null = null;
 
   constructor(
     private alarmStore: AlarmStoreService,
     private audioService: AudioService,
-    private datapointStore: DatapointStoreService
+    private datapointStore: DatapointStoreService,
+    private zone: NgZone
   ) {}
 
   ngOnInit(): void {
@@ -96,22 +97,37 @@ export class MOBAlertComponent implements OnInit, OnDestroy {
   }
 
   private startTimer(): void {
-    if (this.timerSub) return;
-    
-    this.timerSub = interval(1000).subscribe(() => {
-        if (!this.mobTimestamp) return;
-        const diff = Date.now() - this.mobTimestamp;
-        const mins = Math.floor(diff / 60000);
-        const secs = Math.floor((diff % 60000) / 1000);
-        this.elapsedTime = `${this.pad(mins)}:${this.pad(secs)}`;
+    if (this.timerId !== null) return;
+    this.updateElapsedTime();
+    this.zone.runOutsideAngular(() => {
+      this.timerId = setTimeout(() => this.timerTick(), 1000);
     });
   }
 
   private stopTimer(): void {
-    if (this.timerSub) {
-        this.timerSub.unsubscribe();
-        this.timerSub = null;
+    if (this.timerId !== null) {
+        clearTimeout(this.timerId);
+        this.timerId = null;
     }
+  }
+
+  private timerTick(): void {
+    this.timerId = null;
+    if (!this.active) {
+      return;
+    }
+    this.zone.run(() => this.updateElapsedTime());
+    this.zone.runOutsideAngular(() => {
+      this.timerId = setTimeout(() => this.timerTick(), 1000);
+    });
+  }
+
+  private updateElapsedTime(): void {
+    if (!this.mobTimestamp) return;
+    const diff = Date.now() - this.mobTimestamp;
+    const mins = Math.floor(diff / 60000);
+    const secs = Math.floor((diff % 60000) / 1000);
+    this.elapsedTime = `${this.pad(mins)}:${this.pad(secs)}`;
   }
 
   private pad(n: number): string {

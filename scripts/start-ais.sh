@@ -58,5 +58,22 @@ if [[ ! -x "$AIS_BIN" ]]; then
   exit 1
 fi
 
+DEVICE_LIST="$("$AIS_BIN" -l 2>&1 || true)"
+RTL_DEVICE_LINE="$(
+  printf '%s\n' "$DEVICE_LIST" \
+    | grep -Ei '^[[:space:]]*[0-9]+:.*(RTL-SDR|R820T|R828D)' \
+    | head -n 1 \
+    || true
+)"
+if [[ -z "$RTL_DEVICE_LINE" ]]; then
+  echo "[AIS] No hay un receptor RTL-SDR conectado; servicio detenido sin abrir puertos serie."
+  exit 0
+fi
+RTL_DEVICE_INDEX="$(
+  printf '%s\n' "$RTL_DEVICE_LINE" \
+    | sed -E 's/^[[:space:]]*([0-9]+):.*/\1/'
+)"
+
+echo "[AIS] RTL-SDR detectado como dispositivo $RTL_DEVICE_INDEX."
 echo "[AIS] Iniciando AIS-catcher -> UDP $UDP_HOST:$UDP_PORT (PPM=$PPM, GAIN=$GAIN)"
-exec "$AIS_BIN" -d:0 -gr TUNER "$GAIN" RTLAGC off -p "$PPM" -u "$UDP_HOST" "$UDP_PORT" -v 2
+exec "$AIS_BIN" -d:"$RTL_DEVICE_INDEX" -gr TUNER "$GAIN" RTLAGC off -p "$PPM" -u "$UDP_HOST" "$UDP_PORT" -v 2

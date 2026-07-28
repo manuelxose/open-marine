@@ -32,6 +32,7 @@ export class SqliteStore implements SimulationStore {
   }
 
   close(): void {
+    this.db?.pragma("wal_checkpoint(TRUNCATE)");
     this.db?.close();
     this.db = null;
   }
@@ -139,6 +140,17 @@ export class SqliteStore implements SimulationStore {
       mode: row.mode as SimulationRun["mode"],
       failureReason: row.failure_reason ?? undefined,
     }));
+  }
+
+  clearRuns(): number {
+    const count = (this.database.prepare("SELECT COUNT(*) as count FROM runs").get() as { count: number }).count;
+    const transaction = this.database.transaction(() => {
+      this.database.prepare("DELETE FROM samples").run();
+      this.database.prepare("DELETE FROM events").run();
+      this.database.prepare("DELETE FROM runs").run();
+    });
+    transaction();
+    return count;
   }
 
   saveEvent(event: SimulationEvent): void {
@@ -452,4 +464,3 @@ interface SampleRow {
   value_json: string;
   quality: string;
 }
-

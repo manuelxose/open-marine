@@ -19,6 +19,7 @@ export interface ExecutionConfig {
   durationMs?: number;
   signalKHost?: string;
   signalKToken?: string;
+  autopilotApiUrl?: string;
   apiPort?: number;
   storePath?: string;
 }
@@ -50,6 +51,7 @@ export interface SimulationStore {
   saveRun(run: SimulationRun): void;
   getRun(id: string): SimulationRun | null;
   listRuns(): SimulationRunSummary[];
+  clearRuns(): number;
   saveEvent(event: SimulationEvent): void;
   getEvents(runId: string, afterSequence?: number): SimulationEvent[];
   saveSampleBatch(batch: {

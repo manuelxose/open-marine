@@ -23,6 +23,7 @@ export class ChartControlsComponent implements OnChanges {
   @Output() toggleAisLabels = new EventEmitter<void>();
   @Output() toggleCpaLines = new EventEmitter<void>();
   @Output() toggleOpenSeaMap = new EventEmitter<void>();
+  @Output() selectSource = new EventEmitter<string>();
 
   intervalsText = '';
   rangeRingError: string | null = null;
@@ -59,6 +60,10 @@ export class ChartControlsComponent implements OnChanges {
 
   onToggleOpenSeaMap(): void {
     this.toggleOpenSeaMap.emit();
+  }
+
+  onSelectSource(sourceId: string): void {
+    this.selectSource.emit(sourceId);
   }
 
   ngOnChanges(changes: SimpleChanges): void {

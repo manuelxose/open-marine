@@ -41,6 +41,8 @@ export interface GeoJSONPolygon {
 export interface RemoteChartEntry {
   id: string;
   providerId: string;
+  /** Concrete tile proxy provider when the visible catalog provider is a group. */
+  tileProviderId?: string;
   label: string;
   description?: string;
   scale?: number;
@@ -51,6 +53,8 @@ export interface RemoteChartEntry {
   downloadUrl?: string;
   sizeBytes?: number;
   lastUpdated?: string;
+  /** WMS layer name, when this entry is a single WMS layer (used for layer-aware download). */
+  wmsLayer?: string;
 }
 
 export interface TileCacheEntry {

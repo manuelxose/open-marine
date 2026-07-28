@@ -17,6 +17,7 @@ import { PowerPanelComponent } from './components/panels/power-panel/power-panel
 import { SystemPanelComponent } from './components/panels/system-panel/system-panel.component';
 import { EnginePanelComponent } from './components/panels/engine-panel/engine-panel.component';
 import { EnvironmentPanelComponent } from './components/panels/environment-panel/environment-panel.component';
+import { MeteoWidgetComponent } from '../../ui/instruments/meteo-widget/meteo-widget.component';
 import { AppIconComponent } from '../../shared/components/app-icon/app-icon.component';
 import { InstrumentTileComponent } from './components/instrument-tile/instrument-tile.component';
 import { WidgetLibraryComponent } from './components/widget-library/widget-library.component';
@@ -45,6 +46,7 @@ interface DashboardWidgetCardVm {
     SystemPanelComponent,
     EnginePanelComponent,
     EnvironmentPanelComponent,
+    MeteoWidgetComponent,
     InstrumentTileComponent,
     WidgetLibraryComponent,
     AutopilotCompassComponent,
@@ -184,6 +186,8 @@ export class DashboardPage {
         return 'Engine';
       case 'environment-card':
         return 'Environment';
+      case 'weather-card':
+        return 'Live Weather';
       case 'sog-simple':
         return 'Speed Over Ground';
       case 'heading-simple':

@@ -2,6 +2,8 @@ import { ChangeDetectionStrategy, Component, OnInit, inject } from '@angular/cor
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { ChartFacadeService } from '../chart/services/chart-facade.service';
+import { ChartSourceCatalogComponent } from '../chart/components/chart-source-catalog/chart-source-catalog.component';
+import { toChartId, validateChartFile } from '../chart/utils/chart-import.util';
 import type {
   ChartControlsVm,
   ChartImportKind,
@@ -9,12 +11,12 @@ import type {
   ChartSourceOptionVm,
 } from '../chart/types/chart-vm';
 
-type CatalogTab = 'sources' | 'import' | 'diagnostics';
+type CatalogTab = 'sources' | 'remote' | 'import' | 'diagnostics';
 
 @Component({
   selector: 'app-chart-catalog-page',
   standalone: true,
-  imports: [CommonModule, RouterLink],
+  imports: [CommonModule, RouterLink, ChartSourceCatalogComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './chart-catalog.page.html',
   styleUrls: ['./chart-catalog.page.scss'],
@@ -32,6 +34,7 @@ export class ChartCatalogPage implements OnInit {
 
   readonly tabs: { id: CatalogTab; label: string }[] = [
     { id: 'sources', label: 'Sources' },
+    { id: 'remote', label: 'Remote Catalog' },
     { id: 'import', label: 'Import' },
     { id: 'diagnostics', label: 'Diagnostics' },
   ];
@@ -139,31 +142,10 @@ export class ChartCatalogPage implements OnInit {
   }
 
   private toChartId(value: string): string {
-    return value
-      .trim()
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-+|-+$/g, '')
-      .slice(0, 80);
+    return toChartId(value);
   }
 
   private validateFile(kind: ChartImportKind, file: File): string | null {
-    const name = file.name.toLowerCase();
-    if (/\.(s63|oesenc|osenc|zip)$/i.test(name)) {
-      return 'Encrypted/commercial chart packages are not imported directly. Use legal MBTiles, open S-57, GeoTIFF or KAP data.';
-    }
-    const allowed: Record<ChartImportKind, RegExp> = {
-      mbtiles: /\.mbtiles$/i,
-      raster: /\.(tif|tiff|kap)$/i,
-      s57: /\.000$/i,
-    };
-    if (!allowed[kind].test(name)) {
-      return kind === 'mbtiles'
-        ? 'Select a .mbtiles file.'
-        : kind === 'raster'
-          ? 'Select a GeoTIFF (.tif/.tiff) or KAP file.'
-          : 'Select an open S-57 .000 file.';
-    }
-    return null;
+    return validateChartFile(kind, file);
   }
 }

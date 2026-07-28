@@ -59,12 +59,22 @@ export const AUTOPILOT_CHANNELS: SimulationChannelDefinition[] = [
   { id: "ap.mode", label: "AP Mode", path: PATHS.steering.autopilot.mode, kind: "text", dimension: "state", canonicalUnit: "text", allowedUnits: ["text"], precision: 0 },
   { id: "ap.engaged", label: "AP Engaged", path: PATHS.steering.autopilot.engaged, kind: "digital", dimension: "state", canonicalUnit: "bool", allowedUnits: ["bool"], precision: 0 },
   { id: "ap.fault", label: "AP Fault", path: PATHS.steering.autopilot.fault, kind: "text", dimension: "state", canonicalUnit: "text", allowedUnits: ["text"], precision: 0 },
+  { id: "ap.windHazard", label: "Wind Hazard", path: PATHS.steering.autopilot.windHazard, kind: "text", dimension: "state", canonicalUnit: "text", allowedUnits: ["text"], precision: 0 },
+  { id: "ap.noGo", label: "No-Go Guard", path: PATHS.steering.autopilot.noGo, kind: "digital", dimension: "state", canonicalUnit: "bool", allowedUnits: ["bool"], precision: 0 },
   { id: "ap.targetHeading", label: "Target Heading", path: PATHS.steering.autopilot.target.headingTrue, kind: "analog", dimension: "angle", canonicalUnit: "rad", allowedUnits: ["rad", "deg"], precision: 3, range: { min: 0, max: 6.283 } },
   { id: "ap.targetWindAngle", label: "Target Wind Angle", path: PATHS.steering.autopilot.target.windAngleApparent, kind: "analog", dimension: "angle", canonicalUnit: "rad", allowedUnits: ["rad", "deg"], precision: 3, range: { min: -3.142, max: 3.142 } },
+  { id: "ap.targetRudderAngle", label: "Target Rudder", path: PATHS.steering.autopilot.target.rudderAngle, kind: "analog", dimension: "angle", canonicalUnit: "rad", allowedUnits: ["rad", "deg"], precision: 3, range: { min: -0.61, max: 0.61 }, limits: { low: -0.52, high: 0.52 } },
   { id: "ap.rudderAngle", label: "Rudder Angle", path: PATHS.steering.rudderAngle, kind: "analog", dimension: "angle", canonicalUnit: "rad", allowedUnits: ["rad", "deg"], precision: 3, range: { min: -0.61, max: 0.61 }, limits: { low: -0.52, high: 0.52 } },
   { id: "ap.driveCurrent", label: "Drive Current", path: PATHS.steering.autopilot.drive.motorCurrent, kind: "analog", dimension: "current", canonicalUnit: "A", allowedUnits: ["A"], precision: 2, range: { min: 0, max: 30 }, limits: { high: 10, criticalHigh: 15 } },
   { id: "ap.driveEnabled", label: "Drive Enabled", path: PATHS.steering.autopilot.drive.enabled, kind: "digital", dimension: "state", canonicalUnit: "bool", allowedUnits: ["bool"], precision: 0 },
   { id: "ap.clutch", label: "Clutch", path: PATHS.steering.autopilot.drive.clutch, kind: "digital", dimension: "state", canonicalUnit: "bool", allowedUnits: ["bool"], precision: 0 },
+  { id: "ap.route.activeLeg", label: "Route Leg", path: PATHS.steering.autopilot.route.activeLeg, kind: "analog", dimension: "count", canonicalUnit: "count", allowedUnits: ["count"], precision: 0, range: { min: 0, max: 8 } },
+  { id: "ap.route.length", label: "Route Length", path: PATHS.steering.autopilot.route.length, kind: "analog", dimension: "count", canonicalUnit: "count", allowedUnits: ["count"], precision: 0, range: { min: 0, max: 8 } },
+  { id: "ap.route.complete", label: "Route Complete", path: PATHS.steering.autopilot.route.complete, kind: "digital", dimension: "state", canonicalUnit: "bool", allowedUnits: ["bool"], precision: 0 },
+  { id: "ap.route.waypoints", label: "Route Waypoints", path: PATHS.steering.autopilot.route.waypoints, kind: "text", dimension: "position", canonicalUnit: "json", allowedUnits: ["json"], precision: 0 },
+  { id: "ap.route.xte", label: "Cross Track Error", path: PATHS.navigation.courseGreatCircle.crossTrackError, kind: "analog", dimension: "distance", canonicalUnit: "m", allowedUnits: ["m"], precision: 1, range: { min: -150, max: 150 }, limits: { low: -75, high: 75 } },
+  { id: "ap.route.bearing", label: "Waypoint Bearing", path: PATHS.navigation.courseGreatCircle.nextPoint.bearingTrue, kind: "analog", dimension: "angle", canonicalUnit: "rad", allowedUnits: ["rad", "deg"], precision: 3, range: { min: 0, max: 6.283 } },
+  { id: "ap.route.distance", label: "Waypoint Distance", path: PATHS.navigation.courseGreatCircle.nextPoint.distance, kind: "analog", dimension: "distance", canonicalUnit: "m", allowedUnits: ["m"], precision: 1, range: { min: 0, max: 2500 } },
 ];
 
 export const UART_CHANNELS: SimulationChannelDefinition[] = [
@@ -90,4 +100,3 @@ export const getChannelDefinition = (id: string): SimulationChannelDefinition | 
 export const listChannels = (): SimulationChannelDefinition[] => [...ALL_CHANNELS];
 export const pickChannels = (ids: string[]): SimulationChannelDefinition[] =>
   ids.map((id) => channelMap.get(id)).filter((channel): channel is SimulationChannelDefinition => Boolean(channel));
-

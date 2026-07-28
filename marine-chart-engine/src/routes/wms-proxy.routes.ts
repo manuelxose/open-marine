@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { RemoteWmsTileError } from '../services/wms-proxy.service.js';
 import type { WmsProxyService } from '../services/wms-proxy.service.js';
 
 export const createWmsProxyRouter = (wmsProxy: WmsProxyService): Router => {
@@ -25,6 +26,15 @@ export const createWmsProxyRouter = (wmsProxy: WmsProxyService): Router => {
       res.setHeader('Cache-Control', 'public, max-age=86400');
       res.type(tile.contentType).send(tile.data);
     } catch (error) {
+      if (error instanceof RemoteWmsTileError) {
+        res.status(error.statusCode).json({
+          error: 'remote_wms_tile_error',
+          message: error.message,
+          remoteStatus: error.remoteStatus,
+          contentType: error.contentType,
+        });
+        return;
+      }
       next(error);
     }
   });
@@ -32,7 +42,7 @@ export const createWmsProxyRouter = (wmsProxy: WmsProxyService): Router => {
   router.get('/:providerId/style.json', (req, res, next) => {
     try {
       const { providerId } = req.params;
-      const style = wmsProxy.buildStyle(providerId);
+      const style = wmsProxy.buildStyle(providerId, `${req.protocol}://${req.get('host')}`);
       if (!style) {
         res.status(404).json({ error: 'provider_not_found' });
         return;

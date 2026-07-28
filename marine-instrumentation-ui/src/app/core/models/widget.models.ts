@@ -116,6 +116,20 @@ export const WIDGET_DEFINITIONS: WidgetDefinition[] = [
         category: 'environment'
     },
     {
+        id: 'weather-card',
+        title: 'Live Weather',
+        description: 'Real-time conditions and 12-hour sensor trends',
+        size: 'L',
+        requiredPaths: [
+            PATHS.environment.outside.temperature,
+            PATHS.environment.outside.pressure,
+            PATHS.environment.outside.humidity,
+            PATHS.environment.wind.speedTrue,
+            PATHS.environment.wind.directionTrue,
+        ],
+        category: 'environment'
+    },
+    {
         id: 'autopilot-compass',
         title: 'dashboard.panels.autopilot',
         description: 'settings.widgets.desc.autopilot_compass',
@@ -163,6 +177,7 @@ const DEFAULT_PANEL_LAYOUT: { id: string; visible: boolean }[] = [
     { id: 'depth-card', visible: true },
     { id: 'power-card', visible: true },
     { id: 'environment-card', visible: true },
+    { id: 'weather-card', visible: true },
     { id: 'system-card', visible: true },
     { id: 'sog-simple', visible: false },
     { id: 'heading-simple', visible: false },

@@ -8,19 +8,32 @@ import { DataQualityService, type DataQuality } from '../services/data-quality.s
 export class DataQualityDirective implements OnInit, OnDestroy {
   @Input() gbDataQuality!: number;
 
-  private interval?: ReturnType<typeof setInterval>;
+  private timer?: ReturnType<typeof setTimeout>;
   private readonly qualityService = inject(DataQualityService);
   private readonly renderer = inject(Renderer2);
   private readonly el = inject(ElementRef);
   private readonly zone = inject(NgZone);
   private lastQuality: DataQuality | null = null;
+  private destroyed = false;
 
   ngOnInit(): void {
-    // Check data quality every 2s.
-    this.zone.runOutsideAngular(() => {
-      this.interval = setInterval(() => this.updateQualityClass(), 2000);
-    });
     this.updateQualityClass();
+    this.scheduleUpdate();
+  }
+
+  private scheduleUpdate(): void {
+    if (this.destroyed) {
+      return;
+    }
+    this.zone.runOutsideAngular(() => {
+      this.timer = setTimeout(() => {
+        if (this.destroyed) {
+          return;
+        }
+        this.updateQualityClass();
+        this.scheduleUpdate();
+      }, 2000);
+    });
   }
 
   private updateQualityClass(): void {
@@ -40,8 +53,9 @@ export class DataQualityDirective implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
-    if (this.interval) {
-      clearInterval(this.interval);
+    this.destroyed = true;
+    if (this.timer) {
+      clearTimeout(this.timer);
     }
   }
 }
