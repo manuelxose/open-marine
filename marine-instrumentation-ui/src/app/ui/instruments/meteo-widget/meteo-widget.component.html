@@ -82,14 +82,19 @@
 
       <footer class="weather__status">
         <span>{{ current.location }} · {{ current.usingGps ? 'GPS' : 'fallback' }}</span>
-        <span class="live-dot"></span><span>Open-Meteo</span>
+        <span class="live-dot" [class.live-dot--stale]="result()?.state === 'stale'"></span>
+        <span>{{ result()?.state }} · {{ ageLabel() }}</span>
+        <button type="button" class="weather-retry" (click)="retry()">Retry</button>
       </footer>
     </section>
   } @else {
     <section class="weather weather--empty">
       <div class="empty-icon">{{ loading() ? '◌' : '⚠' }}</div>
       <strong>{{ loading() ? 'Loading weather…' : 'Weather service unavailable' }}</strong>
-      <span>{{ loading() ? 'Locating vessel or using Vigo' : 'Check the Internet connection' }}</span>
+      <span>{{ loading() ? 'Locating vessel or using Vigo' : 'No forecast or reusable cache is available' }}</span>
+      @if (!loading()) {
+        <button type="button" class="weather-retry" (click)="retry()">Retry</button>
+      }
     </section>
   }
 </omi-gb-bezel>

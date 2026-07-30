@@ -74,4 +74,23 @@ describe('ChartFacadeService', () => {
     orientation = await firstValueFrom(service.orientation$);
     expect(orientation).toBe('north-up');
   });
+
+  it('falls back to OpenStreetMap after the active base source fails', async () => {
+    await service.selectChartSource('satellite');
+    expect((await firstValueFrom(service.baseSource$)).id).toBe('satellite');
+
+    service.fallbackToDefaultSource('tile provider failed repeatedly');
+
+    expect((await firstValueFrom(service.baseSource$)).id).toBe('osm-raster');
+    expect((await firstValueFrom(service.controlsVm$)).mapErrors[0]?.message)
+      .toContain('Falling back to OpenStreetMap');
+  });
+
+  it('cycles the quick map action through available real sources', async () => {
+    await service.selectChartSource('osm-raster');
+
+    await service.selectNextAvailableChartSource();
+
+    expect((await firstValueFrom(service.baseSource$)).id).toBe('satellite');
+  });
 });

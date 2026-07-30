@@ -18,6 +18,7 @@ const defaultDataDir = process.platform === 'win32' ? path.join(packageRoot, 'da
 const loadEngineEnvFile = (): void => {
   const candidates = [
     process.env['CHART_ENGINE_ENV_FILE'],
+    path.join(repoRoot, 'config', 'charts.local.env'),
     path.join(repoRoot, 'config', 'omi.env'),
     '/etc/open-marine/charts.env',
   ].filter((p): p is string => !!p);
@@ -78,18 +79,27 @@ const readPositiveNumber = (name: string, fallback: number): number => {
   return Number.isFinite(value) && value > 0 ? value : fallback;
 };
 
+const bundledPython = process.platform === 'win32'
+  ? path.join(packageRoot, '.venv', 'Scripts', 'python.exe')
+  : path.join(packageRoot, '.venv', 'bin', 'python');
+
 export const config = {
   port: readPort(),
   dataDir: process.env['CHART_ENGINE_DATA_DIR'] ?? defaultDataDir,
   cacheDir: process.env['CHART_ENGINE_CACHE_DIR'] ?? path.join(defaultDataDir, 'chart-cache'),
   localRegistryFile: process.env['CHART_ENGINE_REGISTRY_FILE'] ?? path.join(defaultDataDir, 'charts', 'registry.local.json'),
   localDownloadsFile: process.env['CHART_ENGINE_DOWNLOADS_FILE'] ?? path.join(defaultDataDir, 'charts', 'downloads.local.json'),
+  localPackagesFile: process.env['CHART_ENGINE_PACKAGES_FILE'] ?? path.join(defaultDataDir, 'charts', 'packages.local.json'),
+  areaSearchCacheFile: process.env['CHART_ENGINE_AREA_SEARCH_CACHE_FILE'] ?? path.join(defaultDataDir, 'chart-cache', 'area-search.json'),
   uploadMaxBytes: readUploadLimitMb() * 1024 * 1024,
   uploadDir: process.env['CHART_ENGINE_UPLOAD_DIR'] ?? path.join(defaultDataDir, 'chart-uploads'),
   tileCacheTtlDays: readTileCacheTtl(),
+  cacheMaxBytes: readPositiveNumber('CHART_ENGINE_CACHE_MAX_MB', 2048) * 1024 * 1024,
+  cacheMinFreeBytes: readPositiveNumber('CHART_ENGINE_CACHE_MIN_FREE_MB', 2048) * 1024 * 1024,
   enableRemoteSources: process.env['CHART_ENGINE_ENABLE_REMOTE_SOURCES'] !== 'false',
   owmApiKey: process.env['CHART_ENGINE_OWM_API_KEY'] ?? '',
   copernicusSyncEnabled: process.env['CHART_ENGINE_COPERNICUS_SYNC_ENABLED'] === 'true',
   copernicusSyncHours: readPositiveNumber('CHART_ENGINE_COPERNICUS_SYNC_HOURS', 6),
-  pythonExecutable: process.env['CHART_ENGINE_PYTHON'] ?? (process.platform === 'win32' ? 'python' : 'python3'),
+  pythonExecutable: process.env['CHART_ENGINE_PYTHON']
+    ?? (fs.existsSync(bundledPython) ? bundledPython : process.platform === 'win32' ? 'python' : 'python3'),
 };

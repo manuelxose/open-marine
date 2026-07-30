@@ -22,6 +22,9 @@ except Exception:  # noqa: BLE001
 
 G_TO_MPS2 = 9.80665
 DEFAULT_ALPHA = 0.98
+DEFAULT_YAW_TIME_CONSTANT_S = 0.25
+DEFAULT_STATIONARY_YAW_TIME_CONSTANT_S = 3.0
+DEFAULT_STATIONARY_GYRO_THRESHOLD_DPS = 2.0
 DEFAULT_RATE_HZ = 10.0
 DEFAULT_PORT = 3000
 DEFAULT_TIMEOUT_S = 2.5
@@ -61,8 +64,20 @@ class RuntimeStats:
 class ComplementaryFusion:
     """Simple roll/pitch + tilt-compensated magnetic heading."""
 
-    def __init__(self, alpha: float = DEFAULT_ALPHA) -> None:
+    def __init__(
+        self,
+        alpha: float = DEFAULT_ALPHA,
+        yaw_time_constant_s: float = DEFAULT_YAW_TIME_CONSTANT_S,
+        stationary_yaw_time_constant_s: float = DEFAULT_STATIONARY_YAW_TIME_CONSTANT_S,
+        stationary_gyro_threshold_dps: float = DEFAULT_STATIONARY_GYRO_THRESHOLD_DPS,
+    ) -> None:
         self.alpha = alpha
+        self.yaw_time_constant_s = yaw_time_constant_s
+        self.stationary_yaw_time_constant_s = stationary_yaw_time_constant_s
+        self.stationary_gyro_threshold_rads = math.radians(
+            stationary_gyro_threshold_dps
+        )
+        self.yaw_motion_samples = 0
         self.initialized = False
         self.roll = 0.0
         self.pitch = 0.0
@@ -130,9 +145,36 @@ class ComplementaryFusion:
         if not was_initialized:
             self.yaw = mag_heading
         else:
-            yaw_pred = self._wrap_2pi(self.yaw + (gz_rads * dt_s))
+            yaw_rate = abs(gz_rads)
+            if yaw_rate >= self.stationary_gyro_threshold_rads:
+                self.yaw_motion_samples += 1
+            else:
+                self.yaw_motion_samples = 0
+            # X/Y bias must not disable yaw stabilization. Two consecutive
+            # Z samples reject isolated spikes; a clear turn (>3x threshold)
+            # bypasses the debounce and remains immediate.
+            stationary = not (
+                yaw_rate >= (3.0 * self.stationary_gyro_threshold_rads)
+                or self.yaw_motion_samples >= 2
+            )
+            # The ICM-20948 keeps a small gyro bias at rest. Integrating it
+            # makes the chart hunt even though the device has not moved.
+            yaw_pred = self.yaw if stationary else self._wrap_2pi(
+                self.yaw + (gz_rads * dt_s)
+            )
             yaw_error = self._wrap_pi(mag_heading - yaw_pred)
-            self.yaw = self._wrap_2pi(yaw_pred + ((1.0 - self.alpha) * yaw_error))
+            # Roll/pitch need strong gyro weighting, but using their 0.98
+            # coefficient for yaw makes magnetic corrections take seconds.
+            # Use the fast correction while moving and a quieter magnetic
+            # correction at rest. This preserves response without publishing
+            # magnetometer noise as real vessel rotation.
+            yaw_tau = (
+                self.stationary_yaw_time_constant_s
+                if stationary
+                else self.yaw_time_constant_s
+            )
+            yaw_gain = 1.0 - math.exp(-dt_s / yaw_tau)
+            self.yaw = self._wrap_2pi(yaw_pred + (yaw_gain * yaw_error))
 
         return (self.roll, self.pitch, self.yaw)
 
@@ -157,6 +199,33 @@ def parse_args() -> argparse.Namespace:
         type=float,
         default=DEFAULT_RATE_HZ,
         help=f"Publishing rate in Hz (default: {DEFAULT_RATE_HZ})",
+    )
+    parser.add_argument(
+        "--yaw-time-constant",
+        type=float,
+        default=DEFAULT_YAW_TIME_CONSTANT_S,
+        help=(
+            "Magnetic yaw correction time constant in seconds "
+            f"(default: {DEFAULT_YAW_TIME_CONSTANT_S})"
+        ),
+    )
+    parser.add_argument(
+        "--stationary-yaw-time-constant",
+        type=float,
+        default=DEFAULT_STATIONARY_YAW_TIME_CONSTANT_S,
+        help=(
+            "Magnetic yaw correction time constant while stationary in seconds "
+            f"(default: {DEFAULT_STATIONARY_YAW_TIME_CONSTANT_S})"
+        ),
+    )
+    parser.add_argument(
+        "--stationary-gyro-threshold",
+        type=float,
+        default=DEFAULT_STATIONARY_GYRO_THRESHOLD_DPS,
+        help=(
+            "Gyroscope motion threshold in degrees/second "
+            f"(default: {DEFAULT_STATIONARY_GYRO_THRESHOLD_DPS})"
+        ),
     )
     parser.add_argument(
         "--raw-only",
@@ -414,18 +483,34 @@ def main() -> int:
 
     if args.rate <= 0:
         raise SystemExit("--rate must be > 0")
+    if args.yaw_time_constant <= 0:
+        raise SystemExit("--yaw-time-constant must be > 0")
+    if args.stationary_yaw_time_constant <= 0:
+        raise SystemExit("--stationary-yaw-time-constant must be > 0")
+    if args.stationary_gyro_threshold <= 0:
+        raise SystemExit("--stationary-gyro-threshold must be > 0")
     if args.port <= 0 or args.port > 65535:
         raise SystemExit("--port must be in range 1-65535")
 
     base_url = build_base_url(args.host, args.port)
     period_s = 1.0 / args.rate
     stats = RuntimeStats()
-    fusion = ComplementaryFusion(alpha=DEFAULT_ALPHA)
+    fusion = ComplementaryFusion(
+        alpha=DEFAULT_ALPHA,
+        yaw_time_constant_s=args.yaw_time_constant,
+        stationary_yaw_time_constant_s=args.stationary_yaw_time_constant,
+        stationary_gyro_threshold_dps=args.stationary_gyro_threshold,
+    )
     session = requests.Session()
     imu = ICM20948()
 
     print(f"Signal K target: {base_url}/signalk/v1/api/")
-    print(f"Rate: {args.rate} Hz | raw-only={args.raw_only} | no-publish={args.no_publish}")
+    print(
+        f"Rate: {args.rate} Hz | yaw-tau={args.yaw_time_constant:.2f} s "
+        f"| stationary-yaw-tau={args.stationary_yaw_time_constant:.2f} s "
+        f"| stationary-gyro={args.stationary_gyro_threshold:.2f} deg/s "
+        f"| raw-only={args.raw_only} | no-publish={args.no_publish}"
+    )
 
     if not args.no_publish:
         ok, detail = test_signalk_connection(session, base_url)

@@ -50,7 +50,9 @@ const PREFERENCES_V2_STORAGE_KEY = 'omi-preferences-v2';
 
       <!-- Layer 2b: App shell -->
       <app-app-shell></app-app-shell>
-      <app-mob-alert></app-mob-alert>
+      @if (!showOnboarding()) {
+        <app-mob-alert></app-mob-alert>
+      }
       <app-toast-container></app-toast-container>
 
       <!-- Layer 2c: Tour highlight (when active) -->

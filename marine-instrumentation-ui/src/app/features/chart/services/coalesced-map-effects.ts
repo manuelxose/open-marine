@@ -305,6 +305,12 @@ export function createCoalescedConfigEffect(
     weatherWavesSignal: () => boolean;
     environmentCurrentsSignal: () => boolean;
     environmentTimeSignal: () => string;
+    weatherBoundsSignal: () => readonly number[];
+    weatherGeometrySignal: () => { coordinates: number[][][] } | null;
+    marineSourceGridSignal: () => boolean;
+    marineDebugVariableSignal: () => 'wind' | 'waves' | 'currents';
+    encDepthVisibleSignal: () => boolean;
+    marineMaskVisibleSignal: () => boolean;
     weatherOpacitySignal: () => any;
     showAisTargetsSignal: () => any;
     showAisLabelsSignal: () => any;
@@ -321,6 +327,13 @@ export function createCoalescedConfigEffect(
     setOpenSeaMapVisible: (visible: boolean) => void;
     setWeatherLayer: (id: string, url: string | null, visible: boolean, opacity?: number) => void;
     setEnvironmentVector: (id: string, url: string | null, visible: boolean) => void;
+    setEnvironmentParticles: (
+      kind: 'wind' | 'currents',
+      fieldUrl: string | null,
+      maskUrl: string | null,
+      visible: boolean,
+      zonePolygon?: number[][][] | null,
+    ) => void;
     setWeatherOpacity: (opacity: number) => void;
     setAisTargetsVisible: (visible: boolean) => void;
     setAisLabelsVisible: (visible: boolean) => void;
@@ -328,6 +341,7 @@ export function createCoalescedConfigEffect(
   },
   weatherTileUrl: (layer: string) => string | null,
   environmentVectorUrl: (layer: string) => string | null,
+  environmentFieldUrl: (layer: 'wind' | 'currents' | 'mask') => string | null,
 ): void {
   effect(() => {
     const baseSource = signals.baseSourceSignal();
@@ -347,6 +361,12 @@ export function createCoalescedConfigEffect(
     const weatherWaves = signals.weatherWavesSignal();
     const environmentCurrents = signals.environmentCurrentsSignal();
     signals.environmentTimeSignal();
+    signals.weatherBoundsSignal();
+    const weatherGeometry = signals.weatherGeometrySignal();
+    const marineSourceGrid = signals.marineSourceGridSignal();
+    const encDepthVisible = signals.encDepthVisibleSignal();
+    const marineMaskVisible = signals.marineMaskVisibleSignal();
+    signals.marineDebugVariableSignal();
     const weatherOpacity = signals.weatherOpacitySignal();
     const showAisTargets = signals.showAisTargetsSignal();
     const showAisLabels = signals.showAisLabelsSignal();
@@ -364,11 +384,29 @@ export function createCoalescedConfigEffect(
     engine.setEnvironmentVector('seaTemperature', environmentVectorUrl('seaTemperature'), weatherTemp);
     engine.setWeatherLayer('air-temperature', weatherTileUrl('air-temperature'), weatherAirTemp, weatherOpacity);
     engine.setWeatherLayer('wind-speed', weatherTileUrl('wind-speed'), weatherWind, weatherOpacity);
+    engine.setEnvironmentVector('wind', environmentVectorUrl('wind'), weatherWind);
+    engine.setEnvironmentParticles(
+      'wind',
+      environmentFieldUrl('wind'),
+      environmentFieldUrl('mask'),
+      weatherWind,
+      weatherGeometry?.coordinates ?? null,
+    );
     engine.setWeatherLayer('precipitation', weatherTileUrl('precipitation'), weatherPrecip, weatherOpacity);
     engine.setWeatherLayer('clouds', weatherTileUrl('clouds'), weatherClouds, weatherOpacity);
     engine.setWeatherLayer('pressure', weatherTileUrl('pressure'), weatherPressure, weatherOpacity);
     engine.setEnvironmentVector('currents', environmentVectorUrl('currents'), environmentCurrents);
+    engine.setEnvironmentParticles(
+      'currents',
+      environmentFieldUrl('currents'),
+      environmentFieldUrl('mask'),
+      environmentCurrents,
+      weatherGeometry?.coordinates ?? null,
+    );
     engine.setEnvironmentVector('waves', environmentVectorUrl('waves'), weatherWaves);
+    engine.setEnvironmentVector('marineMask', environmentVectorUrl('marineMask'), marineMaskVisible);
+    engine.setEnvironmentVector('encDepth', environmentVectorUrl('encDepth'), encDepthVisible);
+    engine.setEnvironmentVector('sourceGrid', environmentVectorUrl('sourceGrid'), marineSourceGrid);
     engine.setWeatherOpacity(weatherOpacity);
     engine.setAisTargetsVisible(showAisTargets);
     engine.setAisLabelsVisible(showAisLabels);

@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { PATHS } from '@omi/marine-data-contract';
-import { Observable, catchError, distinctUntilChanged, map, of, shareReplay, startWith, switchMap, timer } from 'rxjs';
+import { Observable, Subject, catchError, distinctUntilChanged, map, merge, of, shareReplay, startWith, switchMap, timer } from 'rxjs';
 import { APP_ENVIRONMENT } from '../../core/config/app-environment.token';
 import { DatapointStoreService } from '../../state/datapoints/datapoint-store.service';
 import { isPositionValue } from '../../state/datapoints/datapoint.selectors';
@@ -53,7 +53,7 @@ export interface LiveWeather {
   daily: WeatherDay[];
 }
 
-interface OpenMeteoResponse {
+export interface OpenMeteoResponse {
   latitude: number;
   longitude: number;
   current: {
@@ -87,11 +87,29 @@ interface OpenMeteoResponse {
   };
 }
 
+export type WeatherForecastState = 'fresh' | 'cached' | 'stale' | 'unavailable';
+
+export interface WeatherForecastResponse {
+  state: Exclude<WeatherForecastState, 'unavailable'>;
+  fetchedAt: string;
+  ageSeconds: number;
+  location: { latitude: number; longitude: number };
+  data: OpenMeteoResponse;
+}
+
+export interface WeatherResult {
+  weather: LiveWeather | null;
+  state: WeatherForecastState;
+  fetchedAt: string | null;
+  ageSeconds: number | null;
+}
+
 @Injectable({ providedIn: 'root' })
 export class WeatherApiService {
   private readonly http = inject(HttpClient);
   private readonly env = inject(APP_ENVIRONMENT);
   private readonly store = inject(DatapointStoreService);
+  private readonly refreshRequests = new Subject<void>();
 
   private readonly location$ = this.store.observe<unknown>(PATHS.navigation.position).pipe(
     map((point) => {
@@ -113,28 +131,45 @@ export class WeatherApiService {
     ),
   );
 
-  readonly weather$: Observable<LiveWeather | null> = this.location$.pipe(
-    switchMap((location) => timer(0, REFRESH_MS).pipe(
-      switchMap(() => this.fetchWeather(location).pipe(catchError(() => of(null)))),
+  readonly result$: Observable<WeatherResult> = this.location$.pipe(
+    switchMap((location) => merge(
+      timer(0, REFRESH_MS).pipe(map(() => false)),
+      this.refreshRequests.pipe(map(() => true)),
+    ).pipe(
+      switchMap((refresh) => this.fetchWeather(location, refresh).pipe(
+        catchError(() => of({
+          weather: null,
+          state: 'unavailable' as const,
+          fetchedAt: null,
+          ageSeconds: null,
+        })),
+      )),
     )),
     shareReplay({ bufferSize: 1, refCount: true }),
   );
 
-  private fetchWeather(location: { latitude: number; longitude: number; name: string; usingGps: boolean }): Observable<LiveWeather> {
+  readonly weather$ = this.result$.pipe(map((result) => result.weather));
+  readonly state$ = this.result$.pipe(map((result) => result.state), distinctUntilChanged());
+
+  refresh(): void {
+    this.refreshRequests.next();
+  }
+
+  private fetchWeather(
+    location: { latitude: number; longitude: number; name: string; usingGps: boolean },
+    refresh: boolean,
+  ): Observable<WeatherResult> {
     const params = new HttpParams()
       .set('latitude', location.latitude)
       .set('longitude', location.longitude)
-      .set('current', 'temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,is_day,cloud_cover,pressure_msl,wind_speed_10m,wind_direction_10m,wind_gusts_10m')
-      .set('hourly', 'temperature_2m,pressure_msl,precipitation_probability,weather_code,is_day')
-      .set('daily', 'weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,wind_speed_10m_max')
-      .set('forecast_days', 7)
-      .set('forecast_hours', 7 * 24)
-      .set('past_hours', 12)
-      .set('wind_speed_unit', 'kn')
-      .set('timezone', 'auto');
+      .set('refresh', refresh ? '1' : '0');
 
-    return this.http.get<OpenMeteoResponse>(this.env.weatherApiUrl, { params }).pipe(
-      map((response) => {
+    return this.http.get<WeatherForecastResponse>(
+      `${this.env.chartEngineApiUrl.replace(/\/$/, '')}/weather/forecast`,
+      { params },
+    ).pipe(
+      map((forecastResponse) => {
+        const response = forecastResponse.data;
         const hourly = response.hourly.time.map((time, index) => ({
           time,
           temperature: response.hourly.temperature_2m[index] ?? 0,
@@ -154,7 +189,7 @@ export class WeatherApiService {
           precipitationProbability: response.daily.precipitation_probability_max[index] ?? 0,
           windSpeedMax: response.daily.wind_speed_10m_max[index] ?? 0,
         }));
-        return {
+        const weather: LiveWeather = {
           location: location.name,
           usingGps: location.usingGps,
           latitude: response.latitude,
@@ -174,6 +209,12 @@ export class WeatherApiService {
           windGust: response.current.wind_gusts_10m,
           hourly,
           daily,
+        };
+        return {
+          weather,
+          state: forecastResponse.state,
+          fetchedAt: forecastResponse.fetchedAt,
+          ageSeconds: forecastResponse.ageSeconds,
         };
       }),
     );

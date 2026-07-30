@@ -19,6 +19,7 @@ export class EnvironmentSyncService {
     private readonly intervalHours: number,
     private readonly pythonExecutable: string,
     private readonly scriptPath: string,
+    private readonly onCompleted: () => void = () => {},
   ) {
     this.status = { enabled, running: false };
   }
@@ -45,6 +46,7 @@ export class EnvironmentSyncService {
       await this.runProcess();
       this.failures = 0;
       this.status = { ...this.status, running: false, lastCompletedAt: new Date().toISOString(), lastError: undefined };
+      this.onCompleted();
       this.schedule(this.intervalHours * 60 * 60 * 1000);
     } catch (error) {
       this.failures += 1;
@@ -69,7 +71,17 @@ export class EnvironmentSyncService {
       let stderr = '';
       child.stderr.on('data', (chunk: Buffer) => { stderr = `${stderr}${chunk.toString('utf8')}`.slice(-4000); });
       child.once('error', reject);
-      child.once('exit', (code) => code === 0 ? resolve() : reject(new Error(stderr.trim() || `Copernicus sync exited with code ${code}`)));
+      child.once('exit', (code) => code === 0
+        ? resolve()
+        : reject(new Error(formatSyncError(stderr, code))));
     });
   }
 }
+
+const formatSyncError = (stderr: string, code: number | null): string => {
+  if (/requires a Copernicus Marine username and password|Authenticate once with/i.test(stderr)) {
+    return 'Copernicus authentication required. Run `marine-chart-engine/.venv/Scripts/copernicusmarine login` once, then use Sync now.';
+  }
+  const runtimeError = [...stderr.matchAll(/(?:RuntimeError|Error):\s*(.+)$/gmi)].at(-1)?.[1]?.trim();
+  return runtimeError || `Copernicus sync exited with code ${code ?? 'unknown'}`;
+};

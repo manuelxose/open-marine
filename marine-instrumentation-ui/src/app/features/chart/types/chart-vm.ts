@@ -65,8 +65,15 @@ export interface ChartSourceOptionVm {
   kind: 'raster' | 'vector' | 'bathymetry';
   description?: string;
   available: boolean;
+  availability: 'available' | 'unavailable' | 'out-of-coverage';
+  reason?: string;
   local: boolean;
+  offline: boolean;
   category: 'base' | 'local';
+  bounds?: [number, number, number, number];
+  minZoom?: number;
+  maxZoom?: number;
+  attribution?: string;
 }
 
 export interface ChartImportJobVm {

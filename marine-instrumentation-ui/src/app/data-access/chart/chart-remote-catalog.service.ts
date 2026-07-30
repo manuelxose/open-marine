@@ -2,6 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { map } from 'rxjs';
 import { APP_ENVIRONMENT } from '../../core/config/app-environment.token';
+import type { EngineChartSource } from './chart-engine-api.service';
 
 export interface ChartCatalogSource {
   id: string;
@@ -88,6 +89,99 @@ export interface AreaDownloadProgress {
   currentZoom: number;
 }
 
+export interface AreaGeometry {
+  type: 'Polygon';
+  coordinates: number[][][];
+}
+
+export type PackageState = 'planning' | 'downloading' | 'incomplete' | 'ready' | 'outdated' | 'expired' | 'failed';
+
+export interface AreaSearchResult {
+  id: string;
+  label: string;
+  type: string;
+  municipality?: string;
+  province?: string;
+  center: [number, number];
+  bounds: [number, number, number, number];
+  geometry: AreaGeometry;
+  source: 'cartociudad';
+}
+
+export interface PackageLayerPlan {
+  id: string;
+  providerId: string;
+  label: string;
+  role: 'official-enc' | 'bathymetry' | 'coastline' | 'seamarks' | 'fallback';
+  official: boolean;
+  required: boolean;
+  acquisition: 'automatic' | 'licensed-import' | 'manual-import' | 'online-reference';
+  state: 'pending' | 'required' | 'downloading' | 'ready' | 'warning' | 'failed';
+  reason?: string;
+  bounds: [number, number, number, number];
+  minZoom?: number;
+  maxZoom?: number;
+  estimatedBytes?: number;
+  attribution: string;
+  license: string;
+  navigationUse: 'official-source' | 'supplementary' | 'not-for-navigation';
+  chartId?: string;
+}
+
+export interface LicenseRequirement {
+  id: string;
+  label: string;
+  status: 'accepted' | 'pending' | 'external-action';
+  url?: string;
+  message: string;
+}
+
+export interface PackagePlan {
+  id: string;
+  name: string;
+  geometry: AreaGeometry;
+  bounds: [number, number, number, number];
+  profile: 'recommended' | 'custom';
+  layers: PackageLayerPlan[];
+  licenses: LicenseRequirement[];
+  estimatedBytes: number;
+  storageBudgetBytes: number;
+  availableBytes: number;
+  minimumFreeBytes: number;
+  canCreate: boolean;
+  blockers: string[];
+  warnings: string[];
+  createdAt: string;
+}
+
+export interface PackageManifest extends Omit<PackagePlan, 'canCreate' | 'blockers'> {
+  state: PackageState;
+  version: number;
+  updatedAt: string;
+  activatedAt?: string;
+  error?: string;
+  disclaimer: string;
+}
+
+export interface ChartInstallationDiagnostics {
+  tools: Array<{ id: string; available: boolean; purpose: string; requiredFor: string[] }>;
+  storage: {
+    path: string;
+    totalBytes: number;
+    availableBytes: number;
+    writable: boolean;
+    recommendedMedium: string;
+  };
+  s63: {
+    installationId: string;
+    hardwareId: string;
+    userPermit: string | null;
+    mode: 'pending-oem' | 'test' | 'production';
+    ready: boolean;
+    blockers: string[];
+  };
+}
+
 @Injectable({ providedIn: 'root' })
 export class ChartRemoteCatalogService {
   private readonly http = inject(HttpClient);
@@ -143,6 +237,67 @@ export class ChartRemoteCatalogService {
     return this.http.post<{ cancelled: boolean }>(
       `${this.baseUrl}/catalog/download/${encodeURIComponent(chartId)}/cancel`,
       {},
+    );
+  }
+
+  searchAreas(query: string) {
+    return this.http.post<{ results: AreaSearchResult[] }>(`${this.baseUrl}/catalog/areas/search`, { query }).pipe(
+      map(({ results }) => results),
+    );
+  }
+
+  planPackage(request: {
+    name: string;
+    geometry: AreaGeometry;
+    profile: 'recommended' | 'custom';
+    storageBudgetBytes: number;
+    selectedProviderIds?: string[];
+  }) {
+    return this.http.post<PackagePlan>(`${this.baseUrl}/catalog/package-plans`, request);
+  }
+
+  createPackage(planId: string) {
+    return this.http.post<PackageManifest>(`${this.baseUrl}/catalog/packages`, { planId });
+  }
+
+  listPackages() {
+    return this.http.get<{ packages: PackageManifest[] }>(`${this.baseUrl}/catalog/packages`).pipe(
+      map(({ packages }) => packages),
+    );
+  }
+
+  repairPackage(packageId: string) {
+    return this.http.post<PackageManifest>(
+      `${this.baseUrl}/catalog/packages/${encodeURIComponent(packageId)}/repair`,
+      {},
+    );
+  }
+
+  cancelPackage(packageId: string) {
+    return this.http.post<PackageManifest>(
+      `${this.baseUrl}/catalog/packages/${encodeURIComponent(packageId)}/cancel`,
+      {},
+    );
+  }
+
+  deletePackage(packageId: string) {
+    return this.http.delete<void>(`${this.baseUrl}/catalog/packages/${encodeURIComponent(packageId)}`);
+  }
+
+  installationDiagnostics() {
+    return this.http.get<ChartInstallationDiagnostics>(`${this.baseUrl}/catalog/installation`);
+  }
+
+  listLocalCharts() {
+    return this.http.get<{ charts: EngineChartSource[] }>(`${this.baseUrl}/charts`).pipe(
+      map(({ charts }) => charts),
+    );
+  }
+
+  attachPackageLayer(packageId: string, layerId: string, chartId: string) {
+    return this.http.post<PackageManifest>(
+      `${this.baseUrl}/catalog/packages/${encodeURIComponent(packageId)}/layers/${encodeURIComponent(layerId)}/attach`,
+      { chartId },
     );
   }
 }

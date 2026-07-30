@@ -89,6 +89,21 @@ export const mapAisVesselTypeToFilter = (rawType: string | undefined | null): Ve
   return 'other';
 };
 
+export const mapAisTargetToVesselTypeFilter = (
+  rawType: string | undefined | null,
+  navigationState?: number,
+): VesselTypeFilter => {
+  const mapped = mapAisVesselTypeToFilter(rawType);
+  if (mapped !== 'other') return mapped;
+
+  // Dynamic AIS messages arrive much more often than static ship data.
+  // Use navigation status until type 36/30 is received so sailboats and
+  // fishing vessels are not temporarily hidden by the "Other" filter.
+  if (navigationState === 8) return 'sailing';
+  if (navigationState === 7) return 'fishing';
+  return mapped;
+};
+
 const normalizeTypeText = (value: string | undefined | null): string => {
   if (!value) return '';
   return value.toLowerCase().replace(/[_-]+/g, ' ').replace(/\s+/g, ' ').trim();

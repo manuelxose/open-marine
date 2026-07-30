@@ -49,7 +49,8 @@ export class AisStoreService {
   private readonly TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes (Class B is slower)
   private readonly CLEANUP_INTERVAL_MS = 60 * 1000; // Clean every minute
   private readonly TRACK_MAX_AGE_MS = 30 * 60 * 1000; // 30 minutes
-  private readonly TRACK_MIN_DISTANCE_M = 50; // 50 meters
+  private readonly TRACK_MIN_DISTANCE_M = 10;
+  private readonly TRACK_MAX_SAMPLE_INTERVAL_MS = 30 * 1000;
   private readonly TRACK_MAX_POINTS_PER_TARGET = 120;
   private cleanupTimer: ReturnType<typeof setTimeout> | null = null;
   
@@ -350,7 +351,12 @@ export class AisStoreService {
           point.latitude,
           point.longitude,
         );
-        if (distanceM < this.TRACK_MIN_DISTANCE_M) {
+        const elapsedMs = Math.max(0, point.timestamp - last.timestamp);
+        const moving = distanceM >= 1;
+        if (
+          distanceM < this.TRACK_MIN_DISTANCE_M
+          && (!moving || elapsedMs < this.TRACK_MAX_SAMPLE_INTERVAL_MS)
+        ) {
           return;
         }
       }

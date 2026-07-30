@@ -17,6 +17,9 @@ export interface WmsProviderConfig {
   headers?: Record<string, string>;
   additionalParams?: Record<string, string>;
   expectedContentTypes?: string[];
+  /** Changes the disk namespace when rendering parameters change. */
+  cacheVersion?: string;
+  requestTimeoutMs?: number;
 }
 
 export class RemoteWmsTileError extends Error {
@@ -37,6 +40,15 @@ export class RemoteWmsTileError extends Error {
  */
 export class WmsProxyService {
   private readonly providers = new Map<string, WmsProviderConfig>();
+  private readonly providerState = new Map<string, {
+    lastSuccessAt?: string;
+    lastErrorAt?: string;
+    lastError?: string;
+    consecutiveFailures?: number;
+    circuitOpenUntil?: string;
+  }>();
+  private readonly inflight = new Map<string, Promise<{ data: Buffer; contentType: string }>>();
+  private readonly circuitBreakMs = 30_000;
 
   constructor(private readonly cache: TileCacheService) {}
 
@@ -46,6 +58,18 @@ export class WmsProxyService {
 
   hasProvider(providerId: string): boolean {
     return this.providers.has(providerId);
+  }
+
+  diagnostics(): Array<{
+    id: string;
+    available: true;
+    lastSuccessAt?: string;
+    lastErrorAt?: string;
+    lastError?: string;
+    consecutiveFailures?: number;
+    circuitOpenUntil?: string;
+  }> {
+    return [...this.providers.keys()].map((id) => ({ id, available: true, ...(this.providerState.get(id) ?? {}) }));
   }
 
   /**
@@ -64,7 +88,8 @@ export class WmsProxyService {
     }
 
     // A specific layer is cached separately from the provider's default layer.
-    const cacheId = layersOverride ? `${providerId}__${layersOverride}` : providerId;
+    const providerCacheId = provider.cacheVersion ? `${providerId}@${provider.cacheVersion}` : providerId;
+    const cacheId = layersOverride ? `${providerCacheId}__${layersOverride}` : providerCacheId;
 
     // Check cache first
     const cached = await this.cache.get(cacheId, z, x, y);
@@ -75,18 +100,51 @@ export class WmsProxyService {
       await this.cache.delete(cacheId, z, x, y);
     }
 
+    const circuitOpenUntil = Date.parse(this.providerState.get(providerId)?.circuitOpenUntil ?? '');
+    if (Number.isFinite(circuitOpenUntil) && circuitOpenUntil > Date.now()) {
+      throw new RemoteWmsTileError(`Remote WMS circuit is temporarily open for ${providerId}`, 503);
+    }
+
+    const requestKey = `${cacheId}/${z}/${x}/${y}`;
+    const pending = this.inflight.get(requestKey);
+    if (pending) return pending;
+    const request = this.fetchRemoteTile(providerId, provider, cacheId, z, x, y, layersOverride)
+      .finally(() => this.inflight.delete(requestKey));
+    this.inflight.set(requestKey, request);
+    return request;
+  }
+
+  private async fetchRemoteTile(
+    providerId: string,
+    provider: WmsProviderConfig,
+    cacheId: string,
+    z: number,
+    x: number,
+    y: number,
+    layersOverride?: string,
+  ): Promise<{ data: Buffer; contentType: string }> {
     const bbox = this.tileToBbox(z, x, y);
     const effectiveProvider = layersOverride ? { ...provider, layers: layersOverride } : provider;
     const url = this.buildWmsUrl(effectiveProvider, bbox);
-
-    const response = await fetch(url, {
-      headers: {
-        'User-Agent': 'OpenMarine-ChartEngine/0.1.0',
-        ...(provider.headers ?? {}),
-      },
-    });
-
+    let response: Response;
+    try {
+      response = await fetch(url, {
+        headers: {
+          'User-Agent': 'OpenMarine-ChartEngine/0.1.0',
+          ...(provider.headers ?? {}),
+        },
+        signal: AbortSignal.timeout(provider.requestTimeoutMs ?? 12_000),
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.recordFailure(providerId, message);
+      throw new RemoteWmsTileError(
+        `Remote WMS tile request timed out or failed for ${providerId}: ${message}`,
+        504,
+      );
+    }
     if (!response.ok) {
+      this.recordFailure(providerId, `${response.status} ${response.statusText}`);
       throw new RemoteWmsTileError(
         `Remote WMS tile request failed for ${providerId}: ${response.status} ${response.statusText}`,
         502,
@@ -98,6 +156,7 @@ export class WmsProxyService {
     const data = Buffer.from(await response.arrayBuffer());
     const contentType = response.headers.get('content-type') ?? 'image/png';
     if (!this.isExpectedTileResponse(provider, contentType, data)) {
+      this.recordFailure(providerId, `Invalid tile response (${contentType})`);
       throw new RemoteWmsTileError(
         `Remote WMS returned non-image content for ${providerId}`,
         502,
@@ -108,6 +167,7 @@ export class WmsProxyService {
 
     // Store in cache
     await this.cache.set(cacheId, z, x, y, data, contentType);
+    this.providerState.set(providerId, { lastSuccessAt: new Date().toISOString(), consecutiveFailures: 0 });
 
     return { data, contentType };
   }
@@ -191,5 +251,18 @@ export class WmsProxyService {
       return false;
     }
     return isValidTileImage(contentType, data);
+  }
+
+  private recordFailure(providerId: string, message: string): void {
+    const previous = this.providerState.get(providerId);
+    const consecutiveFailures = (previous?.consecutiveFailures ?? 0) + 1;
+    const now = new Date();
+    this.providerState.set(providerId, {
+      ...previous,
+      lastErrorAt: now.toISOString(),
+      lastError: message,
+      consecutiveFailures,
+      circuitOpenUntil: new Date(now.getTime() + this.circuitBreakMs).toISOString(),
+    });
   }
 }

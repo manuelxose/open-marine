@@ -7,6 +7,7 @@ export interface TileCacheConfig {
   cacheDir: string;
   ttlDays: number;
   maxSizeMb?: number;
+  onWrite?: () => void;
 }
 
 export interface CachedTile {
@@ -67,6 +68,7 @@ export class TileCacheService {
     const ext = this.extensionFromContentType(contentType);
     const finalPath = this.ensureExtension(filePath, ext);
     await fs.writeFile(finalPath, data);
+    this.config.onWrite?.();
   }
 
   async delete(providerId: string, z: number, x: number, y: number): Promise<void> {

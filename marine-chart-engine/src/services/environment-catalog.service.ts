@@ -3,12 +3,14 @@ import path from 'node:path';
 import type { EnvironmentalLayerDescriptor, EnvironmentalLayerId } from '../types/environment.types.js';
 
 const COPERNICUS_LAYERS = new Set<EnvironmentalLayerId>(['seaTemperature', 'currents', 'waves']);
+const ALL_MAP_KINDS = ['raster', 'vector', 'bathymetry'] as const;
 
 export class EnvironmentCatalogService {
   constructor(
     private readonly dataDir: string,
     private readonly baseUrl: string,
     private readonly hasWeatherKey: boolean,
+    _copernicusSyncEnabled = false,
   ) {}
 
   list(): EnvironmentalLayerDescriptor[] {
@@ -26,6 +28,8 @@ export class EnvironmentCatalogService {
       maxZoom: 18,
       tileUrl: `${this.baseUrl}/environment/${id}/{time}/{z}/{x}/{y}.png`,
       validTimes: [],
+      compatibleMapKinds: [...ALL_MAP_KINDS],
+      compatibilityNote: 'Overlay compatible with raster, vector ENC and bathymetry base maps.',
       ...(!this.hasWeatherKey ? { message: 'Configure CHART_ENGINE_OWM_API_KEY.' } : {}),
     });
 
@@ -34,9 +38,15 @@ export class EnvironmentCatalogService {
         id: 'bathymetry', label: 'Bathymetry', unit: 'm', provider: 'EMODnet', renderKind: 'raster',
         state: 'observed', available: true, attribution: 'EMODnet Bathymetry Consortium', minZoom: 0, maxZoom: 18,
         tileUrl: `${this.baseUrl}/environment/bathymetry/latest/{z}/{x}/{y}.png`, validTimes: [],
+        compatibleMapKinds: [...ALL_MAP_KINDS],
+        compatibilityNote: 'Overlay compatible with raster, vector ENC and bathymetry base maps.',
       },
       raster('airTemperature', 'Air temperature', 'C', 'OpenWeatherMap', 'OpenWeatherMap'),
-      raster('wind', 'Wind', 'kn', 'OpenWeatherMap', 'OpenWeatherMap'),
+      {
+        ...raster('wind', 'Wind', 'kn', 'OpenWeatherMap + Open-Meteo', 'OpenWeatherMap / Open-Meteo'),
+        vectorUrl: `${this.baseUrl}/weather/wind-field.geojson`,
+        compatibilityNote: 'Wind intensity plus standard 5-knot meteorological barbs on every base-map type. The vector grid follows the area selected in the map.',
+      },
       raster('precipitation', 'Precipitation', 'mm/h', 'OpenWeatherMap', 'OpenWeatherMap'),
       raster('clouds', 'Cloud cover', '%', 'OpenWeatherMap', 'OpenWeatherMap'),
       raster('pressure', 'Pressure', 'hPa', 'OpenWeatherMap', 'OpenWeatherMap'),
@@ -46,21 +56,26 @@ export class EnvironmentCatalogService {
       const frames = copernicusManifest.layers[id] ?? [];
       const ageMs = copernicusManifest.updatedAt ? Date.now() - Date.parse(copernicusManifest.updatedAt) : Number.POSITIVE_INFINITY;
       const frameState = ageMs > 12 * 60 * 60 * 1000 ? 'stale' : 'cached';
+      const validTimes = frames.length > 0 && ageMs <= 12 * 60 * 60 * 1000
+        ? frames
+        : marineForecastTimes();
       layers.push({
         id,
         label: id === 'seaTemperature' ? 'Sea temperature' : id === 'currents' ? 'Surface currents' : 'Wave height',
         unit: id === 'seaTemperature' ? 'C' : id === 'currents' ? 'kn' : 'm',
-        provider: 'Copernicus Marine IBI',
+        provider: 'Copernicus Marine IBI + Open-Meteo global fallback',
         renderKind: 'vector',
-        state: frames.length > 0 ? frameState : 'unavailable',
-        available: frames.length > 0,
-        attribution: 'EU Copernicus Marine Service Information',
+        state: frames.length > 0 ? frameState : 'forecast',
+        available: true,
+        attribution: 'EU Copernicus Marine Service Information / Open-Meteo and upstream marine models',
         minZoom: 4,
         maxZoom: 16,
         vectorUrl: `${this.baseUrl}/environment/${id}/{time}.geojson`,
-        validTimes: frames,
+        validTimes,
+        compatibleMapKinds: [...ALL_MAP_KINDS],
+        coverage: [-180, -90, 180, 90],
+        compatibilityNote: 'Global marine forecast. Copernicus IBI shoreline-clipped 3 km cells are preferred in Vigo; Open-Meteo marine models provide the selected area elsewhere.',
         ...(copernicusManifest.updatedAt ? { updatedAt: copernicusManifest.updatedAt } : {}),
-        ...(frames.length === 0 ? { message: 'Run the Copernicus Vigo synchronization job.' } : {}),
       });
     }
     return layers;
@@ -87,3 +102,10 @@ export class EnvironmentCatalogService {
     }
   }
 }
+
+const marineForecastTimes = (): string[] => {
+  const first = new Date();
+  first.setUTCMinutes(0, 0, 0);
+  return Array.from({ length: 8 * 8 }, (_, index) =>
+    new Date(first.getTime() + index * 3 * 60 * 60 * 1000).toISOString());
+};

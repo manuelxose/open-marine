@@ -302,11 +302,10 @@ export class AlarmsFacadeService implements OnDestroy {
       combineLatest([
         this.datapointStore
           .observe<number>(PATHS.environment.depth.belowTransducer)
-          .pipe(
-            filter((point): point is NonNullable<typeof point> => point !== undefined && typeof point.value === 'number')
-          ),
+          .pipe(startWith(undefined)),
         this.alarmSettings.settings$,
         this.playbackActive$,
+        outsideZoneTicker(this.zone, 1000),
       ]).subscribe(([point, settings, playbackActive]) => {
         if (!settings.showShallowWaterAlarm) {
           this.shallowActive = false;
@@ -315,6 +314,11 @@ export class AlarmsFacadeService implements OnDestroy {
         }
 
         if (playbackActive) return;
+        if (!point || typeof point.value !== 'number' || Date.now() - point.timestamp > 10_000) {
+          this.shallowActive = false;
+          this.alarmStore.clearAlarm('shallow-water');
+          return;
+        }
         const value = point.value;
         const threshold = settings.shallowDepthThreshold;
         const hysteresis = settings.shallowDepthHysteresis;

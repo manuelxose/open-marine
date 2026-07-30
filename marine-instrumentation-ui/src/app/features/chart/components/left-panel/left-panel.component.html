@@ -24,22 +24,6 @@
 
     <div class="left-panel__content">
       <ng-container [ngSwitch]="activeTab">
-        <section class="left-panel__tab-pane" *ngSwitchCase="'layers'">
-          <app-chart-controls
-            *ngIf="controlsVm"
-            [vm]="controlsVm"
-            (selectSource)="selectChartSource.emit($event)"
-            (toggleTrack)="toggleTrack.emit()"
-            (toggleVector)="toggleVector.emit()"
-            (toggleTrueWind)="toggleTrueWind.emit()"
-            (toggleRangeRings)="toggleRangeRings.emit()"
-            (changeRangeRingIntervals)="changeRangeRingIntervals.emit($event)"
-            (toggleAisTargets)="toggleAisTargets.emit()"
-            (toggleAisLabels)="toggleAisLabels.emit()"
-            (toggleCpaLines)="toggleCpaLines.emit()"
-            (toggleOpenSeaMap)="toggleOpenSeaMap.emit()" />
-        </section>
-
         <section class="left-panel__tab-pane" *ngSwitchCase="'ais'">
           <app-ais-target-list
             [targets]="aisTargets"

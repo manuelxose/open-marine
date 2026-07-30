@@ -1,12 +1,13 @@
 import { Injectable, NgZone, inject } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
-import { BehaviorSubject, EMPTY, catchError, switchMap, takeWhile, tap } from 'rxjs';
+import { BehaviorSubject, EMPTY, catchError, of, switchMap, takeWhile, tap } from 'rxjs';
 import {
   ChartEngineApiService,
   type EngineChartImportKind,
   type EngineChartJob,
   type EngineChartKind,
   type EngineChartSource,
+  type EngineDiagnostics,
 } from './chart-engine-api.service';
 import { outsideZoneTicker } from '../../shared/rxjs/outside-zone-ticker';
 
@@ -21,12 +22,14 @@ export class ChartCatalogService {
   private readonly statusSubject = new BehaviorSubject<ChartEngineConnectionStatus>('unknown');
   private readonly messageSubject = new BehaviorSubject<string>('Chart engine status unknown. Refresh when needed.');
   private readonly jobsSubject = new BehaviorSubject<EngineChartJob[]>([]);
+  private readonly diagnosticsSubject = new BehaviorSubject<EngineDiagnostics | null>(null);
 
   readonly charts$ = this.chartsSubject.asObservable();
   readonly online$ = this.onlineSubject.asObservable();
   readonly status$ = this.statusSubject.asObservable();
   readonly message$ = this.messageSubject.asObservable();
   readonly jobs$ = this.jobsSubject.asObservable();
+  readonly diagnostics$ = this.diagnosticsSubject.asObservable();
 
   refresh(): void {
     this.statusSubject.next('checking');
@@ -47,6 +50,9 @@ export class ChartCatalogService {
         return EMPTY;
       }),
     ).subscribe();
+    this.api.diagnostics().pipe(
+      catchError(() => of(null)),
+    ).subscribe((diagnostics) => this.diagnosticsSubject.next(diagnostics));
   }
 
   importChart(request: {

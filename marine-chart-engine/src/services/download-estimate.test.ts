@@ -7,6 +7,10 @@ test('tileCountForZoom returns 1 tile for a tiny bbox at low zoom', () => {
   assert.equal(count, 1);
 });
 
+test('tileCountForZoom uses the short span across the antimeridian', () => {
+  assert.ok(tileCountForZoom([179, -1, -179, 1], 8) < 10);
+});
+
 test('estimateAreaDownload sums tiles across the zoom range and reports size', () => {
   const estimate = estimateAreaDownload([-9, 42, -8, 43], 4, 8);
   assert.ok(estimate.totalTiles > 0);

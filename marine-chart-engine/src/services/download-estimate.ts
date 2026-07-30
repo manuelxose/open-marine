@@ -30,7 +30,9 @@ export function tileCountForZoom(bbox: [number, number, number, number], z: numb
   const yTop = clamp(lonLatToTileY(maxLat, n), 0, n - 1);
   const yBottom = clamp(lonLatToTileY(minLat, n), 0, n - 1);
 
-  const width = Math.abs(xMax - xMin) + 1;
+  const width = minLon <= maxLon
+    ? xMax - xMin + 1
+    : (n - xMin) + (xMax + 1);
   const height = Math.abs(yBottom - yTop) + 1;
   return width * height;
 }

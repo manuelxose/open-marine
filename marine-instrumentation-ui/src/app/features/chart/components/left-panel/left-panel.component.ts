@@ -1,12 +1,10 @@
 import { ChangeDetectionStrategy, Component, EventEmitter, Input, Output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { AppIconComponent } from '../../../../shared/components/app-icon/app-icon.component';
-import { ChartControlsComponent } from '../chart-controls/chart-controls.component';
 import { AisTargetListComponent } from '../../../ais/components/ais-target-list/ais-target-list.component';
 import { ChartWaypointListComponent } from '../chart-waypoint-list/chart-waypoint-list.component';
 import { AisTarget } from '../../../../core/models/ais.model';
 import {
-  ChartControlsVm,
   ChartLeftPanelTab,
   ChartRoutesPanelVm,
   ChartWaypointListVm,
@@ -18,7 +16,6 @@ import {
   imports: [
     CommonModule,
     AppIconComponent,
-    ChartControlsComponent,
     AisTargetListComponent,
     ChartWaypointListComponent,
   ],
@@ -28,8 +25,7 @@ import {
 })
 export class LeftPanelComponent {
   @Input() isOpen = true;
-  @Input() activeTab: ChartLeftPanelTab = 'layers';
-  @Input() controlsVm: ChartControlsVm | null = null;
+  @Input() activeTab: ChartLeftPanelTab = 'ais';
   @Input() waypointVm: ChartWaypointListVm | null = null;
   @Input() routesVm: ChartRoutesPanelVm | null = null;
   @Input() aisTargets: AisTarget[] = [];
@@ -38,20 +34,9 @@ export class LeftPanelComponent {
 
   @Output() toggleOpen = new EventEmitter<void>();
   @Output() tabChange = new EventEmitter<ChartLeftPanelTab>();
-  @Output() selectChartSource = new EventEmitter<string>();
   @Output() selectAisTarget = new EventEmitter<string>();
   @Output() aisSortByChange = new EventEmitter<'distance' | 'cpa' | 'name'>();
   @Output() followTarget = new EventEmitter<string>();
-
-  @Output() toggleTrack = new EventEmitter<void>();
-  @Output() toggleVector = new EventEmitter<void>();
-  @Output() toggleTrueWind = new EventEmitter<void>();
-  @Output() toggleRangeRings = new EventEmitter<void>();
-  @Output() changeRangeRingIntervals = new EventEmitter<number[]>();
-  @Output() toggleAisTargets = new EventEmitter<void>();
-  @Output() toggleAisLabels = new EventEmitter<void>();
-  @Output() toggleCpaLines = new EventEmitter<void>();
-  @Output() toggleOpenSeaMap = new EventEmitter<void>();
 
   @Output() selectWaypoint = new EventEmitter<string>();
   @Output() renameWaypoint = new EventEmitter<{ id: string; name: string }>();
@@ -62,8 +47,7 @@ export class LeftPanelComponent {
   @Output() exportWaypointsGpx = new EventEmitter<void>();
   @Output() exportRouteGpx = new EventEmitter<void>();
 
-  readonly tabs: { id: ChartLeftPanelTab; label: string; icon: 'layers' | 'ais' | 'waypoint' | 'route' | 'catalog' }[] = [
-    { id: 'layers', label: 'Layers', icon: 'layers' },
+  readonly tabs: { id: ChartLeftPanelTab; label: string; icon: 'ais' | 'waypoint' | 'route' }[] = [
     { id: 'ais', label: 'AIS', icon: 'ais' },
     { id: 'waypoints', label: 'Waypoints', icon: 'waypoint' },
     { id: 'routes', label: 'Routes', icon: 'route' },

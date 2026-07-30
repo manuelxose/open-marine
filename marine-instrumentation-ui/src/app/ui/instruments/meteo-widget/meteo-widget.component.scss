@@ -132,6 +132,15 @@
 .weather__status > :first-child { margin-right: auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .live-dot { width: 7px; height: 7px; border-radius: var(--radius-full); background: var(--gb-connection-active); box-shadow: 0 0 7px var(--gb-connection-active); }
 .live-dot--stale { background: var(--gb-connection-stale); box-shadow: none; }
+.weather-retry {
+  min-height: 44px;
+  padding: 0 var(--space-2);
+  color: var(--gb-tick-reference);
+  background: var(--gb-bg-glass);
+  border: 1px solid var(--gb-border-panel);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
 .weather--empty { align-items: center; justify-content: center; text-align: center; color: var(--gb-text-muted); }
 .weather--empty strong { color: var(--gb-text-value); }
 .empty-icon { color: var(--gb-data-warn); font-size: 2.5rem; }

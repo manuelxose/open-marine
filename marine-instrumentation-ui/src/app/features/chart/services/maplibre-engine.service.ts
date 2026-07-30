@@ -1,5 +1,6 @@
 import maplibregl from 'maplibre-gl';
 import type { Feature, FeatureCollection, LineString, Point, Polygon, Position } from 'geojson';
+import type { IhmFeatureInfoFeature } from '../../../data-access/chart/chart-engine-api.service';
 import type { WaypointFeatureCollection } from '../types/chart-geojson';
 import type { MapOrientation } from '../types/chart-vm';
 import { METERS_PER_NM, projectDestination } from '../../../state/calculations/navigation';
@@ -11,6 +12,7 @@ import {
   type VesselTypeColors,
   type VesselTypeFilter,
 } from './chart-vessel-types';
+import { EnvironmentParticleLayer } from './environment-particle-layer';
 
 export interface MapLibreInitView {
   center: [number, number];
@@ -81,6 +83,11 @@ const TRUE_WIND_ARROW_LIGHT_ID = 'chart-wind-arrow-light';
 const TRUE_WIND_ARROW_MODERATE_ID = 'chart-wind-arrow-moderate';
 const TRUE_WIND_ARROW_STRONG_ID = 'chart-wind-arrow-strong';
 const APPARENT_WIND_ARROW_ID = 'chart-wind-arrow-apparent';
+const WIND_BARB_SPEEDS = Array.from({ length: 21 }, (_, index) => index * 5);
+const windBarbIconId = (speedKnots: number): string => `chart-weather-wind-barb-${speedKnots}`;
+const WAVE_ICON_LOW_ID = 'chart-wave-low';
+const WAVE_ICON_MODERATE_ID = 'chart-wave-moderate';
+const WAVE_ICON_HIGH_ID = 'chart-wave-high';
 const APPARENT_WIND_COLOR = '#38bdf8';
 const RANGE_RINGS_SOURCE_ID = 'chart-range-rings-source';
 const RANGE_RINGS_LAYER_ID = 'chart-range-rings-layer';
@@ -115,6 +122,19 @@ const MEASURE_POINTS_LAYER_ID = 'chart-measure-points';
 const MEASURE_LABEL_LAYER_ID = 'chart-measure-label';
 const SAVED_TRACKS_SOURCE_ID = 'chart-saved-tracks-source';
 const SAVED_TRACKS_LAYER_ID = 'chart-saved-tracks-layer';
+const AREA_SELECTION_SOURCE_ID = 'chart-area-selection-source';
+const AREA_SELECTION_FILL_LAYER_ID = 'chart-area-selection-fill';
+const AREA_SELECTION_LINE_LAYER_ID = 'chart-area-selection-line';
+const AREA_SELECTION_POINTS_LAYER_ID = 'chart-area-selection-points';
+const ENC_DEPTH_SOURCE_ID = 'chart-enc-depth-advisory-source';
+const ENC_DEPTH_SECTOR_LAYER_ID = 'chart-enc-depth-advisory-sector';
+const ENC_DEPTH_HAZARD_LAYER_ID = 'chart-enc-depth-advisory-hazards';
+const ENC_DEPTH_HAZARD_AREA_LAYER_ID = 'chart-enc-depth-advisory-hazard-areas';
+
+export interface ChartAreaGeometry {
+  type: 'Polygon';
+  coordinates: number[][][];
+}
 
 const EMPTY_POINTS: FeatureCollection<Point> = {
   type: 'FeatureCollection',
@@ -141,6 +161,7 @@ const DIRTY_LAYER_ORDER = [
   'aisTracks',
   'aisPredictions',
   'cpaLines',
+  'encDepth',
   'rangeRings',
   'bearingLine',
   'autopilotTarget',
@@ -150,15 +171,184 @@ const DIRTY_LAYER_ORDER = [
   'benchRoute',
 ] as const;
 
+type EnvironmentPopupKind = 'waves' | 'currents' | 'wind' | 'temperature';
+type EnvironmentSeverity = 'normal' | 'caution' | 'danger';
+
+interface EnvironmentPopupMetric {
+  label: string;
+  value: string;
+  bearing?: number;
+}
+
+interface EnvironmentPopupDetails {
+  title: string;
+  icon: string;
+  value: string;
+  unit: string;
+  state: string;
+  severity: EnvironmentSeverity;
+  metrics: EnvironmentPopupMetric[];
+  provenance: string;
+}
+
+const numericProperty = (
+  properties: Record<string, unknown>,
+  ...keys: string[]
+): number | null => {
+  for (const key of keys) {
+    const raw = properties[key];
+    if ((typeof raw === 'number' || typeof raw === 'string') && Number.isFinite(Number(raw))) {
+      return Number(raw);
+    }
+  }
+  return null;
+};
+
+const isTruthyProperty = (value: unknown): boolean => value === true || value === 'true' || value === 1;
+
+const compassPoint = (degrees: number): string => {
+  const points = ['N', 'NE', 'E', 'SE', 'S', 'SO', 'O', 'NO'] as const;
+  return points[Math.round(((degrees % 360) + 360) % 360 / 45) % points.length]!;
+};
+
+const directionMetric = (
+  properties: Record<string, unknown>,
+  label = 'Dirección',
+): EnvironmentPopupMetric => {
+  const direction = numericProperty(properties, 'directionDeg', 'direction');
+  return direction === null
+    ? { label, value: 'Sin dato' }
+    : {
+        label,
+        value: `${compassPoint(direction)} · ${Math.round(direction).toString().padStart(3, '0')}°`,
+        bearing: direction,
+      };
+};
+
+export const environmentPopupDetails = (
+  kind: EnvironmentPopupKind,
+  properties: Record<string, unknown>,
+): EnvironmentPopupDetails => {
+  const interpolated = isTruthyProperty(properties['interpolated']);
+  const sourceDistance = numericProperty(properties, 'sourceDistanceKm');
+  const sampling = interpolated
+    ? `Interpolado${sourceDistance !== null ? ` · nodo a ${sourceDistance.toFixed(1)} km` : ''}`
+    : 'Nodo del modelo';
+  const provider = typeof properties['provider'] === 'string' ? properties['provider'] : null;
+  const model = typeof properties['model'] === 'string' ? properties['model'] : null;
+  const validTime = typeof properties['validTime'] === 'string'
+    ? new Date(properties['validTime']).toLocaleString('es-ES', { timeZone: 'UTC', hour12: false })
+    : null;
+  const provenance = [
+    sampling,
+    provider,
+    model && model !== provider ? model : null,
+    validTime ? `${validTime} UTC` : null,
+  ].filter(Boolean).join(' · ');
+
+  if (kind === 'waves') {
+    const height = numericProperty(properties, 'heightMeters', 'significantHeight') ?? 0;
+    const period = numericProperty(properties, 'periodSeconds', 'meanPeriod');
+    const maximum = numericProperty(properties, 'maximumHeight');
+    const swell = numericProperty(properties, 'primarySwellHeight');
+    const swellPeriod = numericProperty(properties, 'primarySwellPeriod');
+    const windSea = numericProperty(properties, 'windSeaHeight');
+    const state = height < 0.5
+      ? 'Mar rizada'
+      : height < 1.25
+        ? 'Marejadilla'
+        : height < 2.5
+          ? 'Marejada'
+          : height < 4
+            ? 'Fuerte marejada'
+            : 'Mar gruesa';
+    return {
+      title: 'Oleaje',
+      icon: '🌊',
+      value: height.toFixed(1),
+      unit: 'm Hs',
+      state,
+      severity: height >= 4 ? 'danger' : height >= 2.5 ? 'caution' : 'normal',
+      metrics: [
+        directionMetric(properties, 'Procedencia'),
+        ...(period === null ? [] : [{ label: 'Periodo medio', value: `${period.toFixed(1)} s` }]),
+        ...(maximum === null ? [] : [{ label: 'Altura máxima', value: `${maximum.toFixed(1)} m` }]),
+        ...(swell === null ? [] : [{
+          label: 'Mar de fondo',
+          value: `${swell.toFixed(1)} m${swellPeriod === null ? '' : ` · ${swellPeriod.toFixed(1)} s`}`,
+        }]),
+        ...(windSea === null ? [] : [{ label: 'Mar de viento', value: `${windSea.toFixed(1)} m` }]),
+      ].filter((metric) => metric.value !== 'Sin dato'),
+      provenance,
+    };
+  }
+
+  if (kind === 'currents') {
+    const speed = numericProperty(properties, 'speedKnots') ?? 0;
+    return {
+      title: 'Corriente superficial',
+      icon: '↝',
+      value: speed.toFixed(2),
+      unit: 'kn',
+      state: speed < 0.3 ? 'Floja' : speed < 1 ? 'Moderada' : speed < 2 ? 'Fuerte' : 'Muy fuerte',
+      severity: speed >= 2 ? 'danger' : speed >= 1 ? 'caution' : 'normal',
+      metrics: [
+        directionMetric(properties),
+        {
+          label: 'Velocidad',
+          value: `${(speed * 0.514444).toFixed(2)} m/s`,
+        },
+      ],
+      provenance,
+    };
+  }
+
+  if (kind === 'wind') {
+    const speed = numericProperty(properties, 'speedKnots') ?? 0;
+    const gust = numericProperty(properties, 'gustKnots');
+    return {
+      title: 'Viento',
+      icon: '↗',
+      value: speed.toFixed(1),
+      unit: 'kn',
+      state: speed < 7 ? 'Flojo' : speed < 17 ? 'Moderado' : speed < 28 ? 'Fresco' : 'Fuerte',
+      severity: speed >= 28 ? 'danger' : speed >= 17 ? 'caution' : 'normal',
+      metrics: [
+        directionMetric(properties, 'Procedencia'),
+        { label: 'Racha', value: gust === null ? 'Sin dato' : `${gust.toFixed(1)} kn` },
+      ],
+      provenance,
+    };
+  }
+
+  const temperature = numericProperty(properties, 'value') ?? 0;
+  return {
+    title: 'Temperatura del mar',
+    icon: '°',
+    value: temperature.toFixed(1),
+    unit: '°C',
+    state: 'Superficie',
+    severity: 'normal',
+    metrics: [],
+    provenance,
+  };
+};
+
 export class MapLibreEngineService {
   private map: maplibregl.Map | null = null;
   private mapReady = false;
+  private styleGeneration = 1;
+  private styleReadyGeneration = 0;
+  private initializedStyleGeneration = 0;
+  private readonly styleInitFrames = new Set<number>();
+  private styleInitIdle: number | null = null;
+  private styleInitTimer: ReturnType<typeof setTimeout> | null = null;
   private baseSource: ChartSourceConfig | null = null;
   private clickHandler: ((lngLat: [number, number]) => void) | null = null;
   private featureClickHandler:
     | ((event: { featureId?: string; properties?: any; layerId: string }) => void)
     | null = null;
-  private errorHandler: ((message: string, sourceId?: string) => void) | null = null;
+  private errorHandler: ((message: string, sourceId?: string, baseSourceId?: string) => void) | null = null;
   private zoomHandler: ((zoom: number) => void) | null = null;
   private pendingCenter: [number, number] | null = null;
   private appliedCenter: [number, number] | null = null;
@@ -168,6 +358,10 @@ export class MapLibreEngineService {
   private resizeFrame: number | null = null;
   private renderFrame: number | null = null;
   private readonly dirtyLayers = new Set<string>();
+  private areaSelectionMode: 'rectangle' | 'polygon' | null = null;
+  private areaSelectionPoints: [number, number][] = [];
+  private areaSelectionPointer: [number, number] | null = null;
+  private areaSelectionComplete: ((geometry: ChartAreaGeometry) => void) | null = null;
 
   // Deferred marker updates: separate DOM marker work from setData() to avoid
   // long RAF handlers. Marker updates are batched into a single RAF callback.
@@ -217,25 +411,50 @@ export class MapLibreEngineService {
     this.createWindArrowIcon('#f59e0b');
     this.createWindArrowIcon('#ef4444');
     this.createWindArrowIcon(APPARENT_WIND_COLOR);
+    for (const speed of WIND_BARB_SPEEDS) this.createWindBarbIcon(speed);
+    this.createWaveIcon(1);
+    this.createWaveIcon(2);
+    this.createWaveIcon(3);
   }
 
   private readonly handleMapClick = (event: maplibregl.MapMouseEvent): void => {
+    if (this.areaSelectionMode) {
+      this.addAreaSelectionPoint([event.lngLat.lng, event.lngLat.lat]);
+      return;
+    }
     if (!this.clickHandler) {
       return;
     }
     // Check if we clicked an interactive feature first (waypoints / AIS).
     if (this.map && this.featureClickHandler) {
       const environmentLayerIds = [...this.environmentVectors.keys()]
-        .map((id) => `environment-${id}-layer`)
+        .flatMap((id) => [
+          `environment-${id}-layer-direction`,
+          `environment-${id}-layer-values`,
+          `environment-${id}-layer-samples`,
+          `environment-${id}-layer`,
+        ])
         .filter((id) => Boolean(this.map?.getLayer(id)));
-      const features = this.map.queryRenderedFeatures(event.point, {
+      const tolerance = 10;
+      const features = this.map.queryRenderedFeatures([
+        [event.point.x - tolerance, event.point.y - tolerance],
+        [event.point.x + tolerance, event.point.y + tolerance],
+      ], {
         layers: [WAYPOINT_LAYER_ID, AIS_LAYER_ID, ...environmentLayerIds].filter((id) => Boolean(this.map?.getLayer(id))),
       });
       if (features.length > 0) {
         const feature = features[0];
-        if (feature?.layer?.id) {
-          if (feature.layer.id.startsWith('environment-')) {
-            this.showEnvironmentPopup(event.lngLat, feature.layer.id, feature.properties ?? {});
+          if (feature?.layer?.id) {
+            if (feature.layer.id.startsWith('environment-')) {
+              if (feature.layer.id.includes('encDepth')) {
+                this.showEncDepthPopup(event.lngLat, feature.properties ?? {});
+                return;
+              }
+              if (feature.layer.id.includes('marineMask')) {
+                this.showMarineMaskPopup(event.lngLat, feature.properties ?? {});
+                return;
+              }
+              this.showEnvironmentPopup(event.lngLat, feature.layer.id, feature.properties ?? {});
             return;
           }
           const featurePropertyId = feature.properties?.['id'];
@@ -256,6 +475,18 @@ export class MapLibreEngineService {
     }
 
     this.clickHandler([event.lngLat.lng, event.lngLat.lat]);
+  };
+
+  private readonly handleAreaSelectionMove = (event: maplibregl.MapMouseEvent): void => {
+    if (!this.areaSelectionMode || this.areaSelectionPoints.length === 0) return;
+    this.areaSelectionPointer = [event.lngLat.lng, event.lngLat.lat];
+    this.renderAreaSelection();
+  };
+
+  private readonly handleAreaSelectionDoubleClick = (event: maplibregl.MapMouseEvent): void => {
+    if (this.areaSelectionMode !== 'polygon') return;
+    event.preventDefault();
+    this.finishAreaSelection();
   };
 
   private lastVessel: {
@@ -334,6 +565,8 @@ export class MapLibreEngineService {
     features: [],
   };
   private lastCpaLines: FeatureCollection<LineString> = { type: 'FeatureCollection', features: [] };
+  private lastEncDepthAdvisory: FeatureCollection = { type: 'FeatureCollection', features: [] };
+  private shallowWaterAlarmActive = false;
   private aisVesselTypeColors: VesselTypeColors = { ...DEFAULT_VESSEL_TYPE_COLORS };
   private ownVesselIconScale = 1.15;
   private aisTargetIconScale = 0.8;
@@ -343,8 +576,14 @@ export class MapLibreEngineService {
   private readonly weatherLayers = new Map<string, { tileUrl: string | null; visible: boolean }>();
   private weatherOpacity = 0.6;
   private readonly environmentVectors = new Map<string, { dataUrl: string | null; visible: boolean }>();
+  private readonly environmentParticles = new Map<
+    'wind' | 'currents',
+    { fieldUrl: string | null; maskUrl: string | null; visible: boolean; zonePolygon: number[][][] | null }
+  >();
+  private readonly activeParticleLayers = new Map<'wind' | 'currents', EnvironmentParticleLayer>();
   private weatherApplyFrame: number | null = null;
   private environmentApplyFrame: number | null = null;
+  private particleApplyFrame: number | null = null;
   private environmentPopup: maplibregl.Popup | null = null;
   private aisTargetsVisible = true;
   private aisLabelsVisible = true;
@@ -387,19 +626,18 @@ export class MapLibreEngineService {
       ?.classList.remove('maplibregl-compact-show');
 
     this.map.on('load', () => {
-      // onStyleReady() now handles its own frame scheduling internally.
-      this.onStyleReady();
       // Ensure map fills container after CSS transitions complete
       this.scheduleResize();
       // Seed the initial zoom so zoom-aware consumers (e.g. min-length vectors) start correct.
       this.zoomHandler?.(this.map?.getZoom() ?? initialView.zoom);
     });
     this.map.on('style.load', () => {
-      // onStyleReady() handles its own frame scheduling internally.
-      this.onStyleReady();
+      this.onStyleReady(this.styleGeneration);
     });
     this.map.on('error', (event) => this.handleMapError(event));
     this.map.on('click', this.handleMapClick);
+    this.map.on('mousemove', this.handleAreaSelectionMove);
+    this.map.on('dblclick', this.handleAreaSelectionDoubleClick);
     this.map.on('zoomend', () => this.zoomHandler?.(this.map?.getZoom() ?? initialView.zoom));
 
     // Watch for container size changes (grid transitions, sidenav toggle)
@@ -420,13 +658,67 @@ export class MapLibreEngineService {
     if (!this.map) {
       return;
     }
-    this.mapReady = false;
+    this.beginStyleChange();
     this.map.setStyle(chartSourceConfig.style);
   }
 
   flyTo(center: [number, number], zoom?: number): void {
     if (!this.map) return;
     this.map.flyTo({ center, zoom: zoom ?? this.map.getZoom(), duration: 1200 });
+  }
+
+  fitBounds(bounds: [number, number, number, number]): void {
+    if (!this.map) return;
+    const [west, south, east, north] = bounds;
+    this.map.fitBounds([[west, south], [east, north]], {
+      padding: 48,
+      duration: 900,
+      maxZoom: 10,
+    });
+  }
+
+  getViewportGeometry(): ChartAreaGeometry | null {
+    if (!this.map) return null;
+    const bounds = this.map.getBounds();
+    const west = bounds.getWest();
+    const south = bounds.getSouth();
+    const east = bounds.getEast();
+    const north = bounds.getNorth();
+    return {
+      type: 'Polygon',
+      coordinates: [[
+        [west, south],
+        [east, south],
+        [east, north],
+        [west, north],
+        [west, south],
+      ]],
+    };
+  }
+
+  beginAreaSelection(
+    mode: 'rectangle' | 'polygon',
+    complete: (geometry: ChartAreaGeometry) => void,
+  ): void {
+    this.cancelAreaSelection();
+    this.areaSelectionMode = mode;
+    this.areaSelectionComplete = complete;
+    this.map?.getCanvas().classList.add('chart-area-selection-active');
+    this.renderAreaSelection();
+  }
+
+  finishAreaSelection(): void {
+    const geometry = this.areaSelectionGeometry(false);
+    if (!geometry) return;
+    const complete = this.areaSelectionComplete;
+    this.clearAreaSelectionState();
+    this.removeAreaSelectionLayers();
+    complete?.(geometry);
+  }
+
+  cancelAreaSelection(): void {
+    this.clearAreaSelectionState();
+    this.removeAreaSelectionLayers();
   }
 
   updateVesselPosition(
@@ -613,13 +905,140 @@ export class MapLibreEngineService {
     this.clickHandler = handler;
   }
 
+  private addAreaSelectionPoint(point: [number, number]): void {
+    if (!this.areaSelectionMode) return;
+    this.areaSelectionPoints.push(point);
+    this.areaSelectionPointer = null;
+    if (this.areaSelectionMode === 'rectangle' && this.areaSelectionPoints.length === 2) {
+      this.finishAreaSelection();
+      return;
+    }
+    this.renderAreaSelection();
+  }
+
+  private areaSelectionGeometry(includePointer: boolean): ChartAreaGeometry | null {
+    const points = [...this.areaSelectionPoints];
+    if (includePointer && this.areaSelectionPointer) points.push(this.areaSelectionPointer);
+    if (this.areaSelectionMode === 'rectangle' && points.length >= 2) {
+      const first = points[0]!;
+      const second = points[points.length - 1]!;
+      return {
+        type: 'Polygon',
+        coordinates: [[
+          [first[0], first[1]],
+          [second[0], first[1]],
+          [second[0], second[1]],
+          [first[0], second[1]],
+          [first[0], first[1]],
+        ]],
+      };
+    }
+    if (this.areaSelectionMode === 'polygon' && points.length >= 3) {
+      return { type: 'Polygon', coordinates: [[...points, [...points[0]!]]] };
+    }
+    return null;
+  }
+
+  private renderAreaSelection(): void {
+    if (!this.map || !this.map.isStyleLoaded()) return;
+    this.ensureAreaSelectionLayers();
+    const source = this.map.getSource(AREA_SELECTION_SOURCE_ID) as maplibregl.GeoJSONSource | undefined;
+    if (!source) return;
+    const geometry = this.areaSelectionGeometry(true);
+    const pointFeatures: Feature<Point>[] = [
+      ...this.areaSelectionPoints,
+      ...(this.areaSelectionPointer ? [this.areaSelectionPointer] : []),
+    ].map((coordinates, index) => ({
+      type: 'Feature',
+      id: index,
+      properties: {},
+      geometry: { type: 'Point', coordinates },
+    }));
+    const features: Array<Feature<Polygon> | Feature<LineString> | Feature<Point>> = [...pointFeatures];
+    if (geometry) {
+      features.unshift({ type: 'Feature', properties: {}, geometry });
+    } else if (pointFeatures.length > 1) {
+      features.unshift({
+        type: 'Feature',
+        properties: {},
+        geometry: { type: 'LineString', coordinates: pointFeatures.map((feature) => feature.geometry.coordinates) },
+      });
+    }
+    source.setData({ type: 'FeatureCollection', features } as FeatureCollection);
+  }
+
+  private ensureAreaSelectionLayers(): void {
+    if (!this.map || !this.map.isStyleLoaded()) return;
+    if (!this.map.getSource(AREA_SELECTION_SOURCE_ID)) {
+      this.map.addSource(AREA_SELECTION_SOURCE_ID, {
+        type: 'geojson',
+        data: { type: 'FeatureCollection', features: [] },
+      });
+    }
+    if (!this.map.getLayer(AREA_SELECTION_FILL_LAYER_ID)) {
+      this.map.addLayer({
+        id: AREA_SELECTION_FILL_LAYER_ID,
+        type: 'fill',
+        source: AREA_SELECTION_SOURCE_ID,
+        filter: ['==', '$type', 'Polygon'],
+        paint: {
+          'fill-color': '#38bdf8', // Mirrors --gb-tick-reference for WebGL.
+          'fill-opacity': 0.18,
+        },
+      });
+    }
+    if (!this.map.getLayer(AREA_SELECTION_LINE_LAYER_ID)) {
+      this.map.addLayer({
+        id: AREA_SELECTION_LINE_LAYER_ID,
+        type: 'line',
+        source: AREA_SELECTION_SOURCE_ID,
+        filter: ['in', '$type', 'Polygon', 'LineString'],
+        paint: {
+          'line-color': '#38bdf8', // Mirrors --gb-tick-reference for WebGL.
+          'line-width': 2.5,
+          'line-dasharray': [2, 1],
+        },
+      });
+    }
+    if (!this.map.getLayer(AREA_SELECTION_POINTS_LAYER_ID)) {
+      this.map.addLayer({
+        id: AREA_SELECTION_POINTS_LAYER_ID,
+        type: 'circle',
+        source: AREA_SELECTION_SOURCE_ID,
+        filter: ['==', '$type', 'Point'],
+        paint: {
+          'circle-radius': 6,
+          'circle-color': '#0b1220', // Mirrors --gb-bg-canvas for WebGL.
+          'circle-stroke-color': '#38bdf8', // Mirrors --gb-tick-reference for WebGL.
+          'circle-stroke-width': 3,
+        },
+      });
+    }
+  }
+
+  private removeAreaSelectionLayers(): void {
+    if (!this.map || !this.map.isStyleLoaded()) return;
+    for (const layer of [AREA_SELECTION_POINTS_LAYER_ID, AREA_SELECTION_LINE_LAYER_ID, AREA_SELECTION_FILL_LAYER_ID]) {
+      if (this.map.getLayer(layer)) this.map.removeLayer(layer);
+    }
+    if (this.map.getSource(AREA_SELECTION_SOURCE_ID)) this.map.removeSource(AREA_SELECTION_SOURCE_ID);
+  }
+
+  private clearAreaSelectionState(): void {
+    this.areaSelectionMode = null;
+    this.areaSelectionPoints = [];
+    this.areaSelectionPointer = null;
+    this.areaSelectionComplete = null;
+    this.map?.getCanvas().classList.remove('chart-area-selection-active');
+  }
+
   setFeatureClickHandler(
     handler: ((event: { featureId?: string; properties?: any; layerId: string }) => void) | null,
   ): void {
     this.featureClickHandler = handler;
   }
 
-  setErrorHandler(handler: ((message: string, sourceId?: string) => void) | null): void {
+  setErrorHandler(handler: ((message: string, sourceId?: string, baseSourceId?: string) => void) | null): void {
     this.errorHandler = handler;
   }
 
@@ -805,6 +1224,7 @@ export class MapLibreEngineService {
   }
 
   destroy(): void {
+    this.beginStyleChange();
     this.environmentPopup?.remove();
     this.environmentPopup = null;
     this.trueWindLabelMarker?.remove();
@@ -833,8 +1253,10 @@ export class MapLibreEngineService {
     }
     if (this.weatherApplyFrame !== null) this.cancelFrame(this.weatherApplyFrame);
     if (this.environmentApplyFrame !== null) this.cancelFrame(this.environmentApplyFrame);
+    if (this.particleApplyFrame !== null) this.cancelFrame(this.particleApplyFrame);
     this.weatherApplyFrame = null;
     this.environmentApplyFrame = null;
+    this.particleApplyFrame = null;
     this.pendingMarkerUpdates.clear();
     this.dirtyLayers.clear();
     if (this.resizeObserver) {
@@ -843,14 +1265,53 @@ export class MapLibreEngineService {
     }
     if (this.map) {
       this.map.off('click', this.handleMapClick);
+      this.map.off('mousemove', this.handleAreaSelectionMove);
+      this.map.off('dblclick', this.handleAreaSelectionDoubleClick);
       this.map.remove();
     }
     this.map = null;
+    this.activeParticleLayers?.clear();
     this.mapReady = false;
     this.clickHandler = null;
     this.errorHandler = null;
     this.pendingCenter = null;
     this.appliedCenter = null;
+  }
+
+  private beginStyleChange(): void {
+    this.styleGeneration++;
+    this.mapReady = false;
+    this.cancelStyleInitialization();
+    if (this.weatherApplyFrame !== null) this.cancelFrame(this.weatherApplyFrame);
+    if (this.environmentApplyFrame !== null) this.cancelFrame(this.environmentApplyFrame);
+    if (this.particleApplyFrame !== null) this.cancelFrame(this.particleApplyFrame);
+    this.weatherApplyFrame = null;
+    this.environmentApplyFrame = null;
+    this.particleApplyFrame = null;
+    this.activeParticleLayers?.clear();
+  }
+
+  private cancelStyleInitialization(): void {
+    for (const frame of this.styleInitFrames) {
+      this.cancelFrame(frame);
+    }
+    this.styleInitFrames.clear();
+    if (this.styleInitIdle !== null && typeof cancelIdleCallback === 'function') {
+      cancelIdleCallback(this.styleInitIdle);
+    }
+    this.styleInitIdle = null;
+    if (this.styleInitTimer !== null) {
+      clearTimeout(this.styleInitTimer);
+      this.styleInitTimer = null;
+    }
+  }
+
+  private canMutateStyle(generation = this.styleGeneration): boolean {
+    return Boolean(
+      this.map &&
+      generation === this.styleGeneration &&
+      generation === this.styleReadyGeneration,
+    );
   }
 
   private handleMapError(event: { error?: Error; sourceId?: unknown }): void {
@@ -859,7 +1320,7 @@ export class MapLibreEngineService {
       return;
     }
     const sourceId = typeof event.sourceId === 'string' ? event.sourceId : this.baseSource?.id;
-    this.errorHandler?.(message, sourceId);
+    this.errorHandler?.(message, sourceId, this.baseSource?.id);
   }
 
   private scheduleResize(): void {
@@ -970,6 +1431,9 @@ export class MapLibreEngineService {
       case 'cpaLines':
         this.applyCpaLines();
         break;
+      case 'encDepth':
+        this.applyEncDepthAdvisory();
+        break;
       case 'camera':
         this.updateCamera();
         break;
@@ -1016,6 +1480,110 @@ export class MapLibreEngineService {
     this.map?.zoomOut();
   }
 
+  currentZoom(): number {
+    return this.map?.getZoom() ?? 0;
+  }
+
+  showChartInformation(
+    lngLat: [number, number],
+    features: IhmFeatureInfoFeature[],
+    disclaimer: string,
+  ): void {
+    if (!this.map) return;
+    const content = document.createElement('article');
+    content.className = 'chart-information-popup';
+
+    const header = document.createElement('header');
+    header.className = 'chart-information-popup__header';
+    const headerCopy = document.createElement('div');
+    const primaryFeatures = features.filter((feature) => feature.kind === 'feature');
+    const contextFeatures = features.filter((feature) => feature.kind === 'context');
+    const eyebrow = document.createElement('span');
+    eyebrow.className = 'chart-information-popup__eyebrow';
+    eyebrow.textContent = 'INFORMACIÓN ENC IHM';
+    const heading = document.createElement('strong');
+    heading.textContent = primaryFeatures.length === 1
+      ? '1 objeto náutico'
+      : `${primaryFeatures.length} objetos náuticos`;
+    const position = document.createElement('span');
+    position.className = 'chart-information-popup__position';
+    position.textContent = `${lngLat[1].toFixed(5)}°, ${lngLat[0].toFixed(5)}°`;
+    headerCopy.append(eyebrow, heading, position);
+    header.append(headerCopy);
+
+    const body = document.createElement('div');
+    body.className = 'chart-information-popup__body';
+    if (primaryFeatures.length === 0) {
+      const empty = document.createElement('p');
+      empty.className = 'chart-information-popup__empty';
+      empty.textContent = 'No hay objetos náuticos consultables en este punto.';
+      body.append(empty);
+    } else {
+      primaryFeatures.forEach((feature) => body.append(this.createChartInformationFeature(feature)));
+    }
+    if (contextFeatures.length > 0) {
+      const context = document.createElement('details');
+      context.className = 'chart-information-popup__context';
+      const summary = document.createElement('summary');
+      summary.textContent = `Contexto de la carta (${contextFeatures.length})`;
+      context.append(summary);
+      contextFeatures.forEach((feature) =>
+        context.append(this.createChartInformationFeature(feature)));
+      body.append(context);
+    }
+
+    const footer = document.createElement('footer');
+    footer.className = 'chart-information-popup__footer';
+    const note = document.createElement('small');
+    note.textContent = disclaimer;
+    footer.append(note);
+    content.append(header, body, footer);
+    new maplibregl.Popup({
+      closeButton: true,
+      className: 'chart-information-map-popup',
+      maxWidth: 'min(440px, calc(100vw - 24px))',
+      offset: 16,
+    })
+      .setLngLat(lngLat)
+      .setDOMContent(content)
+      .addTo(this.map);
+  }
+
+  private createChartInformationFeature(feature: IhmFeatureInfoFeature): HTMLElement {
+    const card = document.createElement('section');
+    card.className = 'chart-information-popup__feature';
+    const header = document.createElement('header');
+    const title = document.createElement('strong');
+    title.textContent = feature.title;
+    header.append(title);
+    if (feature.objectClass) {
+      const badge = document.createElement('span');
+      badge.className = 'chart-information-popup__badge';
+      badge.textContent = feature.objectClass;
+      header.append(badge);
+    }
+    if (feature.cell) {
+      const cell = document.createElement('small');
+      cell.textContent = feature.cell;
+      header.append(cell);
+    }
+    card.append(header);
+    if (feature.attributes.length > 0) {
+      const attributes = document.createElement('dl');
+      for (const attribute of feature.attributes) {
+        const term = document.createElement('dt');
+        term.textContent = attribute.acronym
+          ? `${attribute.label} (${attribute.acronym})`
+          : attribute.label;
+        const value = document.createElement('dd');
+        value.textContent = attribute.value;
+        attributes.append(term, value);
+      }
+      card.append(attributes);
+    }
+    return card;
+  }
+
   updateAisTargets(geojson: FeatureCollection<Point>): void {
     this.lastAisTargets = geojson;
     if (this.mapReady) {
@@ -1042,6 +1610,34 @@ export class MapLibreEngineService {
     if (this.mapReady) {
       this.markDirty('cpaLines');
     }
+  }
+
+  updateEncDepthAdvisory(
+    sector: Polygon | null,
+    hazards: FeatureCollection | null,
+    danger: boolean,
+  ): void {
+    this.lastEncDepthAdvisory = {
+      type: 'FeatureCollection',
+      features: [
+        ...(sector ? [{
+          type: 'Feature' as const,
+          geometry: sector,
+          properties: { featureType: 'sector', danger },
+        }] : []),
+        ...(hazards?.features ?? []).map((feature) => ({
+          ...feature,
+          properties: { ...(feature.properties ?? {}), featureType: 'hazard', danger },
+        })),
+      ],
+    };
+    if (this.mapReady) this.markDirty('encDepth');
+  }
+
+  setShallowWaterAlarmActive(active: boolean): void {
+    if (this.shallowWaterAlarmActive === active) return;
+    this.shallowWaterAlarmActive = active;
+    if (this.mapReady) this.markDirty('vessel');
   }
 
   setAisVesselTypeColors(colors: VesselTypeColors): void {
@@ -1206,6 +1802,58 @@ export class MapLibreEngineService {
     }
   }
 
+  private ensureEncDepthAdvisoryLayer(): void {
+    if (!this.map) return;
+    if (!this.map.getSource(ENC_DEPTH_SOURCE_ID)) {
+      this.map.addSource(ENC_DEPTH_SOURCE_ID, {
+        type: 'geojson',
+        data: { type: 'FeatureCollection', features: [] },
+      });
+    }
+    if (!this.map.getLayer(ENC_DEPTH_SECTOR_LAYER_ID)) {
+      this.map.addLayer({
+        id: ENC_DEPTH_SECTOR_LAYER_ID,
+        type: 'fill',
+        source: ENC_DEPTH_SOURCE_ID,
+        filter: ['==', ['get', 'featureType'], 'sector'],
+        paint: {
+          // Mirrors --gb-alarm-warning / --gb-data-ok.
+          'fill-color': ['case', ['boolean', ['get', 'danger'], false], '#f97316', '#22c55e'],
+          'fill-opacity': ['case', ['boolean', ['get', 'danger'], false], 0.3, 0.08],
+        },
+      });
+    }
+    if (!this.map.getLayer(ENC_DEPTH_HAZARD_LAYER_ID)) {
+      this.map.addLayer({
+        id: ENC_DEPTH_HAZARD_LAYER_ID,
+        type: 'circle',
+        source: ENC_DEPTH_SOURCE_ID,
+        filter: ['==', ['get', 'featureType'], 'hazard'],
+        paint: {
+          // Mirrors --gb-alarm-critical.
+          'circle-color': '#ef4444',
+          'circle-radius': ['interpolate', ['linear'], ['zoom'], 8, 5, 14, 11],
+          'circle-stroke-color': '#ffffff',
+          'circle-stroke-width': 2,
+        },
+      });
+    }
+    if (!this.map.getLayer(ENC_DEPTH_HAZARD_AREA_LAYER_ID)) {
+      this.map.addLayer({
+        id: ENC_DEPTH_HAZARD_AREA_LAYER_ID,
+        type: 'line',
+        source: ENC_DEPTH_SOURCE_ID,
+        filter: ['==', ['get', 'featureType'], 'hazard'],
+        paint: {
+          // Mirrors --gb-alarm-critical.
+          'line-color': '#ef4444',
+          'line-width': 3,
+          'line-opacity': 0.9,
+        },
+      });
+    }
+  }
+
   private applyAisTargets(): void {
     if (!this.map) return;
     const source = this.map.getSource(AIS_SOURCE_ID) as maplibregl.GeoJSONSource | undefined;
@@ -1230,6 +1878,12 @@ export class MapLibreEngineService {
     if (!this.map) return;
     const source = this.map.getSource(CPA_LINE_SOURCE_ID) as maplibregl.GeoJSONSource | undefined;
     source?.setData(this.lastCpaLines);
+  }
+
+  private applyEncDepthAdvisory(): void {
+    if (!this.map) return;
+    const source = this.map.getSource(ENC_DEPTH_SOURCE_ID) as maplibregl.GeoJSONSource | undefined;
+    source?.setData(this.lastEncDepthAdvisory);
   }
 
   private ensureAisIcons(): void {
@@ -1421,11 +2075,13 @@ export class MapLibreEngineService {
       }
     } else {
       // Course-up: only re-orient when heading changes meaningfully, otherwise
-      // sub-degree IMU jitter restarts a 250ms camera animation on every sample.
+      // sub-degree IMU jitter restarts the camera animation on every sample.
       const heading = this.lastVessel.rotationDeg;
       if (typeof heading === 'number') {
         const reference = this.appliedBearing ?? this.getCachedBearing();
-        if (this.bearingDelta(reference, heading) > 0.5) {
+        // Ignore sub-degree IMU noise at rest. A real turn crosses this
+        // threshold immediately while the map remains visually stable.
+        if (this.bearingDelta(reference, heading) > 0.75) {
           options.bearing = heading;
           this.appliedBearing = heading;
         }
@@ -1433,11 +2089,12 @@ export class MapLibreEngineService {
     }
 
     if (Object.keys(options).length > 0) {
-      // Use easeTo for smooth tracking for both center and bearing
+      // Complete before the next 10 Hz IMU sample. Longer animations are
+      // continually interrupted and make the map visibly trail the sensor.
       this.map.easeTo({
         ...options,
-        duration: 250, // slightly longer for smoothness
-        easing: (t) => t, // linear easing often better for tracking? or default cubic-bezier
+        duration: 80,
+        easing: (t) => t,
       });
     }
   }
@@ -1447,13 +2104,31 @@ export class MapLibreEngineService {
     return Math.abs(((a - b + 540) % 360) - 180);
   }
 
-  private onStyleReady(): void {
+  private onStyleReady(generation: number): void {
+    if (
+      !this.map ||
+      generation !== this.styleGeneration ||
+      this.initializedStyleGeneration === generation
+    ) {
+      return;
+    }
+    // MapLibre's style.load means the style graph accepts mutations. Its
+    // isStyleLoaded() may turn false again while newly added sources fetch
+    // data, which must not stall creation of the remaining navigation layers.
+    this.styleReadyGeneration = generation;
+    this.initializedStyleGeneration = generation;
+    this.cancelStyleInitialization();
+
     // Phase 1: Layer creation (heavy, blocks rendering). Spread across frames.
     const layerEnsures = [
       () => this.applyOpenSeaMapOverlay(),
+      () => {
+        if (this.areaSelectionMode) this.renderAreaSelection();
+      },
       () => this.applyWeatherOverlays(),
-      () => this.applyEnvironmentVectors(),
       () => this.ensureTrueWindIcons(),
+      () => this.applyEnvironmentVectors(),
+      () => this.applyEnvironmentParticles(),
       () => this.ensureVesselLayer(),
       () => this.ensureTrackLayer(),
       () => this.ensureVectorLayer(),
@@ -1471,6 +2146,7 @@ export class MapLibreEngineService {
       () => this.ensureAisPredictionsLayer(),
       () => this.ensureAisLayer(),
       () => this.ensureCpaLinesLayer(),
+      () => this.ensureEncDepthAdvisoryLayer(),
     ];
 
     // Phase 2: Data application + camera (lighter but still can block)
@@ -1500,6 +2176,7 @@ export class MapLibreEngineService {
       () => this.applyAisPredictions(),
       () => this.applyAisTargets(),
       () => this.applyCpaLines(),
+      () => this.applyEncDepthAdvisory(),
       () => this.updateCamera(),
       () => {
         this.mapReady = true;
@@ -1522,14 +2199,43 @@ export class MapLibreEngineService {
     let taskIndex = 0;
     const tasks = [layerEnsures, dataApplies];
 
+    const isCurrentGeneration = (): boolean =>
+      this.map !== null && generation === this.styleGeneration;
+
+    const scheduleStyleReadyRetry = (): void => {
+      if (!isCurrentGeneration() || this.styleInitTimer !== null) return;
+      this.styleInitTimer = setTimeout(() => {
+        this.styleInitTimer = null;
+        runBatch();
+      }, 16);
+    };
+
+    const scheduleFrame = (): void => {
+      if (!isCurrentGeneration()) return;
+      if (!this.canMutateStyle(generation)) {
+        scheduleStyleReadyRetry();
+        return;
+      }
+      const handle = this.requestFrame(() => {
+        this.styleInitFrames.delete(handle);
+        runBatch();
+      });
+      this.styleInitFrames.add(handle);
+    };
+
     const runBatch = () => {
+      if (!isCurrentGeneration()) return;
+      if (!this.canMutateStyle(generation)) {
+        scheduleStyleReadyRetry();
+        return;
+      }
       const currentTasks = tasks[phase];
       if (!currentTasks || taskIndex >= currentTasks.length) {
         // Phase complete; move to next phase or finish
         phase++;
         taskIndex = 0;
         if (phase < tasks.length) {
-          this.requestFrame(runBatch);
+          scheduleFrame();
         }
         return;
       }
@@ -1539,32 +2245,44 @@ export class MapLibreEngineService {
       if (!task) {
         // Should not happen, but guard against undefined
         taskIndex++;
-        this.requestFrame(runBatch);
+        scheduleFrame();
+        return;
+      }
+      if (!this.canMutateStyle(generation)) {
+        scheduleStyleReadyRetry();
         return;
       }
       taskIndex++;
-      task();
+      try {
+        task();
+      } catch (error) {
+        this.handleMapError({
+          error: error instanceof Error ? error : new Error(String(error)),
+        });
+      }
       const elapsed = performance.now() - start;
 
       if (elapsed > BATCH_BUDGET_MS) {
         // This single task was heavy. Yield immediately and continue on next frame.
-        this.requestFrame(runBatch);
+        scheduleFrame();
         return;
       }
 
       // Check if we have time for another task in this frame
       if (taskIndex < currentTasks.length && performance.now() - start < BATCH_BUDGET_MS) {
         // Schedule microtask to allow browser to paint if needed
-        queueMicrotask(() => runBatch());
+        queueMicrotask(() => {
+          if (isCurrentGeneration()) runBatch();
+        });
       } else if (taskIndex < currentTasks.length) {
         // Budget exceeded, continue on next frame
-        this.requestFrame(runBatch);
+        scheduleFrame();
       } else {
         // Phase complete
         phase++;
         taskIndex = 0;
         if (phase < tasks.length) {
-          this.requestFrame(runBatch);
+          scheduleFrame();
         }
       }
     };
@@ -1572,21 +2290,28 @@ export class MapLibreEngineService {
     // Defer first batch to next macrotask so the 'load'/'style.load' event handler returns immediately.
     // Use requestIdleCallback if available for non-critical initialization work.
     if (typeof requestIdleCallback === 'function') {
-      requestIdleCallback(() => runBatch(), { timeout: 50 });
+      this.styleInitIdle = requestIdleCallback(() => {
+        this.styleInitIdle = null;
+        runBatch();
+      }, { timeout: 50 });
     } else {
-      setTimeout(runBatch, 0);
+      this.styleInitTimer = setTimeout(() => {
+        this.styleInitTimer = null;
+        runBatch();
+      }, 0);
     }
   }
 
   private applyOpenSeaMapOverlay(): void {
-    if (!this.map) return;
+    const map = this.map;
+    if (!map || !this.canMutateStyle()) return;
 
     const nauticalBaseActive = this.baseSource?.id === 'nautical';
     const shouldShowOverlay = nauticalBaseActive || this.showOpenSeaMap;
 
     if (shouldShowOverlay) {
-      if (!this.map.getSource(OPENSEAMAP_SOURCE_ID)) {
-        this.map.addSource(OPENSEAMAP_SOURCE_ID, {
+      if (!map.getSource(OPENSEAMAP_SOURCE_ID)) {
+        map.addSource(OPENSEAMAP_SOURCE_ID, {
           type: 'raster',
           tiles: ['https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png'],
           tileSize: 256,
@@ -1595,9 +2320,9 @@ export class MapLibreEngineService {
           attribution: '&copy; <a href="https://www.openseamap.org">OpenSeaMap</a> contributors',
         });
       }
-      if (!this.map.getLayer(OPENSEAMAP_LAYER_ID)) {
+      if (!map.getLayer(OPENSEAMAP_LAYER_ID)) {
         // Insert as first overlay, before all GeoJSON layers
-        this.map.addLayer({
+        map.addLayer({
           id: OPENSEAMAP_LAYER_ID,
           type: 'raster',
           source: OPENSEAMAP_SOURCE_ID,
@@ -1608,20 +2333,20 @@ export class MapLibreEngineService {
           minzoom: 8,
         });
       } else {
-        this.map.setPaintProperty(
+        map.setPaintProperty(
           OPENSEAMAP_LAYER_ID,
           'raster-opacity',
           nauticalBaseActive ? 0.9 : 0.85,
         );
-        this.map.setPaintProperty(OPENSEAMAP_LAYER_ID, 'raster-fade-duration', 0);
+        map.setPaintProperty(OPENSEAMAP_LAYER_ID, 'raster-fade-duration', 0);
       }
-      this.map.setLayerZoomRange(OPENSEAMAP_LAYER_ID, 8, 24);
+      map.setLayerZoomRange(OPENSEAMAP_LAYER_ID, 8, 24);
     } else {
-      if (this.map.getLayer(OPENSEAMAP_LAYER_ID)) {
-        this.map.removeLayer(OPENSEAMAP_LAYER_ID);
+      if (map.getLayer(OPENSEAMAP_LAYER_ID)) {
+        map.removeLayer(OPENSEAMAP_LAYER_ID);
       }
-      if (this.map.getSource(OPENSEAMAP_SOURCE_ID)) {
-        this.map.removeSource(OPENSEAMAP_SOURCE_ID);
+      if (map.getSource(OPENSEAMAP_SOURCE_ID)) {
+        map.removeSource(OPENSEAMAP_SOURCE_ID);
       }
     }
   }
@@ -1644,20 +2369,66 @@ export class MapLibreEngineService {
   /** Update the opacity of all visible weather overlays. */
   setWeatherOpacity(opacity: number): void {
     this.weatherOpacity = opacity;
-    if (!this.map) return;
+    const map = this.map;
+    if (!map || !this.canMutateStyle()) return;
     for (const id of this.weatherLayers.keys()) {
       const layerId = `weather-${id}-layer`;
-      if (this.map.getLayer(layerId)) {
-        this.map.setPaintProperty(layerId, 'raster-opacity', opacity);
+      if (map.getLayer(layerId)) {
+        map.setPaintProperty(layerId, 'raster-opacity', opacity);
       }
     }
     for (const id of this.environmentVectors.keys()) {
       const layerId = `environment-${id}-layer`;
-      if (!this.map.getLayer(layerId)) continue;
-      const property = id === 'currents' ? 'line-opacity' : id === 'waves' ? 'circle-opacity' : 'heatmap-opacity';
-      this.map.setPaintProperty(layerId, property, opacity);
+      if (!map.getLayer(layerId)) continue;
+      if (id === 'sourceGrid') {
+        map.setPaintProperty(layerId, 'circle-opacity', opacity);
+        continue;
+      }
+      if (id === 'marineMask') {
+        map.setPaintProperty(layerId, 'line-opacity', opacity * 0.75);
+        continue;
+      }
+      if (id === 'encDepth') {
+        map.setPaintProperty(layerId, 'fill-opacity', [
+          'case',
+          ['==', ['get', 'unsafe'], true], opacity * 0.42,
+          opacity * 0.2,
+        ]);
+        const contourLayerId = `${layerId}-direction`;
+        if (map.getLayer(contourLayerId)) {
+          map.setPaintProperty(contourLayerId, 'line-opacity', opacity * 0.86);
+        }
+        const soundingLayerId = `${layerId}-values`;
+        if (map.getLayer(soundingLayerId)) {
+          map.setPaintProperty(soundingLayerId, 'text-opacity', opacity);
+        }
+        const hazardLayerId = `${layerId}-samples`;
+        if (map.getLayer(hazardLayerId)) {
+          map.setPaintProperty(hazardLayerId, 'circle-opacity', opacity * 0.82);
+        }
+        continue;
+      }
+      if (id === 'wind') {
+        map.setPaintProperty(layerId, 'icon-opacity', opacity);
+        continue;
+      }
+      const fillOpacity = id === 'currents'
+        ? opacity * 0.48
+        : id === 'waves'
+          ? opacity * 0.58
+          : opacity * 0.64;
+      map.setPaintProperty(layerId, 'fill-opacity', fillOpacity);
       const directionLayerId = `${layerId}-direction`;
-      if (this.map.getLayer(directionLayerId)) this.map.setPaintProperty(directionLayerId, 'text-opacity', opacity);
+      if (map.getLayer(directionLayerId)) {
+        map.setPaintProperty(directionLayerId, id === 'waves' ? 'icon-opacity' : 'line-opacity', opacity);
+      }
+      const samplesLayerId = `${layerId}-samples`;
+      if (map.getLayer(samplesLayerId)) {
+        map.setPaintProperty(samplesLayerId, 'circle-opacity', opacity * 0.72);
+      }
+    }
+    for (const layer of this.activeParticleLayers.values()) {
+      layer.setOpacity(opacity);
     }
   }
 
@@ -1669,123 +2440,634 @@ export class MapLibreEngineService {
     }
   }
 
+  setEnvironmentParticles(
+    kind: 'wind' | 'currents',
+    fieldUrl: string | null,
+    maskUrl: string | null,
+    visible: boolean,
+    zonePolygon: number[][][] | null = null,
+  ): void {
+    const existing = this.environmentParticles.get(kind);
+    const polygonChanged = JSON.stringify(existing?.zonePolygon) !== JSON.stringify(zonePolygon);
+    this.environmentParticles.set(kind, { fieldUrl, maskUrl, visible, zonePolygon });
+    if (!existing
+      || existing.fieldUrl !== fieldUrl
+      || existing.maskUrl !== maskUrl
+      || existing.visible !== visible
+      || polygonChanged) {
+      this.scheduleEnvironmentParticles();
+    }
+  }
+
+  getEnvironmentParticleMetrics(): Record<string, ReturnType<EnvironmentParticleLayer['getMetrics']>> {
+    return Object.fromEntries(
+      [...this.activeParticleLayers].map(([kind, layer]) => [kind, layer.getMetrics()]),
+    );
+  }
+
   private scheduleWeatherOverlays(): void {
     if (this.weatherApplyFrame !== null) return;
+    const generation = this.styleGeneration;
     this.weatherApplyFrame = this.requestFrame(() => {
       this.weatherApplyFrame = null;
-      this.applyWeatherOverlays();
+      if (this.canMutateStyle(generation)) this.applyWeatherOverlays(generation);
     });
   }
 
   private scheduleEnvironmentVectors(): void {
     if (this.environmentApplyFrame !== null) return;
+    const generation = this.styleGeneration;
     this.environmentApplyFrame = this.requestFrame(() => {
       this.environmentApplyFrame = null;
-      this.applyEnvironmentVectors();
+      if (this.canMutateStyle(generation)) this.applyEnvironmentVectors(generation);
     });
   }
 
-  private applyEnvironmentVectors(): void {
-    if (!this.map) return;
+  private scheduleEnvironmentParticles(): void {
+    if (this.particleApplyFrame !== null) return;
+    const generation = this.styleGeneration;
+    this.particleApplyFrame = this.requestFrame(() => {
+      this.particleApplyFrame = null;
+      if (this.canMutateStyle(generation)) this.applyEnvironmentParticles(generation);
+    });
+  }
+
+  private applyEnvironmentParticles(generation = this.styleGeneration): void {
+    const map = this.map;
+    if (!map || !this.canMutateStyle(generation)) return;
+    for (const [kind, config] of this.environmentParticles) {
+      const layerId = `environment-${kind}-particles`;
+      const active = this.activeParticleLayers.get(kind);
+      if (!config.visible || !config.fieldUrl || !config.maskUrl) {
+        if (map.getLayer(layerId)) map.removeLayer(layerId);
+        this.activeParticleLayers.delete(kind);
+        continue;
+      }
+      if (map.getLayer(layerId) && active) {
+        active.setUrls(config.fieldUrl, config.maskUrl, config.zonePolygon);
+        active.setOpacity(this.weatherOpacity);
+        continue;
+      }
+      if (map.getLayer(layerId)) map.removeLayer(layerId);
+      const layer = new EnvironmentParticleLayer(
+        layerId,
+        kind,
+        config.fieldUrl,
+        config.maskUrl,
+        this.weatherOpacity,
+        config.zonePolygon,
+      );
+      this.activeParticleLayers.set(kind, layer);
+      map.addLayer(layer);
+    }
+  }
+
+  private applyEnvironmentVectors(generation = this.styleGeneration): void {
+    const map = this.map;
+    if (!map || !this.canMutateStyle(generation)) return;
     for (const [id, config] of this.environmentVectors) {
       const sourceId = `environment-${id}`;
       const layerId = `${sourceId}-layer`;
       const directionLayerId = `${layerId}-direction`;
+      const valueLayerId = `${layerId}-values`;
+      const samplesLayerId = `${layerId}-samples`;
       if (!config.visible || !config.dataUrl) {
-        if (this.map.getLayer(directionLayerId)) this.map.removeLayer(directionLayerId);
-        if (this.map.getLayer(layerId)) this.map.removeLayer(layerId);
-        if (this.map.getSource(sourceId)) this.map.removeSource(sourceId);
+        if (map.getLayer(samplesLayerId)) map.removeLayer(samplesLayerId);
+        if (map.getLayer(valueLayerId)) map.removeLayer(valueLayerId);
+        if (map.getLayer(directionLayerId)) map.removeLayer(directionLayerId);
+        if (map.getLayer(layerId)) map.removeLayer(layerId);
+        if (map.getSource(sourceId)) map.removeSource(sourceId);
         continue;
       }
-      const source = this.map.getSource(sourceId) as maplibregl.GeoJSONSource | undefined;
+      const source = map.getSource(sourceId) as maplibregl.GeoJSONSource | undefined;
       if (source) source.setData(config.dataUrl);
-      else this.map.addSource(sourceId, { type: 'geojson', data: config.dataUrl });
-      if (this.map.getLayer(layerId)) continue;
-      if (id === 'currents') {
-        this.map.addLayer({
-          id: layerId, type: 'line', source: sourceId,
+      else map.addSource(sourceId, { type: 'geojson', data: config.dataUrl });
+      if (map.getLayer(layerId)) continue;
+      if (id === 'sourceGrid') {
+        map.addLayer({
+          id: layerId,
+          type: 'circle',
+          source: sourceId,
+          minzoom: 5,
+          filter: ['==', ['get', 'featureType'], 'sourceNode'],
           paint: {
-            // Mirrors --gb-tick-reference; MapLibre paint cannot read CSS variables.
+            // MapLibre cannot read CSS variables; this mirrors --gb-data-warn.
+            'circle-color': '#facc15',
+            'circle-radius': ['interpolate', ['linear'], ['zoom'], 5, 2.5, 14, 6],
+            'circle-opacity': this.weatherOpacity,
+            // Mirrors --gb-bg-canvas to keep nodes visible on scalar fields.
+            'circle-stroke-color': '#07111f',
+            'circle-stroke-width': 1.5,
+          },
+        });
+      } else if (id === 'marineMask') {
+        map.addLayer({
+          id: layerId,
+          type: 'line',
+          source: sourceId,
+          filter: ['==', ['get', 'featureType'], 'marineMask'],
+          paint: {
+            // Mirrors --gb-border-active; identifies effective marine coverage.
             'line-color': '#38bdf8',
-            'line-width': ['interpolate', ['linear'], ['get', 'speedKnots'], 0, 1, 4, 4],
+            'line-width': ['interpolate', ['linear'], ['zoom'], 6, 1, 14, 2.2],
+            'line-opacity': this.weatherOpacity * 0.75,
+            'line-dasharray': [3, 2],
+          },
+        });
+      } else if (id === 'encDepth') {
+        map.addLayer({
+          id: layerId,
+          type: 'fill',
+          source: sourceId,
+          filter: ['==', ['get', 'featureType'], 'depthArea'],
+          paint: {
+            'fill-color': [
+              'case',
+              ['==', ['get', 'unsafe'], true], '#ef4444',
+              ['interpolate', ['linear'], ['coalesce', ['get', 'shallowestDepth'], 50],
+                0, '#ef4444', 5, '#facc15', 10, '#38bdf8', 20, '#0e7490'],
+            ],
+            'fill-opacity': [
+              'case',
+              ['==', ['get', 'unsafe'], true], 0.42,
+              0.2,
+            ],
+            'fill-antialias': true,
+          },
+        });
+        map.addLayer({
+          id: directionLayerId,
+          type: 'line',
+          source: sourceId,
+          minzoom: 10,
+          filter: ['==', ['get', 'featureType'], 'depthContour'],
+          paint: {
+            'line-color': '#7ab3c8',
+            'line-width': ['interpolate', ['linear'], ['zoom'], 10, 1, 16, 2.2],
+            'line-opacity': 0.86,
+          },
+        });
+        map.addLayer({
+          id: valueLayerId,
+          type: 'symbol',
+          source: sourceId,
+          minzoom: 13,
+          filter: ['==', ['get', 'featureType'], 'sounding'],
+          layout: {
+            'text-field': [
+              'to-string',
+              ['coalesce', ['get', 'soundingDepth'], ''],
+            ],
+            'text-size': ['interpolate', ['linear'], ['zoom'], 13, 9, 17, 13],
+            'text-allow-overlap': false,
+          },
+          paint: {
+            'text-color': '#2a6080',
+            'text-halo-color': '#f0f9fd',
+            'text-halo-width': 1.5,
+          },
+        });
+        map.addLayer({
+          id: samplesLayerId,
+          type: 'circle',
+          source: sourceId,
+          minzoom: 10,
+          filter: ['==', ['get', 'featureType'], 'hazard'],
+          paint: {
+            'circle-color': '#ef4444',
+            'circle-radius': ['interpolate', ['linear'], ['zoom'], 10, 4, 16, 8],
+            'circle-opacity': 0.82,
+            'circle-stroke-color': '#facc15',
+            'circle-stroke-width': 1.5,
+          },
+        });
+      } else if (id === 'wind') {
+        map.addLayer({
+          id: layerId,
+          type: 'symbol',
+          source: sourceId,
+          minzoom: 6,
+          filter: ['==', ['get', 'featureType'], 'windDirection'],
+          layout: {
+            'icon-image': [
+              'step', ['get', 'speedKnots'],
+              windBarbIconId(0),
+              2.5, windBarbIconId(5),
+              7.5, windBarbIconId(10),
+              12.5, windBarbIconId(15),
+              17.5, windBarbIconId(20),
+              22.5, windBarbIconId(25),
+              27.5, windBarbIconId(30),
+              32.5, windBarbIconId(35),
+              37.5, windBarbIconId(40),
+              42.5, windBarbIconId(45),
+              47.5, windBarbIconId(50),
+              52.5, windBarbIconId(55),
+              57.5, windBarbIconId(60),
+              62.5, windBarbIconId(65),
+              67.5, windBarbIconId(70),
+              72.5, windBarbIconId(75),
+              77.5, windBarbIconId(80),
+              82.5, windBarbIconId(85),
+              87.5, windBarbIconId(90),
+              92.5, windBarbIconId(95),
+              97.5, windBarbIconId(100),
+            ],
+            'icon-size': ['interpolate', ['linear'], ['zoom'], 6, 0.72, 10, 0.92, 14, 1.08],
+            'icon-allow-overlap': true,
+            'icon-ignore-placement': true,
+            'icon-rotation-alignment': 'map',
+            // Meteorological convention: the shaft points FROM the wind source.
+            'icon-rotate': ['get', 'directionDeg'],
+          },
+          paint: {
+            'icon-opacity': this.weatherOpacity,
+          },
+        });
+      } else if (id === 'currents') {
+        map.addLayer({
+          id: layerId,
+          type: 'fill',
+          source: sourceId,
+          filter: ['==', ['get', 'featureType'], 'cell'],
+          paint: {
+            // Marine current scale; WebGL paint cannot read Glass Bridge tokens.
+            'fill-color': [
+              'interpolate', ['linear'], ['get', 'speedKnots'],
+              0, '#0e7490',
+              0.5, '#38bdf8',
+              1, '#facc15',
+              2, '#ef4444',
+            ],
+            'fill-opacity': this.weatherOpacity * 0.48,
+            'fill-antialias': false,
+          },
+        });
+        map.addLayer({
+          id: directionLayerId,
+          type: 'line',
+          source: sourceId,
+          minzoom: 6,
+          filter: ['==', ['get', 'featureType'], 'direction'],
+          paint: {
+            // Vector geometry avoids font/glyph dependencies across base-map styles.
+            'line-color': '#e0f2fe',
+            'line-width': [
+              'interpolate', ['linear'], ['zoom'],
+              6, ['interpolate', ['linear'], ['get', 'speedKnots'], 0, 1.8, 2, 3],
+              14, ['interpolate', ['linear'], ['get', 'speedKnots'], 0, 2.8, 2, 4.8],
+            ],
             'line-opacity': this.weatherOpacity,
           },
         });
-        this.map.addLayer({
-          id: directionLayerId, type: 'symbol', source: sourceId,
+        map.addLayer({
+          id: valueLayerId,
+          type: 'symbol',
+          source: sourceId,
+          minzoom: 8,
+          filter: ['==', ['get', 'featureType'], 'cell'],
           layout: {
-            'symbol-placement': 'line',
-            'symbol-spacing': 44,
-            'text-field': '›',
-            'text-size': 18,
-            'text-rotation-alignment': 'map',
-            'text-keep-upright': false,
+            'text-field': [
+              'format',
+              ['number-format', ['get', 'speedKnots'], { 'min-fraction-digits': 1, 'max-fraction-digits': 1 }],
+              {},
+              ' kn',
+              { 'font-scale': 0.78 },
+            ],
+            'text-size': ['interpolate', ['linear'], ['zoom'], 8, 10, 14, 14],
+            'text-allow-overlap': false,
+            'text-ignore-placement': false,
+            'text-optional': true,
           },
           paint: {
-            // Matches the current vector line and remains legible over raster themes.
-            'text-color': '#38bdf8',
-            'text-halo-color': '#0b1220',
-            'text-halo-width': 1,
+            // Mirrors --gb-text-value and --gb-bg-canvas.
+            'text-color': '#e0f2fe',
+            'text-halo-color': '#07111f',
+            'text-halo-width': 2,
             'text-opacity': this.weatherOpacity,
           },
         });
       } else if (id === 'waves') {
-        this.map.addLayer({
-          id: layerId, type: 'circle', source: sourceId,
+        map.addLayer({
+          id: layerId,
+          type: 'fill',
+          source: sourceId,
+          filter: ['==', ['get', 'featureType'], 'cell'],
           paint: {
             // Glass Bridge blue/yellow/red scale for modeled wave height.
-            'circle-color': ['interpolate', ['linear'], ['get', 'heightMeters'], 0, '#38bdf8', 2, '#facc15', 5, '#ef4444'],
-            'circle-radius': ['interpolate', ['linear'], ['get', 'heightMeters'], 0, 3, 5, 11],
-            'circle-opacity': this.weatherOpacity,
-            'circle-stroke-color': '#0b1220',
-            'circle-stroke-width': 1,
+            'fill-color': [
+              'interpolate', ['linear'], ['get', 'heightMeters'],
+              0, '#0e7490',
+              0.5, '#38bdf8',
+              1.5, '#facc15',
+              3, '#f97316',
+              5, '#ef4444',
+            ],
+            'fill-opacity': this.weatherOpacity * 0.58,
+            'fill-antialias': false,
+          },
+        });
+        map.addLayer({
+          id: directionLayerId,
+          type: 'symbol',
+          source: sourceId,
+          minzoom: 6,
+          filter: ['==', ['get', 'featureType'], 'waveSymbol'],
+          layout: {
+            'symbol-placement': 'point',
+            'icon-image': [
+              'step', ['get', 'heightMeters'],
+              WAVE_ICON_LOW_ID,
+              1, WAVE_ICON_MODERATE_ID,
+              2.5, WAVE_ICON_HIGH_ID,
+            ],
+            'icon-size': [
+              'interpolate', ['linear'], ['zoom'],
+              6, ['interpolate', ['linear'], ['get', 'heightMeters'], 0, 0.76, 5, 1.07],
+              10, ['interpolate', ['linear'], ['get', 'heightMeters'], 0, 0.96, 5, 1.35],
+              14, ['interpolate', ['linear'], ['get', 'heightMeters'], 0, 1.14, 5, 1.61],
+            ],
+            'icon-allow-overlap': true,
+            'icon-ignore-placement': true,
+            'icon-padding': 3,
+            'icon-rotation-alignment': 'map',
+            // The breaking-wave glyph points north before MapLibre rotation.
+            'icon-rotate': ['get', 'directionDeg'],
+            'text-field': [
+              'format',
+              ['number-format', ['get', 'heightMeters'], { 'min-fraction-digits': 1, 'max-fraction-digits': 1 }],
+              {},
+              ' m',
+              { 'font-scale': 0.82 },
+              '\n',
+              {},
+              ['number-format', ['get', 'periodSeconds'], { 'min-fraction-digits': 0, 'max-fraction-digits': 1 }],
+              { 'font-scale': 0.78 },
+              ' s',
+              { 'font-scale': 0.68 },
+            ],
+            'text-size': ['interpolate', ['linear'], ['zoom'], 6, 10, 14, 14],
+            'text-offset': [0, 2.7],
+            'text-anchor': 'top',
+            'text-allow-overlap': false,
+            'text-ignore-placement': false,
+            'text-optional': true,
+          },
+          paint: {
+            'icon-opacity': this.weatherOpacity,
+            // Mirrors --gb-text-value and --gb-bg-canvas.
+            'text-color': '#e0f2fe',
+            'text-halo-color': '#07111f',
+            'text-halo-width': 2,
+            'text-opacity': this.weatherOpacity,
           },
         });
       } else {
-        this.map.addLayer({
-          id: layerId, type: 'heatmap', source: sourceId, maxzoom: 16,
+        map.addLayer({
+          id: layerId,
+          type: 'fill',
+          source: sourceId,
+          filter: ['==', ['get', 'featureType'], 'cell'],
           paint: {
-            'heatmap-weight': 0.7,
-            'heatmap-intensity': 0.8,
-            'heatmap-opacity': this.weatherOpacity,
-            // Perceptual marine temperature ramp; WebGL literals mirror theme semantics.
-            'heatmap-color': ['interpolate', ['linear'], ['heatmap-density'], 0, 'rgba(56,189,248,0)', 0.45, '#38bdf8', 0.7, '#facc15', 1, '#ef4444'],
+            // Temperature is mapped by its value, not by point density.
+            'fill-color': [
+              'interpolate', ['linear'], ['get', 'value'],
+              10, '#1e3a8a',
+              14, '#0e7490',
+              18, '#38bdf8',
+              21, '#facc15',
+              24, '#ef4444',
+            ],
+            'fill-opacity': this.weatherOpacity * 0.64,
+            'fill-antialias': false,
+          },
+        });
+        map.addLayer({
+          id: `${layerId}-samples`,
+          type: 'circle',
+          source: sourceId,
+          filter: ['==', ['get', 'featureType'], 'marineSample'],
+          paint: {
+            'circle-color': [
+              'interpolate', ['linear'], ['get', 'value'],
+              10, '#1e3a8a',
+              14, '#0e7490',
+              18, '#38bdf8',
+              21, '#facc15',
+              24, '#ef4444',
+            ],
+            'circle-radius': ['interpolate', ['linear'], ['zoom'], 5, 4, 10, 9, 14, 15],
+            'circle-opacity': this.weatherOpacity * 0.72,
+            'circle-blur': 0.28,
           },
         });
       }
     }
+    this.orderEnvironmentLayers(map);
+  }
+
+  private orderEnvironmentLayers(map: maplibregl.Map): void {
+    if (typeof map.moveLayer !== 'function' || typeof map.getStyle !== 'function') return;
+    const depthAreaId = 'environment-encDepth-layer';
+    const depthDetailIds = [
+      'environment-marineMask-layer',
+      'environment-encDepth-layer-direction',
+      'environment-encDepth-layer-values',
+      'environment-encDepth-layer-samples',
+    ];
+    const layerIds = (map.getStyle().layers ?? []).map((layer) => layer.id);
+    const firstEnvironmentalField = layerIds.find((id) =>
+      id.startsWith('environment-')
+      && id !== depthAreaId
+      && !depthDetailIds.includes(id));
+
+    // Conservative depth tint belongs above the base chart, but below weather
+    // fields. Contours, soundings, hazards and the effective-mask outline remain
+    // readable above those fields while staying below navigation/AIS overlays.
+    if (map.getLayer(depthAreaId) && firstEnvironmentalField) {
+      map.moveLayer(depthAreaId, firstEnvironmentalField);
+    }
+    const firstNavigationLayer = layerIds.find((id) => id.startsWith('chart-'));
+    for (const layerId of depthDetailIds) {
+      if (!map.getLayer(layerId)) continue;
+      if (firstNavigationLayer && map.getLayer(firstNavigationLayer)) {
+        map.moveLayer(layerId, firstNavigationLayer);
+      } else {
+        map.moveLayer(layerId);
+      }
+    }
+  }
+
+  private showEncDepthPopup(
+    lngLat: maplibregl.LngLat,
+    properties: Record<string, unknown>,
+  ): void {
+    const featureType = String(properties['featureType'] ?? '');
+    const title = featureType === 'sounding'
+      ? 'Sonda ENC'
+      : featureType === 'depthContour'
+        ? 'Veril ENC'
+        : featureType === 'hazard'
+          ? 'Peligro ENC'
+          : 'Área de profundidad ENC';
+    const attributes = [
+      ['Profundidad mínima', properties['shallowestDepth']],
+      ['Profundidad máxima', properties['deepestDepth']],
+      ['Profundidad de sonda', properties['soundingDepth']],
+      ['Profundidad del veril', properties['contourDepth']],
+      ['Calidad de datos', properties['catzoc']],
+      ['Escala mínima', properties['scamin']],
+      ['Carta', properties['chartId']],
+    ].flatMap(([label, value]) =>
+      value === null || value === undefined || value === '' ? [] : [{
+        label: String(label),
+        acronym: null,
+        value: String(value),
+      }]);
+    this.showChartInformation(
+      [lngLat.lng, lngLat.lat],
+      [{
+        title,
+        objectClass: typeof properties['objectClass'] === 'string' ? properties['objectClass'] : null,
+        cell: typeof properties['chartId'] === 'string' ? properties['chartId'] : null,
+        kind: 'feature',
+        attributes,
+        details: '',
+      }],
+      'Ayuda consultiva no certificada. Requiere una ENC autorizada y actualizada.',
+    );
+  }
+
+  private showMarineMaskPopup(
+    lngLat: maplibregl.LngLat,
+    properties: Record<string, unknown>,
+  ): void {
+    const source = properties['source'] === 'enc'
+      ? 'ENC vectorial autorizada'
+      : 'Máscara costera de respaldo';
+    this.showChartInformation(
+      [lngLat.lng, lngLat.lat],
+      [{
+        title: 'Cobertura marina efectiva',
+        objectClass: null,
+        cell: null,
+        kind: 'feature',
+        attributes: [
+          { label: 'Fuente', acronym: null, value: source },
+          { label: 'Precisión', acronym: null, value: String(properties['precision'] ?? 'desconocida') },
+          { label: 'Cobertura', acronym: null, value: String(properties['coverage'] ?? 'desconocida') },
+          {
+            label: 'Respaldo parcial',
+            acronym: null,
+            value: properties['fallbackUsed'] === true ? 'Sí' : 'No',
+          },
+        ],
+        details: '',
+      }],
+      'El contorno limita la visualización ambiental; no determina por sí solo agua navegable.',
+    );
   }
 
   private showEnvironmentPopup(lngLat: maplibregl.LngLat, layerId: string, properties: Record<string, unknown>): void {
     if (!this.map) return;
-    const content = document.createElement('div');
+    const kind: EnvironmentPopupKind = layerId.includes('currents')
+      ? 'currents'
+      : layerId.includes('waves')
+        ? 'waves'
+        : layerId.includes('wind')
+          ? 'wind'
+          : 'temperature';
+    const details = environmentPopupDetails(kind, properties);
+    const content = document.createElement('article');
     content.className = 'environment-feature-popup';
+
+    const header = document.createElement('header');
+    header.className = 'environment-feature-popup__header';
+    const icon = document.createElement('span');
+    icon.className = `environment-feature-popup__icon environment-feature-popup__icon--${kind}`;
+    icon.setAttribute('aria-hidden', 'true');
+    icon.textContent = details.icon;
+    const heading = document.createElement('div');
+    const eyebrow = document.createElement('span');
+    eyebrow.className = 'environment-feature-popup__eyebrow';
+    eyebrow.textContent = 'CONDICIÓN EN EL PUNTO';
     const title = document.createElement('strong');
-    title.textContent = layerId.includes('currents') ? 'Surface current' : layerId.includes('waves') ? 'Wave forecast' : 'Sea temperature';
-    content.appendChild(title);
-    for (const [key, value] of Object.entries(properties)) {
-      if (value === null || value === undefined) continue;
-      const row = document.createElement('div');
-      row.textContent = `${key}: ${String(value)}`;
-      content.appendChild(row);
+    title.textContent = details.title;
+    const position = document.createElement('span');
+    position.className = 'environment-feature-popup__position';
+    position.textContent = `${Math.abs(lngLat.lat).toFixed(4)}° ${lngLat.lat >= 0 ? 'N' : 'S'} · ${Math.abs(lngLat.lng).toFixed(4)}° ${lngLat.lng >= 0 ? 'E' : 'W'}`;
+    heading.append(eyebrow, title, position);
+    header.append(icon, heading);
+
+    const hero = document.createElement('section');
+    hero.className = 'environment-feature-popup__hero';
+    const heroValue = document.createElement('span');
+    heroValue.className = 'environment-feature-popup__value';
+    heroValue.textContent = details.value;
+    const heroUnit = document.createElement('span');
+    heroUnit.className = 'environment-feature-popup__unit';
+    heroUnit.textContent = details.unit;
+    const heroState = document.createElement('span');
+    heroState.className = `environment-feature-popup__state environment-feature-popup__state--${details.severity}`;
+    heroState.textContent = details.state;
+    hero.append(heroValue, heroUnit, heroState);
+
+    const metrics = document.createElement('section');
+    metrics.className = 'environment-feature-popup__metrics';
+    for (const metric of details.metrics) {
+      const card = document.createElement('div');
+      card.className = 'environment-feature-popup__metric';
+      const label = document.createElement('span');
+      label.textContent = metric.label;
+      const value = document.createElement('strong');
+      value.textContent = metric.value;
+      if (metric.bearing !== undefined) {
+        const bearing = document.createElement('span');
+        bearing.className = 'environment-feature-popup__bearing';
+        bearing.style.transform = `rotate(${metric.bearing}deg)`;
+        bearing.textContent = '↑';
+        bearing.setAttribute('aria-hidden', 'true');
+        value.prepend(bearing);
+      }
+      card.append(label, value);
+      metrics.appendChild(card);
     }
+
+    const footer = document.createElement('footer');
+    footer.className = 'environment-feature-popup__footer';
+    const provenance = document.createElement('span');
+    provenance.textContent = details.provenance;
+    const advisory = document.createElement('span');
+    advisory.textContent = 'Apoyo a la navegación';
+    footer.append(provenance, advisory);
+
+    content.append(header, hero, metrics, footer);
     this.environmentPopup?.remove();
-    this.environmentPopup = new maplibregl.Popup({ closeButton: true, maxWidth: '260px' })
+    this.environmentPopup = new maplibregl.Popup({
+      anchor: 'top',
+      className: 'environment-map-popup',
+      closeButton: true,
+      closeOnClick: true,
+      focusAfterOpen: true,
+      maxWidth: 'min(370px, calc(100vw - 24px))',
+      offset: 18,
+    })
       .setLngLat(lngLat)
       .setDOMContent(content)
       .addTo(this.map);
   }
 
-  private applyWeatherOverlays(): void {
-    if (!this.map) return;
+  private applyWeatherOverlays(generation = this.styleGeneration): void {
+    const map = this.map;
+    if (!map || !this.canMutateStyle(generation)) return;
 
     for (const [id, layer] of this.weatherLayers) {
       const sourceId = `weather-${id}`;
       const layerId = `weather-${id}-layer`;
 
       if (layer.visible && layer.tileUrl) {
-        if (!this.map.getSource(sourceId)) {
-          this.map.addSource(sourceId, {
+        if (!map.getSource(sourceId)) {
+          map.addSource(sourceId, {
             type: 'raster',
             tiles: [layer.tileUrl],
             tileSize: 256,
@@ -1794,8 +3076,8 @@ export class MapLibreEngineService {
             attribution: 'Atmospheric forecast &copy; OpenWeatherMap',
           });
         }
-        if (!this.map.getLayer(layerId)) {
-          this.map.addLayer({
+        if (!map.getLayer(layerId)) {
+          map.addLayer({
             id: layerId,
             type: 'raster',
             source: sourceId,
@@ -1804,19 +3086,19 @@ export class MapLibreEngineService {
               'raster-fade-duration': 0,
               // Boost low-contrast weather tiles so they remain readable over
               // the dark Glass Bridge chart base at night.
-              'raster-brightness-max': 1.05,
+              'raster-brightness-max': 1,
               'raster-saturation': 0.15,
             },
           });
         } else {
-          this.map.setPaintProperty(layerId, 'raster-opacity', this.weatherOpacity);
+          map.setPaintProperty(layerId, 'raster-opacity', this.weatherOpacity);
         }
       } else {
-        if (this.map.getLayer(layerId)) {
-          this.map.removeLayer(layerId);
+        if (map.getLayer(layerId)) {
+          map.removeLayer(layerId);
         }
-        if (this.map.getSource(sourceId)) {
-          this.map.removeSource(sourceId);
+        if (map.getSource(sourceId)) {
+          map.removeSource(sourceId);
         }
       }
     }
@@ -2152,15 +3434,12 @@ export class MapLibreEngineService {
         paint: {
           'circle-radius': ['match', ['get', 'state'], 'no-fix', 16, 'stale', 13, 11],
           'circle-color': [
-            'match',
-            ['get', 'state'],
-            'no-fix',
+            'case',
+            ['boolean', ['get', 'shallowAlarm'], false],
             '#ef4444',
-            'stale',
-            '#eab308',
-            '#0ea5e9',
+            ['match', ['get', 'state'], 'no-fix', '#ef4444', 'stale', '#eab308', '#0ea5e9'],
           ],
-          'circle-opacity': 0.32,
+          'circle-opacity': ['case', ['boolean', ['get', 'shallowAlarm'], false], 0.58, 0.32],
           'circle-stroke-color': [
             'match',
             ['get', 'state'],
@@ -2286,6 +3565,7 @@ export class MapLibreEngineService {
             heading: this.lastVessel.rotationDeg ?? 0,
             state: this.lastVessel.state,
             label: this.lastVessel.state === 'no-fix' ? 'MI BARCO · SIN GPS' : 'MI BARCO',
+            shallowAlarm: this.shallowWaterAlarmActive,
           },
         },
       ],
@@ -2998,6 +4278,12 @@ export class MapLibreEngineService {
     this.upsertIcon(TRUE_WIND_ARROW_MODERATE_ID, this.createWindArrowIcon('#f59e0b'), 2);
     this.upsertIcon(TRUE_WIND_ARROW_STRONG_ID, this.createWindArrowIcon('#ef4444'), 2);
     this.upsertIcon(APPARENT_WIND_ARROW_ID, this.createWindArrowIcon(APPARENT_WIND_COLOR), 2);
+    for (const speed of WIND_BARB_SPEEDS) {
+      this.upsertIcon(windBarbIconId(speed), this.createWindBarbIcon(speed), 3);
+    }
+    this.upsertIcon(WAVE_ICON_LOW_ID, this.createWaveIcon(1), 2);
+    this.upsertIcon(WAVE_ICON_MODERATE_ID, this.createWaveIcon(2), 2);
+    this.upsertIcon(WAVE_ICON_HIGH_ID, this.createWaveIcon(3), 2);
   }
 
   private createWindArrowIcon(color: string): ImageData {
@@ -3028,6 +4314,122 @@ export class MapLibreEngineService {
     ctx.closePath();
     ctx.fill();
     ctx.stroke();
+    const imageData = ctx.getImageData(0, 0, size, size);
+    MapLibreEngineService.iconCache.set(cacheKey, imageData);
+    return imageData;
+  }
+
+  private createWindBarbIcon(speedKnots: number): ImageData {
+    const roundedSpeed = Math.max(0, Math.min(100, Math.round(speedKnots / 5) * 5));
+    const cacheKey = `weather-wind-barb:${roundedSpeed}`;
+    const cached = MapLibreEngineService.iconCache.get(cacheKey);
+    if (cached) return cached;
+
+    const size = 128;
+    const canvas = document.createElement('canvas');
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return new ImageData(size, size);
+
+    ctx.clearRect(0, 0, size, size);
+    // Draw in the original 96-unit coordinate system on a 128 px backing
+    // canvas. Registered at pixelRatio 3, this keeps barbs crisp without
+    // increasing their footprint or collision cost.
+    ctx.scale(4 / 3, 4 / 3);
+    // Canvas/MapLibre images cannot consume CSS tokens. These mirror
+    // --gb-bg-canvas (outline) and --gb-text-value (meteorological symbol).
+    const outline = '#07131f';
+    const foreground = '#eaf7ff';
+    const originX = 42;
+    const originY = 78;
+    const tipY = 10;
+
+    const draw = (color: string, width: number): void => {
+      ctx.strokeStyle = color;
+      ctx.fillStyle = color;
+      ctx.lineWidth = width;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      if (roundedSpeed < 3) {
+        ctx.beginPath();
+        ctx.arc(originX, originY, 9, 0, Math.PI * 2);
+        ctx.stroke();
+        return;
+      }
+
+      ctx.beginPath();
+      ctx.moveTo(originX, originY);
+      ctx.lineTo(originX, tipY);
+      ctx.stroke();
+
+      let remaining = roundedSpeed;
+      let y = tipY + 3;
+      while (remaining >= 50) {
+        ctx.beginPath();
+        ctx.moveTo(originX, y);
+        ctx.lineTo(originX + 27, y + 11);
+        ctx.lineTo(originX, y + 15);
+        ctx.closePath();
+        ctx.fill();
+        remaining -= 50;
+        y += 17;
+      }
+      while (remaining >= 10) {
+        ctx.beginPath();
+        ctx.moveTo(originX, y);
+        ctx.lineTo(originX + 27, y + 11);
+        ctx.stroke();
+        remaining -= 10;
+        y += 10;
+      }
+      if (remaining >= 5) {
+        ctx.beginPath();
+        ctx.moveTo(originX, y);
+        ctx.lineTo(originX + 15, y + 6);
+        ctx.stroke();
+      }
+    };
+
+    draw(outline, 8);
+    draw(foreground, 4);
+    const imageData = ctx.getImageData(0, 0, size, size);
+    MapLibreEngineService.iconCache.set(cacheKey, imageData);
+    return imageData;
+  }
+
+  private createWaveIcon(crests: 1 | 2 | 3): ImageData {
+    const cacheKey = `material-wave-icon:v1:${crests}`;
+    const cached = MapLibreEngineService.iconCache.get(cacheKey);
+    if (cached) return cached;
+
+    const size = 64;
+    const canvas = document.createElement('canvas');
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return new ImageData(size, size);
+
+    ctx.clearRect(0, 0, size, size);
+    // Canvas/MapLibre images cannot consume CSS tokens. Palette mirrors
+    // --gb-bg-canvas, --gb-tick-reference, --gb-data-warn and
+    // --gb-needle-primary for low/moderate/high sea states.
+    const foreground = crests === 1 ? '#38bdf8' : crests === 2 ? '#facc15' : '#f97316';
+    const outline = '#07111f';
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    // Google Material Symbols rounded "tsunami" path, Apache-2.0. The source
+    // SVG and notice live in public/assets/icons.
+    const wavePath = new Path2D('M481-157q-30 20-64.5 28.5T347-120q-35 0-69-9.5T213-157q-22 13-45.5 21.5T119-123q-16 2-27.5-9T80-160q0-17 11-29t28-16q19-5 35.5-13t32.5-19q11-8 25.5-8t25.5 8q24 17 52 26.5t57 9.5q29 0 57.5-9t52.5-26q11-8 25-7.5t25 8.5q24 17 51.5 25.5T615-201q30 0 58-10.5t53-27.5q11-7 23-7.5t23 7.5q16 11 32 20t35 14q17 5 29 16.5t12 28.5q0 17-12 28.5t-29 8.5q-24-4-46.5-13T749-157q-30 18-64.5 27.5T615-120q-35 0-69.5-9.5T481-157ZM80-300v-80q0-97 37.5-181T220-707q65-62 152.5-97.5T560-840q17 0 35.5.5T631-836q20 3 29.5 21t.5 36q-10 21-15.5 42t-5.5 44q0 55 39 94t94 39h67q17 0 28.5 11.5T880-520q0 17-11.5 28.5T840-480h-67q-89 0-151-62t-62-151q0-14 2-29.5t6-30.5q-74 18-121 76.5T400-540q0 36 11.5 68.5T444-410l13-9q11-8 23-8t23 8q23 16 53.5 27t58.5 11q28 0 58.5-11t53.5-27q11-7 22.5-7.5T772-420l22 15q11 6 22.5 11.5T840-385q17 5 28.5 16.5T880-340q0 17-12 28.5t-29 8.5q-23-4-45.5-12.5T749-337q-32 20-65 28.5t-69 8.5q-36 0-72-10t-62-27q-31 19-65 27.5t-69 9.5q-35 1-69-9t-65-28q-31 18-64.5 27.5T80-300Zm265-81h10q5 0 10-1-22-35-33.5-75T320-540q0-81 37-146.5T460-794v44q-62 16-114.5 48.5t-92 78.5Q214-577 190-520.5T161-400q8-5 15-9t14-9q11-8 23-8.5t23 7.5q9 6 18 11t19 10q17 8 35 12.5t37 4.5Zm-34-207Z');
+    ctx.save();
+    ctx.translate(0, size);
+    ctx.scale(size / 960, size / 960);
+    ctx.strokeStyle = outline;
+    ctx.fillStyle = foreground;
+    ctx.lineWidth = 46;
+    ctx.stroke(wavePath);
+    ctx.fill(wavePath);
+    ctx.restore();
     const imageData = ctx.getImageData(0, 0, size, size);
     MapLibreEngineService.iconCache.set(cacheKey, imageData);
     return imageData;

@@ -45,10 +45,12 @@ import { TourStepComponent } from './steps/tour-step.component';
           }
         </div>
 
-        <!-- Skip button -->
-        <button class="skip-all-btn" (click)="skip()">
-          {{ 'onboarding.skipAll' | translate }}
-        </button>
+        <!-- The welcome step already owns its skip action. -->
+        @if (currentStep() !== 0) {
+          <button class="skip-all-btn" (click)="skip()">
+            {{ 'onboarding.skipAll' | translate }}
+          </button>
+        }
       </div>
     </div>
   `,

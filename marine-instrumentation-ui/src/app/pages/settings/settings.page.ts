@@ -13,7 +13,6 @@ import { ConnectionSettingsComponent } from '../../features/settings/components/
 import { DisplaySettingsComponent } from '../../features/settings/components/display-settings/display-settings.component';
 import { UnitsSettingsComponent } from '../../features/settings/components/units-settings/units-settings.component';
 import { AlarmSettingsComponent } from '../../features/settings/components/alarm-settings/alarm-settings.component';
-import { ChartSettingsComponent } from '../../features/settings/components/chart-settings/chart-settings.component';
 import { DataSettingsComponent } from '../../features/settings/components/data-settings/data-settings.component';
 import { ExperimentsSettingsComponent } from '../../features/settings/components/experiments-settings/experiments-settings.component';
 import { DashboardWidgetsSettingsComponent } from '../../features/settings/components/dashboard-widgets-settings/dashboard-widgets-settings.component';
@@ -23,7 +22,6 @@ type SettingsSection =
   | 'vessel'
   | 'display'
   | 'units'
-  | 'chart'
   | 'alarms'
   | 'connection'
   | 'dashboard'
@@ -49,7 +47,6 @@ interface SectionMeta {
     DisplaySettingsComponent,
     UnitsSettingsComponent,
     AlarmSettingsComponent,
-    ChartSettingsComponent,
     DataSettingsComponent,
     ExperimentsSettingsComponent,
     DashboardWidgetsSettingsComponent,
@@ -111,10 +108,6 @@ interface SectionMeta {
           @case ('units') {
             <h2>Units</h2>
             <app-units-settings />
-          }
-          @case ('chart') {
-            <h2>Chart</h2>
-            <app-chart-settings />
           }
           @case ('alarms') {
             <h2>Alarms</h2>
@@ -437,7 +430,6 @@ export class SettingsPage {
     { id: 'vessel', label: 'Vessel', icon: 'anchor' },
     { id: 'display', label: 'Display', icon: 'sun' },
     { id: 'units', label: 'Units', icon: 'ruler' },
-    { id: 'chart', label: 'Chart', icon: 'compass' },
     { id: 'alarms', label: 'Alarms', icon: 'alert-triangle' },
     { id: 'connection', label: 'Connection', icon: 'satellite' },
     { id: 'dashboard', label: 'Dashboard', icon: 'layers' },
