@@ -81,6 +81,8 @@ lerna-debug.log*
 
 # Chart cache (generated tiles)
 marine-chart-engine/data/chart-cache/
+marine-chart-engine/data/secure/
+marine-chart-engine/resources/
 
 # Signal K runtime data (local)
 signalk-runtime/data/
