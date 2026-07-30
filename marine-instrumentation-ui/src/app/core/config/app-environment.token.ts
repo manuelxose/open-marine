@@ -10,7 +10,7 @@ export interface AppEnvironment {
   testBenchApiUrl: string;
   // Local/LAN nautical chart engine for legal local chart sources.
   chartEngineApiUrl: string;
-  // Keyless public forecast API; location is supplied from GPS with a Vigo fallback.
+  // Forecast endpoint exposed by the local chart engine.
   weatherApiUrl: string;
 }
 
@@ -40,6 +40,7 @@ const AUTO_DETECTED_KEY = 'omi.autoDetectedHost';
  */
 export function buildEnvironment(signalKHost: string, testBenchHost = resolveTestBenchHost(signalKHost)): AppEnvironment {
   const benchHost = testBenchHost;
+  const chartEngineHost = resolveChartEngineHost(signalKHost);
   const { httpProtocol, wsProtocol } = resolveProtocols();
 
   return {
@@ -47,9 +48,19 @@ export function buildEnvironment(signalKHost: string, testBenchHost = resolveTes
     signalKWsUrl: `${wsProtocol}://${signalKHost}:3000/signalk/v1/stream?subscribe=all`,
     autopilotApiUrl: `${httpProtocol}://${signalKHost}:${AUTOPILOT_API_PORT}`,
     testBenchApiUrl: `${httpProtocol}://${benchHost}:${TEST_BENCH_API_PORT}`,
-    chartEngineApiUrl: `${httpProtocol}://${benchHost}:${CHART_ENGINE_API_PORT}`,
-    weatherApiUrl: 'https://api.open-meteo.com/v1/forecast',
+    // In local development the chart engine runs beside the UI, while Signal K
+    // may still be auto-detected on the Raspberry. In deployed builds both
+    // resolve to the hostname serving the UI.
+    chartEngineApiUrl: `${httpProtocol}://${chartEngineHost}:${CHART_ENGINE_API_PORT}`,
+    weatherApiUrl: `${httpProtocol}://${chartEngineHost}:${CHART_ENGINE_API_PORT}/weather/forecast`,
   };
+}
+
+function resolveChartEngineHost(signalKHost: string): string {
+  if (typeof window !== 'undefined' && window.location?.hostname) {
+    return window.location.hostname;
+  }
+  return signalKHost;
 }
 
 export function resolveSignalKHost(): string {

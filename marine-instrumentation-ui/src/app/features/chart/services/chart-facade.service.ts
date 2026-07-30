@@ -15,20 +15,24 @@ import { AisStoreService } from '../../../state/ais/ais-store.service';
 import { SignalKClientService } from '../../../data-access/signalk/signalk-client.service';
 import {
   DEFAULT_CHART_SOURCE_ID,
-  BATHYMETRY_CHART_SOURCE_ID,
   CHART_SOURCES,
+  BATHYMETRY_CHART_SOURCE_ID,
   ENC_CHART_SOURCE_ID,
   ENC_VECTOR_CHART_SOURCE_ID,
   GEBCO_CHART_SOURCE_ID,
   IHM_WMS_CHART_SOURCE_ID,
-  LOCAL_RASTER_CHART_SOURCE_ID,
   NAUTICAL_CHART_SOURCE_ID,
   NOAA_WMS_CHART_SOURCE_ID,
   NAUTICAL_RASTER_STYLE,
   buildIhmWmsStyle,
   buildEngineChartStyle,
+  buildChartPackageStyle,
+  bindChartEngineUrl,
 } from '../../../data-access/chart/chart-sources';
+import type { PackageManifest } from '../../../data-access/chart/chart-remote-catalog.service';
+import { ChartRemoteCatalogService } from '../../../data-access/chart/chart-remote-catalog.service';
 import { APP_ENVIRONMENT } from '../../../core/config/app-environment.token';
+import { PreferencesService } from '../../../core/preferences/preferences.service';
 import { ChartCatalogService } from '../../../data-access/chart/chart-catalog.service';
 import type { EngineChartSource } from '../../../data-access/chart/chart-engine-api.service';
 import type { Feature, FeatureCollection, LineString, Point } from 'geojson';
@@ -59,7 +63,6 @@ import type {
   ChartMapErrorVm,
   ChartRoutesPanelVm,
   ChartTopBarVm,
-  ChartLayerMode,
   ChartImportRequestVm,
   ChartFixState,
   ChartHudRow,
@@ -75,7 +78,7 @@ import { RouteService } from './route.service';
 import { buildEncStyle } from '../layers/enc-style';
 import type { ChartSourceConfig, MapLibreInitView, WindMapUpdate } from './maplibre-engine.service';
 import type { WaypointFeatureCollection, WaypointFeatureProperties } from '../types/chart-geojson';
-import { getAisTargetIconId, mapAisVesselTypeToFilter } from './chart-vessel-types';
+import { getAisTargetIconId, mapAisTargetToVesselTypeFilter } from './chart-vessel-types';
 import { DataQualityService } from '../../../shared/services/data-quality.service';
 import { AlarmSettingsService } from '../../../state/alarms/alarm-settings.service';
 import { formatCoordinate } from '../../../core/formatting/formatters';
@@ -158,12 +161,46 @@ const BUILT_IN_BASE_SOURCE_IDS = new Set([
   DEFAULT_CHART_SOURCE_ID,
   'satellite',
   NAUTICAL_CHART_SOURCE_ID,
-  ENC_CHART_SOURCE_ID,
   GEBCO_CHART_SOURCE_ID,
   NOAA_WMS_CHART_SOURCE_ID,
   IHM_WMS_CHART_SOURCE_ID,
-  BATHYMETRY_CHART_SOURCE_ID,
 ]);
+const ENGINE_REQUIRED_SOURCE_IDS = new Set([
+  NAUTICAL_CHART_SOURCE_ID,
+  GEBCO_CHART_SOURCE_ID,
+  NOAA_WMS_CHART_SOURCE_ID,
+  IHM_WMS_CHART_SOURCE_ID,
+]);
+
+const parseChartBounds = (value?: string): [number, number, number, number] | undefined => {
+  if (!value) return undefined;
+  const values = value.split(',').map(Number);
+  return values.length === 4 && values.every(Number.isFinite)
+    ? values as [number, number, number, number]
+    : undefined;
+};
+
+const sourceProviderAvailable = (
+  sourceId: string,
+  diagnostics: {
+    xyzProviders: Array<{ id: string; available: boolean }>;
+    wmsProviders: Array<{ id: string; available: boolean }>;
+  } | null,
+): boolean => {
+  if (!diagnostics) return true;
+  const providerIds: Record<string, string[]> = {
+    [NAUTICAL_CHART_SOURCE_ID]: ['openseamap'],
+    [GEBCO_CHART_SOURCE_ID]: ['gebco'],
+    [NOAA_WMS_CHART_SOURCE_ID]: ['noaa-wms'],
+    [IHM_WMS_CHART_SOURCE_ID]: ['ihm-enc-wmts'],
+    'emodnet-bathymetry': ['emodnet-bathymetry'],
+  };
+  const expected = providerIds[sourceId];
+  if (!expected) return true;
+  const providers = [...diagnostics.xyzProviders, ...diagnostics.wmsProviders]
+    .filter((provider) => expected.includes(provider.id));
+  return providers.length === 0 || providers.some((provider) => provider.available);
+};
 
 const DEFAULT_BASE_SOURCE: ChartSourceConfig = {
   id: DEFAULT_CHART_SOURCE_ID,
@@ -213,11 +250,6 @@ const SATELLITE_SOURCE: ChartSourceConfig = {
   },
 };
 
-const NAUTICAL_SOURCE: ChartSourceConfig = {
-  id: NAUTICAL_CHART_SOURCE_ID,
-  style: NAUTICAL_RASTER_STYLE,
-};
-
 const hudRow = (labelKey: string, value: string, unit: string): ChartHudRow => ({
   labelKey,
   value,
@@ -251,6 +283,15 @@ const coerceNumber = (value: unknown): number | null => {
   return typeof value === 'number' && Number.isFinite(value) ? value : null;
 };
 
+const chartStyleHasVectorSource = (style: ChartSourceConfig['style']): boolean => {
+  if (typeof style === 'string') return false;
+  return Object.values(style.sources ?? {}).some((candidate) =>
+    typeof candidate === 'object'
+    && candidate !== null
+    && 'type' in candidate
+    && candidate.type === 'vector');
+};
+
 const fixStateLabel = (state: ChartFixState): string => {
   switch (state) {
     case 'fix':
@@ -276,8 +317,10 @@ export class ChartFacadeService {
   private readonly routeService = inject(RouteService);
   private readonly autopilotStore = inject(AutopilotStoreService);
   private readonly chartCatalog = inject(ChartCatalogService);
+  private readonly packageCatalog = inject(ChartRemoteCatalogService);
   private readonly trackStore = inject(TrackStoreService);
   private readonly environment = inject(APP_ENVIRONMENT);
+  private readonly preferences = inject(PreferencesService);
   private readonly zone = inject(NgZone);
   private readonly _orientation$ = new BehaviorSubject<MapOrientation>('north-up');
   readonly orientation$ = this._orientation$.asObservable();
@@ -290,6 +333,21 @@ export class ChartFacadeService {
   private readonly staleSweep$ = outsideZoneTicker(this.zone, 5000, {
     emitInsideAngular: false,
   }).pipe(shareReplay({ bufferSize: 1, refCount: true }));
+
+  constructor() {
+    const selectedSource = this.preferences.snapshot.chart.mapSourceId;
+    if (!selectedSource.startsWith('package:')) return;
+    const packageId = selectedSource.slice('package:'.length);
+    this.packageCatalog.listPackages().subscribe({
+      next: (packages) => {
+        const manifest = packages.find((candidate) => candidate.id === packageId);
+        if (manifest) void this.selectChartPackage(manifest);
+      },
+      error: () => {
+        this.recordMapError(`Saved package is unavailable: ${packageId}`, packageId);
+      },
+    });
+  }
 
   toggleOrientation(): void {
     const current = this._orientation$.value;
@@ -331,7 +389,7 @@ export class ChartFacadeService {
           continue;
         }
 
-        const vesselTypeKey = mapAisVesselTypeToFilter(t.vesselType);
+        const vesselTypeKey = mapAisTargetToVesselTypeFilter(t.vesselType, t.state);
         if (!visibleTypes.has(vesselTypeKey)) {
           continue;
         }
@@ -401,7 +459,7 @@ export class ChartFacadeService {
           continue;
         }
 
-        const vesselTypeKey = mapAisVesselTypeToFilter(t.vesselType);
+        const vesselTypeKey = mapAisTargetToVesselTypeFilter(t.vesselType, t.state);
         if (!visibleTypes.has(vesselTypeKey)) {
           continue;
         }
@@ -461,7 +519,7 @@ export class ChartFacadeService {
           continue;
         }
 
-        const vesselTypeKey = mapAisVesselTypeToFilter(target.vesselType);
+        const vesselTypeKey = mapAisTargetToVesselTypeFilter(target.vesselType, target.state);
         if (!visibleTypes.has(vesselTypeKey)) {
           continue;
         }
@@ -471,35 +529,32 @@ export class ChartFacadeService {
           continue;
         }
 
-        const coordinates = points
-          .map((point) => [point.longitude, point.latitude] as [number, number])
-          .filter(([lon, lat]) => Number.isFinite(lon) && Number.isFinite(lat));
-        if (coordinates.length < 2) {
+        const validPoints = points.filter((point) =>
+          Number.isFinite(point.longitude) && Number.isFinite(point.latitude));
+        if (validPoints.length < 2) {
           continue;
         }
-
-        const newest = points[points.length - 1];
-        if (!newest) {
-          continue;
-        }
-        const ageFraction = Math.min(
-          1,
-          Math.max(0, (now - newest.timestamp) / AIS_TRACK_MAX_AGE_MS),
-        );
         const dangerous = target.isDangerous === true && target.riskEligible === true;
-
-        features.push({
-          type: 'Feature',
-          geometry: {
-            type: 'LineString',
-            coordinates,
-          },
-          properties: {
-            mmsi,
-            isDangerous: dangerous,
-            age: ageFraction,
-          },
-        });
+        for (let index = 1; index < validPoints.length; index++) {
+          const previous = validPoints[index - 1]!;
+          const current = validPoints[index]!;
+          features.push({
+            type: 'Feature',
+            geometry: {
+              type: 'LineString',
+              coordinates: [
+                [previous.longitude, previous.latitude],
+                [current.longitude, current.latitude],
+              ],
+            },
+            properties: {
+              mmsi,
+              segment: index,
+              isDangerous: dangerous,
+              age: Math.min(1, Math.max(0, (now - current.timestamp) / AIS_TRACK_MAX_AGE_MS)),
+            },
+          });
+        }
       }
 
       return { type: 'FeatureCollection', features } as FeatureCollection<LineString>;
@@ -536,7 +591,7 @@ export class ChartFacadeService {
           continue;
         }
 
-        const vesselTypeKey = mapAisVesselTypeToFilter(target.vesselType);
+        const vesselTypeKey = mapAisTargetToVesselTypeFilter(target.vesselType, target.state);
         if (!visibleTypes.has(vesselTypeKey)) {
           continue;
         }
@@ -738,8 +793,25 @@ export class ChartFacadeService {
     zoom: 12,
   };
 
-  private readonly _baseSource$ = new BehaviorSubject<ChartSourceConfig>(DEFAULT_BASE_SOURCE);
+  private readonly _baseSource$ = new BehaviorSubject<ChartSourceConfig>(
+    this.buildStaticSource(this.preferences.snapshot.chart.mapSourceId) ?? DEFAULT_BASE_SOURCE,
+  );
   readonly baseSource$ = this._baseSource$.asObservable();
+  readonly encLayerAvailability$ = this.baseSource$.pipe(
+    map((source) => {
+      const supportsSemanticLayers = chartStyleHasVectorSource(source.style);
+      return {
+        supported: supportsSemanticLayers,
+        sourceId: source.id,
+        message: supportsSemanticLayers
+          ? 'Applied to the active vector ENC.'
+          : source.id === IHM_WMS_CHART_SOURCE_ID
+            ? 'IHM Spain ENC is RasterENC: its objects and depth colours are already baked into the image. Import an authorised S-57/S-63 ENC to control semantic layers.'
+            : 'Semantic ENC layers require an imported S-57/S-63 or vector MBTiles chart.',
+      };
+    }),
+    shareReplay({ bufferSize: 1, refCount: true }),
+  );
   private readonly _mapErrors$ = new BehaviorSubject<ChartMapErrorVm[]>([]);
   readonly mapErrors$ = this._mapErrors$.asObservable();
 
@@ -749,8 +821,10 @@ export class ChartFacadeService {
     online: this.chartCatalog.online$,
     status: this.chartCatalog.status$,
     message: this.chartCatalog.message$,
+    position: this.positionValue$,
+    diagnostics: this.chartCatalog.diagnostics$,
   }).pipe(
-    map(({ charts, jobs, online, status, message }) => ({
+    map(({ charts, jobs, online, status, message, position, diagnostics }) => ({
       online,
       status,
       message,
@@ -762,28 +836,90 @@ export class ChartFacadeService {
         label: job.label,
         ...(job.error ? { error: job.error } : {}),
       })),
-      baseSources: CHART_SOURCES.filter((source) => BUILT_IN_BASE_SOURCE_IDS.has(source.id)).map(
-        (source) => ({
+      baseSources: [
+        ...CHART_SOURCES.filter((source) => BUILT_IN_BASE_SOURCE_IDS.has(source.id)).map(
+          (source) => {
+            const longitude = position?.longitude ?? DEFAULT_CENTER.lon;
+            const latitude = position?.latitude ?? DEFAULT_CENTER.lat;
+            const inCoverage = !source.bounds || (
+              longitude >= source.bounds[0] &&
+              latitude >= source.bounds[1] &&
+              longitude <= source.bounds[2] &&
+              latitude <= source.bounds[3]
+            );
+            const providerAvailable =
+              (source.available ?? true) &&
+              (!ENGINE_REQUIRED_SOURCE_IDS.has(source.id) || online) &&
+              sourceProviderAvailable(source.id, diagnostics);
+            const available = providerAvailable && inCoverage;
+            return {
           id: source.id,
           label: source.label,
           kind: source.kind,
           ...(source.description ? { description: source.description } : {}),
-          available: source.available ?? true,
+          ...(source.bounds ? { bounds: source.bounds } : {}),
+          available,
+          availability: (available
+            ? 'available'
+            : !inCoverage ? 'out-of-coverage' : 'unavailable') as 'available' | 'unavailable' | 'out-of-coverage',
+          ...(!inCoverage ? { reason: 'Current position is outside this regional source coverage.' } : {}),
+          ...(!online && ENGINE_REQUIRED_SOURCE_IDS.has(source.id)
+            ? { reason: 'Local chart engine is offline.' }
+            : !sourceProviderAvailable(source.id, diagnostics)
+              ? { reason: 'Provider is unavailable. Retry diagnostics later.' }
+            : {}),
           local: false,
+          offline: false,
           category: 'base' as const,
-        }),
-      ),
+        };
+          }),
+        ...charts
+          .filter((chart) => chart.id === 'emodnet-bathymetry')
+          .map((chart) => ({
+            id: chart.id,
+            label: chart.label,
+            kind: chart.kind,
+            ...(chart.description ? { description: chart.description } : {}),
+            ...(chart.attribution ? { attribution: chart.attribution } : {}),
+            ...(chart.minZoom !== undefined ? { minZoom: chart.minZoom } : {}),
+            ...(chart.maxZoom !== undefined ? { maxZoom: chart.maxZoom } : {}),
+            available: chart.available && online && sourceProviderAvailable(chart.id, diagnostics),
+            availability: (chart.available && online && sourceProviderAvailable(chart.id, diagnostics) ? 'available' : 'unavailable') as 'available' | 'unavailable',
+            ...(!online
+              ? { reason: 'Local chart engine is offline.' }
+              : !sourceProviderAvailable(chart.id, diagnostics)
+                ? { reason: 'Provider is unavailable. Retry diagnostics later.' }
+                : {}),
+            local: false,
+            offline: false,
+            category: 'base' as const,
+          })),
+      ],
       localSources: charts
-        .filter((chart) => chart.available)
-        .map((chart) => ({
+        .filter((chart) => chart.id !== 'emodnet-bathymetry')
+        .map((chart) => {
+          const bounds = parseChartBounds(chart.metadata?.['bounds']);
+          const minZoom = chart.minZoom ?? Number(chart.metadata?.['minzoom']);
+          const maxZoom = chart.maxZoom ?? Number(chart.metadata?.['maxzoom']);
+          return {
           id: chart.id,
           label: chart.label,
           kind: chart.kind,
           ...(chart.description ? { description: chart.description } : {}),
-          available: chart.available,
+          ...(bounds ? { bounds } : {}),
+          ...(Number.isFinite(minZoom) ? { minZoom } : {}),
+          ...(Number.isFinite(maxZoom) ? { maxZoom } : {}),
+          ...(chart.attribution ? { attribution: chart.attribution } : {}),
+          available: chart.available && online,
+          availability: (chart.available && online ? 'available' : 'unavailable') as 'available' | 'unavailable',
+          ...(!chart.available
+            ? { reason: chart.id === 'ria-vigo-bathymetry' ? 'Ría de Vigo package is incomplete or needs a legal import.' : 'Chart tiles are not registered.' }
+            : !online ? { reason: 'Local chart engine is offline.' } : {}),
           local: true,
+          offline: true,
           category: 'local' as const,
-        })),
+        };
+        }),
     })),
     shareReplay({ bufferSize: 1, refCount: true }),
   );
@@ -968,7 +1104,9 @@ export class ChartFacadeService {
     cog: this.cog$,
     fixState: this.fixState$,
   }).pipe(
-    auditTime(200),
+    // MapLibre already coalesces vessel/camera work into RAF. Keep this below
+    // the 10 Hz IMU period so heading does not arrive one sample late.
+    auditTime(40),
     map(({ position, heading, cog, fixState }) => {
       const headingRad = coerceNumber(heading?.value);
       const cogRad = coerceNumber(cog?.value);
@@ -1631,7 +1769,7 @@ export class ChartFacadeService {
   }
 
   toggleAisTracks(): void {
-    this.settingsService.toggleAisTracks();
+    this.settingsService.toggleVesselTrails();
   }
 
   toggleAisTargets(): void {
@@ -1671,8 +1809,13 @@ export class ChartFacadeService {
   readonly weatherWavesVisible$ = this.settingsService.settings$.pipe(map((s) => s.showWaves));
   readonly environmentCurrentsVisible$ = this.settingsService.settings$.pipe(map((s) => s.showCurrents));
   readonly environmentTime$ = this.settingsService.settings$.pipe(map((s) => s.environmentTime));
+  readonly weatherBounds$ = this.settingsService.settings$.pipe(map((s) => s.weatherBounds));
 
   readonly weatherOpacity$ = this.settingsService.settings$.pipe(map((s) => s.weatherOpacity));
+
+  setWeatherBounds(bounds: import('./chart-settings.service').WeatherBounds): void {
+    this.settingsService.setWeatherBounds(bounds);
+  }
 
   readonly showAisTargets$ = this.settingsService.settings$.pipe(map((s) => s.showAisTargets));
 
@@ -1707,37 +1850,19 @@ export class ChartFacadeService {
 
   setSafetyDepth(depth: number): void {
     this.settingsService.setSafetyDepth(depth);
-    this.refreshEncStyle();
+    void this.refreshEncStyle();
   }
 
   updateEncLayers(partial: Partial<EncLayerConfig>): void {
     this.settingsService.updateEncLayers(partial);
-    this.refreshEncStyle();
-  }
-
-  toggleLayer(): void {
-    const current = this._baseSource$.value;
-    switch (current.id) {
-      case DEFAULT_CHART_SOURCE_ID:
-        this._baseSource$.next(SATELLITE_SOURCE);
-        break;
-      case 'satellite':
-        this._baseSource$.next(NAUTICAL_SOURCE);
-        break;
-      case NAUTICAL_CHART_SOURCE_ID:
-        this._baseSource$.next(this.buildEncSource());
-        break;
-      case ENC_CHART_SOURCE_ID:
-      default:
-        this._baseSource$.next(DEFAULT_BASE_SOURCE);
-        break;
-    }
+    void this.refreshEncStyle();
   }
 
   async selectChartSource(sourceId: string): Promise<void> {
     const builtIn = this.buildStaticSource(sourceId);
     if (builtIn) {
       this._baseSource$.next(builtIn);
+      this.preferences.setMapSourceId(sourceId);
       return;
     }
 
@@ -1745,10 +1870,49 @@ export class ChartFacadeService {
     const chart = charts.find((candidate) => candidate.id === sourceId && candidate.available);
     if (!chart) {
       this.recordMapError(`Chart source is not available: ${sourceId}`, sourceId);
+      this._baseSource$.next(DEFAULT_BASE_SOURCE);
+      this.preferences.setMapSourceId(DEFAULT_CHART_SOURCE_ID);
       return;
     }
 
     this._baseSource$.next(this.buildEngineSource(chart));
+    this.preferences.setMapSourceId(sourceId);
+  }
+
+  async selectChartPackage(manifest: PackageManifest): Promise<void> {
+    const charts = await firstValueFrom(this.chartCatalog.charts$);
+    const hasReadyChart = manifest.layers.some((layer) =>
+      layer.state === 'ready'
+      && layer.chartId
+      && charts.some((chart) => chart.id === layer.chartId && chart.available),
+    );
+    if (!hasReadyChart) {
+      this.recordMapError(`Package has no installed renderable layers: ${manifest.name}`, manifest.id);
+      return;
+    }
+    const settings = this.settingsService.snapshot;
+    this._baseSource$.next({
+      id: `package:${manifest.id}`,
+      style: buildChartPackageStyle(manifest, charts, settings.encLayers, settings.safetyDepth),
+    });
+    this.preferences.setMapSourceId(`package:${manifest.id}`);
+  }
+
+  async selectNextAvailableChartSource(): Promise<void> {
+    const catalog = await firstValueFrom(this.chartSourceOptions$);
+    const available = [...catalog.baseSources, ...catalog.localSources]
+      .filter((source) => source.available)
+      .filter((source, index, sources) =>
+        sources.findIndex((candidate) => candidate.id === source.id) === index,
+      );
+    if (available.length < 2) {
+      return;
+    }
+    const currentIndex = available.findIndex((source) => source.id === this._baseSource$.value.id);
+    const next = available[(currentIndex + 1 + available.length) % available.length];
+    if (next) {
+      await this.selectChartSource(next.id);
+    }
   }
 
   importChart(request: ChartImportRequestVm): void {
@@ -1779,38 +1943,50 @@ export class ChartFacadeService {
     this._mapErrors$.next([error, ...this._mapErrors$.value].slice(0, 5));
   }
 
-  get currentLayerMode(): ChartLayerMode {
-    const id = this._baseSource$.value.id;
-    if (id === 'satellite') {
-      return 'satellite';
-    }
-    if (id === NAUTICAL_CHART_SOURCE_ID) {
-      return 'nautical';
-    }
-    if (id === ENC_CHART_SOURCE_ID) {
-      return 'enc';
-    }
-    if (id === LOCAL_RASTER_CHART_SOURCE_ID) {
-      return 'local-raster';
-    }
-    if (id === BATHYMETRY_CHART_SOURCE_ID) {
-      return 'bathymetry';
-    }
-    if (id === ENC_VECTOR_CHART_SOURCE_ID || id.startsWith('local-enc') || id.includes('vector')) {
-      return 'enc-vector';
-    }
-    return 'osm';
+  fallbackToDefaultSource(reason: string): void {
+    if (this._baseSource$.value.id === DEFAULT_CHART_SOURCE_ID) return;
+    this.recordMapError(`Falling back to OpenStreetMap: ${reason}`, this._baseSource$.value.id);
+    this._baseSource$.next(DEFAULT_BASE_SOURCE);
+    this.preferences.setMapSourceId(DEFAULT_CHART_SOURCE_ID);
   }
 
-  refreshEncStyle(): void {
-    if (this._baseSource$.value.id === ENC_CHART_SOURCE_ID) {
+  async refreshEncStyle(): Promise<void> {
+    const activeSource = this._baseSource$.value;
+    const sourceId = activeSource.id;
+    const supportsSemanticLayers = chartStyleHasVectorSource(activeSource.style);
+    if (!supportsSemanticLayers) return;
+
+    if (sourceId === ENC_CHART_SOURCE_ID) {
       this._baseSource$.next(this.buildEncSource());
+      return;
     }
-    if (this._baseSource$.value.id === ENC_VECTOR_CHART_SOURCE_ID) {
+    if (sourceId === ENC_VECTOR_CHART_SOURCE_ID) {
       this._baseSource$.next(
-        this.buildStaticSource(ENC_VECTOR_CHART_SOURCE_ID) ?? this._baseSource$.value,
+        this.buildStaticSource(ENC_VECTOR_CHART_SOURCE_ID) ?? activeSource,
       );
+      return;
     }
+
+    if (sourceId.startsWith('package:')) {
+      const packageId = sourceId.slice('package:'.length);
+      const [packages, charts] = await Promise.all([
+        firstValueFrom(this.packageCatalog.listPackages()),
+        firstValueFrom(this.chartCatalog.charts$),
+      ]);
+      const manifest = packages.find((candidate) => candidate.id === packageId);
+      if (!manifest || this._baseSource$.value.id !== sourceId) return;
+      const settings = this.settingsService.snapshot;
+      this._baseSource$.next({
+        id: sourceId,
+        style: buildChartPackageStyle(manifest, charts, settings.encLayers, settings.safetyDepth),
+      });
+      return;
+    }
+
+    const charts = await firstValueFrom(this.chartCatalog.charts$);
+    const chart = charts.find((candidate) => candidate.id === sourceId && candidate.kind === 'vector');
+    if (!chart || this._baseSource$.value.id !== sourceId) return;
+    this._baseSource$.next(this.buildEngineSource(chart));
   }
 
   centerOnVessel(): void {
@@ -2014,18 +2190,25 @@ export class ChartFacadeService {
       return SATELLITE_SOURCE;
     }
     if (sourceId === NAUTICAL_CHART_SOURCE_ID) {
-      return NAUTICAL_SOURCE;
+      return {
+        id: NAUTICAL_CHART_SOURCE_ID,
+        style: bindChartEngineUrl(NAUTICAL_RASTER_STYLE, this.environment.chartEngineApiUrl),
+      };
     }
     if (sourceId === ENC_CHART_SOURCE_ID) {
       return this.buildEncSource();
     }
     if (sourceId === GEBCO_CHART_SOURCE_ID) {
       const source = CHART_SOURCES.find((s) => s.id === GEBCO_CHART_SOURCE_ID);
-      return source?.style ? { id: source.id, style: source.style } : null;
+      return source?.style
+        ? { id: source.id, style: bindChartEngineUrl(source.style, this.environment.chartEngineApiUrl) }
+        : null;
     }
     if (sourceId === NOAA_WMS_CHART_SOURCE_ID) {
       const source = CHART_SOURCES.find((s) => s.id === NOAA_WMS_CHART_SOURCE_ID);
-      return source?.style ? { id: source.id, style: source.style } : null;
+      return source?.style
+        ? { id: source.id, style: bindChartEngineUrl(source.style, this.environment.chartEngineApiUrl) }
+        : null;
     }
     if (sourceId === IHM_WMS_CHART_SOURCE_ID) {
       return {
@@ -2035,12 +2218,16 @@ export class ChartFacadeService {
     }
     if (sourceId === BATHYMETRY_CHART_SOURCE_ID) {
       const source = CHART_SOURCES.find((s) => s.id === BATHYMETRY_CHART_SOURCE_ID);
-      return source?.style ? { id: source.id, style: source.style } : null;
+      return source?.style
+        ? { id: source.id, style: bindChartEngineUrl(source.style, this.environment.chartEngineApiUrl) }
+        : null;
     }
     const source = CHART_SOURCES.find(
       (candidate) => candidate.id === sourceId && BUILT_IN_BASE_SOURCE_IDS.has(candidate.id),
     );
-    return source?.style ? { id: source.id, style: source.style } : null;
+    return source?.style
+      ? { id: source.id, style: bindChartEngineUrl(source.style, this.environment.chartEngineApiUrl) }
+      : null;
   }
 
   private buildEngineSource(chart: EngineChartSource): ChartSourceConfig {

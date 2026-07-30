@@ -18,6 +18,7 @@ export interface EngineChartSource {
   tileUrl?: string;
   styleUrl?: string;
   available: boolean;
+  metadata?: Record<string, string>;
 }
 
 export interface EngineChartJob {
@@ -32,6 +33,95 @@ export interface EngineChartJob {
   result?: EngineChartSource;
 }
 
+export interface EngineProviderDiagnostic {
+  id: string;
+  available: boolean;
+  lastSuccessAt?: string;
+  lastErrorAt?: string;
+  lastError?: string;
+}
+
+export interface EngineDiagnostics {
+  status: string;
+  weatherConfigured: boolean;
+  environmentSync: {
+    enabled: boolean;
+    running: boolean;
+    lastStartedAt?: string;
+    lastCompletedAt?: string;
+    lastError?: string;
+    nextAttemptAt?: string;
+  };
+  xyzProviders: EngineProviderDiagnostic[];
+  wmsProviders: EngineProviderDiagnostic[];
+}
+
+export interface EngineStorageStatus {
+  totalBytes: number;
+  availableBytes: number;
+  reserveBytes: number;
+  quotaBytes: number;
+  evictableUsedBytes: number;
+  pressure: boolean;
+  categories: Array<{ id: 'tiles' | 'weather' | 'environment'; usedBytes: number; fileCount: number }>;
+  lastPrunedAt?: string;
+  lastFreedBytes?: number;
+}
+
+export interface EncHazardResponse {
+  coverage: 'available' | 'unavailable';
+  advisoryOnly: true;
+  safetyDepthM: number;
+  minDepthM: number | null;
+  sector: GeoJSON.Feature<GeoJSON.Polygon>['geometry'];
+  hazards: GeoJSON.FeatureCollection;
+  evaluatedChartIds: string[];
+  indexedChartCount: number;
+}
+
+export interface IhmFeatureInfoAttribute {
+  label: string;
+  acronym: string | null;
+  value: string;
+}
+
+export interface IhmFeatureInfoFeature {
+  title: string;
+  objectClass: string | null;
+  cell: string | null;
+  kind: 'feature' | 'context';
+  attributes: IhmFeatureInfoAttribute[];
+  details: string;
+}
+
+export interface IhmFeatureInfoResponse {
+  source: string;
+  position: { longitude: number; latitude: number };
+  features: IhmFeatureInfoFeature[];
+  advisoryOnly: true;
+  disclaimer: string;
+}
+
+export interface MarineMaskResponse extends GeoJSON.FeatureCollection {
+  properties: {
+    source: 'enc' | 'official-coast' | 'global-fallback';
+    coverage: 'available' | 'fallback' | 'unavailable';
+    chartIds: string[];
+    precision: 'enc-vector' | 'coastal-fallback';
+    fallbackUsed: boolean;
+    advisoryOnly: true;
+  };
+}
+
+export interface EncDepthOverlayResponse extends GeoJSON.FeatureCollection {
+  properties: {
+    coverage: 'available' | 'unavailable';
+    chartIds: string[];
+    safetyDepthM: number;
+    advisoryOnly: true;
+  };
+}
+
 @Injectable({ providedIn: 'root' })
 export class ChartEngineApiService {
   private readonly http = inject(HttpClient);
@@ -40,6 +130,70 @@ export class ChartEngineApiService {
 
   health() {
     return this.http.get<{ status: string; service: string }>(`${this.baseUrl}/health`);
+  }
+
+  diagnostics() {
+    return this.http.get<EngineDiagnostics>(`${this.baseUrl}/health/diagnostics`);
+  }
+
+  storageStatus() {
+    return this.http.get<EngineStorageStatus>(`${this.baseUrl}/catalog/storage`);
+  }
+
+  pruneStorage() {
+    return this.http.post<EngineStorageStatus>(`${this.baseUrl}/catalog/storage/prune`, {});
+  }
+
+  queryEncHazards(request: {
+    chartIds: string[];
+    position: { latitude: number; longitude: number };
+    courseDeg: number;
+    speedMps: number;
+    draftM: number;
+    underKeelClearanceM: number;
+    safetyDepthM: number;
+    lookAheadMinutes: number;
+    corridorWidthM: number;
+  }) {
+    return this.http.post<EncHazardResponse>(`${this.baseUrl}/catalog/enc/hazards/query`, request);
+  }
+
+  ihmFeatureInfo(longitude: number, latitude: number, zoom: number) {
+    return this.http.get<IhmFeatureInfoResponse>(`${this.baseUrl}/catalog/ihm/feature-info`, {
+      params: { lng: longitude, lat: latitude, zoom },
+    });
+  }
+
+  marineMask(params: { bbox: [number, number, number, number]; area?: GeoJSON.Polygon }) {
+    return this.http.get<MarineMaskResponse>(`${this.baseUrl}/catalog/enc/marine-mask.geojson`, {
+      params: {
+        bbox: params.bbox.join(','),
+        ...(params.area ? { area: JSON.stringify(params.area) } : {}),
+      },
+    });
+  }
+
+  encDepthOverlay(params: {
+    bbox: [number, number, number, number];
+    area?: GeoJSON.Polygon;
+    safetyDepthM: number;
+    layers: string[];
+  }) {
+    return this.http.get<EncDepthOverlayResponse>(`${this.baseUrl}/catalog/enc/depth-overlay.geojson`, {
+      params: {
+        bbox: params.bbox.join(','),
+        safetyDepthM: params.safetyDepthM,
+        layers: params.layers.join(','),
+        ...(params.area ? { area: JSON.stringify(params.area) } : {}),
+      },
+    });
+  }
+
+  syncEnvironment() {
+    return this.http.post<EngineDiagnostics['environmentSync']>(
+      `${this.baseUrl}/environment/sync`,
+      {},
+    );
   }
 
   listCharts() {

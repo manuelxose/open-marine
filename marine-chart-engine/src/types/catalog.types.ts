@@ -7,7 +7,7 @@ export type ChartProviderRegion = 'global' | 'europe' | 'spain' | 'usa' | 'uk' |
 
 export type ChartProviderKind = 'wms' | 'wmts' | 'xyz' | 'enc-s57' | 'enc-s63' | 'raster' | 'vector';
 
-export type ChartAvailability = 'online' | 'offline-capable' | 'subscription';
+export type ChartAvailability = 'online' | 'offline-capable' | 'subscription' | 'manual-import';
 
 export interface ChartProviderEndpoints {
   catalog?: string;

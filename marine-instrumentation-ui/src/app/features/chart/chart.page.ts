@@ -8,7 +8,9 @@ import {
   inject,
   signal,
   computed,
+  effect,
 } from '@angular/core';
+import { ActivatedRoute } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { Router } from '@angular/router';
@@ -25,7 +27,10 @@ import { AisStoreService } from '../../state/ais/ais-store.service';
 import { PlaybackStoreService } from '../../state/playback/playback-store.service';
 import { MapLibreEngineService } from './services/maplibre-engine.service';
 import { createCoalescedMapEffect, createCoalescedConfigEffect } from './services/coalesced-map-effects';
-import { DEFAULT_VESSEL_TYPE_COLORS } from './services/chart-settings.service';
+import {
+  ChartSettingsService,
+  DEFAULT_VESSEL_TYPE_COLORS,
+} from './services/chart-settings.service';
 
 // Components
 import { ChartCanvasComponent } from './components/chart-canvas/chart-canvas.component';
@@ -33,7 +38,9 @@ import { MapControlsComponent } from './components/map-controls/map-controls.com
 
 import { QuickInstrumentsComponent } from './components/quick-instruments/quick-instruments.component';
 import { LeftPanelComponent } from './components/left-panel/left-panel.component';
-import { ChartManagerComponent } from './components/chart-manager/chart-manager.component';
+import { ChartManagerComponent, type ManagerSection } from './components/chart-manager/chart-manager.component';
+import type { AreaSelectionMode } from './components/chart-source-catalog/chart-source-catalog.component';
+import type { AreaGeometry } from '../../data-access/chart/chart-remote-catalog.service';
 import { APP_ENVIRONMENT } from '../../core/config/app-environment.token';
 import { FullscreenToggleComponent } from './components/fullscreen-toggle/fullscreen-toggle.component';
 import { AlarmStatusWidgetComponent } from './components/alarm-status-widget/alarm-status-widget.component';
@@ -41,14 +48,12 @@ import { ChartTopBarComponent } from './components/chart-top-bar/chart-top-bar.c
 import { AisTargetDetailsComponent } from '../ais/components/ais-target-details/ais-target-details.component';
 import { PlaybackBarComponent } from '../playback/components/playback-bar/playback-bar.component';
 import { InstrumentsDrawerComponent } from '../instruments/components/instruments-drawer/instruments-drawer.component';
-import { MapSettingsPanelComponent } from './components/map-settings-panel/map-settings-panel.component';
 import { ChartLegendComponent } from '../chart-legend/chart-legend.component';
 import { AppIconComponent } from '../../shared/components/app-icon/app-icon.component';
 import { AutopilotChartControlComponent } from '../autopilot/components/autopilot-chart-control/autopilot-chart-control.component';
 import { TranslatePipe } from '../../shared/pipes/translate.pipe';
 import { SimulationRunBannerComponent } from '../../ui/layout/simulation-run-banner/simulation-run-banner.component';
 import { MeteoWidgetComponent } from '../../ui/instruments/meteo-widget/meteo-widget.component';
-import { EnvironmentPanelComponent } from './components/environment-panel/environment-panel.component';
 
 // Utils & Types
 import {
@@ -67,7 +72,6 @@ import {
 } from '../../state/calculations/navigation';
 import {
   ChartImportRequestVm,
-  ChartLayerMode,
   ChartLeftPanelTab,
   MapOrientation,
 } from './types/chart-vm';
@@ -79,6 +83,10 @@ import {
   PlaybackState,
 } from '../../state/playback/playback.models';
 import { AisTarget } from '../../core/models/ais.model';
+import { DEFAULT_CHART_SOURCE_ID, IHM_WMS_CHART_SOURCE_ID } from '../../data-access/chart/chart-sources';
+import { EncDepthAheadService } from '../alarms/services/enc-depth-ahead.service';
+import { ChartEngineApiService } from '../../data-access/chart/chart-engine-api.service';
+import { AlarmStoreService } from '../../state/alarms/alarm-store.service';
 
 const INITIAL_PLAYBACK_STATE: PlaybackState = {
   status: 'idle',
@@ -105,14 +113,12 @@ const INITIAL_PLAYBACK_STATE: PlaybackState = {
     AisTargetDetailsComponent,
     PlaybackBarComponent,
     InstrumentsDrawerComponent,
-    MapSettingsPanelComponent,
     ChartLegendComponent,
     AppIconComponent,
     AutopilotChartControlComponent,
     TranslatePipe,
     SimulationRunBannerComponent,
     MeteoWidgetComponent,
-    EnvironmentPanelComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -132,7 +138,7 @@ const INITIAL_PLAYBACK_STATE: PlaybackState = {
           [orientation]="orientation()"
           [canCenter]="(controlsVm$ | async)?.canCenter ?? false"
           [autoCenter]="(controlsVm$ | async)?.autoCenter ?? false"
-          [layerMode]="layerModeSignal()"
+          [mapSourceId]="(controlsVm$ | async)?.sourceId ?? 'osm-raster'"
           [anchorWatchActive]="anchorWatchActive()"
           [showOpenSeaMap]="(controlsVm$ | async)?.showOpenSeaMap ?? false"
           [showAisTracks]="showAisTracksSignal()"
@@ -140,7 +146,8 @@ const INITIAL_PLAYBACK_STATE: PlaybackState = {
           [addWaypointModeActive]="addWaypointMode()"
           [hasActiveWaypoint]="hasActiveWaypoint()"
           [panelOpen]="leftPanelOpen()"
-          [settingsPanelOpen]="settingsPanelOpen()"
+          [settingsPanelOpen]="chartManagerOpen()"
+          [environmentPanelActive]="chartManagerOpen() && chartManagerStartSection() === 'environment'"
           (zoomIn)="handleZoomIn()"
           (zoomOut)="handleZoomOut()"
           (centerOnVessel)="handleCenterAndFollow()"
@@ -154,6 +161,7 @@ const INITIAL_PLAYBACK_STATE: PlaybackState = {
           (toggleAnchorWatch)="handleToggleAnchorWatch()"
           (togglePanel)="handleToggleLeftPanel()"
           (toggleSettingsPanel)="handleToggleSettingsPanel()"
+          (openEnvironmentPanel)="handleOpenEnvironmentPanel()"
         />
       </div>
 
@@ -173,7 +181,6 @@ const INITIAL_PLAYBACK_STATE: PlaybackState = {
         <app-left-panel
           [isOpen]="leftPanelOpen()"
           [activeTab]="leftPanelTab()"
-          [controlsVm]="(controlsVm$ | async) ?? null"
           [waypointVm]="(waypointVm$ | async) ?? null"
           [routesVm]="(routesVm$ | async) ?? null"
           [aisTargets]="aisTargets()"
@@ -181,18 +188,8 @@ const INITIAL_PLAYBACK_STATE: PlaybackState = {
           [aisSortBy]="aisSortBy()"
           (toggleOpen)="handleToggleLeftPanel()"
           (tabChange)="handleLeftPanelTabChange($event)"
-          (selectChartSource)="handleSelectChartSource($event)"
           (selectAisTarget)="handleSelectAisTarget($event)"
           (aisSortByChange)="handleAisSortChange($event)"
-          (toggleTrack)="handleToggleTrack()"
-          (toggleVector)="handleToggleVector()"
-          (toggleTrueWind)="handleToggleTrueWind()"
-          (toggleRangeRings)="handleToggleRangeRings()"
-          (changeRangeRingIntervals)="handleChangeRangeRings($event)"
-          (toggleAisTargets)="handleToggleAisTargets()"
-          (toggleAisLabels)="handleToggleAisLabels()"
-          (toggleCpaLines)="handleToggleCpaLines()"
-          (toggleOpenSeaMap)="handleToggleOpenSeaMap()"
           (selectWaypoint)="handleSelectWaypoint($event)"
           (renameWaypoint)="handleRenameWaypoint($event)"
           (deleteWaypoint)="handleDeleteWaypoint($event)"
@@ -239,14 +236,6 @@ const INITIAL_PLAYBACK_STATE: PlaybackState = {
         (toggle)="handleToggleFullscreen()"
       />
 
-      <!-- Map Settings Panel -->
-      <app-map-settings-panel
-        *ngIf="settingsPanelOpen()"
-        class="chart-zone chart-zone--settings-panel"
-        (navigateTo)="handleNavigateTo($event)"
-        (closePanel)="settingsPanelOpen.set(false)"
-      />
-
       <!-- Instruments Drawer (M6) -->
       <app-instruments-drawer
         [isOpen]="showInstruments()"
@@ -272,61 +261,62 @@ const INITIAL_PLAYBACK_STATE: PlaybackState = {
         />
       </div>
 
-      <!-- Charts: open the chart manager modal -->
       <button
         class="weather-btn"
         [class.weather-btn--active]="showWeather()"
-        (click)="showWeather.set(!showWeather())"
-        aria-label="Open weather forecast"
         [attr.aria-expanded]="showWeather()"
-        title="Live weather"
+        (click)="toggleWeather()"
+        aria-label="Open quick weather forecast"
+        title="Weather"
       >
         <app-icon name="sun" [size]="20" />
       </button>
 
       @if (showWeather()) {
-        <section class="weather-panel" aria-label="Weather forecast panel">
-          <button class="weather-panel__close" type="button" (click)="showWeather.set(false)" aria-label="Close weather forecast">
-            <app-icon name="x" [size]="16" />
+        <section class="weather-panel" aria-label="Quick weather forecast">
+          <button type="button" class="weather-panel__close" aria-label="Close weather" (click)="showWeather.set(false)">
+            <app-icon name="close" [size]="18" />
           </button>
           <app-meteo-widget variant="map" />
         </section>
       }
 
-      <button
-        class="environment-btn"
-        [class.environment-btn--active]="showEnvironment()"
-        (click)="showEnvironment.set(!showEnvironment())"
-        aria-label="Open marine environment and Vigo tides"
-        [attr.aria-expanded]="showEnvironment()"
-        title="Marine layers and Vigo tides">
-        <app-icon name="thermometer" [size]="20" />
-      </button>
-
-      @if (showEnvironment()) {
-        <app-environment-panel
-          class="environment-panel-host"
-          (dismiss)="showEnvironment.set(false)" />
-      }
-
-      <button
-        class="charts-btn"
-        (click)="chartManagerOpen.set(true)"
-        aria-label="Open chart manager"
-        title="Charts"
-      >
-        <app-icon name="map" [size]="20" />
-      </button>
-
       <app-chart-manager
         [open]="chartManagerOpen()"
+        [startSection]="chartManagerStartSection()"
         [vm]="(controlsVm$ | async) ?? null"
+        [selectedPackageGeometry]="selectedPackageGeometry()"
         (close)="chartManagerOpen.set(false)"
         (selectSource)="handleSelectChartSource($event)"
         (importChart)="handleImportChart($event)"
         (deleteChart)="handleDeleteChart($event)"
         (refreshCatalog)="handleRefreshCatalog()"
+        (viewCoverage)="handleViewCoverage($event)"
+        (previewArea)="handlePreviewArea($event)"
+        (safetyDepthChange)="handleSafetyDepthChange($event)"
+        (requestAreaSelection)="handleAreaSelectionRequest($event)"
+        (requestWeatherAreaSelection)="handleWeatherAreaSelectionRequest($event)"
+        (selectPackage)="handleSelectPackage($event)"
       />
+
+      @if (areaSelectionMode(); as selectionMode) {
+        <div class="area-selection-help" role="status">
+          <div>
+            <strong>{{ selectionMode === 'rectangle' ? 'Select two corners' : 'Tap vertices on the map' }}</strong>
+            <small>
+              @if (areaSelectionPurpose() === 'weather') {
+                The weather layer will reload with an adaptive high-density grid.
+              } @else {
+                {{ selectionMode === 'polygon' ? 'Use Finish after at least three points.' : 'The package assistant reopens automatically.' }}
+              }
+            </small>
+          </div>
+          @if (selectionMode === 'polygon') {
+            <button type="button" (click)="finishAreaSelection()">Finish</button>
+          }
+          <button type="button" (click)="cancelAreaSelection()">Cancel</button>
+        </div>
+      }
 
       <!-- Chart Legend: "?" button + fullscreen modal -->
       <button
@@ -651,42 +641,13 @@ const INITIAL_PLAYBACK_STATE: PlaybackState = {
         line-height: 1;
       }
 
-      .charts-btn {
-        position: absolute;
-        bottom: calc(var(--chart-edge-gap) + 48px);
-        left: var(--chart-edge-gap);
-        z-index: var(--z-chart-panels);
-        width: 40px;
-        height: 40px;
-        border-radius: 50%;
-        border: 1px solid var(--chart-overlay-border);
-        background: var(--chart-overlay-bg);
-        backdrop-filter: var(--chart-overlay-blur);
-        color: var(--gb-text-value);
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        box-shadow: var(--chart-overlay-shadow);
-        transition: all 0.2s ease;
-        pointer-events: auto;
-        animation: chart-zone-enter-bottom 0.5s var(--ease-out) both;
-        animation-delay: 0.45s;
-
-        &:hover {
-          background: color-mix(in srgb, var(--chart-overlay-bg) 80%, var(--gb-tick-reference));
-          transform: scale(1.1);
-          border-color: var(--gb-border-active);
-        }
-      }
-
       .weather-btn {
         position: absolute;
-        bottom: calc(var(--chart-edge-gap) + 96px);
-        left: var(--chart-edge-gap);
+        bottom: var(--chart-edge-gap);
+        left: calc(var(--chart-edge-gap) + 48px);
         z-index: var(--z-chart-panels);
-        width: 40px;
-        height: 40px;
+        width: 44px;
+        height: 44px;
         border-radius: var(--radius-full);
         border: 1px solid var(--chart-overlay-border);
         background: var(--chart-overlay-bg);
@@ -745,10 +706,11 @@ const INITIAL_PLAYBACK_STATE: PlaybackState = {
       .weather-panel {
         position: absolute;
         top: calc(var(--chart-top-bar-height) + var(--chart-edge-gap));
-        right: var(--chart-edge-gap);
+        left: 50%;
+        transform: translateX(-50%);
         z-index: calc(var(--z-chart-panels) + 3);
-        width: min(920px, calc(100% - (var(--chart-edge-gap) * 2)));
-        height: min(560px, calc(100% - var(--chart-top-bar-height) - (var(--chart-edge-gap) * 2)));
+        width: min(1040px, calc(100% - (var(--chart-edge-gap) * 2)));
+        height: min(420px, calc(100% - var(--chart-top-bar-height) - (var(--chart-edge-gap) * 2)));
         max-height: calc(100% - var(--chart-top-bar-height) - (var(--chart-edge-gap) * 2));
         overflow: auto;
         border: 1px solid var(--chart-overlay-border);
@@ -765,8 +727,8 @@ const INITIAL_PLAYBACK_STATE: PlaybackState = {
         top: var(--space-2);
         right: var(--space-2);
         z-index: 2;
-        width: 32px;
-        height: 32px;
+        width: 44px;
+        height: 44px;
         display: grid;
         place-items: center;
         border: 1px solid var(--gb-border-panel);
@@ -776,11 +738,54 @@ const INITIAL_PLAYBACK_STATE: PlaybackState = {
         cursor: pointer;
       }
 
+      .area-selection-help {
+        position: absolute;
+        top: calc(var(--chart-top-bar-height) + var(--chart-edge-gap));
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: var(--z-chart-modals);
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
+        padding: var(--space-2);
+        width: min(560px, calc(100% - (var(--chart-edge-gap) * 2)));
+        box-sizing: border-box;
+        color: var(--gb-text-value);
+        background: var(--chart-overlay-bg);
+        border: 1px solid var(--chart-overlay-border);
+        border-radius: var(--radius-lg);
+        box-shadow: var(--chart-overlay-shadow);
+        backdrop-filter: var(--chart-overlay-blur);
+      }
+      .area-selection-help > div { flex: 1; display: flex; flex-direction: column; }
+      .area-selection-help small { color: var(--gb-text-muted); font-size: .72rem; }
+      .area-selection-help button {
+        min-width: 72px; min-height: 44px; padding: 0 var(--space-2);
+        color: var(--gb-text-value); background: var(--gb-bg-glass);
+        border: 1px solid var(--gb-border-panel); border-radius: var(--radius-sm); cursor: pointer;
+      }
+
       // ═══════════════════════════════════════════════
       // RESPONSIVE
       // ═══════════════════════════════════════════════
 
       @media (max-width: 768px) {
+        .chart-page {
+          --chart-edge-gap: var(--space-2);
+          height: 100dvh;
+        }
+
+        .chart-zone--top-left {
+          right: var(--chart-edge-gap);
+          width: auto;
+        }
+
+        .weather-panel {
+          top: calc(var(--chart-top-bar-height) + var(--space-1));
+          width: calc(100% - (var(--chart-edge-gap) * 2));
+          height: min(62vh, calc(100% - var(--chart-top-bar-height) - var(--space-2)));
+          overflow: auto;
+        }
         .environment-panel-host {
           top: auto;
           left: var(--chart-edge-gap);
@@ -789,7 +794,7 @@ const INITIAL_PLAYBACK_STATE: PlaybackState = {
           height: 62vh;
         }
         .chart-zone--top-right {
-          top: calc(var(--chart-top-bar-height) + var(--space-2));
+          top: calc(var(--chart-top-controls-offset) + 52px);
           right: var(--chart-edge-gap);
         }
 
@@ -805,6 +810,22 @@ const INITIAL_PLAYBACK_STATE: PlaybackState = {
           bottom: calc(var(--chart-edge-gap) + 140px);
         }
 
+        .chart-zone--bottom-right {
+          left: var(--chart-edge-gap);
+          right: var(--chart-edge-gap);
+          width: auto;
+        }
+
+        .fullscreen-fab,
+        .legend-btn,
+        .weather-btn {
+          bottom: calc(var(--chart-edge-gap) + 64px);
+        }
+
+        .fullscreen-fab {
+          top: auto;
+        }
+
         .weather-panel {
           top: calc(var(--chart-top-bar-height) + var(--space-1));
           height: auto;
@@ -816,6 +837,7 @@ const INITIAL_PLAYBACK_STATE: PlaybackState = {
 })
 export class ChartPage implements AfterViewInit, OnDestroy {
   private readonly facade = inject(ChartFacadeService);
+  private readonly chartSettings = inject(ChartSettingsService);
   private readonly environment = inject(APP_ENVIRONMENT);
   private readonly fullscreenService = inject(ChartFullscreenService);
   private readonly anchorWatchService = inject(AnchorWatchService);
@@ -826,9 +848,14 @@ export class ChartPage implements AfterViewInit, OnDestroy {
   private readonly datapointStore = inject(DatapointStoreService);
   private readonly aisStore = inject(AisStoreService);
   private readonly playbackStore = inject(PlaybackStoreService);
+  private readonly encDepthAhead = inject(EncDepthAheadService);
+  private readonly chartEngineApi = inject(ChartEngineApiService);
+  private readonly alarmStore = inject(AlarmStoreService);
   private readonly zone = inject(NgZone);
+  private readonly route = inject(ActivatedRoute);
 
   private readonly engine = new MapLibreEngineService(); // Engine logic maintained
+  private baseFailureWindow: { sourceId: string; count: number; startedAt: number } | null = null;
   private canvasComponent: ChartCanvasComponent | undefined;
   private mapInitialized = false;
 
@@ -849,13 +876,15 @@ export class ChartPage implements AfterViewInit, OnDestroy {
   readonly isFullscreen = this.fullscreenService.isFullscreen;
   readonly showInstruments = signal(false);
   readonly showLegend = signal(false);
-  readonly showWeather = signal(false);
-  readonly showEnvironment = signal(false);
   readonly chartManagerOpen = signal(false);
+  readonly chartManagerStartSection = signal<ManagerSection>('active');
+  readonly selectedPackageGeometry = signal<AreaGeometry | null>(null);
+  readonly areaSelectionMode = signal<Exclude<AreaSelectionMode, 'viewport'> | null>(null);
+  readonly areaSelectionPurpose = signal<'package' | 'weather'>('package');
+  readonly showWeather = signal(false);
   readonly leftPanelOpen = signal(true);
-  readonly leftPanelTab = signal<ChartLeftPanelTab>('layers');
+  readonly leftPanelTab = signal<ChartLeftPanelTab>('ais');
   readonly aisSortBy = signal<'distance' | 'cpa' | 'name'>('distance');
-  readonly settingsPanelOpen = signal(false);
   readonly addWaypointMode = signal(false);
 
   // Anchor Watch State (wired to service in M4)
@@ -948,10 +977,6 @@ export class ChartPage implements AfterViewInit, OnDestroy {
 
   // Map & Playback State Logic (Legacy Integration)
   private readonly baseSourceSignal = toSignal(this.facade.baseSource$);
-  readonly layerModeSignal = computed<ChartLayerMode>(() => {
-    this.baseSourceSignal();
-    return this.facade.currentLayerMode;
-  });
   private readonly controlsVmSignal = toSignal(this.facade.controlsVm$, { initialValue: null });
   private readonly openSeaMapSignal = toSignal(this.facade.openSeaMapVisible$, {
     initialValue: false,
@@ -982,6 +1007,27 @@ export class ChartPage implements AfterViewInit, OnDestroy {
   });
   private readonly environmentTimeSignal = toSignal(this.facade.environmentTime$, {
     initialValue: 'latest',
+  });
+  private readonly chartSettingsSignal = toSignal(this.chartSettings.settings$, {
+    initialValue: this.chartSettings.snapshot,
+  });
+  private readonly marineSourceGridSignal = computed(() => this.chartSettingsSignal().showMarineSourceGrid);
+  private readonly marineDebugVariableSignal = computed(() => this.chartSettingsSignal().marineDebugVariable);
+  private readonly encDepthVisibleSignal = computed(() => {
+    const layers = this.chartSettingsSignal().encLayers;
+    return layers.showDepthAreas || layers.showDepthContours || layers.showHazards;
+  });
+  private readonly marineMaskVisibleSignal = computed(() =>
+    this.weatherWindSignal()
+    || this.environmentCurrentsSignal()
+    || this.weatherWavesSignal()
+    || this.weatherTempSignal());
+  private readonly weatherBoundsSignal = toSignal(this.facade.weatherBounds$, {
+    initialValue: [-9.05, 42.05, -8.4, 42.4] as [number, number, number, number],
+  });
+  private readonly weatherGeometrySignal = computed(() => {
+    const settings = this.chartSettingsSignal();
+    return settings.weatherZones.find((zone) => zone.id === settings.activeWeatherZoneId)?.geometry ?? null;
   });
   private readonly weatherOpacitySignal = toSignal(this.facade.weatherOpacity$, {
     initialValue: 0.6,
@@ -1106,6 +1152,10 @@ export class ChartPage implements AfterViewInit, OnDestroy {
   private readonly cpaLinesSignal = toSignal(this.facade.cpaLinesGeoJson$, {
     initialValue: { type: 'FeatureCollection', features: [] } as FeatureCollection<LineString>,
   });
+  private readonly encDepthAheadSignal = toSignal(this.encDepthAhead.state$, {
+    initialValue: { status: 'idle', response: null, message: 'Waiting for navigation data' } as const,
+  });
+  private readonly activeAlarmsSignal = toSignal(this.alarmStore.activeAlarms$, { initialValue: [] });
 
   // Playback Logic
   readonly playbackState = toSignal(this.playbackStore.state$, {
@@ -1138,6 +1188,24 @@ export class ChartPage implements AfterViewInit, OnDestroy {
   readonly waypointCount = computed(() => this.waypointsSignal().features.length);
 
   constructor() {
+    if (this.route.snapshot.queryParamMap.get('manager') === 'maps') {
+      this.handleOpenChartManager();
+    }
+
+    effect(() => {
+      const state = this.encDepthAheadSignal();
+      const response = state.response;
+      this.runMapUpdate(() => this.engine.updateEncDepthAdvisory(
+        response?.sector ?? null,
+        response?.hazards ?? null,
+        state.status === 'danger',
+      ));
+    });
+    effect(() => {
+      const shallowActive = this.activeAlarmsSignal().some((alarm) => alarm.id === 'shallow-water');
+      this.runMapUpdate(() => this.engine.setShallowWaterAlarmActive(shallowActive));
+    });
+
     // ---- Coalesced Map Engine Effects ----
     // Replaces ~40 individual effects with 2 coalesced effects:
     // 1. Navigation data (high frequency): vessel, track, vector, AIS, etc.
@@ -1193,6 +1261,12 @@ export class ChartPage implements AfterViewInit, OnDestroy {
         weatherWavesSignal: () => this.weatherWavesSignal(),
         environmentCurrentsSignal: () => this.environmentCurrentsSignal(),
         environmentTimeSignal: () => this.environmentTimeSignal(),
+        weatherBoundsSignal: () => this.weatherBoundsSignal(),
+        weatherGeometrySignal: () => this.weatherGeometrySignal(),
+        marineSourceGridSignal: () => this.marineSourceGridSignal(),
+        marineDebugVariableSignal: () => this.marineDebugVariableSignal(),
+        encDepthVisibleSignal: () => this.encDepthVisibleSignal(),
+        marineMaskVisibleSignal: () => this.marineMaskVisibleSignal(),
         weatherOpacitySignal: () => this.weatherOpacitySignal(),
         showAisTargetsSignal: () => this.showAisTargetsSignal(),
         showAisLabelsSignal: () => this.showAisLabelsSignal(),
@@ -1201,6 +1275,7 @@ export class ChartPage implements AfterViewInit, OnDestroy {
       this.engine,
       (layer) => this.weatherTileUrl(layer),
       (layer) => this.environmentVectorUrl(layer),
+      (layer) => this.environmentFieldUrl(layer),
     );
   }
 
@@ -1226,6 +1301,17 @@ export class ChartPage implements AfterViewInit, OnDestroy {
         }
         if (this.addWaypointMode()) {
           this.facade.addWaypointAt(lngLat);
+          return;
+        }
+        if (this.baseSourceSignal()?.id === IHM_WMS_CHART_SOURCE_ID) {
+          this.chartEngineApi.ihmFeatureInfo(lngLat[0], lngLat[1], this.engine.currentZoom())
+            .subscribe((info) => {
+              this.runMapUpdate(() => this.engine.showChartInformation(
+                lngLat,
+                info.features,
+                info.disclaimer,
+              ));
+            });
         }
       }),
     );
@@ -1246,8 +1332,11 @@ export class ChartPage implements AfterViewInit, OnDestroy {
         }
       });
     });
-    this.engine.setErrorHandler((message, sourceId) => {
-      this.zone.run(() => this.facade.recordMapError(message, sourceId));
+    this.engine.setErrorHandler((message, sourceId, baseSourceId) => {
+      this.zone.run(() => {
+        this.facade.recordMapError(message, sourceId);
+        this.handleBaseSourceFailure(message, sourceId, baseSourceId);
+      });
     });
     // Feed the live map zoom into the view-model so zoom-aware overlays (min-length
     // COG/heading/wind vectors) stay visible when zoomed out.
@@ -1302,7 +1391,7 @@ export class ChartPage implements AfterViewInit, OnDestroy {
   }
 
   handleToggleBaseLayer() {
-    this.facade.toggleLayer();
+    void this.facade.selectNextAvailableChartSource();
   }
 
   handleToggleOpenSeaMap() {
@@ -1386,6 +1475,112 @@ export class ChartPage implements AfterViewInit, OnDestroy {
     this.facade.refreshChartCatalog();
   }
 
+  private handleBaseSourceFailure(message: string, sourceId?: string, baseSourceId?: string): void {
+    if (!baseSourceId || baseSourceId === DEFAULT_CHART_SOURCE_ID) return;
+    if (sourceId && /^(weather-|environment-|openseamap)/.test(sourceId)) return;
+
+    const now = Date.now();
+    if (
+      !this.baseFailureWindow ||
+      this.baseFailureWindow.sourceId !== baseSourceId ||
+      now - this.baseFailureWindow.startedAt > 10_000
+    ) {
+      this.baseFailureWindow = { sourceId: baseSourceId, count: 1, startedAt: now };
+      return;
+    }
+
+    this.baseFailureWindow.count += 1;
+    if (this.baseFailureWindow.count >= 3) {
+      this.baseFailureWindow = null;
+      this.facade.fallbackToDefaultSource(message);
+    }
+  }
+
+  handleViewCoverage(bounds: [number, number, number, number]): void {
+    this.chartManagerOpen.set(false);
+    this.zone.runOutsideAngular(() => this.engine.fitBounds(bounds));
+  }
+
+  handlePreviewArea(bounds: [number, number, number, number]): void {
+    this.zone.runOutsideAngular(() => this.engine.fitBounds(bounds));
+  }
+
+  handleSafetyDepthChange(depth: number): void {
+    this.facade.setSafetyDepth(depth);
+  }
+
+  handleAreaSelectionRequest(mode: AreaSelectionMode): void {
+    this.areaSelectionPurpose.set('package');
+    if (mode === 'viewport') {
+      const geometry = this.engine.getViewportGeometry();
+      if (geometry) this.selectedPackageGeometry.set(geometry);
+      return;
+    }
+    this.chartManagerOpen.set(false);
+    this.areaSelectionMode.set(mode);
+    this.zone.runOutsideAngular(() => {
+      this.engine.beginAreaSelection(mode, (geometry) => {
+        this.zone.run(() => {
+          this.selectedPackageGeometry.set(geometry);
+          this.areaSelectionMode.set(null);
+          this.chartManagerStartSection.set('offline');
+          this.chartManagerOpen.set(true);
+        });
+      });
+    });
+  }
+
+  handleWeatherAreaSelectionRequest(mode: 'viewport' | 'rectangle' | 'polygon'): void {
+    this.areaSelectionPurpose.set('weather');
+    if (mode === 'viewport') {
+      const geometry = this.engine.getViewportGeometry();
+      if (geometry) {
+        this.chartSettings.saveWeatherZone(
+          this.nextWeatherZoneName(),
+          'viewport',
+          geometry,
+        );
+      }
+      return;
+    }
+    this.chartManagerOpen.set(false);
+    this.areaSelectionMode.set(mode);
+    this.zone.runOutsideAngular(() => {
+      this.engine.beginAreaSelection(mode, (geometry) => {
+        this.zone.run(() => {
+          this.chartSettings.saveWeatherZone(
+            this.nextWeatherZoneName(),
+            mode,
+            geometry,
+          );
+          this.areaSelectionMode.set(null);
+          this.chartManagerStartSection.set('environment');
+          this.chartManagerOpen.set(true);
+        });
+      });
+    });
+  }
+
+  private nextWeatherZoneName(): string {
+    return `Zone ${this.chartSettings.snapshot.weatherZones.length + 1}`;
+  }
+
+  handleSelectPackage(manifest: import('../../data-access/chart/chart-remote-catalog.service').PackageManifest): void {
+    void this.facade.selectChartPackage(manifest);
+    this.chartManagerOpen.set(false);
+  }
+
+  finishAreaSelection(): void {
+    this.zone.runOutsideAngular(() => this.engine.finishAreaSelection());
+  }
+
+  cancelAreaSelection(): void {
+    this.zone.runOutsideAngular(() => this.engine.cancelAreaSelection());
+    this.areaSelectionMode.set(null);
+    this.chartManagerStartSection.set(this.areaSelectionPurpose() === 'weather' ? 'environment' : 'offline');
+    this.chartManagerOpen.set(true);
+  }
+
   private weatherTileUrl(providerId: string): string | null {
     const base = this.environment.chartEngineApiUrl.replace(/\/$/, '');
     const layerId: Record<string, string> = {
@@ -1402,10 +1597,84 @@ export class ChartPage implements AfterViewInit, OnDestroy {
   }
 
   private environmentVectorUrl(layerId: string): string | null {
+    const base = this.environment.chartEngineApiUrl.replace(/\/$/, '');
+    if (layerId === 'marineMask') {
+      const params = new URLSearchParams({
+        bbox: this.weatherBoundsSignal().join(','),
+        area: JSON.stringify(this.weatherGeometrySignal()),
+      });
+      return `${base}/catalog/enc/marine-mask.geojson?${params.toString()}`;
+    }
+    if (layerId === 'encDepth') {
+      const settings = this.chartSettingsSignal();
+      const layers = [
+        ...(settings.encLayers.showDepthAreas ? ['depth_areas'] : []),
+        ...(settings.encLayers.showDepthContours ? ['depth_contours', 'soundings'] : []),
+        ...(settings.encLayers.showHazards ? ['hazards'] : []),
+      ];
+      const params = new URLSearchParams({
+        bbox: this.weatherBoundsSignal().join(','),
+        area: JSON.stringify(this.weatherGeometrySignal()),
+        safetyDepthM: String(settings.safetyDepth),
+        layers: layers.join(','),
+      });
+      return `${base}/catalog/enc/depth-overlay.geojson?${params.toString()}`;
+    }
+    if (layerId === 'sourceGrid') {
+      const params = new URLSearchParams({
+        variable: this.marineDebugVariableSignal(),
+        bbox: this.weatherBoundsSignal().join(','),
+        time: this.environmentTimeSignal() === 'latest' ? new Date().toISOString() : this.environmentTimeSignal(),
+        source: 'auto',
+      });
+      return `${base}/api/marine/debug/source-grid.geojson?${params.toString()}`;
+    }
+    if (layerId === 'wind') {
+      const params = new URLSearchParams({
+        bbox: this.weatherBoundsSignal().join(','),
+        area: JSON.stringify(this.weatherGeometrySignal()),
+      });
+      return `${base}/weather/wind-field.geojson?${params.toString()}`;
+    }
+    if (layerId === 'waves' || layerId === 'seaTemperature') {
+      const selectedTime = this.environmentTimeSignal();
+      const params = new URLSearchParams({
+        bbox: this.weatherBoundsSignal().join(','),
+        time: selectedTime === 'latest' ? new Date().toISOString() : selectedTime,
+        area: JSON.stringify(this.weatherGeometrySignal()),
+      });
+      const endpoint = layerId === 'waves' ? 'waves.geojson' : 'sea-temperature.geojson';
+      return `${base}/api/marine/${endpoint}?${params.toString()}`;
+    }
     const time = this.environmentTimeSignal();
     if (time === 'latest') return null;
-    const base = this.environment.chartEngineApiUrl.replace(/\/$/, '');
-    return `${base}/environment/${encodeURIComponent(layerId)}/${encodeURIComponent(time)}.geojson`;
+    const params = new URLSearchParams({
+      area: JSON.stringify(this.weatherGeometrySignal()),
+      bbox: this.weatherBoundsSignal().join(','),
+    });
+    return `${base}/environment/${encodeURIComponent(layerId)}/${encodeURIComponent(time)}.geojson?${params.toString()}`;
+  }
+
+  private environmentFieldUrl(layerId: 'wind' | 'currents' | 'mask'): string {
+    const base = `${this.environment.chartEngineApiUrl.replace(/\/$/, '')}/api/marine`;
+    const [west, south, east, north] = this.weatherBoundsSignal();
+    if (layerId === 'mask') {
+      const params = new URLSearchParams({
+        bbox: [west, south, east, north].join(','),
+        area: JSON.stringify(this.weatherGeometrySignal()),
+      });
+      return `${this.environment.chartEngineApiUrl.replace(/\/$/, '')}/catalog/enc/marine-mask.geojson?${params.toString()}`;
+    }
+    const selectedTime = this.environmentTimeSignal();
+    const params = new URLSearchParams({
+      west: String(west),
+      south: String(south),
+      east: String(east),
+      north: String(north),
+      time: selectedTime === 'latest' ? new Date().toISOString() : selectedTime,
+      source: 'auto',
+    });
+    return `${base}/${layerId}?${params.toString()}`;
   }
 
   handleAisSortChange(sortBy: 'distance' | 'cpa' | 'name') {
@@ -1417,16 +1686,41 @@ export class ChartPage implements AfterViewInit, OnDestroy {
   }
 
   handleToggleSettingsPanel() {
-    this.settingsPanelOpen.set(!this.settingsPanelOpen());
-    // Close left panel if settings panel opens to avoid overlap
-    if (this.settingsPanelOpen()) {
+    this.chartManagerOpen.update((open) => !open);
+    if (this.chartManagerOpen()) {
+      this.chartManagerStartSection.set('active');
+      this.showWeather.set(false);
       this.leftPanelOpen.set(false);
+      this.facade.refreshChartCatalog();
+    }
+  }
+
+  handleOpenEnvironmentPanel(): void {
+    const alreadyOpen = this.chartManagerOpen() && this.chartManagerStartSection() === 'environment';
+    this.chartManagerOpen.set(!alreadyOpen);
+    if (!alreadyOpen) {
+      this.chartManagerStartSection.set('environment');
+      this.showWeather.set(false);
+      this.leftPanelOpen.set(false);
+    }
+  }
+
+  private handleOpenChartManager(): void {
+    this.chartManagerOpen.set(true);
+    this.showWeather.set(false);
+    this.facade.refreshChartCatalog();
+  }
+
+  toggleWeather(): void {
+    this.showWeather.update((open) => !open);
+    if (this.showWeather()) {
+      this.chartManagerOpen.set(false);
     }
   }
 
   handleNavigateTo(coords: { lng: number; lat: number; zoom?: number }) {
     this.engine.flyTo([coords.lng, coords.lat], coords.zoom ?? 10);
-    this.settingsPanelOpen.set(false);
+    this.chartManagerOpen.set(false);
   }
 
   handleOpenInstruments() {

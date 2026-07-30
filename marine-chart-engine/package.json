@@ -9,8 +9,10 @@
     "convert:raster": "npm run build && node dist/cli/convert-raster.js",
     "convert:s57": "npm run build && node dist/cli/convert-s57.js",
     "dev": "npm run build && node --watch dist/server.js",
+    "diagnose:installation": "npm run build && node dist/cli/diagnose-installation.js",
     "import:mbtiles": "npm run build && node dist/cli/import-mbtiles.js",
     "sync:copernicus": "python scripts/sync-copernicus-vigo.py",
+    "sync:coastal-mask": "python scripts/sync-emodnet-coastal-mask.py",
     "test": "npm run build && node --test dist/**/*.test.js",
     "start": "node dist/server.js"
   },
@@ -18,13 +20,17 @@
     "better-sqlite3": "^12.11.1",
     "express": "^5.2.1",
     "fast-xml-parser": "^4.5.6",
-    "multer": "^2.2.0"
+    "multer": "^2.2.0",
+    "polygon-clipping": "^0.15.7",
+    "topojson-client": "^3.1.0",
+    "world-atlas": "^2.0.2"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.13",
     "@types/express": "^5.0.6",
     "@types/multer": "^2.1.0",
     "@types/node": "^25.0.10",
+    "@types/topojson-client": "^3.1.5",
     "typescript": "^5.9.3"
   }
 }

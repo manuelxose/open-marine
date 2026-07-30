@@ -61,7 +61,7 @@ fi
 DEVICE_LIST="$("$AIS_BIN" -l 2>&1 || true)"
 RTL_DEVICE_LINE="$(
   printf '%s\n' "$DEVICE_LIST" \
-    | grep -Ei '^[[:space:]]*[0-9]+:.*(RTL-SDR|R820T|R828D)' \
+    | grep -Ei '^[[:space:]]*[0-9]+:.*(RTL-SDR|RTL28[0-9A-Z]*|R820T|R828D|Realtek)' \
     | head -n 1 \
     || true
 )"

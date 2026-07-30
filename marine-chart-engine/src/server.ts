@@ -11,6 +11,8 @@ import { createCatalogRouter } from './routes/catalog.routes.js';
 import { createEnvironmentRouter } from './routes/environment.routes.js';
 import { createPackagesRouter } from './routes/packages.routes.js';
 import { createTidesRouter } from './routes/tides.routes.js';
+import { createWeatherRouter } from './routes/weather.routes.js';
+import { createMarineEnvironmentRouter } from './routes/marine-environment.routes.js';
 import { ChartRegistryService } from './services/chart-registry.service.js';
 import { ChartImportService } from './services/chart-import.service.js';
 import { ChartJobService } from './services/chart-job.service.js';
@@ -23,6 +25,25 @@ import { WmsProxyService } from './services/wms-proxy.service.js';
 import { EnvironmentCatalogService } from './services/environment-catalog.service.js';
 import { TideService } from './services/tide.service.js';
 import { EnvironmentSyncService } from './services/environment-sync.service.js';
+import { WeatherForecastService } from './services/weather-forecast.service.js';
+import { WindFieldService } from './services/wind-field.service.js';
+import { OpenMeteoMarineService } from './services/open-meteo-marine.service.js';
+import { EncHazardService } from './services/enc-hazard.service.js';
+import { IhmFeatureInfoService } from './services/ihm-feature-info.service.js';
+import { DownloadManager } from './download/download-manager.js';
+import { DownloadStateService } from './services/download-state.service.js';
+import { AreaSearchService } from './services/area-search.service.js';
+import { PackagePlannerService } from './services/package-planner.service.js';
+import { ChartPackageService } from './services/chart-package.service.js';
+import { InstallationDiagnosticsService } from './services/installation-diagnostics.service.js';
+import { MarineEnvironmentEngine } from './marine-environment/application/marine-environment-engine.js';
+import { ProviderRegistry } from './marine-environment/application/provider-registry.js';
+import { OpenMeteoWindProvider } from './marine-environment/infrastructure/open-meteo-wind.provider.js';
+import { OpenMeteoMarineProvider } from './marine-environment/infrastructure/open-meteo-marine.provider.js';
+import { CachedCopernicusProvider } from './marine-environment/infrastructure/cached-copernicus.provider.js';
+import { PuertosHfRadarProvider } from './marine-environment/infrastructure/puertos-hf-radar.provider.js';
+import { StorageQuotaService } from './services/storage-quota.service.js';
+import { MarineGeometryService } from './services/marine-geometry.service.js';
 
 const app = express();
 app.use(express.json());
@@ -54,22 +75,86 @@ const importer = new ChartImportService(registry, mbtiles);
 const jobs = new ChartJobService();
 const emodnet = new EmodnetProxyService(config.cacheDir);
 
+const storageQuota = new StorageQuotaService({
+  cacheDir: config.cacheDir,
+  dataDir: config.dataDir,
+  maxCacheBytes: config.cacheMaxBytes,
+  reserveBytes: config.cacheMinFreeBytes,
+  tileTtlDays: config.tileCacheTtlDays,
+});
+
 // Remote tile proxy services
 const tileCache = new TileCacheService({
   cacheDir: path.join(config.cacheDir, 'tiles'),
-  ttlDays: Number.parseInt(process.env['CHART_ENGINE_TILE_CACHE_TTL_DAYS'] ?? '30', 10),
+  ttlDays: config.tileCacheTtlDays,
+  onWrite: () => storageQuota.schedulePrune(),
 });
 
 const xyzProxy = new XyzProxyService(tileCache);
 const wmsProxy = new WmsProxyService(tileCache);
 const publicBaseUrl = `http://localhost:${config.port}`;
-const environmentCatalog = new EnvironmentCatalogService(config.dataDir, publicBaseUrl, Boolean(config.owmApiKey));
-const tides = new TideService(config.cacheDir);
+const environmentCatalog = new EnvironmentCatalogService(
+  config.dataDir,
+  publicBaseUrl,
+  Boolean(config.owmApiKey),
+  config.copernicusSyncEnabled,
+);
+const tides = new TideService(config.cacheDir, fetch, () => storageQuota.schedulePrune());
 const environmentSync = new EnvironmentSyncService(
   config.copernicusSyncEnabled,
   config.copernicusSyncHours,
   config.pythonExecutable,
   path.join(process.cwd(), 'scripts', 'sync-copernicus-vigo.py'),
+  () => storageQuota.schedulePrune(),
+);
+const weatherForecast = new WeatherForecastService(
+  path.join(config.cacheDir, 'weather'),
+  fetch,
+  Date.now,
+  () => storageQuota.schedulePrune(),
+);
+const windField = new WindFieldService(
+  path.join(config.cacheDir, 'weather'),
+  fetch,
+  Date.now,
+  () => storageQuota.schedulePrune(),
+);
+const openMeteoMarine = new OpenMeteoMarineService(
+  path.join(config.cacheDir, 'weather'),
+  fetch,
+  Date.now,
+  () => storageQuota.schedulePrune(),
+);
+const marineProviders = new ProviderRegistry();
+marineProviders.register(new OpenMeteoWindProvider(windField));
+marineProviders.register(new PuertosHfRadarProvider());
+marineProviders.register(new CachedCopernicusProvider('waves', config.dataDir));
+marineProviders.register(new CachedCopernicusProvider('currents', config.dataDir));
+marineProviders.register(new OpenMeteoMarineProvider(openMeteoMarine));
+const marineEnvironment = new MarineEnvironmentEngine(marineProviders);
+const downloadState = new DownloadStateService(config.localDownloadsFile);
+const downloadManager = new DownloadManager(
+  jobs,
+  registry,
+  mbtiles,
+  tileCache,
+  xyzProxy,
+  wmsProxy,
+  config.dataDir,
+  downloadState,
+);
+const areaSearch = new AreaSearchService(config.areaSearchCacheFile);
+const packagePlanner = new PackagePlannerService(config.dataDir);
+const chartPackages = new ChartPackageService(config.localPackagesFile, downloadManager, jobs, registry);
+const installationDiagnostics = new InstallationDiagnosticsService(
+  config.dataDir,
+  path.join(config.dataDir, 'secure', 's63-installation.json'),
+);
+const encHazards = new EncHazardService(registry);
+const ihmFeatureInfo = new IhmFeatureInfoService();
+const marineGeometry = new MarineGeometryService(
+  registry,
+  path.join(process.cwd(), 'resources', 'ria-vigo-marine-mask.geojson'),
 );
 const vigoDate = (offsetDays: number): string => {
   const instant = new Date(Date.now() + offsetDays * 24 * 60 * 60 * 1000);
@@ -91,6 +176,13 @@ xyzProxy.registerProvider({
   minZoom: 8,
   maxZoom: 18,
   attribution: '&copy; <a href="https://www.openseamap.org">OpenSeaMap</a> contributors',
+});
+xyzProxy.registerProvider({
+  id: 'ihm-enc-wmts',
+  tileUrlTemplate: 'https://ideihm.covam.es/ihmcache/wmts/1.0.0/RasterENC/default/googlemapscompatible/{z}/{y}/{x}.png',
+  minZoom: 0,
+  maxZoom: 21,
+  attribution: '&copy; Instituto Hidrográfico de la Marina (IHM) — not valid for official navigation',
 });
 
 // Register optional OpenWeatherMap atmospheric overlays only when a key is configured.
@@ -126,28 +218,6 @@ wmsProxy.registerProvider({
   attribution: 'EMODnet Bathymetry Consortium',
 });
 
-for (const purpose of [
-  { id: 'ihm-enc-p2', service: 'cartaENCp2', layer: 'ENC_ES2', minZoom: 4, maxZoom: 10 },
-  { id: 'ihm-enc-p3', service: 'cartaENCp3', layer: 'ENC_ES3', minZoom: 6, maxZoom: 12 },
-  { id: 'ihm-enc-p4', service: 'cartaENCp4', layer: 'ENC_ES4', minZoom: 8, maxZoom: 15 },
-  { id: 'ihm-enc-p5', service: 'cartaENCp5', layer: 'ENC_ES5', minZoom: 10, maxZoom: 16 },
-]) {
-  wmsProxy.registerProvider({
-    id: purpose.id,
-    catalogGroupId: 'ihm-enc-wms',
-    baseUrl: `https://ideihm.covam.es/wms/${purpose.service}`,
-    layers: purpose.layer,
-    format: 'image/png',
-    transparent: true,
-    srs: 'EPSG:3857',
-    version: '1.3.0',
-    minZoom: purpose.minZoom,
-    maxZoom: purpose.maxZoom,
-    attribution: 'Instituto Hidrografico de la Marina (IHM) - Not valid for official navigation',
-    expectedContentTypes: ['image/png'],
-  });
-}
-
 wmsProxy.registerProvider({
   id: 'noaa-wms',
   baseUrl: 'https://gis.charttools.noaa.gov/arcgis/rest/services/MCS/NOAAChartDisplay/MapServer/export',
@@ -176,15 +246,46 @@ wmsProxy.registerProvider({
 });
 
 // Routes
-app.use('/health', createHealthRouter());
+app.use('/health', createHealthRouter({
+  xyz: xyzProxy,
+  wms: wmsProxy,
+  environmentSync,
+  weatherConfigured: Boolean(config.owmApiKey),
+}));
 app.use('/charts', createChartsRouter(registry, tilePaths, mbtiles, importer, jobs));
 app.use('/bathymetry', createBathymetryRouter(emodnet));
 app.use('/proxy/xyz', createXyzProxyRouter(xyzProxy));
 app.use('/proxy/wms', createWmsProxyRouter(wmsProxy));
-app.use('/catalog', createCatalogRouter(jobs, registry, mbtiles, tileCache, xyzProxy, wmsProxy, config.dataDir));
-app.use('/environment', createEnvironmentRouter(environmentCatalog, xyzProxy, wmsProxy, environmentSync));
+app.use('/catalog', createCatalogRouter(
+  downloadManager,
+  areaSearch,
+  packagePlanner,
+  chartPackages,
+  installationDiagnostics,
+  storageQuota,
+  encHazards,
+  ihmFeatureInfo,
+  marineGeometry,
+));
+app.use('/environment', createEnvironmentRouter(
+  environmentCatalog,
+  xyzProxy,
+  wmsProxy,
+  environmentSync,
+  marineGeometry,
+));
 app.use('/tides', createTidesRouter(tides));
-app.use('/packages', createPackagesRouter());
+app.use('/weather', createWeatherRouter(weatherForecast, windField, marineGeometry));
+app.use(
+  '/api/marine',
+  createMarineEnvironmentRouter(
+    marineEnvironment,
+    marineGeometry,
+    openMeteoMarine,
+  ),
+);
+app.use('/catalog/packages', createPackagesRouter(chartPackages));
+app.use('/packages', createPackagesRouter(chartPackages));
 
 app.use((error: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   const message = error instanceof Error ? error.message : String(error);
@@ -192,19 +293,29 @@ app.use((error: unknown, _req: express.Request, res: express.Response, _next: ex
   res.status(status).json({ error: code, message });
 });
 
-app.listen(config.port, () => {
+const server = app.listen(config.port, () => {
   console.log(`Marine chart engine listening at http://localhost:${config.port}`);
   environmentSync.start();
+  storageQuota.start();
 });
 
+let shuttingDown = false;
 for (const signal of ['SIGINT', 'SIGTERM'] as const) {
   process.once(signal, () => {
+    if (shuttingDown) return;
+    shuttingDown = true;
     environmentSync.stop();
+    storageQuota.stop();
     clearInterval(tideRefreshTimer);
+    server.close(() => process.exit(0));
+    setTimeout(() => process.exit(1), 5_000).unref();
   });
 }
 
 const classifyChartError = (message: string): { status: number; code: string } => {
+  if (/tide api returned|upstream.*returned|provider.*returned|weather upstream unavailable/i.test(message)) {
+    return { status: 503, code: 'upstream_provider_unavailable' };
+  }
   if (/was not found on PATH/i.test(message)) {
     return { status: 422, code: 'missing_external_tool' };
   }

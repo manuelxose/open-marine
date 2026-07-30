@@ -11,6 +11,7 @@ export type EnvironmentalLayerId =
 
 export type EnvironmentalDataState = 'observed' | 'forecast' | 'cached' | 'stale' | 'unavailable';
 export type EnvironmentalRenderKind = 'raster' | 'vector' | 'timeseries';
+export type CompatibleChartKind = 'raster' | 'vector' | 'bathymetry';
 
 export interface EnvironmentalLayerDescriptor {
   id: EnvironmentalLayerId;
@@ -27,6 +28,9 @@ export interface EnvironmentalLayerDescriptor {
   vectorUrl?: string;
   updatedAt?: string;
   validTimes: string[];
+  compatibleMapKinds: CompatibleChartKind[];
+  coverage?: [number, number, number, number];
+  compatibilityNote: string;
   message?: string;
 }
 

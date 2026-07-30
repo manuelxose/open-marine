@@ -32,7 +32,7 @@ export const createXyzProxyRouter = (xyzProxy: XyzProxyService): Router => {
   router.get('/:providerId/style.json', (req, res, next) => {
     try {
       const { providerId } = req.params;
-      const style = xyzProxy.buildStyle(providerId);
+      const style = xyzProxy.buildStyle(providerId, `${req.protocol}://${req.get('host')}`);
       if (!style) {
         res.status(404).json({ error: 'provider_not_found' });
         return;

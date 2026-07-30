@@ -18,6 +18,7 @@ export interface XyzProviderConfig {
  */
 export class XyzProxyService {
   private readonly providers = new Map<string, XyzProviderConfig>();
+  private readonly providerState = new Map<string, { lastSuccessAt?: string; lastErrorAt?: string; lastError?: string }>();
 
   constructor(private readonly cache: TileCacheService) {}
 
@@ -27,6 +28,10 @@ export class XyzProxyService {
 
   hasProvider(providerId: string): boolean {
     return this.providers.has(providerId);
+  }
+
+  diagnostics(): Array<{ id: string; available: true; lastSuccessAt?: string; lastErrorAt?: string; lastError?: string }> {
+    return [...this.providers.keys()].map((id) => ({ id, available: true, ...(this.providerState.get(id) ?? {}) }));
   }
 
   /**
@@ -50,33 +55,42 @@ export class XyzProxyService {
 
     // Fetch from remote
     const url = this.buildTileUrl(provider.tileUrlTemplate, z, x, y);
-    const response = await fetch(url, {
-      headers: {
-        'User-Agent': 'OpenMarine-ChartEngine/0.1.0',
-        ...(provider.headers ?? {}),
-      },
-    });
+    try {
+      const response = await fetch(url, {
+        headers: {
+          'User-Agent': 'OpenMarine-ChartEngine/0.1.0',
+          ...(provider.headers ?? {}),
+        },
+      });
 
-    if (!response.ok) {
+      if (!response.ok) {
+        this.providerState.set(providerId, { lastErrorAt: new Date().toISOString(), lastError: `${response.status} ${response.statusText}` });
+        return null;
+      }
+
+      const data = Buffer.from(await response.arrayBuffer());
+      const contentType = response.headers.get('content-type') ?? 'image/png';
+      if (!isValidTileImage(contentType, data)) {
+        this.providerState.set(providerId, { lastErrorAt: new Date().toISOString(), lastError: `Invalid tile response (${contentType})` });
+        return null;
+      }
+
+      await this.cache.set(providerId, z, x, y, data, contentType);
+      this.providerState.set(providerId, { lastSuccessAt: new Date().toISOString() });
+      return { data, contentType };
+    } catch (error) {
+      this.providerState.set(providerId, { lastErrorAt: new Date().toISOString(), lastError: error instanceof Error ? error.message : String(error) });
       return null;
     }
-
-    const data = Buffer.from(await response.arrayBuffer());
-    const contentType = response.headers.get('content-type') ?? 'image/png';
-    if (!isValidTileImage(contentType, data)) {
-      return null;
-    }
-
-    // Store in cache
-    await this.cache.set(providerId, z, x, y, data, contentType);
-
-    return { data, contentType };
   }
 
   /**
    * Get the MapLibre style JSON for a provider.
    */
-  buildStyle(providerId: string): { version: 8; sources: Record<string, unknown>; layers: unknown[] } | null {
+  buildStyle(
+    providerId: string,
+    publicBaseUrl = 'http://localhost:8088',
+  ): { version: 8; sources: Record<string, unknown>; layers: unknown[] } | null {
     const provider = this.providers.get(providerId);
     if (!provider) {
       return null;
@@ -88,7 +102,7 @@ export class XyzProxyService {
       sources: {
         [sourceId]: {
           type: 'raster',
-          tiles: [`http://localhost:8088/proxy/xyz/${providerId}/{z}/{x}/{y}`],
+          tiles: [`${publicBaseUrl.replace(/\/$/, '')}/proxy/xyz/${providerId}/{z}/{x}/{y}`],
           tileSize: 256,
           minzoom: provider.minZoom ?? 0,
           maxzoom: provider.maxZoom ?? 18,

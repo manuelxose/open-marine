@@ -12,6 +12,20 @@ import {
 export type AisDisplayAge = '1h' | '24h';
 export type TrackDuration = '1d' | '7d' | '90d';
 export type WindVectorSource = 'true' | 'apparent';
+export type WeatherBounds = [west: number, south: number, east: number, north: number];
+export interface WeatherAreaGeometry {
+  type: 'Polygon';
+  coordinates: number[][][];
+}
+export interface WeatherZone {
+  id: string;
+  name: string;
+  source: 'preset' | 'viewport' | 'rectangle' | 'polygon';
+  geometry: WeatherAreaGeometry;
+  bounds: WeatherBounds;
+  lastUsedAt: string;
+}
+export type MarineDebugVariable = 'wind' | 'waves' | 'currents';
 export type EnvironmentalLayerId =
   | 'bathymetry'
   | 'seaTemperature'
@@ -87,9 +101,38 @@ export interface ChartSettings {
   showPressure: boolean;
   weatherOpacity: number;
   environmentTime: string;
+  weatherBounds: WeatherBounds;
+  weatherZones: WeatherZone[];
+  activeWeatherZoneId: string;
+  showMarineSourceGrid: boolean;
+  marineDebugVariable: MarineDebugVariable;
   enableVesselEnrichment: boolean;
   showSavedTracks: boolean;
 }
+
+export const VIGO_ENVIRONMENT_BOUNDS: WeatherBounds = [-9.05, 42.05, -8.4, 42.4];
+export const boundsContain = (coverage: readonly number[], area: readonly number[]): boolean =>
+  coverage.length === 4
+  && area.length === 4
+  && area[0]! >= coverage[0]!
+  && area[1]! >= coverage[1]!
+  && area[2]! <= coverage[2]!
+  && area[3]! <= coverage[3]!;
+const VIGO_BOUNDS = VIGO_ENVIRONMENT_BOUNDS;
+const polygonFromBounds = ([west, south, east, north]: WeatherBounds): WeatherAreaGeometry => ({
+  type: 'Polygon',
+  coordinates: [[
+    [west, south], [east, south], [east, north], [west, north], [west, south],
+  ]],
+});
+const DEFAULT_VIGO_ZONE: WeatherZone = {
+  id: 'vigo',
+  name: 'Vigo',
+  source: 'preset',
+  geometry: polygonFromBounds(VIGO_BOUNDS),
+  bounds: [...VIGO_BOUNDS],
+  lastUsedAt: '',
+};
 
 const DEFAULT_SETTINGS: ChartSettings = {
   autoCenter: true,
@@ -147,6 +190,11 @@ const DEFAULT_SETTINGS: ChartSettings = {
   showPressure: false,
   weatherOpacity: 0.75,
   environmentTime: 'latest',
+  weatherBounds: [...VIGO_BOUNDS],
+  weatherZones: [DEFAULT_VIGO_ZONE],
+  activeWeatherZoneId: DEFAULT_VIGO_ZONE.id,
+  showMarineSourceGrid: false,
+  marineDebugVariable: 'wind',
   enableVesselEnrichment: true,
   showSavedTracks: true,
 };
@@ -313,6 +361,11 @@ export class ChartSettingsService {
     this.update({ showAisTracks: !this.settingsSubject.value.showAisTracks });
   }
 
+  toggleVesselTrails(): void {
+    const visible = !(this.settingsSubject.value.showAisTracks && this.settingsSubject.value.showTrack);
+    this.update({ showAisTracks: visible, showTrack: visible });
+  }
+
   toggleSavedTracks(): void {
     this.update({ showSavedTracks: !this.settingsSubject.value.showSavedTracks });
   }
@@ -391,15 +444,15 @@ export class ChartSettingsService {
 
   // Weather Overlays
   toggleTemperature(): void {
-    this.selectEnvironmentalLayer(this.settingsSubject.value.showTemperature ? null : 'seaTemperature');
+    this.toggleThematicEnvironmentalLayer('seaTemperature', this.settingsSubject.value.showTemperature);
   }
 
   toggleAirTemperature(): void {
-    this.selectEnvironmentalLayer(this.settingsSubject.value.showAirTemperature ? null : 'airTemperature');
+    this.toggleThematicEnvironmentalLayer('airTemperature', this.settingsSubject.value.showAirTemperature);
   }
 
   toggleWindSpeed(): void {
-    this.selectEnvironmentalLayer(this.settingsSubject.value.showWindSpeed ? null : 'wind');
+    this.toggleThematicEnvironmentalLayer('wind', this.settingsSubject.value.showWindSpeed);
   }
 
   toggleCurrents(): void {
@@ -407,19 +460,19 @@ export class ChartSettingsService {
   }
 
   toggleWaves(): void {
-    this.selectEnvironmentalLayer(this.settingsSubject.value.showWaves ? null : 'waves');
+    this.toggleThematicEnvironmentalLayer('waves', this.settingsSubject.value.showWaves);
   }
 
   togglePrecipitation(): void {
-    this.selectEnvironmentalLayer(this.settingsSubject.value.showPrecipitation ? null : 'precipitation');
+    this.toggleThematicEnvironmentalLayer('precipitation', this.settingsSubject.value.showPrecipitation);
   }
 
   toggleClouds(): void {
-    this.selectEnvironmentalLayer(this.settingsSubject.value.showClouds ? null : 'clouds');
+    this.toggleThematicEnvironmentalLayer('clouds', this.settingsSubject.value.showClouds);
   }
 
   togglePressure(): void {
-    this.selectEnvironmentalLayer(this.settingsSubject.value.showPressure ? null : 'pressure');
+    this.toggleThematicEnvironmentalLayer('pressure', this.settingsSubject.value.showPressure);
   }
 
   selectEnvironmentalLayer(layer: EnvironmentalLayerId | null): void {
@@ -439,13 +492,121 @@ export class ChartSettingsService {
     });
   }
 
+  clearThematicEnvironmentalLayer(): void {
+    this.update({
+      showTemperature: false,
+      showAirTemperature: false,
+      showWindSpeed: false,
+      showWaves: false,
+      showPrecipitation: false,
+      showClouds: false,
+      showPressure: false,
+    });
+  }
+
+  private toggleThematicEnvironmentalLayer(layer: Exclude<EnvironmentalLayerId, 'currents'>, active: boolean): void {
+    if (active) {
+      this.clearThematicEnvironmentalLayer();
+      return;
+    }
+    this.selectEnvironmentalLayer(layer);
+  }
+
   setEnvironmentTime(time: string): void {
     this.update({ environmentTime: time || 'latest' });
+  }
+
+  setWeatherBounds(bounds: WeatherBounds): void {
+    if (!this.validWeatherBounds(bounds)) return;
+    const normalized = this.normalizeWeatherBounds(bounds);
+    const current = this.settingsSubject.value;
+    const weatherZones = current.weatherZones.map((zone) => zone.id === current.activeWeatherZoneId
+      ? { ...zone, bounds: normalized, geometry: polygonFromBounds(normalized), lastUsedAt: new Date().toISOString() }
+      : zone);
+    this.update({ weatherBounds: normalized, weatherZones });
+  }
+
+  saveWeatherZone(
+    name: string,
+    source: Exclude<WeatherZone['source'], 'preset'>,
+    geometry: WeatherAreaGeometry,
+  ): void {
+    const bounds = this.boundsFromWeatherGeometry(geometry);
+    if (!bounds || !this.validWeatherBounds(bounds)) return;
+    const id = `weather-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const zone: WeatherZone = {
+      id,
+      name: name.trim() || `Zone ${this.settingsSubject.value.weatherZones.length + 1}`,
+      source,
+      geometry: this.normalizeWeatherGeometry(geometry),
+      bounds: this.normalizeWeatherBounds(bounds),
+      lastUsedAt: new Date().toISOString(),
+    };
+    this.update({
+      weatherBounds: zone.bounds,
+      weatherZones: [...this.settingsSubject.value.weatherZones, zone],
+      activeWeatherZoneId: id,
+    });
+  }
+
+  activateWeatherZone(id: string): void {
+    const current = this.settingsSubject.value;
+    const selected = current.weatherZones.find((zone) => zone.id === id);
+    if (!selected) return;
+    const now = new Date().toISOString();
+    this.update({
+      activeWeatherZoneId: id,
+      weatherBounds: selected.bounds,
+      weatherZones: current.weatherZones.map((zone) => zone.id === id ? { ...zone, lastUsedAt: now } : zone),
+    });
+  }
+
+  useVigoWeatherZone(): void {
+    const existing = this.settingsSubject.value.weatherZones.find((zone) => zone.id === DEFAULT_VIGO_ZONE.id);
+    if (existing) {
+      this.activateWeatherZone(existing.id);
+      return;
+    }
+    const zone = {
+      ...DEFAULT_VIGO_ZONE,
+      bounds: [...VIGO_BOUNDS] as WeatherBounds,
+      geometry: polygonFromBounds(VIGO_BOUNDS),
+      lastUsedAt: new Date().toISOString(),
+    };
+    this.update({
+      weatherZones: [...this.settingsSubject.value.weatherZones, zone],
+      activeWeatherZoneId: zone.id,
+      weatherBounds: zone.bounds,
+    });
+  }
+
+  renameWeatherZone(id: string, name: string): void {
+    const normalized = name.trim().slice(0, 60);
+    if (!normalized) return;
+    this.update({
+      weatherZones: this.settingsSubject.value.weatherZones.map((zone) =>
+        zone.id === id ? { ...zone, name: normalized } : zone),
+    });
+  }
+
+  deleteWeatherZone(id: string): void {
+    const current = this.settingsSubject.value;
+    if (current.weatherZones.length <= 1) return;
+    const weatherZones = current.weatherZones.filter((zone) => zone.id !== id);
+    const active = id === current.activeWeatherZoneId
+      ? weatherZones.reduce((latest, zone) => zone.lastUsedAt > latest.lastUsedAt ? zone : latest)
+      : weatherZones.find((zone) => zone.id === current.activeWeatherZoneId);
+    if (!active) return;
+    this.update({ weatherZones, activeWeatherZoneId: active.id, weatherBounds: active.bounds });
   }
 
   setWeatherOpacity(opacity: number): void {
     const clamped = Math.max(0, Math.min(1, opacity));
     this.update({ weatherOpacity: clamped });
+  }
+
+  setMarineSourceGrid(show: boolean, variable: MarineDebugVariable): void {
+    this.update({ showMarineSourceGrid: show, marineDebugVariable: variable });
   }
 
   update(partial: Partial<ChartSettings>): void {
@@ -478,6 +639,15 @@ export class ChartSettingsService {
     normalized.environmentTime = typeof saved.environmentTime === 'string' && saved.environmentTime.length > 0
       ? saved.environmentTime
       : DEFAULT_SETTINGS.environmentTime;
+    normalized.weatherBounds = this.validWeatherBounds(saved.weatherBounds)
+      ? saved.weatherBounds.map((value) => Number(value.toFixed(4))) as WeatherBounds
+      : [...DEFAULT_SETTINGS.weatherBounds];
+    normalized.weatherZones = this.hydrateWeatherZones(saved.weatherZones, normalized.weatherBounds);
+    normalized.activeWeatherZoneId = normalized.weatherZones.some((zone) => zone.id === saved.activeWeatherZoneId)
+      ? saved.activeWeatherZoneId!
+      : normalized.weatherZones[0]!.id;
+    normalized.weatherBounds = normalized.weatherZones
+      .find((zone) => zone.id === normalized.activeWeatherZoneId)!.bounds;
     normalized.ownVesselIconScale = this.clampNumber(saved.ownVesselIconScale, DEFAULT_SETTINGS.ownVesselIconScale, 0.5, 2.5);
     normalized.aisTargetIconScale = this.clampNumber(saved.aisTargetIconScale, DEFAULT_SETTINGS.aisTargetIconScale, 0.4, 2.0);
     normalized.headingLineMinutes = this.clampNumber(saved.headingLineMinutes, DEFAULT_SETTINGS.headingLineMinutes, 1, 120);
@@ -508,6 +678,14 @@ export class ChartSettingsService {
       DEFAULT_SETTINGS.enableVesselEnrichment,
     );
     normalized.showSavedTracks = this.toBoolean(saved.showSavedTracks, DEFAULT_SETTINGS.showSavedTracks);
+    normalized.showMarineSourceGrid = this.toBoolean(
+      saved.showMarineSourceGrid,
+      DEFAULT_SETTINGS.showMarineSourceGrid,
+    );
+    normalized.marineDebugVariable =
+      saved.marineDebugVariable === 'waves' || saved.marineDebugVariable === 'currents'
+        ? saved.marineDebugVariable
+        : 'wind';
 
     // Older settings could have several raster layers enabled. Keep exactly one
     // thematic layer so chart soundings and hazards remain readable.
@@ -539,6 +717,84 @@ export class ChartSettingsService {
       showClouds: layer === 'clouds',
       showPressure: layer === 'pressure',
     };
+  }
+
+  private validWeatherBounds(value: unknown): value is WeatherBounds {
+    if (!Array.isArray(value) || value.length !== 4 || !value.every(Number.isFinite)) return false;
+    const [west, south, east, north] = value;
+    return west >= -180 && east <= 180 && south >= -90 && north <= 90
+      && west < east && south < north && east - west <= 12 && north - south <= 12;
+  }
+
+  private hydrateWeatherZones(value: unknown, legacyBounds: WeatherBounds): WeatherZone[] {
+    if (!Array.isArray(value)) {
+      return [{
+        id: 'default-weather-area',
+        name: 'Saved area',
+        source: 'rectangle',
+        geometry: polygonFromBounds(legacyBounds),
+        bounds: legacyBounds,
+        lastUsedAt: '',
+      }];
+    }
+    const zones = value.flatMap((candidate): WeatherZone[] => {
+      if (!candidate || typeof candidate !== 'object') return [];
+      const zone = candidate as Partial<WeatherZone>;
+      const bounds = this.validWeatherBounds(zone.bounds) ? this.normalizeWeatherBounds(zone.bounds) : null;
+      const geometry = this.validWeatherGeometry(zone.geometry)
+        ? this.normalizeWeatherGeometry(zone.geometry)
+        : bounds ? polygonFromBounds(bounds) : null;
+      if (!bounds || !geometry || typeof zone.id !== 'string' || typeof zone.name !== 'string') return [];
+      const source = zone.source === 'viewport' || zone.source === 'polygon' || zone.source === 'preset'
+        ? zone.source
+        : 'rectangle';
+      return [{
+        id: zone.id,
+        name: zone.name.trim().slice(0, 60) || 'Weather area',
+        source,
+        geometry,
+        bounds,
+        lastUsedAt: typeof zone.lastUsedAt === 'string' ? zone.lastUsedAt : '',
+      }];
+    });
+    return zones.length > 0 ? zones : [{ ...DEFAULT_VIGO_ZONE, bounds: [...VIGO_BOUNDS], geometry: polygonFromBounds(VIGO_BOUNDS) }];
+  }
+
+  private validWeatherGeometry(value: unknown): value is WeatherAreaGeometry {
+    if (!value || typeof value !== 'object') return false;
+    const geometry = value as Partial<WeatherAreaGeometry>;
+    return geometry.type === 'Polygon'
+      && Array.isArray(geometry.coordinates)
+      && geometry.coordinates.length > 0
+      && geometry.coordinates.every((ring) => Array.isArray(ring)
+        && ring.length >= 4
+        && ring.every((point) => Array.isArray(point)
+          && point.length >= 2
+          && Number.isFinite(point[0])
+          && Number.isFinite(point[1])));
+  }
+
+  private normalizeWeatherGeometry(geometry: WeatherAreaGeometry): WeatherAreaGeometry {
+    return {
+      type: 'Polygon',
+      coordinates: geometry.coordinates.map((ring) =>
+        ring.map(([longitude, latitude]) => [
+          Number(longitude!.toFixed(5)),
+          Number(latitude!.toFixed(5)),
+        ])),
+    };
+  }
+
+  private boundsFromWeatherGeometry(geometry: WeatherAreaGeometry): WeatherBounds | null {
+    if (!this.validWeatherGeometry(geometry)) return null;
+    const points = geometry.coordinates.flat();
+    const longitude = points.map((point) => point[0]!);
+    const latitude = points.map((point) => point[1]!);
+    return [Math.min(...longitude), Math.min(...latitude), Math.max(...longitude), Math.max(...latitude)];
+  }
+
+  private normalizeWeatherBounds(bounds: WeatherBounds): WeatherBounds {
+    return bounds.map((value) => Number(value.toFixed(4))) as WeatherBounds;
   }
 
   private hydrateVesselTypeColors(

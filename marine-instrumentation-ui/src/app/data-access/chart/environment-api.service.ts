@@ -5,6 +5,7 @@ import { APP_ENVIRONMENT } from '../../core/config/app-environment.token';
 import type { EnvironmentalLayerId } from '../../features/chart/services/chart-settings.service';
 
 export type EnvironmentalDataState = 'observed' | 'forecast' | 'cached' | 'stale' | 'unavailable';
+export type CompatibleChartKind = 'raster' | 'vector' | 'bathymetry';
 
 export interface EnvironmentalLayerDescriptor {
   id: EnvironmentalLayerId;
@@ -21,6 +22,9 @@ export interface EnvironmentalLayerDescriptor {
   vectorUrl?: string;
   updatedAt?: string;
   validTimes: string[];
+  compatibleMapKinds?: CompatibleChartKind[];
+  coverage?: [number, number, number, number];
+  compatibilityNote?: string;
   message?: string;
 }
 

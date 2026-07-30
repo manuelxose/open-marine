@@ -1,41 +1,150 @@
 import { Router } from 'express';
 import { ChartSourceCatalog } from '../catalog/chart-source-catalog.js';
 import { RemoteChartCatalogService } from '../services/remote-chart-catalog.service.js';
-import { DownloadManager } from '../download/download-manager.js';
+import type { DownloadManager } from '../download/download-manager.js';
 import { DownloadStateService, deriveRemoteChartStatus } from '../services/download-state.service.js';
 import { estimateAreaDownload, DEFAULT_MAX_TILES, DEFAULT_MAX_ZOOM } from '../services/download-estimate.js';
 import { config } from '../config.js';
-import type { ChartJobService } from '../services/chart-job.service.js';
-import type { ChartRegistryService } from '../services/chart-registry.service.js';
-import type { MbtilesService } from '../services/mbtiles.service.js';
-import type { TileCacheService } from '../services/tile-cache.service.js';
-import type { XyzProxyService } from '../services/xyz-proxy.service.js';
-import type { WmsProxyService } from '../services/wms-proxy.service.js';
+import type { AreaSearchService } from '../services/area-search.service.js';
+import type { PackagePlannerService } from '../services/package-planner.service.js';
+import type { ChartPackageService } from '../services/chart-package.service.js';
+import type { InstallationDiagnosticsService } from '../services/installation-diagnostics.service.js';
 import type { RemoteChartEntry } from '../types/catalog.types.js';
+import type { StorageQuotaService } from '../services/storage-quota.service.js';
+import type { EncHazardQuery, EncHazardService } from '../services/enc-hazard.service.js';
+import type { IhmFeatureInfoService } from '../services/ihm-feature-info.service.js';
+import {
+  parseChartIds,
+  parseMarineBounds,
+  type MarineGeometryService,
+} from '../services/marine-geometry.service.js';
 
 export const createCatalogRouter = (
-  jobs: ChartJobService,
-  registry: ChartRegistryService,
-  mbtiles: MbtilesService,
-  tileCache: TileCacheService,
-  xyzProxy: XyzProxyService,
-  wmsProxy: WmsProxyService,
-  dataDir: string,
+  downloadManager: DownloadManager,
+  areaSearch: AreaSearchService,
+  packagePlanner: PackagePlannerService,
+  packages: ChartPackageService,
+  installation: InstallationDiagnosticsService,
+  storage: StorageQuotaService,
+  encHazards: EncHazardService,
+  ihmFeatureInfo: IhmFeatureInfoService,
+  marineGeometry: MarineGeometryService,
 ): Router => {
   const router = Router();
   const catalog = new ChartSourceCatalog();
   const remoteCatalog = new RemoteChartCatalogService();
   const downloadState = new DownloadStateService(config.localDownloadsFile);
-  const downloadManager = new DownloadManager(
-    jobs,
-    registry,
-    mbtiles,
-    tileCache,
-    xyzProxy,
-    wmsProxy,
-    dataDir,
-    downloadState,
-  );
+  router.post('/areas/search', async (req, res, next) => {
+    try {
+      const body = req.body as Record<string, unknown>;
+      const query = readString(body, 'query');
+      res.json({ results: await areaSearch.search(query) });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  router.post('/package-plans', (req, res, next) => {
+    try {
+      const body = req.body as Record<string, unknown>;
+      const plan = packagePlanner.createPlan({
+        name: readString(body, 'name'),
+        geometry: body['geometry'],
+        ...(body['profile'] === 'custom' ? { profile: 'custom' as const } : { profile: 'recommended' as const }),
+        ...(typeof body['storageBudgetBytes'] === 'number' ? { storageBudgetBytes: body['storageBudgetBytes'] } : {}),
+        ...(Array.isArray(body['selectedProviderIds'])
+          ? { selectedProviderIds: body['selectedProviderIds'].filter((value): value is string => typeof value === 'string') }
+          : {}),
+      });
+      packages.rememberPlan(plan);
+      res.json(plan);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  router.get('/installation', async (_req, res, next) => {
+    try {
+      res.json(await installation.inspect());
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  router.get('/storage', async (_req, res, next) => {
+    try {
+      res.json(await storage.inspect());
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  router.post('/storage/prune', async (_req, res, next) => {
+    try {
+      res.json(await storage.prune());
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  router.post('/enc/hazards/query', (req, res, next) => {
+    try {
+      res.json(encHazards.query(req.body as EncHazardQuery));
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  router.get('/ihm/feature-info', async (req, res, next) => {
+    try {
+      res.json(await ihmFeatureInfo.query(
+        Number(req.query['lng']),
+        Number(req.query['lat']),
+        Number(req.query['zoom']),
+      ));
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  router.get('/enc/marine-mask.geojson', (req, res, next) => {
+    try {
+      res.setHeader('Cache-Control', 'private, max-age=300');
+      res.type('application/geo+json').json(marineGeometry.marineMask(
+        parseMarineBounds(req.query['bbox']),
+        req.query['area'],
+        parseChartIds(req.query['chartIds']),
+      ));
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  router.get('/enc/depth-overlay.geojson', (req, res, next) => {
+    try {
+      res.setHeader('Cache-Control', 'private, max-age=300');
+      res.type('application/geo+json').json(marineGeometry.depthOverlay(
+        parseMarineBounds(req.query['bbox']),
+        req.query['area'],
+        parseChartIds(req.query['chartIds']),
+        Number(req.query['safetyDepthM'] ?? 5),
+        Number(req.query['zoom']),
+        typeof req.query['layers'] === 'string'
+          ? req.query['layers'].split(',').map((layer) => layer.trim()).filter(Boolean)
+          : undefined,
+      ));
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  router.get('/s63/status', async (_req, res, next) => {
+    try {
+      res.json((await installation.inspect()).s63);
+    } catch (error) {
+      next(error);
+    }
+  });
 
   router.get('/sources', (_req, res) => {
     const sources = catalog.list().map((p) => ({
@@ -222,7 +331,10 @@ export const createCatalogRouter = (
   return router;
 };
 
-const isDownloadable = (entry: RemoteChartEntry, availability: 'online' | 'offline-capable' | 'subscription'): boolean => {
+const isDownloadable = (
+  entry: RemoteChartEntry,
+  availability: 'online' | 'offline-capable' | 'subscription' | 'manual-import',
+): boolean => {
   if (availability !== 'offline-capable') return false;
   if (entry.format === 's57') {
     return Boolean(entry.downloadUrl);

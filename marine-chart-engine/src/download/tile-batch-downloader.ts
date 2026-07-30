@@ -171,9 +171,14 @@ export class TileBatchDownloader {
     const maxTile = this.lonLatToTile(maxLon, maxLat, z);
 
     const tiles: Array<{ z: number; x: number; y: number }> = [];
-    for (let x = minTile.x; x <= maxTile.x; x++) {
-      for (let y = maxTile.y; y <= minTile.y; y++) { // y is inverted (TMS vs XYZ)
-        tiles.push({ z, x, y });
+    const xRanges: Array<[number, number]> = minLon <= maxLon
+      ? [[minTile.x, maxTile.x]]
+      : [[minTile.x, 2 ** z - 1], [0, maxTile.x]];
+    for (const [startX, endX] of xRanges) {
+      for (let x = startX; x <= endX; x++) {
+        for (let y = maxTile.y; y <= minTile.y; y++) { // y is inverted (TMS vs XYZ)
+          tiles.push({ z, x, y });
+        }
       }
     }
     return tiles;

@@ -221,6 +221,30 @@ import { CommonModule } from '@angular/common';
         }
       }
     }
+
+    @media (max-width: 768px) {
+      :host,
+      .quick-instruments {
+        width: 100%;
+        min-width: 0;
+      }
+
+      .instrument {
+        flex: 1 1 0;
+        min-width: 0;
+        padding: var(--space-2) var(--space-1);
+
+        &__value {
+          font-size: 0.92rem;
+        }
+      }
+
+      .expand-handle {
+        flex: 0 0 32px;
+        min-width: 32px;
+        min-height: 48px;
+      }
+    }
   `]
 })
 export class QuickInstrumentsComponent {

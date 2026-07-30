@@ -2,7 +2,6 @@ import { Component, ChangeDetectionStrategy, EventEmitter, Input, Output } from 
 import { CommonModule } from '@angular/common';
 import { AppIconComponent } from '../../../../shared/components/app-icon/app-icon.component';
 import { TranslatePipe } from '../../../../shared/pipes/translate.pipe';
-import type { ChartLayerMode } from '../../types/chart-vm';
 
 @Component({
   selector: 'app-map-controls',
@@ -94,15 +93,15 @@ import type { ChartLayerMode } from '../../types/chart-vm';
         </button>
       </div>
 
-      <!-- Layer Toggle -->
+      <!-- Base map chooser and overlays -->
       <div class="control-group">
         <button
           class="control-btn"
-          [class.active]="layerMode === 'nautical' || layerMode === 'enc'"
+          [class.active]="settingsPanelOpen"
           (click)="toggleBaseLayer.emit()"
           [attr.aria-label]="layerButtonAriaLabel"
           [title]="layerButtonLabel">
-          <app-icon [name]="layerButtonIcon" [size]="16" />
+          <app-icon name="map" [size]="16" />
           <span class="control-btn__micro-label">{{ layerModeBadge }}</span>
         </button>
         <div class="control-group__divider"></div>
@@ -122,7 +121,7 @@ import type { ChartLayerMode } from '../../types/chart-vm';
           class="control-btn"
           [class.active]="showAisTracks"
           (click)="toggleAisTracks.emit()"
-          [attr.aria-label]="showAisTracks ? 'Hide AIS tracks' : 'Show AIS tracks'"
+          [attr.aria-label]="showAisTracks ? 'Hide vessel trails' : 'Show vessel trails'"
           [title]="'chart.controls.ais_tracks' | translate">
           <app-icon name="route" [size]="16" />
         </button>
@@ -132,8 +131,21 @@ import type { ChartLayerMode } from '../../types/chart-vm';
       <div class="control-group">
         <button
           class="control-btn"
+          [class.active]="environmentPanelActive"
+          (pointerdown)="$event.stopPropagation()"
+          (click)="openEnvironmentPanel.emit()"
+          aria-label="Open weather and sea layers"
+          title="Weather and sea layers">
+          <app-icon name="wind" [size]="18" />
+          <span class="control-btn__micro-label">WX</span>
+        </button>
+        <div class="control-group__divider"></div>
+        <button
+          class="control-btn"
           [class.active]="settingsPanelOpen"
+          (pointerdown)="$event.stopPropagation()"
           (click)="toggleSettingsPanel.emit()"
+          aria-label="Map settings and layers"
           title="Map Settings">
           <app-icon name="settings" [size]="16" />
         </button>
@@ -229,13 +241,61 @@ import type { ChartLayerMode } from '../../types/chart-vm';
         opacity: 0.6;
       }
     }
+
+    @media (max-width: 768px) {
+      :host {
+        width: 100%;
+        min-width: 0;
+      }
+
+      .map-controls {
+        width: 100%;
+        flex-direction: row;
+        gap: var(--space-1);
+        overflow-x: auto;
+        overflow-y: hidden;
+        overscroll-behavior-x: contain;
+        scrollbar-width: none;
+        padding-bottom: 2px;
+      }
+
+      .map-controls::-webkit-scrollbar {
+        display: none;
+      }
+
+      .control-group {
+        flex: 0 0 auto;
+        flex-direction: row;
+        border-radius: var(--radius-md);
+
+        &__divider {
+          width: 1px;
+          height: auto;
+          margin: var(--space-1) 0;
+        }
+      }
+
+      .control-btn {
+        width: 44px;
+        height: 44px;
+
+        &.active::after {
+          left: 25%;
+          right: 25%;
+          top: auto;
+          bottom: 0;
+          width: auto;
+          height: 2px;
+          border-radius: 1px 1px 0 0;
+        }
+      }
+    }
   `]
 })
 export class MapControlsComponent {
   @Input() orientation: 'north-up' | 'course-up' = 'north-up';
   @Input() canCenter = false;
   @Input() autoCenter = false;
-  @Input() layerMode: ChartLayerMode = 'osm';
   @Input() anchorWatchActive = false;
   @Input() showOpenSeaMap = false;
   @Input() showAisTracks = true;
@@ -244,6 +304,8 @@ export class MapControlsComponent {
   @Input() hasActiveWaypoint = false;
   @Input() panelOpen = false;
   @Input() settingsPanelOpen = false;
+  @Input() environmentPanelActive = false;
+  @Input() mapSourceId = 'osm-raster';
 
   @Output() zoomIn = new EventEmitter<void>();
   @Output() togglePanel = new EventEmitter<void>();
@@ -258,50 +320,27 @@ export class MapControlsComponent {
   @Output() toggleMeasure = new EventEmitter<void>();
   @Output() deleteActiveWaypoint = new EventEmitter<void>();
   @Output() toggleSettingsPanel = new EventEmitter<void>();
+  @Output() openEnvironmentPanel = new EventEmitter<void>();
 
   get layerButtonLabel(): string {
-    switch (this.layerMode) {
-      case 'osm':
-        return 'Satellite';
-      case 'satellite':
-        return 'Nautical';
-      case 'nautical':
-        return 'ENC';
-      case 'enc':
-      default:
-        return 'Map';
-    }
+    return `Next base map · Current: ${this.mapSourceId}`;
   }
 
   get layerButtonAriaLabel(): string {
-    return `Switch to ${this.layerButtonLabel} view`;
+    return 'Switch to next available base map';
   }
 
-  get layerButtonIcon(): 'map' | 'satellite' | 'anchor' | 'layers' {
-    switch (this.layerMode) {
-      case 'satellite':
-        return 'satellite';
-      case 'nautical':
-        return 'anchor';
-      case 'enc':
-        return 'layers';
-      case 'osm':
-      default:
-        return 'map';
-    }
-  }
-
-  get layerModeBadge(): 'MAP' | 'SAT' | 'NAU' | 'ENC' {
-    switch (this.layerMode) {
-      case 'satellite':
-        return 'SAT';
-      case 'nautical':
-        return 'NAU';
-      case 'enc':
-        return 'ENC';
-      case 'osm':
-      default:
-        return 'MAP';
-    }
+  get layerModeBadge(): string {
+    const badges: Record<string, string> = {
+      'osm-raster': 'OSM',
+      satellite: 'SAT',
+      nautical: 'SEA',
+      gebco: 'GBC',
+      'noaa-wms': 'NOA',
+      'ihm-enc-wms': 'IHM',
+      'emodnet-bathymetry': 'EMO',
+      'ria-vigo-bathymetry': 'RIA',
+    };
+    return badges[this.mapSourceId] ?? 'MAP';
   }
 }

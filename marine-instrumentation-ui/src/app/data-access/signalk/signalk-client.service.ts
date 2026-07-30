@@ -89,8 +89,9 @@ export class SignalKClientService implements OnDestroy {
         retry({ delay: 3000 }), // Simple retry logic
         map((msg: SignalKMessage) => normalizeDelta(msg)),
         filter((points) => points.length > 0),
-        // Buffer updates to batch writes to store ~10 times a second
-        bufferTime(100),
+        // Keep small batches without adding a full IMU sample of latency.
+        // AIS has its own downstream coalescing.
+        bufferTime(40),
         filter((buffer) => buffer.length > 0),
       )
       .subscribe({

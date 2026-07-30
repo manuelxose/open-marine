@@ -1,6 +1,7 @@
 export type AlarmType =
   | 'anchor-watch'
   | 'shallow-water'
+  | 'enc-depth-ahead'
   | 'cpa-warning'
   | 'mob'
   | 'battery-low'
@@ -56,6 +57,7 @@ export interface Alarm {
 export const ALARM_TYPE_CATEGORY: Record<AlarmType, AlarmCategory> = {
   'anchor-watch': 'anchor',
   'shallow-water': 'navigation',
+  'enc-depth-ahead': 'navigation',
   'cpa-warning': 'collision',
   'mob': 'mob',
   'battery-low': 'electrical',

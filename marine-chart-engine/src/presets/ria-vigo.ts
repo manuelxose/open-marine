@@ -22,6 +22,6 @@ export const RIA_VIGO_PRESET = {
       licenseMode: 'import-local-extract',
     },
   ],
-  onlineOnly: ['ihm-enc-p2', 'ihm-enc-p3', 'ihm-enc-p4', 'ihm-enc-p5'],
+  onlineOnly: ['ihm-enc-wmts'],
   disclaimer: 'Recreational situational awareness only. Not an ECDIS or a substitute for official charts.',
 } as const;

@@ -75,3 +75,77 @@ test('WmsProxyService uses CRS for WMS 1.3.0 requests', async () => {
     globalThis.fetch = originalFetch;
   }
 });
+
+test('WmsProxyService coalesces duplicate IHM requests and preserves transparent chart gaps', async () => {
+  const originalFetch = globalThis.fetch;
+  let calls = 0;
+  let requestedUrl = '';
+  globalThis.fetch = async (input) => {
+    calls += 1;
+    requestedUrl = String(input);
+    await Promise.resolve();
+    return new Response(new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, ...new Array(32).fill(0)]), {
+      status: 200,
+      headers: { 'content-type': 'image/png' },
+    });
+  };
+
+  try {
+    const cache = new MemoryCache();
+    const service = new WmsProxyService(cache as unknown as TileCacheService);
+    service.registerProvider({
+      id: 'ihm-enc-p5',
+      baseUrl: 'https://ideihm.covam.es/wms/cartaENCp5',
+      layers: 'ENC_ES5',
+      version: '1.3.0',
+      srs: 'EPSG:3857',
+      transparent: true,
+      cacheVersion: 'transparent-stack-v3',
+    });
+
+    const [first, second] = await Promise.all([
+      service.fetchTile('ihm-enc-p5', 14, 7795, 6067),
+      service.fetchTile('ihm-enc-p5', 14, 7795, 6067),
+    ]);
+
+    assert.ok(first);
+    assert.ok(second);
+    assert.equal(calls, 1);
+    assert.equal(cache.setCalls, 1);
+    assert.equal(new URL(requestedUrl).searchParams.get('TRANSPARENT'), 'true');
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('WmsProxyService opens a short circuit after an upstream failure', async () => {
+  const originalFetch = globalThis.fetch;
+  let calls = 0;
+  globalThis.fetch = async () => {
+    calls += 1;
+    throw new Error('upstream timeout');
+  };
+
+  try {
+    const service = new WmsProxyService(new MemoryCache() as unknown as TileCacheService);
+    service.registerProvider({
+      id: 'ihm-enc-p5',
+      baseUrl: 'https://ideihm.covam.es/wms/cartaENCp5',
+      layers: 'ENC_ES5',
+    });
+
+    await assert.rejects(
+      () => service.fetchTile('ihm-enc-p5', 16, 31167, 24265),
+      (error) => error instanceof RemoteWmsTileError && error.statusCode === 504,
+    );
+    await assert.rejects(
+      () => service.fetchTile('ihm-enc-p5', 16, 31166, 24265),
+      (error) => error instanceof RemoteWmsTileError && error.statusCode === 503,
+    );
+    assert.equal(calls, 1);
+    assert.equal(service.diagnostics()[0]?.consecutiveFailures, 1);
+    assert.ok(service.diagnostics()[0]?.circuitOpenUntil);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});

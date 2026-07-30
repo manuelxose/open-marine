@@ -1,7 +1,8 @@
 import type { StyleSpecification } from 'maplibre-gl';
-import { buildEncStyle, buildEncVectorTileStyle } from '../../features/chart/layers/enc-style';
+import { buildEncVectorTileStyle } from '../../features/chart/layers/enc-style';
 import type { EncLayerConfig } from '../../features/chart/services/chart-settings.service';
 import type { EngineChartSource } from './chart-engine-api.service';
+import type { PackageManifest } from './chart-remote-catalog.service';
 
 export type ChartSourceKind = 'raster' | 'vector' | 'bathymetry';
 
@@ -14,6 +15,8 @@ export interface ChartSourceDefinition {
   description?: string;
   available?: boolean;
   local?: boolean;
+  /** WGS84 [west, south, east, north] for regional sources. */
+  bounds?: [number, number, number, number];
 }
 
 export const DEFAULT_CHART_SOURCE_ID = 'osm-raster';
@@ -85,91 +88,6 @@ export const NAUTICAL_RASTER_STYLE: StyleSpecification = {
   ],
 };
 
-const ENC_DEFAULT_STYLE: StyleSpecification = buildEncStyle(
-  {
-    showDepthAreas: true,
-    showDepthContours: true,
-    showBuoys: true,
-    showHazards: true,
-    showAnchorages: true,
-    showTSS: true,
-    showLights: true,
-  },
-  2.0,
-);
-
-const LOCAL_RASTER_STYLE: StyleSpecification = {
-  version: 8,
-  sources: {
-    'local-raster-chart': {
-      type: 'raster',
-      tiles: ['http://localhost:8088/charts/local-raster-demo/raster/{z}/{x}/{y}.png'],
-      tileSize: 256,
-      minzoom: 0,
-      maxzoom: 18,
-      attribution: 'Local chart data',
-    },
-  },
-  layers: [
-    {
-      id: 'local-raster-chart',
-      type: 'raster',
-      source: 'local-raster-chart',
-    },
-  ],
-};
-
-const BATHYMETRY_STYLE: StyleSpecification = {
-  version: 8,
-  sources: {
-    'osm-base': {
-      type: 'raster',
-      tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
-      tileSize: 256,
-      maxzoom: 19,
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-    },
-    'emodnet-bathymetry': {
-      type: 'raster',
-      tiles: ['http://localhost:8088/proxy/wms/emodnet-bathymetry/{z}/{x}/{y}.png'],
-      tileSize: 256,
-      minzoom: 4,
-      maxzoom: 16,
-      attribution: 'EMODnet Bathymetry',
-    },
-  },
-  layers: [
-    {
-      id: 'bathymetry-osm-base-layer',
-      type: 'raster',
-      source: 'osm-base',
-    },
-    {
-      id: 'emodnet-bathymetry-layer',
-      type: 'raster',
-      source: 'emodnet-bathymetry',
-      paint: {
-        'raster-opacity': 0.62,
-        'raster-fade-duration': 0,
-      },
-      minzoom: 4,
-    },
-  ],
-};
-
-const ENC_VECTOR_STYLE: StyleSpecification = buildEncVectorTileStyle(
-  {
-    showDepthAreas: true,
-    showDepthContours: true,
-    showBuoys: true,
-    showHazards: true,
-    showAnchorages: true,
-    showTSS: true,
-    showLights: true,
-  },
-  2.0,
-);
-
 const GEBCO_STYLE: StyleSpecification = {
   version: 8,
   sources: {
@@ -215,60 +133,66 @@ const NOAA_WMS_STYLE: StyleSpecification = {
 export const buildIhmWmsStyle = (chartEngineApiUrl: string): StyleSpecification => {
   const baseUrl = chartEngineApiUrl.replace(/\/$/, '');
   const ihmAttribution = '(c) Instituto Hidrografico de la Marina. Not valid for official navigation.';
-  const purposes = [
-    { id: 'ihm-enc-p2', minzoom: 4, maxzoom: 6, opacity: 0.76 },
-    { id: 'ihm-enc-p3', minzoom: 6, maxzoom: 9, opacity: 0.8 },
-    { id: 'ihm-enc-p4', minzoom: 9, maxzoom: 12, opacity: 0.84 },
-    { id: 'ihm-enc-p5', minzoom: 12, maxzoom: 16, opacity: 0.9 },
-  ] as const;
 
   return {
-  version: 8,
-  sources: {
-    'osm-base': {
-      type: 'raster',
-      tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
-      tileSize: 256,
-      maxzoom: 19,
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-    },
-    ...Object.fromEntries(purposes.map((purpose) => [
-      purpose.id,
-      {
+    version: 8,
+    sources: {
+      'ihm-enc-wmts': {
         type: 'raster',
-        tiles: [`${baseUrl}/proxy/wms/${purpose.id}/{z}/{x}/{y}.png`],
+        tiles: [`${baseUrl}/proxy/xyz/ihm-enc-wmts/{z}/{x}/{y}.png`],
         tileSize: 256,
-        minzoom: purpose.minzoom,
-        maxzoom: purpose.maxzoom,
+        minzoom: 0,
+        maxzoom: 21,
         attribution: ihmAttribution,
       },
-    ])),
-  },
-  layers: [
-    {
-      id: 'osm-base-layer',
-      type: 'raster',
-      source: 'osm-base',
     },
-    ...purposes.map((purpose) => ({
-      id: `${purpose.id}-layer`,
-      type: 'raster' as const,
-      source: purpose.id,
-      paint: {
-        'raster-opacity': purpose.opacity,
-        'raster-fade-duration': 0,
+    layers: [
+      {
+        id: 'ihm-chart-background',
+        type: 'background',
+        paint: {
+          // MapLibre paint cannot consume theme tokens; neutral chart-water fallback.
+          'background-color': '#d8e7e7',
+        },
       },
-      minzoom: purpose.minzoom,
-      maxzoom: purpose.maxzoom,
-    })),
-  ],
+      {
+        id: 'ihm-enc-wmts-layer',
+        type: 'raster',
+        source: 'ihm-enc-wmts',
+        paint: {
+          'raster-opacity': 1,
+          'raster-fade-duration': 220,
+          'raster-resampling': 'linear',
+        },
+        minzoom: 0,
+        maxzoom: 24,
+      },
+    ],
+    transition: {
+      duration: 180,
+      delay: 0,
+    },
+  };
 };
+
+/**
+ * Built-in styles are serializable MapLibre specifications. Rewrite legacy
+ * localhost chart-engine URLs at the application boundary so phones/tablets
+ * always request tiles from the configured Raspberry host.
+ */
+export const bindChartEngineUrl = (
+  style: StyleSpecification,
+  chartEngineApiUrl: string,
+): StyleSpecification => {
+  const baseUrl = chartEngineApiUrl.replace(/\/$/, '');
+  const serialized = JSON.stringify(style).replaceAll('http://localhost:8088', baseUrl);
+  return JSON.parse(serialized) as StyleSpecification;
 };
 
 export const CHART_SOURCES: ChartSourceDefinition[] = [
   {
     id: DEFAULT_CHART_SOURCE_ID,
-    label: 'Map',
+    label: 'OpenStreetMap (OSM)',
     kind: 'raster',
     style: OSM_RASTER_STYLE,
     description: 'OpenStreetMap base map.',
@@ -283,42 +207,10 @@ export const CHART_SOURCES: ChartSourceDefinition[] = [
   },
   {
     id: NAUTICAL_CHART_SOURCE_ID,
-    label: 'Nautical',
+    label: 'OpenSeaMap',
     kind: 'raster',
     style: NAUTICAL_RASTER_STYLE,
     description: 'OpenStreetMap + OpenSeaMap nautical overlay with buoys, lights, hazards.',
-    available: true,
-  },
-  {
-    id: ENC_CHART_SOURCE_ID,
-    label: 'ENC',
-    kind: 'vector',
-    style: ENC_DEFAULT_STYLE,
-    description: 'Demo vector ENC chart style with semantic nautical layers.',
-    available: true,
-  },
-  {
-    id: LOCAL_RASTER_CHART_SOURCE_ID,
-    label: 'Local Raster',
-    kind: 'raster',
-    style: LOCAL_RASTER_STYLE,
-    description: 'Local legal raster chart tiles served by the chart engine.',
-    available: true,
-  },
-  {
-    id: BATHYMETRY_CHART_SOURCE_ID,
-    label: 'Bathymetry',
-    kind: 'bathymetry',
-    style: BATHYMETRY_STYLE,
-    description: 'EMODnet bathymetry overlay through the chart engine.',
-    available: true,
-  },
-  {
-    id: ENC_VECTOR_CHART_SOURCE_ID,
-    label: 'Real ENC / Local ENC',
-    kind: 'vector',
-    style: ENC_VECTOR_STYLE,
-    description: 'Local ENC vector tiles served by the chart engine. Falls back gracefully while tiles are unavailable.',
     available: true,
   },
   {
@@ -336,13 +228,15 @@ export const CHART_SOURCES: ChartSourceDefinition[] = [
     style: NOAA_WMS_STYLE,
     description: 'Official NOAA chart display for US waters.',
     available: true,
+    bounds: [-179, 18, -65, 72],
   },
   {
     id: IHM_WMS_CHART_SOURCE_ID,
-    label: 'IHM Spain ENC',
+    label: 'IHM Spain RasterENC (current)',
     kind: 'raster',
-    description: 'Spanish IHM ENC via WMS. Not valid for official navigation.',
+    description: 'Current unified RasterENC WMTS from the IHM, including all published detail levels through zoom 21. Not valid for official navigation.',
     available: true,
+    bounds: [-20, 25, 6, 46],
   },
 ];
 
@@ -352,6 +246,7 @@ export const buildEngineChartStyle = (
   safetyDepth: number,
 ): StyleSpecification => {
   const tileUrl = chart.tileUrl ?? '';
+  const bounds = parseEngineBounds(chart.metadata?.['bounds']);
   if (chart.kind === 'vector') {
     return buildEncVectorTileStyle(encConfig, safetyDepth, tileUrl);
   }
@@ -385,6 +280,7 @@ export const buildEngineChartStyle = (
           minzoom: chart.minZoom ?? 4,
           maxzoom: chart.maxZoom ?? 16,
           attribution: chart.attribution ?? chart.label,
+          ...(bounds ? { bounds } : {}),
         },
       },
       layers: [
@@ -408,10 +304,85 @@ export const buildEngineChartStyle = (
         minzoom: chart.minZoom ?? 0,
         maxzoom: chart.maxZoom ?? 18,
         attribution: chart.attribution ?? chart.label,
+        ...(bounds ? { bounds } : {}),
       },
     },
     layers: [rasterLayer],
   };
+};
+
+export const buildChartPackageStyle = (
+  manifest: PackageManifest,
+  charts: EngineChartSource[],
+  encConfig: EncLayerConfig,
+  safetyDepth: number,
+): StyleSpecification => {
+  const chartById = new Map(charts.map((chart) => [chart.id, chart]));
+  const readyLayers = manifest.layers
+    .filter((layer) => layer.state === 'ready' && layer.chartId)
+    .map((layer) => ({ layer, chart: chartById.get(layer.chartId!) }))
+    .filter((entry): entry is { layer: typeof entry.layer; chart: EngineChartSource } => Boolean(entry.chart?.available));
+
+  const style: StyleSpecification = {
+    version: 8,
+    sources: {
+      'package-osm-base': {
+        type: 'raster',
+        tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
+        tileSize: 256,
+        maxzoom: 19,
+        attribution: '&copy; OpenStreetMap contributors',
+      },
+    },
+    layers: [{ id: 'package-osm-base-layer', type: 'raster', source: 'package-osm-base' }],
+  };
+
+  for (const { layer, chart } of readyLayers.filter((entry) => entry.chart.kind !== 'vector')) {
+    if (!chart.tileUrl) continue;
+    const sourceId = `package-${safeStyleId(layer.id)}`;
+    style.sources[sourceId] = {
+      type: 'raster',
+      tiles: [chart.tileUrl],
+      tileSize: 256,
+      minzoom: chart.minZoom ?? layer.minZoom ?? 0,
+      maxzoom: chart.maxZoom ?? layer.maxZoom ?? 18,
+      attribution: chart.attribution ?? layer.attribution,
+    };
+    style.layers.push({
+      id: `${sourceId}-layer`,
+      type: 'raster',
+      source: sourceId,
+      paint: {
+        'raster-opacity': layer.role === 'bathymetry' ? 0.68 : 1,
+        'raster-fade-duration': 0,
+      },
+    });
+  }
+
+  const officialEnc = readyLayers.find(({ layer, chart }) => layer.role === 'official-enc' && chart.kind === 'vector');
+  if (officialEnc?.chart.tileUrl) {
+    const encStyle = buildEncVectorTileStyle(encConfig, safetyDepth, officialEnc.chart.tileUrl);
+    const vectorSource = encStyle.sources?.['enc-vector'];
+    if (vectorSource) style.sources['enc-vector'] = vectorSource;
+    if (encStyle.glyphs) style.glyphs = encStyle.glyphs;
+    style.layers.push(...encStyle.layers.filter((layer) =>
+      layer.type !== 'background'
+      && layer.id !== 'enc-vector-base-raster'
+      && ('source' in layer ? layer.source !== 'enc-osm-base' : true),
+    ));
+  }
+  return style;
+};
+
+const safeStyleId = (value: string): string => value.replace(/[^a-zA-Z0-9_-]/g, '-');
+
+const parseEngineBounds = (
+  value: string | undefined,
+): [number, number, number, number] | undefined => {
+  const bounds = value?.split(',').map(Number);
+  return bounds?.length === 4 && bounds.every(Number.isFinite)
+    ? bounds as [number, number, number, number]
+    : undefined;
 };
 
 const DEFAULT_CHART_SOURCE = CHART_SOURCES[0]!;

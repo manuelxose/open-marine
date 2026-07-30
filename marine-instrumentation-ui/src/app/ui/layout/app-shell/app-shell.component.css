@@ -5,7 +5,7 @@
 
 :host {
   display: block;
-  height: 100vh;
+  height: 100dvh;
   --nav-width: 64px;
 }
 
@@ -13,7 +13,7 @@
 .app-layout {
   display: grid;
   grid-template-columns: var(--nav-width) 1fr;
-  height: 100vh;
+  height: 100dvh;
   background-color: var(--gb-bg-canvas);
   transition: grid-template-columns 0.3s cubic-bezier(0.2, 0, 0, 1);
 }
@@ -136,7 +136,7 @@
 .main-container {
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  height: 100dvh;
   overflow: hidden;
   position: relative;
 }
@@ -281,6 +281,10 @@
 
   .main-container {
     padding-bottom: 56px;
+  }
+
+  .app-layout--chart .main-container {
+    padding-bottom: 0;
   }
 }
 

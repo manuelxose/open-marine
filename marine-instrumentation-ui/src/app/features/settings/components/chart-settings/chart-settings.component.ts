@@ -71,11 +71,22 @@ import { TranslatePipe } from '../../../../shared/pipes/translate.pipe';
 
       <h3 class="settings-subtitle">ENC</h3>
 
-      <div class="setting-item setting-item--stack">
+      <div
+        class="setting-item setting-item--stack"
+        *ngIf="chartFacade.encLayerAvailability$ | async as encAvailability">
         <div class="setting-info">
           <span class="setting-label">ENC Chart Layers</span>
           <span class="setting-description">
             Configure semantic nautical layers shown in ENC mode.
+          </span>
+          <span
+            class="setting-description enc-compatibility"
+            [class.enc-compatibility--active]="encAvailability.supported">
+            {{ encAvailability.message }}
+          </span>
+          <span class="setting-description">
+            Depth areas, contours and hazards can also be overlaid on RasterENC when an authorised
+            vector ENC index is installed.
           </span>
         </div>
 
@@ -106,7 +117,7 @@ import { TranslatePipe } from '../../../../shared/pipes/translate.pipe';
           </div>
           <div class="setting-item-inline">
             <span class="line-label">Buoys & signals</span>
-            <app-toggle [ngModel]="s.encLayers.showBuoys" (ngModelChange)="toggleEncLayer('showBuoys')"></app-toggle>
+            <app-toggle [disabled]="!encAvailability.supported" [ngModel]="s.encLayers.showBuoys" (ngModelChange)="toggleEncLayer('showBuoys')"></app-toggle>
           </div>
           <div class="setting-item-inline">
             <span class="line-label">Hazards</span>
@@ -114,15 +125,15 @@ import { TranslatePipe } from '../../../../shared/pipes/translate.pipe';
           </div>
           <div class="setting-item-inline">
             <span class="line-label">Anchorages</span>
-            <app-toggle [ngModel]="s.encLayers.showAnchorages" (ngModelChange)="toggleEncLayer('showAnchorages')"></app-toggle>
+            <app-toggle [disabled]="!encAvailability.supported" [ngModel]="s.encLayers.showAnchorages" (ngModelChange)="toggleEncLayer('showAnchorages')"></app-toggle>
           </div>
           <div class="setting-item-inline">
             <span class="line-label">Traffic separation</span>
-            <app-toggle [ngModel]="s.encLayers.showTSS" (ngModelChange)="toggleEncLayer('showTSS')"></app-toggle>
+            <app-toggle [disabled]="!encAvailability.supported" [ngModel]="s.encLayers.showTSS" (ngModelChange)="toggleEncLayer('showTSS')"></app-toggle>
           </div>
           <div class="setting-item-inline">
             <span class="line-label">Lights</span>
-            <app-toggle [ngModel]="s.encLayers.showLights" (ngModelChange)="toggleEncLayer('showLights')"></app-toggle>
+            <app-toggle [disabled]="!encAvailability.supported" [ngModel]="s.encLayers.showLights" (ngModelChange)="toggleEncLayer('showLights')"></app-toggle>
           </div>
         </div>
       </div>
@@ -618,6 +629,19 @@ import { TranslatePipe } from '../../../../shared/pipes/translate.pipe';
     .setting-slider {
       width: 100%;
       accent-color: var(--gb-needle-secondary);
+    }
+
+    .setting-slider:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    .enc-compatibility {
+      color: var(--gb-alarm-warning);
+    }
+
+    .enc-compatibility--active {
+      color: var(--gb-data-ok);
     }
 
     @media (max-width: 960px) {

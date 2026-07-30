@@ -170,6 +170,30 @@
 }
 
 @media (max-width: 720px) {
+  .chart-top-bar {
+    gap: var(--space-1);
+    padding-right: var(--space-2);
+    overflow: hidden;
+  }
+
+  .top-bar__group--motion {
+    flex: 1 1 auto;
+    justify-content: space-around;
+    gap: var(--space-1);
+    min-width: 0;
+  }
+
+  .top-bar__group--position,
+  .top-bar__divider,
+  .top-bar__time {
+    display: none;
+  }
+
+  .top-bar__group--status {
+    flex: 0 0 auto;
+    gap: var(--space-1);
+  }
+
   .top-bar__time--local {
     display: none;
   }

@@ -1,5 +1,6 @@
 // Routes configuration
-import { Routes } from '@angular/router';
+import { inject } from '@angular/core';
+import { Router, Routes } from '@angular/router';
 import { onboardingGuard } from './core/guards/onboarding.guard';
 
 export const routes: Routes = [
@@ -25,9 +26,10 @@ export const routes: Routes = [
   },
   {
     path: 'charts',
-    loadComponent: () => import('./features/chart-catalog/chart-catalog.page').then(m => m.ChartCatalogPage),
-    title: 'Charts',
-    canActivate: [onboardingGuard],
+    redirectTo: ({ queryParams }) => inject(Router).createUrlTree(['/chart'], {
+      queryParams: { ...queryParams, manager: 'maps' },
+    }),
+    pathMatch: 'full',
   },
   {
     path: 'dashboard',

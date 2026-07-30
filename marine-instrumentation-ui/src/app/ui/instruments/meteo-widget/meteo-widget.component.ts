@@ -23,9 +23,10 @@ export class MeteoWidgetComponent {
 
   readonly selectedDayIndex = signal(0);
 
-  readonly weather = toSignal(this.weatherApi.weather$, { initialValue: undefined });
-  readonly loading = computed(() => this.weather() === undefined);
-  readonly unavailable = computed(() => this.weather() === null);
+  readonly result = toSignal(this.weatherApi.result$, { initialValue: undefined });
+  readonly weather = computed(() => this.result()?.weather);
+  readonly loading = computed(() => this.result() === undefined);
+  readonly unavailable = computed(() => this.result()?.state === 'unavailable');
 
   readonly temperatureHistory = computed<HistoryPoint[]>(() =>
     this.forecast().map((hour) => ({
@@ -103,5 +104,17 @@ export class MeteoWidgetComponent {
     if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
     event.preventDefault();
     strip.scrollLeft += event.deltaY;
+  }
+
+  retry(): void {
+    this.weatherApi.refresh();
+  }
+
+  ageLabel(): string {
+    const seconds = this.result()?.ageSeconds;
+    if (seconds === null || seconds === undefined) return 'No cached data';
+    if (seconds < 60) return `${seconds}s old`;
+    if (seconds < 3600) return `${Math.floor(seconds / 60)}m old`;
+    return `${Math.floor(seconds / 3600)}h old`;
   }
 }

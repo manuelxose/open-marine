@@ -164,6 +164,42 @@ import { TranslatePipe } from '../../../shared/pipes/translate.pipe';
       0% { transform: scale(0.5); opacity: 0; }
       100% { transform: scale(1); opacity: 1; }
     }
+
+    @media (max-width: 640px), (max-height: 720px) {
+      .welcome-step {
+        box-sizing: border-box;
+        width: 100%;
+        padding: var(--space-2) 0;
+      }
+
+      .welcome-logo {
+        width: 72px;
+        height: 72px;
+      }
+
+      .welcome-title {
+        margin: var(--space-3) 0 0;
+        font-size: 1.15rem;
+      }
+
+      .welcome-desc {
+        margin-top: var(--space-2);
+      }
+
+      .feature-list {
+        margin: var(--space-4) 0;
+        gap: var(--space-2);
+      }
+
+      .wizard-nav,
+      .skip-link {
+        margin-top: var(--space-2);
+      }
+
+      .btn-primary {
+        width: min(100%, 320px);
+      }
+    }
   `],
 })
 export class WelcomeStepComponent {
