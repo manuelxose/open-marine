@@ -19,9 +19,14 @@ Sensor / simulator → Signal K (Docker) → WebSocket → `SignalKClientService
   buffers, own-ship track filtering) and `state/datapoints/datapoint.selectors.ts`.
 - AIS state: `state/ais/ais-store.service.ts` (targets signal, CPA/TCPA risk, track buffer; emissions coalesced).
 - Other state: `state/{alarms,autopilot,calculations,connectivity,playback,resources,vessel}/`.
-- Chart: `features/chart/chart.page.ts` (wires signal `effect`s → engine),
-  `features/chart/services/maplibre-engine.service.ts` (plain class, WebGL),
-  `features/chart/services/chart-facade.service.ts`.
+- Chart: `features/chart/chart.page.ts` (single `/chart` experience; wires coalesced signal effects
+  → engine), `features/chart/services/maplibre-engine.service.ts` (plain WebGL class with
+  style-generation guards), `features/chart/services/{chart-facade,chart-settings,coalesced-map-effects}.ts`.
+- Chart manager: `features/chart/components/{chart-manager,chart-source-catalog,environment-panel}/`
+  — base maps, navigation, weather/sea, offline area packages and diagnostics. Quick weather
+  forecast is intentionally separate.
+- Chart APIs: `data-access/chart/{chart-engine-api,chart-remote-catalog,environment-api}.service.ts`;
+  every URL starts from `APP_ENVIRONMENT.chartEngineApiUrl`.
 - Shared UI: `shared/components/`, `shared/styles/` (theme tokens), `shared/directives/`.
 - Aesthetic / design system (read before styling): `design-system.md` — Glass Bridge `--gb-*` theme, night-mode default, no hardcoded colors.
 
@@ -33,6 +38,12 @@ Sensor / simulator → Signal K (Docker) → WebSocket → `SignalKClientService
 - Simulator (`marine-simulation-platform/`): deterministic scenarios + presets + HTTP/WebSocket publishers; API on 4100 (`bench`/`closed-loop`), `live` streams to Signal K.
 - Runtime: `signalk-runtime/` (docker compose + plugin/settings data).
 - Tiles: `marine-chart-toolkit/` (MBTiles CLI), `marine-tile-server/src/index.ts` (Express).
+- Chart engine (`marine-chart-engine/src/`): `server.ts`/`config.ts`; source catalog and WMS/XYZ
+  proxies; `/catalog/package-plans` and `/catalog/packages`; S-57/S-63/MBTiles import support;
+  `/weather/forecast`, `/weather/wind-field.geojson`, environment frames and Vigo tides.
+- Offline package services: `services/{area-geometry,area-search,package-planner,chart-package}.ts`.
+- Environment services: `services/{environment-catalog,environment-sync,weather-forecast,wind-field,tide}.service.ts`;
+  Copernicus sync script in `marine-chart-engine/scripts/sync-copernicus-vigo.py`.
 - Cross-platform helpers: `scripts/` (init, migrate/deploy, status, start-{ais,gps,imu}).
 
 ## Patterns & conventions
@@ -51,6 +62,10 @@ Sensor / simulator → Signal K (Docker) → WebSocket → `SignalKClientService
   message; do not clone Maps per message.
 - Avoid per-frame `getBoundingClientRect` / forced reflow; batch DOM reads inside one `requestAnimationFrame`.
 - Throttle camera animation (`easeTo`) against sensor jitter using bearing/center deltas.
+- Treat every MapLibre style as a generation: invalidate stale RAF/idle/timers, initialize only
+  from the current `style.load`, and reapply desired vessel/AIS/navigation/weather state once.
+- Weather wind fields use cached symbol-layer meteorological barbs. Persist area bounds, update the
+  GeoJSON source URL as one coalesced operation and let stale requests be cancelled.
 
 ## Validation (narrowest first)
 

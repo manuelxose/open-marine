@@ -13,6 +13,13 @@ Check:
 - No generated bundles or cache files added: `dist`, `dist-tmp`, `.angular`, `node_modules`, logs.
 - Signal K path/type changes remain centralized in `marine-data-contract`.
 - UI endpoint changes still work for localhost, LAN and Raspberry-hosted UI.
+- Browser map/weather URLs use `APP_ENVIRONMENT.chartEngineApiUrl`; no emitted `localhost:8088`.
+- MapLibre mutations are guarded by current style generation and `style.load`; rapid style changes
+  preserve own vessel, AIS, navigation and environment overlays.
+- Offline packages never prefetch prohibited OSM/Esri/IHM/OpenSeaMap tiles. Licensed IHM/S-63
+  exchange sets remain guided imports; manifests retain source, coverage, datum, attribution and license.
+- Weather failures are controlled: fresh cache 15 minutes, stale fallback up to 24 hours, requests
+  coalesced per position/area, selected wind bounds validated and persisted.
 - Raspberry service changes preserve `omi-ui`, `omi-gps`, `omi-imu` and `signalk` behavior.
 - Tests/builds match touched subsystem.
 - Autopilot safety: STANDBY default, no motor at boot, watchdog present, E-stop latches.

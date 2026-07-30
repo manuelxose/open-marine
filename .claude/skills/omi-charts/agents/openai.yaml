@@ -1,0 +1,4 @@
+interface:
+  display_name: "OMI Charts"
+  short_description: "Open Marine charts, MapLibre and weather"
+  default_prompt: "Use $omi-charts to implement and validate an Open Marine chart or weather change locally."

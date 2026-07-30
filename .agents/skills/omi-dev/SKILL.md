@@ -1,6 +1,6 @@
 ---
 name: omi-dev
-description: Work efficiently in the open-marine-instrumentation repository with low token usage. Use when coding, reviewing, debugging, validating, or operating Open Marine modules including Angular UI, Signal K, Raspberry GPS/IMU/AIS, simulator, chart tooling, setup scripts, and deployment docs.
+description: Work efficiently in the open-marine-instrumentation repository with low token usage. Use when coding, reviewing, debugging, validating, or operating Open Marine modules including Angular UI, Signal K, Raspberry GPS/IMU/AIS, simulation, chart engine, MapLibre, offline charts, weather services, setup scripts, and deployment docs.
 ---
 
 # OMI Dev
@@ -9,6 +9,7 @@ Use this skill to avoid rediscovering the Open Marine repo structure. Keep the m
 
 For focused tasks, prefer the specialized OMI skills:
 - `omi-ui-change` — Angular UI, chart, dashboard, instruments, styles
+- `omi-charts` — chart engine, MapLibre, sources, offline packages, S-63, weather, tides
 - `omi-sensor-change` — sensors, gateway, simulator, Signal K contract
 - `omi-contract-first` — shared paths, types, units, quality flags
 - `omi-autopilot-safety` — autopilot, motor, failsafe, safety-critical code
@@ -35,6 +36,18 @@ These skills are available in `.claude/skills/`, `.copilot/skills/`, and `.agent
 6. Load `references/project-map.md` only when module boundaries or commands are unclear.
 7. Load `references/raspberry-runtime.md` only for Raspberry, Signal K, SSH, or systemd work.
 8. Validate only the affected package unless the change crosses package boundaries.
+
+## Current Chart Architecture
+
+- `/chart` is the single maps experience. The manager contains base maps, navigation, weather/sea,
+  offline packages and diagnostics; quick forecast remains a separate top widget.
+- Browser chart and weather URLs come from `APP_ENVIRONMENT.chartEngineApiUrl`; never emit
+  `localhost:8088` from source factories or API responses.
+- `marine-chart-engine` owns catalog availability, proxy/cache, forecast fallback, environment
+  vectors, tides and geometry-based chart packages.
+- MapLibre style swaps use a generation guard. Never mutate sources/layers before the current
+  `style.load`; preserve vessel, AIS, navigation and weather overlays across styles.
+- Use `omi-charts` before changing this subsystem.
 
 ## Do Not Load By Default
 

@@ -28,6 +28,8 @@ description: Implement or review autopilot changes safely. Use for motor control
 6. Make change.
 7. Validate: `cd marine-autopilot-engine && npm test && npm run build`
 8. Run simulator validation: `AP_MOTOR_BACKEND=sim npm run dev`
+9. If the change touches the chart, verify autopilot target, own vessel and safety overlays survive
+   20 rapid base-style changes. Weather/chart data is advisory and must never drive the actuator.
 
 ## Expected output
 - State change summary

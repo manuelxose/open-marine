@@ -1,6 +1,6 @@
 ---
 name: omi-ui-change
-description: Implement focused Angular UI changes in Open Marine with minimal context. Use for chart, dashboard, instruments, settings, styles, PWA manifest, Signal K UI client, or UI build issues.
+description: Implement focused Angular UI changes in Open Marine with minimal context. Use for chart, dashboard, instruments, settings, weather widgets, map panels, styles, PWA manifest, Signal K UI client, or UI build issues.
 ---
 
 # OMI UI Change
@@ -14,7 +14,17 @@ Start from these files (don't grep to rediscover them) — all under `marine-ins
 - Endpoints: `core/config/app-environment.token.ts` (`APP_ENVIRONMENT`)
 - Signal K client: `data-access/signalk/signalk-client.service.ts`
 - State hubs: `state/datapoints/datapoint-store.service.ts`, `state/ais/ais-store.service.ts`
-- Chart (map): `features/chart/chart.page.ts` + `features/chart/services/` (incl. `maplibre-engine.service.ts`) — vessel marker, true/apparent wind vectors. Recent performance refactor: effects are coalesced via `coalesced-map-effects.ts`, `MapLibreEngineService` uses a static icon cache, `onStyleReady()` is batched with a 4 ms budget, and `FRAME_LAYER_BUDGET` is 1. Do not revert these patterns.
+- Chart (map): `features/chart/chart.page.ts` + `features/chart/services/` (incl.
+  `maplibre-engine.service.ts`) — vessel/AIS, navigation overlays, weather and area selection.
+  Effects are coalesced via `coalesced-map-effects.ts`; style generations invalidate stale RAF,
+  idle work and callbacks; `style.load` is the only initialization gate; icons use a static cache;
+  `onStyleReady()` is frame-budgeted. Do not revert these patterns.
+- Chart manager: `features/chart/components/chart-manager/`; `/chart` is the only map route and
+  quick base-map switching must not open the manager. Weather forecast and weather/sea layers have
+  separate direct controls.
+- Environment UI: `components/environment-panel/`, `data-access/chart/environment-api.service.ts`
+  and `ChartSettingsService.weatherBounds`. Wind uses standard meteorological barbs, not simple
+  arrows. Selection supports current viewport, drawn rectangle and Vigo preset.
 - Signal charts: `shared/components/uplot-chart/` rendered by `features/diagnostics/` (simulation/autopilot/motor signals over time)
 - Shared: `shared/components/`, `shared/styles/`
 
@@ -35,4 +45,7 @@ Workflow:
 4. Heavy/recurring/map/high-frequency work must run outside `NgZone` (`runOutsideAngular`); coalesce
    hot streams. See the performance rules in `architecture.md`.
 5. Validate: `cd marine-instrumentation-ui && npm run build` (CSS budget warnings are pre-existing).
-   Add focused tests only for changed behavior.
+   Run `npm run test:ci` for state/engine changes and targeted Playwright desktop/tablet coverage
+   for map interactions. Add focused tests for changed behavior.
+
+For chart sources, packages, MapLibre lifecycle or weather backend changes, also use `omi-charts`.

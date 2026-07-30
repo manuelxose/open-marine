@@ -246,13 +246,14 @@ All agents should load the appropriate skill automatically. Skills are duplicate
 
 | Agent / IDE | Directory | Skills |
 |-------------|-----------|--------|
-| Claude Code | `.claude/skills/` | `omi-autopilot-safety`, `omi-contract-first`, `omi-raspberry`, `omi-review`, `omi-run`, `omi-sensor-change`, `omi-simulation-platform`, `omi-test-bench`, `omi-ui-change`, `omi-dev` |
-| GitHub Copilot / Codex | `.copilot/skills/` | `omi-autopilot-safety`, `omi-contract-first`, `omi-raspberry`, `omi-review`, `omi-run`, `omi-sensor-change`, `omi-simulation-platform`, `omi-test-bench`, `omi-ui-change`, `omi-dev` |
-| Kimi Code CLI | `.agents/skills/` | `omi-autopilot-safety`, `omi-contract-first`, `omi-raspberry`, `omi-review`, `omi-run`, `omi-sensor-change`, `omi-simulation-platform`, `omi-test-bench`, `omi-ui-change`, `omi-dev` |
+| Claude Code | `.claude/skills/` | `omi-autopilot-safety`, `omi-charts`, `omi-contract-first`, `omi-raspberry`, `omi-review`, `omi-run`, `omi-sensor-change`, `omi-simulation-platform`, `omi-test-bench`, `omi-ui-change`, `omi-dev` |
+| GitHub Copilot / Codex | `.copilot/skills/` | `omi-autopilot-safety`, `omi-charts`, `omi-contract-first`, `omi-raspberry`, `omi-review`, `omi-run`, `omi-sensor-change`, `omi-simulation-platform`, `omi-test-bench`, `omi-ui-change`, `omi-dev` |
+| Kimi Code CLI | `.agents/skills/` | `omi-autopilot-safety`, `omi-charts`, `omi-contract-first`, `omi-raspberry`, `omi-review`, `omi-run`, `omi-sensor-change`, `omi-simulation-platform`, `omi-test-bench`, `omi-ui-change`, `omi-dev` |
 
 ### User-scope skills
 
 - `omi-dev` is also available globally for Codex/Copilot at `~/.codex/skills/omi-dev/`.
+- `omi-charts` is also available globally for Codex at `~/.codex/skills/omi-charts/`.
 - `omi-dev` is also available globally for Claude at `~/.claude/skills/omi-dev/`.
 - `omi-dev` is also available globally for Kimi at `~/.config/agents/skills/omi-dev/` and `~/.kimi/skills/omi-dev/`.
 

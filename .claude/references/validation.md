@@ -11,6 +11,7 @@ On-demand reference for CI and local validation commands. Load only when validat
 | `marine-simulation-platform` | `npm test` | `npm run build` | Deterministic; isolated DB + ports (API 4100); run via `npm run test:simulation` |
 | `marine-instrumentation-ui` | `npm run test:ci` | `npm run build` | CSS budget warnings are pre-existing |
 | `marine-autopilot-engine` | `npm test` | `npm run build` | Simulator backend: `AP_MOTOR_BACKEND=sim` |
+| `marine-chart-engine` | `npm test` | `npm run build` | Includes catalog, packages, weather/cache, tides and proxy tests |
 | `marine-chart-toolkit` | — | `npm run build` | CLI tool; validate with `node dist/index.js --help` |
 | `marine-tile-server` | — | `npm run build` | Validate with `node dist/index.js` (starts server) |
 | `signalk-runtime` | — | — | `docker ps --filter name=signalk` |
@@ -34,5 +35,15 @@ CI must include:
 5. `marine-autopilot-engine` — test + build
 6. `marine-chart-toolkit` — build
 7. `marine-tile-server` — build
+8. `marine-chart-engine` — test + build
 
 Missing any of the above = CI gap.
+
+## Chart interaction validation
+
+- Unit/state: `cd marine-instrumentation-ui && npm run test:ci`
+- Build/lint: `npm run build && npm run lint`
+- Desktop/tablet map flow:
+  `npx playwright test e2e/chart-environment.spec.ts`
+- For provider work, run a temporary local chart engine on a free port and verify health plus the
+  affected endpoint. Never use Raspberry deployment as local validation.

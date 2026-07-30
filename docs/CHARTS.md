@@ -10,11 +10,12 @@ Open Marine supports legal local chart data through the `marine-chart-engine`. T
 | MBTiles vector | Direct import | Used by local ENC vector tile styles |
 | GeoTIFF | GDAL conversion to raster MBTiles | Requires `gdal_translate` and `gdaladdo` |
 | KAP | GDAL conversion to raster MBTiles | Requires GDAL support for the source |
-| S-57 `.000` | ogr2ogr + tippecanoe conversion to vector MBTiles | Only unencrypted, legal, open S-57 data |
+| S-57 `.000` | ogr2ogr + tippecanoe conversion to vector MBTiles | Unencrypted legal S-57 and compliant S-63 output |
+| S-63 exchange set | Licensed import gate | Requires a registered OEM/test identity, USERPERMIT, cell permits and compliant external S-63 tooling |
 
 Explicitly unsupported:
 
-- S-63
+- S-63 license bypass or application-managed decryption without compliant OEM tooling
 - oeSENC
 - encrypted charts
 - commercial chart decryption
@@ -44,6 +45,37 @@ The chart registry is stored in:
 ```
 
 In Windows development, the default storage remains under `marine-chart-engine/data/`.
+
+## Area packages
+
+`Offline charts` is an area-package assistant. It accepts a CartoCiudad place
+search, WGS84 coordinates, current map viewport, rectangle or polygon drawn on
+the chart. The recommended Spain profile plans these layers:
+
+1. licensed IHM ENC as the required official source;
+2. official MBAR/CNIG bathymetry when legally imported;
+3. EMODnet bathymetry as an automatically downloadable supplement;
+4. IHM/INSPIRE coastline and OpenSeaMap seamarks from legal extracts.
+
+The package manifest records geometry, bounds, source roles, official status,
+license, acquisition method, zooms, estimated size and update state. Standard
+OSM/OpenSeaMap tiles are never bulk downloaded.
+
+API:
+
+```txt
+POST   /catalog/areas/search
+POST   /catalog/package-plans
+GET    /catalog/packages
+POST   /catalog/packages
+POST   /catalog/packages/:id/repair
+POST   /catalog/packages/:id/update
+POST   /catalog/packages/:id/cancel
+POST   /catalog/packages/:id/layers/:layerId/attach
+DELETE /catalog/packages/:id
+GET    /catalog/installation
+GET    /catalog/s63/status
+```
 
 ## Raster Conversion
 
@@ -101,6 +133,31 @@ npm run charts:convert-s57 -- --input /path/to/chart.000 --output /tmp/chart.mbt
 
 The generated vector MBTiles are consumed by the UI ENC vector style using these source-layer names.
 
+## Licensed S-63
+
+OMI creates a stable local installation identity and HW_ID under the chart data
+directory. A USERPERMIT is accepted only through secure local configuration:
+
+```txt
+CHART_ENGINE_S63_MODE=test|production
+CHART_ENGINE_S63_USERPERMIT=<28 hexadecimal characters>
+```
+
+`GET /catalog/s63/status` reports missing OEM/distributor registration,
+USERPERMIT and conversion tools without exposing OEM keys. Generic IHO
+credentials are limited to official test exchange sets. Production use requires
+a registered OEM/distributor workflow and a compliant external S-63 processor;
+OMI does not implement or bypass commercial encryption itself. Once legally
+decrypted and verified, base `.000` cells and ordered updates are converted by
+the existing S-57 pipeline and attached to the area package.
+
+Run the idempotent local setup/diagnostic:
+
+```powershell
+cd marine-chart-engine
+.\scripts\setup-local-charts.ps1
+```
+
 ## Bathymetry
 
 Complete local bathymetry should be imported as raster MBTiles. EMODnet WMS is available for online display; use an official EMODnet DTM extract and the raster conversion workflow for offline use.
@@ -128,7 +185,9 @@ Install `marine-chart-engine/scripts/requirements-copernicus.txt`, authenticate 
 
 Vigo tides come from IHM port 29 through `/tides/vigo?date=YYYY-MM-DD`. Values are official predictions and retain local `Europe/Madrid` clock times. Cached or stale state and age are shown explicitly. They are not observed levels and are not silently applied to chart soundings.
 
-Use SSD storage for `CHART_ENGINE_DATA_DIR`. S-63, oeSENC, encrypted charts, decryption and license bypasses remain unsupported. Open Marine is recreational assistance, not an ECDIS or a substitute for official charts.
+Use SSD storage for `CHART_ENGINE_DATA_DIR`. oeSENC, license bypasses and
+application-managed commercial decryption remain unsupported. Open Marine is a
+recreational ECS, not an ECDIS or a substitute for official charts.
 
 ## Frequent Errors
 

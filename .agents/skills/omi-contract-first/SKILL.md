@@ -20,6 +20,9 @@ description: Change shared Signal K paths, types, units, or quality flags. Use w
 ## Files to avoid
 - Do not duplicate PATHS strings in gateway, simulator, UI, or autopilot.
 - Do not create UI-only DTOs for data that should be shared.
+- Do not put chart catalogs, package manifests, weather forecast envelopes or MapLibre layer
+  descriptors in `marine-data-contract`; they belong to chart-engine/UI data access unless they
+  represent Signal K sensor data shared across runtime modules.
 
 ## Workflow
 1. Change contract first.

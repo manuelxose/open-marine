@@ -33,6 +33,8 @@ Test-bench duties live in the `marine-simulation-platform` package (there is no 
 4. Retention rules must be explicit (`BENCH_RETENTION_DAYS`, `BENCH_RETENTION_MAX_BYTES`).
 5. Reject physical motor backends, Pico serial devices, and HIL confirmation
    variables. HIL uses a separate autopilot process on API port 43990.
+6. Mock chart-engine catalog/weather endpoints when deterministic visuals are required. Never
+   mutate production chart caches, licensed S-63 material or local package manifests from bench runs.
 
 ## Validation
 - `npm run test:simulation` (root) or `cd marine-simulation-platform && npm test && npm run build`.

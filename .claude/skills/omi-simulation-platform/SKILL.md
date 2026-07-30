@@ -50,6 +50,9 @@ Contract: `marine-data-contract/src/paths.ts` — single source of truth for win
    booleans (`drive`, `fault`) as step plots.
 6. **No hardcoded colors.** Style via Glass Bridge `--gb-*` and `--chart-overlay-*` tokens; the only
    exception is MapLibre WebGL paint (mirror a token value in hex + comment).
+7. **Keep weather models separate.** Simulated true/apparent vessel wind uses Signal K contract
+   paths; Open-Meteo barbs, OpenWeatherMap rasters and Copernicus fields are chart-engine overlays.
+   Tests may mock those endpoints but must not merge forecast values into the simulated sensor bus.
 
 ## Validation
 - Contract paths changed: `cd marine-data-contract && npm run test:run && npm run build`.

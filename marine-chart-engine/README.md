@@ -24,6 +24,9 @@ CHART_ENGINE_CACHE_DIR=/var/lib/open-marine/chart-cache
 CHART_ENGINE_UPLOAD_DIR=/var/lib/open-marine/chart-uploads
 CHART_ENGINE_REGISTRY_FILE=/var/lib/open-marine/charts/registry.local.json
 CHART_ENGINE_UPLOAD_MAX_MB=2048
+CHART_ENGINE_TILE_CACHE_TTL_DAYS=30
+CHART_ENGINE_CACHE_MAX_MB=2048
+CHART_ENGINE_CACHE_MIN_FREE_MB=2048
 EMODNET_TILE_URL_TEMPLATE=
 CHART_ENGINE_OWM_API_KEY=
 CHART_ENGINE_COPERNICUS_SYNC_ENABLED=false
@@ -73,7 +76,16 @@ journalctl -u omi-charts -f
 - `GET /environment/:layerId/:time/:z/:x/:y.png`
 - `GET /environment/sync/status`
 - `POST /environment/sync`
+- `GET /catalog/enc/marine-mask.geojson?bbox=west,south,east,north[&area=<Polygon>&chartIds=id,...]`
+- `GET /catalog/enc/depth-overlay.geojson?bbox=west,south,east,north&safetyDepthM=5[&area=<Polygon>&layers=depth_areas,...]`
+- `POST /catalog/enc/hazards/query`
+- `GET /catalog/ihm/feature-info?lng=&lat=&zoom=`
 - `GET /tides/vigo?date=YYYY-MM-DD`
+
+The marine mask prefers indexed geometry from authorised vector ENC imports (`DEPARE` minus
+`LNDARE`), then the detailed bundled coastal mask, and finally Natural Earth’s global land
+geometry. IHM public `GetFeatureInfo` remains informational and never feeds masks, depth safety or
+alarms. The depth overlay returns `coverage: unavailable` when no authorised ENC index exists.
 
 Import endpoints accept multipart form data with a `file` field plus:
 
