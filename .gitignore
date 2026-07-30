@@ -28,6 +28,7 @@ coverage/
 .env
 .env.local
 .env.*.local
+.venv/
 
 # IDE & Editor
 .idea/
@@ -77,6 +78,9 @@ lerna-debug.log*
 
 # Local env files
 .env.local
+
+# Chart cache (generated tiles)
+marine-chart-engine/data/chart-cache/
 .env.*.local
 
 # IDE local files
@@ -94,6 +98,7 @@ lerna-debug.log*
 __pycache__/
 *.py[cod]
 marine-chart-engine/data/chart-cache/
+marine-chart-engine/data/environment/
 marine-chart-engine/data/charts/downloads.local.json
 
 # Local tooling binaries
@@ -103,3 +108,4 @@ tools/*
 # Raspberry migration local config (contains credentials)
 config/raspberry.env
 config/omi.env
+config/charts.local.env
